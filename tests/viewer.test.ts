@@ -278,11 +278,12 @@ describe('model bounds and contact shadow', () => {
       0.38,
       {
         depthScale: 0.9,
-        horizontalOffset: -0.62,
+        horizontalOffset: -0.61,
+        yOffset: 0.11,
       },
     )
 
-    expect(layout.position.toArray()).toEqual([-0.62, 0.006, 0])
+    expect(layout.position.toArray()).toEqual([-0.61, 0.116, 0])
     expect(layout.scale.x).toBeCloseTo(1.216)
     expect(layout.scale.y).toBeCloseTo(0.3888)
     expect(layout.scale.z).toBe(1)

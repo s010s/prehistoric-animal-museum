@@ -19,9 +19,10 @@ export const animalDefinition = definePublishedAnimal({
     safeAreaPadding: 0.12,
     shadow: 'ground',
     shadowDepthScale: 0.9,
-    shadowHorizontalOffset: -0.62,
+    shadowHorizontalOffset: -0.61,
     shadowOpacity: 0.56,
     shadowScale: 0.38,
+    shadowYOffset: 0.11,
     toneMappingExposure: 1.28,
   },
   animation: {
