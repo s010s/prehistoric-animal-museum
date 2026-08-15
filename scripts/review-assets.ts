@@ -222,8 +222,9 @@ const reviewAnimalFiles: Readonly<
       'mammoth',
       'backgrounds/portrait.webp',
     ),
-    narration: repositoryFile(
-      '.handoff/collection-review/audio/mammoth.mp3',
+    narration: productionAnimalAsset(
+      'mammoth',
+      'audio/narration.zh-CN.mp3',
     ),
     poster: productionAnimalAsset(
       'mammoth',
@@ -440,6 +441,75 @@ const routeFilePairs = Object.entries(reviewAnimalFiles).flatMap(
   },
 )
 
+const scaleEncounterEnvironmentAssetFiles = [
+  'forest-props-real-v1.glb',
+  'forest-ecology-real-v2.glb',
+  'real-tree-lods-v1.glb',
+  'midground-vegetation-atlas-v1.webp',
+  'midground-vegetation-atlas-v2.webp',
+  'midground-araucaria-components-v3.webp',
+  'midground-araucaria-components-v4.webp',
+  'midground-frond-components-v4-final.webp',
+  'midground-mature-tree-atlas-v1.webp',
+  'midground-mature-tree-atlas-v1-1024.webp',
+  'far-tree-atlas-v1.webp',
+  'panorama-land-cretaceous-v4-open-1774.webp',
+  'panorama-land-cretaceous-v4-open-1024.webp',
+  'panorama-land-cretaceous-v5-farfield-4096.webp',
+  'panorama-land-cretaceous-v5-farfield-2048.webp',
+  'surface-land-v4-humus-albedo-1254.webp',
+  'surface-land-dry-decay-litter-v1.webp',
+  'panorama-land-cretaceous-2048.webp',
+  'panorama-land-cretaceous-4096.webp',
+  'panorama-land-cretaceous-8192.webp',
+  'panorama-air-cretaceous-2048.webp',
+  'panorama-air-cretaceous-4096.webp',
+  'panorama-air-cretaceous-8192.webp',
+  'panorama-water-cretaceous-2048.webp',
+  'panorama-water-cretaceous-4096.webp',
+  'panorama-water-cretaceous-8192.webp',
+  'panorama-snow-ice-age-2048.webp',
+  'panorama-snow-ice-age-4096.webp',
+  'panorama-snow-ice-age-8192.webp',
+  ...(['land', 'water', 'snow'] as const).flatMap((theme) =>
+    (['albedo', 'normal', 'roughness'] as const).flatMap((map) => [
+      `surface-${theme}-${map}-1024.webp`,
+      `surface-${theme}-${map}-2048.webp`,
+    ]),
+  ),
+] as const
+
+const scaleEncounterEnvironmentRouteFilePairs =
+  scaleEncounterEnvironmentAssetFiles.map(
+    (fileName) =>
+      [
+        `${localReviewAssetPrefix}/scale-encounter-environments/${fileName}`,
+        repositoryFile(
+          `assets/candidates/scale-encounter-environments/${fileName}`,
+        ),
+      ] as const,
+  )
+
+export const scaleEncounterChildAvatarAssetFiles = [
+  'child-avatar-v3-boy-land-normal.glb',
+  'child-avatar-v3-girl-land-normal.glb',
+] as const
+
+const scaleEncounterChildAvatarRouteFilePairs =
+  scaleEncounterChildAvatarAssetFiles.map(
+    (fileName) =>
+      [
+        `${localReviewAssetPrefix}/scale-encounter-child-avatar/${fileName}`,
+        repositoryFile(
+          `assets/candidates/scale-encounter-child-avatar/${fileName}`,
+        ),
+      ] as const,
+  )
+
 export const localReviewAssetFiles: ReadonlyMap<string, string> = new Map(
-  routeFilePairs,
+  [
+    ...routeFilePairs,
+    ...scaleEncounterEnvironmentRouteFilePairs,
+    ...scaleEncounterChildAvatarRouteFilePairs,
+  ],
 )

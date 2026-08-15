@@ -1,5 +1,6 @@
 import { createReadStream, readFileSync, statSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -27,6 +28,20 @@ const redistributableNotices = [
   'LICENSES/React-MIT.txt',
   'LICENSES/Three.js-MIT.txt',
 ] as const
+
+const scaleEncounterEnabledModes = new Set([
+  'development',
+  'e2e',
+  'review',
+  'test',
+])
+
+function scaleEncounterEntryAlias(mode: string): string {
+  const entryFile = scaleEncounterEnabledModes.has(mode)
+    ? './src/scale-encounter/entry-enabled.ts'
+    : './src/scale-encounter/entry-disabled.ts'
+  return fileURLToPath(new URL(entryFile, import.meta.url))
+}
 
 function bundledNotices(): Plugin {
   return {
@@ -278,12 +293,20 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     base: './',
+    resolve: {
+      alias: {
+        'virtual:scale-encounter-entry': scaleEncounterEntryAlias(mode),
+      },
+    },
     plugins: [
       react(),
       bundledNotices(),
       multilingualSeoPlugin(),
       privateLocalMaterialGuard(),
-      localReview(command === 'serve' && mode === 'review'),
+      localReview(
+        command === 'serve' &&
+          (mode === 'review' || mode === 'development'),
+      ),
     ],
     server: {
       allowedHosts,

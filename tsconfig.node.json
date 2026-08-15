@@ -16,6 +16,7 @@
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
+    "playwright.scale-encounter-gpu.config.ts",
     "playwright.readme-screenshots.config.ts",
     "playwright.review.config.ts",
     "eslint.config.js",

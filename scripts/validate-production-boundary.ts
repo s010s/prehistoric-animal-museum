@@ -1,54 +1,58 @@
-import { readdir, readFile } from 'node:fs/promises'
 import { extname, join, relative } from 'node:path'
 
 import { mainCollection } from '../src/content/collections/main'
 import { supportedLocales } from '../src/i18n/locale'
 import { localReviewAssetPrefix } from './review-assets'
 import { unprefixedRouteMarker } from './review-server-security'
+import {
+  collectProductionFiles,
+  findForbiddenProductionMarkers,
+  scaleEncounterPrivateReviewMarkers,
+} from './production-boundary-markers'
 
 const distributionRoot = join(process.cwd(), 'dist')
+const scaleEncounterReviewAudioMarkers = [
+  'tyrannosaurus-rex',
+  'pteranodon',
+  'mosasaurus',
+  'mammoth',
+].flatMap((animalId) =>
+  ['intro', 'transition', 'arrival'].map(
+    (segment) => `${animalId}-${segment}.`,
+  ),
+)
 const forbiddenMarkers = [
   unprefixedRouteMarker(localReviewAssetPrefix),
   '.handoff/collection-review',
   'assets/candidates',
+  'DirectScaleEncounter',
+  'panorama-land-cretaceous',
+  'panorama-air-cretaceous',
+  'panorama-water-cretaceous',
+  'panorama-snow-ice-age',
+  'scale-encounter-child-avatar',
+  ...scaleEncounterPrivateReviewMarkers,
+  ...scaleEncounterReviewAudioMarkers,
   'parasaurolophus',
   '副栉龙',
-] as const
-
-async function collectFiles(directory: string): Promise<string[]> {
-  const entries = await readdir(directory, { withFileTypes: true })
-  const files: string[] = []
-
-  for (const entry of entries) {
-    const absolutePath = join(directory, entry.name)
-    if (entry.isDirectory()) {
-      files.push(...(await collectFiles(absolutePath)))
-    } else if (entry.isFile()) {
-      files.push(absolutePath)
-    }
-  }
-
-  return files
-}
+]
 
 const findings: string[] = []
-const files = await collectFiles(distributionRoot)
+const files = await collectProductionFiles(distributionRoot)
 const distributionPaths = new Set(
   files.map((absolutePath) => relative(distributionRoot, absolutePath)),
 )
 
-for (const absolutePath of files) {
-  const source = await readFile(absolutePath)
-  const distributionPath = relative(distributionRoot, absolutePath)
-  for (const marker of forbiddenMarkers) {
-    if (
-      distributionPath.includes(marker) ||
-      source.includes(Buffer.from(marker))
-    ) {
-      findings.push(`${distributionPath}: ${marker}`)
-    }
-  }
-}
+const markerFindings = await findForbiddenProductionMarkers(
+  distributionRoot,
+  forbiddenMarkers,
+  files,
+)
+findings.push(
+  ...markerFindings.map(
+    ({ distributionPath, marker }) => `${distributionPath}: ${marker}`,
+  ),
+)
 
 const glbFiles = files.filter((file) => extname(file) === '.glb')
 const mp3Files = files.filter((file) => extname(file) === '.mp3')

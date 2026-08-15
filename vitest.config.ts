@@ -12,6 +12,12 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      'virtual:scale-encounter-entry': fileURLToPath(
+        new URL(
+          './src/scale-encounter/entry-enabled.ts',
+          import.meta.url,
+        ),
+      ),
       'virtual:local-review-catalog': fileURLToPath(
         new URL('./src/review/empty-catalog.ts', import.meta.url),
       ),

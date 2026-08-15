@@ -45,6 +45,11 @@ const zhCN = {
   focusReturnHint: '轻点画面即可返回',
   exitFocus: '退出模型专注模式',
   focusExited: '已经回到完整的博物馆界面。',
+  scaleEncounter: {
+    open: '和我比一比',
+    openLabel: (animal: string) => `打开和${animal}比一比的等比例相遇场景`,
+    loading: '正在打开比一比…',
+  },
   loading: {
     preparingExhibit: '正在准备新的动物展台。',
     retryingExhibit: '正在重新准备展台。',
@@ -204,6 +209,11 @@ const en = {
   focusReturnHint: 'Tap the scene to return',
   exitFocus: 'Exit model focus mode',
   focusExited: 'The complete museum view is back.',
+  scaleEncounter: {
+    open: 'Compare with me',
+    openLabel: (animal) => `Open a same-scale encounter with ${animal}`,
+    loading: 'Opening the comparison…',
+  },
   loading: {
     preparingExhibit: 'Preparing a new animal exhibit.',
     retryingExhibit: 'Preparing the exhibit again.',

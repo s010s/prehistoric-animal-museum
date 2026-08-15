@@ -5,7 +5,6 @@ import {
   SkinnedMesh,
   Texture,
   type Object3D,
-  type WebGLRenderer,
 } from 'three'
 
 export interface DisposalCounts {
@@ -67,7 +66,7 @@ function collectClosableImageSource(
 
 export function disposeObject3D(
   root: Object3D,
-  renderer?: Pick<WebGLRenderer, 'renderLists'>,
+  renderer?: { readonly renderLists: { dispose(): void } },
 ): DisposalCounts {
   const geometries = new Set<Disposable>()
   const materials = new Set<Material>()

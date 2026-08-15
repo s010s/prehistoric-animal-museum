@@ -15,6 +15,7 @@ import type { ViteDevServer } from 'vite'
 import {
   localReviewAssetFiles,
   localReviewAssetPrefix,
+  scaleEncounterChildAvatarAssetFiles,
 } from '../scripts/review-assets'
 import {
   assertReviewModeIsServeOnly,
@@ -93,6 +94,28 @@ describe('local review server boundary', () => {
         `${localReviewAssetPrefix}/mammoth/narration.mp3`,
       ),
     ).toBe(true)
+  })
+
+  it('allowlists exactly the two canonical v3 child bases and no neighboring candidate files', () => {
+    const routePrefix =
+      `${localReviewAssetPrefix}/scale-encounter-child-avatar/`
+    const avatarRoutes = [...localReviewAssetFiles.keys()]
+      .filter((route) => route.startsWith(routePrefix))
+      .sort()
+    expect(avatarRoutes).toEqual(
+      scaleEncounterChildAvatarAssetFiles
+        .map((fileName) => `${routePrefix}${fileName}`)
+        .sort(),
+    )
+    expect(avatarRoutes).toHaveLength(2)
+    for (const blocked of [
+      'child-avatar-v3.manifest.json',
+      'child-avatar-v3-boy-land-normal.glb.bak',
+      'generate_child_avatar_v3.py',
+      'child-avatar-review-candidates.glb',
+    ]) {
+      expect(localReviewAssetFiles.has(`${routePrefix}${blocked}`)).toBe(false)
+    }
   })
 
   it('keeps ignored source files outside Vite file-serving access', async () => {
@@ -214,6 +237,77 @@ describe('local review server boundary', () => {
         expect(nonFile.response.getHeader('Cache-Control')).toBe('no-store')
       } finally {
         mutableReviewAssets.delete(nonFileRoute)
+      }
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('serves only the allowlisted v3 environment file through the development server pipeline', async () => {
+    const server = await createServer({
+      appType: 'custom',
+      configFile: join(process.cwd(), 'vite.config.ts'),
+      logLevel: 'silent',
+      mode: 'development',
+      server: { middlewareMode: true },
+    })
+
+    try {
+      const allowed = dispatchHead(
+        server,
+        `${localReviewAssetPrefix}/scale-encounter-environments/panorama-land-cretaceous-2048.webp`,
+      )
+      expect(allowed.nextCalled).toBe(false)
+      expect(allowed.response.statusCode).toBe(200)
+      expect(allowed.response.getHeader('Content-Type')).toBe('image/webp')
+      expect(allowed.response.getHeader('Cache-Control')).toBe(
+        'private, no-cache',
+      )
+
+      const unknown = dispatchHead(
+        server,
+        `${localReviewAssetPrefix}/scale-encounter-environments/source-polyhaven-forest-slope.jpg`,
+      )
+      expect(unknown.nextCalled).toBe(false)
+      expect(unknown.response.statusCode).toBe(404)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('serves each exact v3 child package while returning 404 for adjacent files', async () => {
+    const server = await createServer({
+      appType: 'custom',
+      configFile: join(process.cwd(), 'vite.config.ts'),
+      logLevel: 'silent',
+      mode: 'development',
+      server: { middlewareMode: true },
+    })
+
+    try {
+      const routePrefix =
+        `${localReviewAssetPrefix}/scale-encounter-child-avatar/`
+      for (const fileName of scaleEncounterChildAvatarAssetFiles) {
+        const allowed = dispatchHead(server, `${routePrefix}${fileName}`)
+        expect(allowed.nextCalled).toBe(false)
+        expect(allowed.response.statusCode).toBe(200)
+        expect(allowed.response.getHeader('Content-Type')).toBe(
+          'model/gltf-binary',
+        )
+        expect(allowed.response.getHeader('Cache-Control')).toBe(
+          'private, no-cache',
+        )
+      }
+
+      for (const blocked of [
+        'child-avatar-v3.manifest.json',
+        'child-avatar-v3-boy-land-normal.glb.bak',
+        'generate_child_avatar_v3.py',
+      ]) {
+        const unknown = dispatchHead(server, `${routePrefix}${blocked}`)
+        expect(unknown.nextCalled).toBe(false)
+        expect(unknown.response.statusCode).toBe(404)
+        expect(unknown.response.getHeader('Cache-Control')).toBe('no-store')
       }
     } finally {
       await server.close()

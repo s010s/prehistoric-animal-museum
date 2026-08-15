@@ -53,7 +53,7 @@ The ichthyosaur and plesiosaur exhibits represent broader groups of related anim
 
 ## A calm, private visit
 
-- The application has no sign-in or user profile and does not ask for names, contact details, or children’s information.
+- The application has no sign-in or user profile and does not ask for names or contact details. In “Compare with me,” a parent may optionally choose boy or girl and enter an approximate height solely to set the current page’s 3D character scale and viewpoint; these choices are not placed in the URL, uploaded, or sent to analytics, and disappear when the page closes.
 - It contains no advertising or analytics scripts, membership, knowledge unlock, or paywall.
 - The museum experience makes no runtime calls to AI, advertising, or analytics services; models, images, and narration are prepared static assets.
 - No autoplay and no pressure to “finish” the museum.

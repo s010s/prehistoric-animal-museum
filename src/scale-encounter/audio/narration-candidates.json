@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "status": "prototype-listening-candidates",
+  "generatedOn": "2026-08-12",
+  "engine": {
+    "model": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+    "modelRevision": "85e237c12c027371202489a0ec509ded67b5e4b5",
+    "speaker": "Serena",
+    "seed": 20260726,
+    "device": "cpu",
+    "dtype": "float32",
+    "attentionImplementation": "sdpa"
+  },
+  "processing": {
+    "sampleRateHz": 48000,
+    "channels": 1,
+    "targetIntegratedLufs": -18,
+    "maximumTruePeakDbtp": -1
+  },
+  "humanListeningReview": {
+    "tyrannosaurus-rex": {
+      "status": "approved",
+      "reviewedOn": "2026-08-12",
+      "reviewedBy": "Leon",
+      "evidence": "Leon reported that the three existing Qwen scale-encounter narrations sounded acceptable."
+    },
+    "pteranodon": {
+      "status": "approved",
+      "reviewedOn": "2026-08-12",
+      "reviewedBy": "Leon",
+      "evidence": "Leon reported that the three existing Qwen scale-encounter narrations sounded acceptable."
+    },
+    "mosasaurus": {
+      "status": "approved",
+      "reviewedOn": "2026-08-12",
+      "reviewedBy": "Leon",
+      "evidence": "Leon reported that the three existing Qwen scale-encounter narrations sounded acceptable."
+    },
+    "mammoth": {
+      "status": "pending"
+    }
+  },
+  "publicDistributionDecision": "pending",
+  "note": "Every seeded raw Qwen run was generated twice and was byte-identical. The six transition candidates were regenerated on 2026-08-12 from the current content.ts; their independently normalized MP3 pairs were also byte-identical. Six mammoth candidates were generated on 2026-08-12 with the same pinned Serena pipeline and remain pending human listening review. Leon accepted the three existing animals' narration in the 2026-08-12 review. Public distribution remains pending for every animal.",
+  "tracks": [
+    {
+      "file": "tyrannosaurus-rex-intro.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "小朋友，准备好了吗？我们去和霸王龙比一比，看看它到底有多大。",
+      "sha256": "c990c9e09cd7dbada76ce7a652527e86addbb39fde47536d25c188c0cdf73f85",
+      "durationSeconds": 5.744917
+    },
+    {
+      "file": "tyrannosaurus-rex-transition.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "先来到你身边，看看今天的探险装。现在绕到你身后，跟着你的目光，再轻轻来到你的眼睛这里。",
+      "sha256": "b93d5d50ed673c7f7a1a1a85a5f1d3cb1919602874a0a91c7be61897251fc284",
+      "durationSeconds": 8.203583
+    },
+    {
+      "file": "tyrannosaurus-rex-arrival.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "看，霸王龙就在前面。它的腿又粗又高，我们要把眼睛抬起来，才能看到它的大脑袋。",
+      "sha256": "71e4c8247175a9f300ae84bef08443961b7f0e121aa56a6dde193c3e57d4eb74",
+      "durationSeconds": 7.845667
+    },
+    {
+      "file": "pteranodon-intro.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "小朋友，准备好了吗？我们在想象里穿上飞行装备，去和无齿翼龙一起飞，看看它的翅膀有多宽。",
+      "sha256": "556ce286be44d89f99e9306a5cac7a7639716e5325d855eb8b2b323a877877c0",
+      "durationSeconds": 9.0165
+    },
+    {
+      "file": "pteranodon-transition.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "先从后上方看看你的翼装，像一只小飞鸟。无齿翼龙就在前面，准备好，我们来到你的眼睛这里啦。",
+      "sha256": "56455a50540a0e8c09d6351bb572da099c761b4b199110cb54eb65ac63ab63ea",
+      "durationSeconds": 9.637333
+    },
+    {
+      "file": "pteranodon-arrival.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "看，无齿翼龙就在正前方，和我们飞得一样高。它的两只大翅膀一左一右，展开得真宽！",
+      "sha256": "1c2a2f78d8b7218b5063a6bead833811f22dc835a90ba47da12863f692108923",
+      "durationSeconds": 9.928833
+    },
+    {
+      "file": "mosasaurus-intro.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "小朋友，准备好了吗？我们在想象里换上潜水装备，一起去看看沧龙吧。它到底有多大呢？",
+      "sha256": "9c3301dbc2d542e6ac0cf0e492b5b491983a88b13b32dc5a702e0b10cd2ca734",
+      "durationSeconds": 7.949208
+    },
+    {
+      "file": "mosasaurus-transition.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "先游到你右边，看看潜水服和大脚蹼。再来到你身后，准备好，我们来到你的眼睛这里啦。",
+      "sha256": "843fa3c49d3b1dd7dc21151202fb572b442ffdc5c77dfccea91191fa0a9f481b",
+      "durationSeconds": 8.917375
+    },
+    {
+      "file": "mosasaurus-arrival.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "看，沧龙正在斜上方慢慢游过去。阳光从水面照下来，我们能看见它的肚子、四只大鳍，还有长长的尾巴。",
+      "sha256": "99962d8ff9dbd3166721c67ced997448bf580dcf5c4e172fdc57038e8b5289b2",
+      "durationSeconds": 12.431708
+    },
+    {
+      "file": "tyrannosaurus-rex-intro.en.mp3",
+      "locale": "en",
+      "script": "Ready, explorer? Let’s stand beside Tyrannosaurus rex and see just how big it was.",
+      "sha256": "574488ac62e17edd13abd31927615d4c8d1b11fa2c201d62f608b94eced0bb78",
+      "durationSeconds": 6.609083
+    },
+    {
+      "file": "tyrannosaurus-rex-transition.en.mp3",
+      "locale": "en",
+      "script": "First, let’s come alongside and see today’s explorer outfit. Now we move behind you, follow your gaze, and gently arrive at your eyes.",
+      "sha256": "4ea0f84d252ab239dd9cbb083cf8d5c5bbde4938f7f487a67a51b5d240abb4a6",
+      "durationSeconds": 10.017125
+    },
+    {
+      "file": "tyrannosaurus-rex-arrival.en.mp3",
+      "locale": "en",
+      "script": "Look! Tyrannosaurus rex is right in front of us. Its legs are thick and tall—we have to look up to find its enormous head.",
+      "sha256": "c0fa8b3b7eb67af36af24529c9e64e8dcc27e78f16f4d6fff5b108a41e07124b",
+      "durationSeconds": 9.762625
+    },
+    {
+      "file": "pteranodon-intro.en.mp3",
+      "locale": "en",
+      "script": "Ready, explorer? In our imagination, let’s put on flying gear and fly beside Pteranodon to see how wide its wings were.",
+      "sha256": "85fded6c3750c2c289a80d65d0bb8d09aa2258ad8b6645fa89c1e84778b7410e",
+      "durationSeconds": 9.437708
+    },
+    {
+      "file": "pteranodon-transition.en.mp3",
+      "locale": "en",
+      "script": "First, let’s see your wingsuit from behind and above. Pteranodon is ahead—ready? Now we gently arrive at your eyes.",
+      "sha256": "1fd90c00c40f62dd41635308c6c925e7f4fcbea28d02c8fa4e65e945652db9a3",
+      "durationSeconds": 9.100375
+    },
+    {
+      "file": "pteranodon-arrival.en.mp3",
+      "locale": "en",
+      "script": "Look straight ahead! Pteranodon is right in front of us, flying at our height. Its two great wings stretch far out to either side!",
+      "sha256": "495168c54321149c41ba2bfd2e32112a0f08aee851da668b48b92e3bc78a89e6",
+      "durationSeconds": 10.028083
+    },
+    {
+      "file": "mosasaurus-intro.en.mp3",
+      "locale": "en",
+      "script": "Ready, explorer? In our imagination, let’s put on diving gear and find out how big Mosasaurus was.",
+      "sha256": "0ca449e05e8b8d93edd9166e943b8321ebc3cb2ab641971911a4b0e22bbae07f",
+      "durationSeconds": 8.407625
+    },
+    {
+      "file": "mosasaurus-transition.en.mp3",
+      "locale": "en",
+      "script": "First, we swim to your right and see the diving suit and big fins. Then we move behind you—ready? Now we arrive at your eyes.",
+      "sha256": "843467b7def6060848bc52c71d26ecb75dbce37541eccd4427d1248ad7ccc16b",
+      "durationSeconds": 10.369292
+    },
+    {
+      "file": "mosasaurus-arrival.en.mp3",
+      "locale": "en",
+      "script": "Look! Mosasaurus is gliding past above us. Sunlight shines through the surface, and we can see its belly, four big flippers and long tail.",
+      "sha256": "7646980eec6607666fb9f3827ed30ba740fa16147e397b67e3a5172435f190f6",
+      "durationSeconds": 9.797583
+    },
+    {
+      "file": "mammoth-intro.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "小朋友，穿好暖暖的羽绒服，我们去寒冷的草原上和长毛猛犸象比一比，看看它的肩膀有多高。",
+      "sha256": "a476dd29cf912bf87f08004a76449814480f75b01645f1d6b3714670490ae1e1",
+      "durationSeconds": 9.229792
+    },
+    {
+      "file": "mammoth-transition.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "先来到你身边，看看羽绒服和围巾。现在绕到你身后，长毛猛犸象就在前面，我们再轻轻来到你的眼睛这里。",
+      "sha256": "c849f1a80771b0881a2229f55eb91f6d41c431c0b653bbc04b16ace40b93fa37",
+      "durationSeconds": 10.465167
+    },
+    {
+      "file": "mammoth-arrival.zh-CN.mp3",
+      "locale": "zh-CN",
+      "script": "看，长毛猛犸象站在前面。它光是肩膀就比我们高好多，厚厚的长毛下面还有四条像柱子一样的腿。",
+      "sha256": "89faa9a096afa2d844114aa38957aa0a4bfaf4817b0f44d6d932dbad90a17f66",
+      "durationSeconds": 10.014167
+    },
+    {
+      "file": "mammoth-intro.en.mp3",
+      "locale": "en",
+      "script": "Ready, explorer? Pull on a warm coat and come to the cold grassland to see how high a woolly mammoth’s shoulders could reach.",
+      "sha256": "e2b0bad794e9937c71481fb3f8b222f61d210144c8dda7552073ebb99722ac51",
+      "durationSeconds": 10.382375
+    },
+    {
+      "file": "mammoth-transition.en.mp3",
+      "locale": "en",
+      "script": "First, see your warm coat and scarf. Now we move behind you. The woolly mammoth is ahead, and we gently arrive at your eyes.",
+      "sha256": "c9dad8aca706d032e5845930907b30c94bfdf368c0ab23d4f42419660e345608",
+      "durationSeconds": 11.06125
+    },
+    {
+      "file": "mammoth-arrival.en.mp3",
+      "locale": "en",
+      "script": "Look! The woolly mammoth is standing ahead. Even its shoulders rise far above us, with four pillar-like legs beneath its thick coat.",
+      "sha256": "d7775a99a81458dace97cd994e8bedb72ac4eb4aefc4b88056002d1d87dcceeb",
+      "durationSeconds": 10.475208
+    }
+  ]
+}

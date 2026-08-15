@@ -10,9 +10,12 @@ import {
   Minimize2,
   Pause,
   RotateCcw,
+  Scaling,
   Volume2,
 } from 'lucide-react'
 import {
+  lazy,
+  Suspense,
   useCallback,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -81,6 +84,42 @@ import { ModelCache } from './viewer/model-cache'
 import { createViewerModelDescriptor } from './viewer/create-viewer-model-descriptor'
 import { selectModelPreviewProfile } from './viewer/model-preview-profiles'
 import { modelPreviewFor } from './viewer/responsive-model-stills'
+import {
+  isScaleEncounterAnimal,
+  type ChildProfile,
+} from './scale-encounter/types'
+import type { ScaleEncounterEnvironmentVariant } from './viewer/scale-encounter-environment'
+import { loadDirectScaleEncounter } from 'virtual:scale-encounter-entry'
+
+/**
+ * The integrated encounter remains a review prototype until its generated
+ * Serena tracks pass human listening and public-distribution approval. Keep
+ * those pending assets out of a normal production build while preserving the
+ * complete experience in development, tests and the dedicated E2E build.
+ */
+const directScaleEncounterLoader = loadDirectScaleEncounter
+const DIRECT_SCALE_ENCOUNTER_ENABLED = directScaleEncounterLoader !== null
+
+const DirectScaleEncounter = directScaleEncounterLoader
+  ? lazy(async () => {
+      const module = await directScaleEncounterLoader()
+      return { default: module.DirectScaleEncounter }
+    })
+  : null
+
+const SCALE_ENCOUNTER_HISTORY_KEY = '__museumScaleEncounter'
+
+function currentHistoryRecord(): Record<string, unknown> {
+  const state: unknown = window.history.state
+  return state !== null && typeof state === 'object'
+    ? (state as Record<string, unknown>)
+    : {}
+}
+
+function currentScaleEncounterHistoryToken(): string | null {
+  const value = currentHistoryRecord()[SCALE_ENCOUNTER_HISTORY_KEY]
+  return typeof value === 'string' ? value : null
+}
 
 interface RuntimeAnimal {
   readonly id: string
@@ -784,6 +823,9 @@ function MuseumApp({
   const drawerTriggerRef = useRef<HTMLButtonElement>(null)
   const collectionTriggerRef = useRef<HTMLElement>(null)
   const aboutTriggerRef = useRef<HTMLButtonElement>(null)
+  const scaleEncounterTriggerRef = useRef<HTMLButtonElement>(null)
+  const scaleEncounterHistoryTokenRef = useRef<string | null>(null)
+  const scaleEncounterHistoryBackPendingRef = useRef(false)
   const focusTriggerRef = useRef<HTMLButtonElement>(null)
   const focusExitRef = useRef<HTMLButtonElement>(null)
   const railRef = useRef<HTMLDivElement>(null)
@@ -813,6 +855,19 @@ function MuseumApp({
   const [collectionOpen, setCollectionOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
+  const [scaleEncounterOpen, setScaleEncounterOpen] = useState(false)
+  const [scaleEncounterPhase, setScaleEncounterPhase] = useState<
+    'setup' | 'active' | 'transition'
+  >('setup')
+  const [scaleEncounterProfile, setScaleEncounterProfile] =
+    useState<ChildProfile | null>(null)
+  const [scaleEncounterScenePresentation, setScaleEncounterScenePresentation] =
+    useState<{
+      readonly backgroundScale: number
+      readonly environmentVariant: ScaleEncounterEnvironmentVariant
+    }>({ backgroundScale: 1.28, environmentVariant: 'baseline' })
+  const [scaleEncounterHistoryBackPending, setScaleEncounterHistoryBackPending] =
+    useState(false)
   const [modelDataNotice, setModelDataNotice] =
     useState<ModelDataNotice | null>(null)
   const [liveMessage, setLiveMessage] = useState(
@@ -862,7 +917,8 @@ function MuseumApp({
       setLiveMessage(messages.loading.initialExhibit(requestedAnimal.name))
     })
   }, [animalIndex, initialAnimalId, messages.loading])
-  const overlayOpen = drawerOpen || collectionOpen || aboutOpen
+  const overlayOpen =
+    drawerOpen || collectionOpen || aboutOpen || scaleEncounterOpen
   const collectionAnimals = useMemo<CollectionAnimal[]>(
     () =>
       animals.map((animal) => ({
@@ -1754,6 +1810,83 @@ function MuseumApp({
     }
   }
 
+  const openScaleEncounter = () => {
+    if (
+      !DIRECT_SCALE_ENCOUNTER_ENABLED ||
+      scaleEncounterHistoryBackPendingRef.current ||
+      !modelReady ||
+      loadSnapshot.phase !== 'idle' ||
+      !isScaleEncounterAnimal(activeAnimal.id) ||
+      !viewerControllerRef.current
+    ) {
+      return
+    }
+    narration.reset()
+    idlePreloadCoordinatorRef.current?.cancelAll()
+    setDrawerOpen(false)
+    setCollectionOpen(false)
+    setAboutOpen(false)
+    setScaleEncounterPhase(scaleEncounterProfile ? 'active' : 'setup')
+    const historyToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const historyState = currentHistoryRecord()
+    window.history.pushState(
+      { ...historyState, [SCALE_ENCOUNTER_HISTORY_KEY]: historyToken },
+      '',
+      window.location.href,
+    )
+    scaleEncounterHistoryTokenRef.current = historyToken
+    setScaleEncounterOpen(true)
+  }
+
+  const finishScaleEncounterClose = useCallback(() => {
+    viewerControllerRef.current?.endScaleEncounter()
+    setScaleEncounterOpen(false)
+    setScaleEncounterPhase('setup')
+    const snapshot = coordinatorRef.current?.getSnapshot()
+    if (snapshot?.phase === 'idle' && snapshot.readyAnimalId) {
+      idlePreloadCoordinatorRef.current?.scheduleAfterCommit(
+        snapshot.readyAnimalId,
+      )
+    }
+    window.setTimeout(() => scaleEncounterTriggerRef.current?.focus(), 0)
+  }, [])
+
+  const closeScaleEncounter = useCallback(() => {
+    const historyToken = scaleEncounterHistoryTokenRef.current
+    scaleEncounterHistoryTokenRef.current = null
+    finishScaleEncounterClose()
+    if (
+      historyToken &&
+      currentScaleEncounterHistoryToken() === historyToken
+    ) {
+      // Keep a rapid re-open from pushing a new marker before this async Back
+      // removes the old one. Otherwise the old Back can close the new session.
+      scaleEncounterHistoryBackPendingRef.current = true
+      setScaleEncounterHistoryBackPending(true)
+      window.history.back()
+    }
+  }, [finishScaleEncounterClose])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (scaleEncounterHistoryBackPendingRef.current) {
+        scaleEncounterHistoryBackPendingRef.current = false
+        setScaleEncounterHistoryBackPending(false)
+      }
+      const historyToken = scaleEncounterHistoryTokenRef.current
+      if (
+        scaleEncounterOpen &&
+        historyToken &&
+        currentScaleEncounterHistoryToken() !== historyToken
+      ) {
+        scaleEncounterHistoryTokenRef.current = null
+        finishScaleEncounterClose()
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [finishScaleEncounterClose, scaleEncounterOpen])
+
   const narrationLabel = getNarrationControlLabel(
     narrationSnapshot,
     messages.narration,
@@ -1784,11 +1917,16 @@ function MuseumApp({
   const interfaceStyle = {
     '--animal-accent': activeAnimal.accent,
     '--animal-accent-soft': activeAnimal.accentSoft,
+    '--scale-encounter-background-scale': String(
+      scaleEncounterScenePresentation.backgroundScale,
+    ),
   } as CSSProperties
 
   return (
     <main
-      className={`museum-experience ${focusMode ? 'museum-experience--focus' : ''}`}
+      className={`museum-experience ${focusMode ? 'museum-experience--focus' : ''}${
+        scaleEncounterOpen ? ' museum-experience--scale-encounter' : ''
+      }`}
       data-atmosphere={activeAnimal.atmosphere}
       data-habitat={activeAnimal.habitat}
       data-locale={locale}
@@ -1797,6 +1935,14 @@ function MuseumApp({
       data-review-mode={localReviewMode || undefined}
       data-request-token={loadSnapshot.requestToken}
       data-requested-animal-id={loadSnapshot.requestedAnimalId ?? ''}
+      data-scale-encounter-phase={
+        scaleEncounterOpen ? scaleEncounterPhase : undefined
+      }
+      data-scale-encounter-environment={
+        scaleEncounterOpen
+          ? scaleEncounterScenePresentation.environmentVariant
+          : undefined
+      }
       id="museum-experience"
       style={interfaceStyle}
     >
@@ -2027,6 +2173,24 @@ function MuseumApp({
         {!focusMode ? (
           <div aria-hidden={overlayOpen} className="stage-actions" inert={overlayOpen}>
             <LanguageMenu />
+            {DIRECT_SCALE_ENCOUNTER_ENABLED &&
+            isScaleEncounterAnimal(activeAnimal.id) ? (
+              <button
+                aria-label={messages.scaleEncounter.openLabel(activeAnimal.name)}
+                className="scale-encounter-entry"
+                disabled={
+                  scaleEncounterHistoryBackPending ||
+                  !modelReady ||
+                  loadSnapshot.phase !== 'idle'
+                }
+                onClick={openScaleEncounter}
+                ref={scaleEncounterTriggerRef}
+                type="button"
+              >
+                <Scaling aria-hidden="true" size={20} strokeWidth={2.2} />
+                <span>{messages.scaleEncounter.open}</span>
+              </button>
+            ) : null}
             <IconButton
               icon={RotateCcw}
               label={messages.resetView}
@@ -2251,6 +2415,47 @@ function MuseumApp({
       <p aria-atomic="true" aria-live="polite" className="sr-only" role="status">
         {liveMessage}
       </p>
+
+      {scaleEncounterOpen &&
+      DirectScaleEncounter &&
+      isScaleEncounterAnimal(activeAnimal.id) &&
+      viewerController ? (
+        <Suspense
+          fallback={
+            <section
+              aria-label={messages.scaleEncounter.loading}
+              aria-modal="true"
+              className="scale-encounter-module-loading"
+              role="dialog"
+            >
+              <span aria-hidden="true" className="fossil-loader">
+                <span className="fossil-loader__ring" />
+                <Scaling size={28} strokeWidth={2} />
+              </span>
+              <strong>{messages.scaleEncounter.loading}</strong>
+            </section>
+          }
+        >
+          <DirectScaleEncounter
+            animal={{
+              atmosphere: activeAnimal.atmosphere,
+              backgroundLandscape: activeAnimal.assets.backgroundLandscape,
+              backgroundPortrait: activeAnimal.assets.backgroundPortrait,
+              id: activeAnimal.id,
+              name: activeAnimal.name,
+              poster: activeAnimal.assets.poster,
+              posterPortrait: activeAnimal.assets.posterPortrait,
+            }}
+            controller={viewerController}
+            locale={locale}
+            onClose={closeScaleEncounter}
+            onPresentationStateChange={setScaleEncounterPhase}
+            onProfileChange={setScaleEncounterProfile}
+            onScenePresentationChange={setScaleEncounterScenePresentation}
+            profile={scaleEncounterProfile}
+          />
+        </Suspense>
+      ) : null}
 
       <ParentDrawer
         facts={activeAnimal.facts}
