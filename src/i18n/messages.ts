@@ -1,13 +1,25 @@
 import type { AnimalSizeFact, Diet } from '../content/types'
 import type { Locale } from './locale'
 
+interface ResearchSummaryInput {
+  readonly animalName: string
+  readonly classification: string
+  readonly classificationNote: string
+  readonly diet: string
+  readonly period: string
+  readonly regions: string
+  readonly size: string
+  readonly sizeLabel: string
+  readonly sizeNote: string
+}
+
 const zhCN = {
   museumName: '史前动物博物馆',
   creatorBrand: 'Leon做了个',
   creatorAboutLabel: '了解Leon做了个和这座博物馆',
   todayMeet: '今天认识',
   localReview: '本地评审',
-  documentTitle: '史前动物博物馆 | 亲子 3D 史前动物展',
+  documentTitle: '史前动物博物馆 | 给 2–6 岁孩子的免费 3D 恐龙与古生物网站',
   seo: {
     description: (count: number) =>
       `和孩子一起走进 3D 史前动物博物馆，观察 ${count} 位来自陆地、天空与水中的史前朋友。`,
@@ -122,6 +134,13 @@ const zhCN = {
     source: '在 GitHub 查看源码',
     licensing: '查看许可与素材说明',
   },
+  official: {
+    eyebrow: '官方来源',
+    title: '认准 Leon做了个',
+    byline: '史前动物博物馆由 Leon做了个制作并维护。以下地址用于确认官方作品与创作者来源。',
+    museum: '史前动物博物馆官方网站',
+    personalSite: 'Leon 的个人官网',
+  },
   star: {
     label: '支持这座博物馆',
     title: '喜欢这座小博物馆吗？',
@@ -139,6 +158,25 @@ const zhCN = {
     classification: '分类提示',
     narration: '旁白文字',
     sources: '参考来源',
+    research: (animal: string) => `${animal}研究资料`,
+    researchOverview: '研究摘要',
+    researchSummary: ({
+      animalName,
+      classification,
+      classificationNote,
+      diet,
+      period,
+      regions,
+      size,
+      sizeLabel,
+      sizeNote,
+    }: ResearchSummaryInput) =>
+      `${animalName}属于${classification}。已知化石年代为${period}，发现地点包括${regions}。本馆采用的${sizeLabel}参考范围为${size}，食性归纳为${diet}。${sizeNote ? `${sizeNote}。` : ''}${classificationNote}`,
+    reconstructionLimits: '化石证据与复原边界',
+    scientificSources: '科学来源',
+    sourceAccessedOn: (date: string) => `查阅日期：${date}`,
+    researchByline: (date: string) =>
+      `本页研究资料由 Leon做了个依据公开博物馆资料和科学论文整理，并保留复原中的不确定性。最后复核：${date}。`,
     credits: '3D 模型与素材来源',
     licensing: '开源与许可',
     licensingBody:
@@ -169,7 +207,7 @@ const en = {
   creatorAboutLabel: 'About Leon Made This and this museum',
   todayMeet: 'Meet today’s friend',
   localReview: 'Local review',
-  documentTitle: 'Prehistoric Animal Museum | A 3D Family Adventure',
+  documentTitle: 'Prehistoric Animal Museum for Kids | Free Interactive 3D Exhibits',
   seo: {
     description: (count) =>
       `Explore ${count} prehistoric animals from land, sky and sea in a gentle 3D museum made for young children and their grown-ups.`,
@@ -287,6 +325,14 @@ const en = {
     source: 'View the source on GitHub',
     licensing: 'Read the licence and asset notes',
   },
+  official: {
+    eyebrow: 'Official source',
+    title: 'Made by Leon Made This',
+    byline:
+      'Prehistoric Animal Museum is made and maintained by Leon Made This. Use these addresses to verify the official project and its creator.',
+    museum: 'Official Prehistoric Animal Museum',
+    personalSite: "Leon's personal website",
+  },
   star: {
     label: 'Support this museum',
     title: 'Enjoying this little museum?',
@@ -304,6 +350,25 @@ const en = {
     classification: 'What kind of animal?',
     narration: 'Narration transcript',
     sources: 'Sources',
+    research: (animal) => `Research notes about ${animal}`,
+    researchOverview: 'Research summary',
+    researchSummary: ({
+      animalName,
+      classification,
+      classificationNote,
+      diet,
+      period,
+      regions,
+      size,
+      sizeLabel,
+      sizeNote,
+    }) =>
+      `Classification used here: ${classification}. Fossils assigned to ${animalName} are known from ${period} and have been found in ${regions}. The museum uses ${size} as the reference ${sizeLabel.toLowerCase()} and describes the diet as ${diet.toLowerCase()}. ${sizeNote ? `${sizeNote}. ` : ''}${classificationNote}`,
+    reconstructionLimits: 'Fossil evidence and reconstruction limits',
+    scientificSources: 'Scientific sources',
+    sourceAccessedOn: (date) => `Accessed ${date}`,
+    researchByline: (date) =>
+      `Leon Made This compiled these research notes from public museum resources and scientific papers while preserving uncertainty in the reconstruction. Last reviewed ${date}.`,
     credits: '3D model and asset credits',
     licensing: 'Open source and licensing',
     licensingBody:
@@ -385,5 +450,21 @@ export function formatSizeFact(
     label,
     value:
       size.kind === 'group-range' ? `${size.note}${locale === 'zh-CN' ? '；' : '; '}${range}` : range,
+  }
+}
+
+export function formatResearchSizeFact(
+  size: AnimalSizeFact,
+  locale: Locale,
+): { readonly note: string; readonly value: string } {
+  const display = formatSizeFact(size, locale)
+  if (size.kind !== 'group-range') {
+    return { note: '', value: display.value }
+  }
+
+  const separator = locale === 'zh-CN' ? '；' : '; '
+  return {
+    note: size.note,
+    value: display.value.slice(size.note.length + separator.length),
   }
 }

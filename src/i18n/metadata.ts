@@ -122,6 +122,74 @@ function ensureAlternate(variant: MetadataVariant, href: string): void {
   alternate.href = href
 }
 
+function ensureJsonLd(id: string, value: Record<string, unknown>): void {
+  let script = document.querySelector<HTMLScriptElement>(
+    `script#${id}[type="application/ld+json"]`,
+  )
+  if (!script) {
+    script = document.createElement('script')
+    script.id = id
+    script.type = 'application/ld+json'
+    document.head.append(script)
+  }
+  script.textContent = JSON.stringify(value)
+}
+
+function updateMuseumStructuredData({
+  description,
+  locale,
+  museumCanonical,
+  museumTitle,
+  root,
+}: {
+  readonly description: string
+  readonly locale: Locale
+  readonly museumCanonical: string
+  readonly museumTitle: string
+  readonly root: URL
+}): void {
+  const personalSite = new URL('/', root).href
+  ensureJsonLd('museum-structured-data', {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    '@id': `${museumCanonical}#museum`,
+    alternateName:
+      locale === 'zh-CN' ? 'Prehistoric Animal Museum' : '史前动物博物馆',
+    applicationCategory: 'EducationalApplication',
+    brand: {
+      '@type': 'Brand',
+      '@id': `${personalSite}#leon-made-this`,
+      alternateName: 'Leon Made This',
+      name: 'Leon做了个',
+      url: personalSite,
+    },
+    copyrightHolder: {
+      '@type': 'Person',
+      '@id': `${personalSite}#leon`,
+      name: 'Leon',
+      url: personalSite,
+    },
+    creator: {
+      '@type': 'Person',
+      '@id': `${personalSite}#leon`,
+      name: 'Leon',
+      url: personalSite,
+    },
+    description,
+    inLanguage: locale,
+    isAccessibleForFree: true,
+    isPartOf: {
+      '@type': 'WebSite',
+      '@id': `${personalSite}#website`,
+      name: 'Leon做了个',
+      url: personalSite,
+    },
+    name: museumTitle,
+    operatingSystem: 'Any',
+    url: museumCanonical,
+  })
+}
+
 function updateAnimalStructuredData({
   animalDetail,
   canonical,
@@ -152,6 +220,7 @@ function updateAnimalStructuredData({
     script.type = 'application/ld+json'
     document.head.append(script)
   }
+  const personalSite = new URL('/', museumCanonical).href
   script.textContent = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'WebPage',
@@ -172,9 +241,34 @@ function updateAnimalStructuredData({
         },
       ],
     },
+    copyrightHolder: {
+      '@type': 'Person',
+      '@id': `${personalSite}#leon`,
+      name: 'Leon',
+      url: personalSite,
+    },
+    creator: {
+      '@type': 'Person',
+      '@id': `${personalSite}#leon`,
+      name: 'Leon',
+      url: personalSite,
+    },
     description,
     image,
     inLanguage: locale,
+    isPartOf: {
+      '@type': 'WebApplication',
+      '@id': `${museumCanonical}#museum`,
+      brand: {
+        '@type': 'Brand',
+        '@id': `${personalSite}#leon-made-this`,
+        alternateName: 'Leon Made This',
+        name: 'Leon做了个',
+        url: personalSite,
+      },
+      name: museumTitle,
+      url: museumCanonical,
+    },
     name: animalDetail.name,
     url: canonical,
   })
@@ -201,6 +295,7 @@ export function updateLocalizedMetadata({
     : new URL(`social/museum.${variant}.png`, root).href
   const metadataTitle = animalDetail ? documentTitle : museumTitle
   const imageAlt = animalDetail?.name ?? socialImageAlt
+  const museumCanonical = localizedCanonical(root, variant)
 
   document.title = documentTitle
   ensureCanonical(canonical)
@@ -236,13 +331,20 @@ export function updateLocalizedMetadata({
   ensureMeta('name', 'twitter:description', localizedDescription)
   ensureMeta('name', 'twitter:image', socialImage)
   ensureMeta('name', 'twitter:image:alt', imageAlt)
+  updateMuseumStructuredData({
+    description,
+    locale,
+    museumCanonical,
+    museumTitle,
+    root,
+  })
   updateAnimalStructuredData({
     animalDetail,
     canonical,
     description: localizedDescription,
     image: socialImage,
     locale,
-    museumCanonical: localizedCanonical(root, variant),
+    museumCanonical,
     museumTitle,
   })
 }

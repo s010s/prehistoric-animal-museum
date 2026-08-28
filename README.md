@@ -8,7 +8,8 @@
 </p>
 
 <p align="center">
-  <strong><a href="https://leon-made-this.work/museum/">Open the museum →</a></strong>
+  <strong><a href="https://leon-made-this.work/museum/en/">Official website →</a></strong>
+  · <a href="https://leon-made-this.work/">Leon Made This</a>
   · <strong>English</strong>
   · <a href="README.zh-CN.md">简体中文</a>
 </p>

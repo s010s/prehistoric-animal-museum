@@ -485,7 +485,7 @@ test('an English locale path wins for this visit without overwriting a saved cho
   const response = await page.goto('./en/')
   expect(response?.ok()).toBe(true)
   expect(await response?.text()).toContain(
-    '<title>Prehistoric Animal Museum | A 3D Family Adventure</title>',
+    '<title>Prehistoric Animal Museum for Kids | Free Interactive 3D Exhibits</title>',
   )
   await waitForMuseumShell(page, 'Stegosaurus')
 
@@ -499,7 +499,7 @@ test('an English locale path wins for this visit without overwriting a saved cho
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await expect(page.locator('html')).toHaveAttribute('data-locale', 'en')
   await expect(page).toHaveTitle(
-    'Prehistoric Animal Museum | A 3D Family Adventure',
+    'Prehistoric Animal Museum for Kids | Free Interactive 3D Exhibits',
   )
   await expect(
     page.getByRole('button', {
@@ -596,7 +596,7 @@ test('switches language with the radio menu without reloading the page or model'
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await expect(page.locator('html')).toHaveAttribute('data-locale', 'en')
   await expect(page).toHaveTitle(
-    'Prehistoric Animal Museum | A 3D Family Adventure',
+    'Prehistoric Animal Museum for Kids | Free Interactive 3D Exhibits',
   )
   await expect(page.locator('#museum-experience')).toHaveAttribute(
     'data-ready-animal-id',

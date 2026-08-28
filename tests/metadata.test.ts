@@ -24,7 +24,7 @@ describe('runtime locale metadata', () => {
   it('updates every locale-sensitive canonical and social field after a smooth switch', () => {
     updateLocalizedMetadata({
       locale: 'en',
-      documentTitle: 'Prehistoric Animal Museum | A 3D Family Adventure',
+      documentTitle: 'Prehistoric Animal Museum for Kids | Free Interactive 3D Exhibits',
       museumTitle: 'Prehistoric Animal Museum',
       creatorBrand: 'Leon Made This',
       description: 'Explore 18 prehistoric animals.',
@@ -32,7 +32,7 @@ describe('runtime locale metadata', () => {
     })
 
     expect(document.title).toBe(
-      'Prehistoric Animal Museum | A 3D Family Adventure',
+      'Prehistoric Animal Museum for Kids | Free Interactive 3D Exhibits',
     )
     expect(
       document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href,
@@ -87,6 +87,20 @@ describe('runtime locale metadata', () => {
     ).toBe(
       'https://leon-made-this.work/museum/social/museum.en.png',
     )
+    const museumStructuredData = JSON.parse(
+      document.querySelector('#museum-structured-data')?.textContent ?? '{}',
+    ) as Record<string, unknown>
+    expect(museumStructuredData).toMatchObject({
+      '@type': 'WebApplication',
+      brand: {
+        name: 'Leon做了个',
+      },
+      creator: {
+        name: 'Leon',
+        url: 'https://leon-made-this.work/',
+      },
+      url: 'https://leon-made-this.work/museum/en/',
+    })
   })
 
   it('does not put animal state, query parameters, or fragments in a canonical URL', () => {
@@ -117,7 +131,7 @@ describe('runtime locale metadata', () => {
 
     updateLocalizedMetadata({
       locale: 'zh-CN',
-      documentTitle: '史前动物博物馆 | 亲子 3D 史前动物展',
+      documentTitle: '史前动物博物馆 | 给 2–6 岁孩子的免费 3D 恐龙与古生物网站',
       museumTitle: '史前动物博物馆',
       creatorBrand: 'Leon做了个',
       description: '说明',
@@ -197,6 +211,23 @@ describe('runtime locale metadata', () => {
         ?.textContent,
     ).toContain('Mosasaurus')
     expect(
+      JSON.parse(
+        document.querySelector<HTMLScriptElement>('#animal-structured-data')
+          ?.textContent ?? '{}',
+      ),
+    ).toMatchObject({
+      creator: {
+        name: 'Leon',
+        url: 'https://leon-made-this.work/',
+      },
+      isPartOf: {
+        brand: {
+          name: 'Leon做了个',
+        },
+        url: 'https://leon-made-this.work/museum/en/',
+      },
+    })
+    expect(
       document.querySelector(
         'link[rel="alternate"][hreflang="x-default"]',
       ),
@@ -259,7 +290,7 @@ describe('runtime locale metadata', () => {
     window.history.replaceState({}, '', '/museum/en/?animal=mosasaurus')
     updateLocalizedMetadata({
       locale: 'en',
-      documentTitle: 'Prehistoric Animal Museum | A 3D Family Adventure',
+      documentTitle: 'Prehistoric Animal Museum for Kids | Free Interactive 3D Exhibits',
       museumTitle: 'Prehistoric Animal Museum',
       creatorBrand: 'Leon Made This',
       description: 'Explore 18 prehistoric animals.',

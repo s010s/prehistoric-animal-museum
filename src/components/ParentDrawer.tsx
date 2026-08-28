@@ -1,10 +1,10 @@
-import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import { GITHUB_LICENSING_URL, GITHUB_REPOSITORY_URL } from '../github'
 import { useI18n } from '../i18n/I18nProvider'
 import { IconButton } from './IconButton'
 import { LanguageMenu } from './LanguageMenu'
+import { OfficialLinks } from './OfficialLinks'
 
 export interface ParentReviewFacts {
   readonly badge: string
@@ -17,6 +17,7 @@ export interface ParentReviewFacts {
 }
 
 export interface ParentFacts {
+  animalName: string
   assetCredits: Array<{
     attribution: string
     licenseName: string
@@ -28,12 +29,17 @@ export interface ParentFacts {
   classificationNote: string
   diet: string
   discoveryRegions: string[]
+  researchSize: string
+  researchSizeNote: string
   size: string
   sizeLabel: string
   narrationScript: readonly [string, string]
   period: string
+  researchReviewedOn: string
+  researchUncertaintyNotes: readonly string[]
   review?: ParentReviewFacts
   sources: Array<{
+    accessedOn: string
     title: string
     url: string
   }>
@@ -151,12 +157,8 @@ export function ParentDrawer({
     }
   }, [facts, open, updateScrollCue])
 
-  if (!open) {
-    return null
-  }
-
-  return createPortal(
-    <div className="drawer-layer">
+  return (
+    <div className="drawer-layer" hidden={!open}>
       <div
         aria-hidden="true"
         className="drawer-backdrop"
@@ -168,7 +170,7 @@ export function ParentDrawer({
       />
       <section
         aria-labelledby={titleId}
-        aria-modal="true"
+        aria-modal={open || undefined}
         className="parent-drawer"
         ref={drawerRef}
         role="dialog"
@@ -251,18 +253,45 @@ export function ParentDrawer({
               <h3>{messages.parent.narration}</h3>
               <p>{facts.narrationScript.join(locale === 'zh-CN' ? '' : ' ')}</p>
             </div>
-            <details className="source-disclosure">
-              <summary>{messages.parent.sources}</summary>
-              <div className="source-list">
+            <details className="research-disclosure source-disclosure">
+              <summary>{messages.parent.research(facts.animalName)}</summary>
+              <div className="research-disclosure__body source-list">
+                <h3>{messages.parent.researchOverview}</h3>
+                <p>
+                  {messages.parent.researchSummary({
+                    animalName: facts.animalName,
+                    classification: facts.classification,
+                    classificationNote: facts.classificationNote,
+                    diet: facts.diet,
+                    period: facts.period,
+                    regions: messages.parent.joinRegions(facts.discoveryRegions),
+                    size: facts.researchSize,
+                    sizeLabel: facts.sizeLabel,
+                    sizeNote: facts.researchSizeNote,
+                  })}
+                </p>
+                <h3>{messages.parent.reconstructionLimits}</h3>
+                <ul className="research-disclosure__notes">
+                  {facts.researchUncertaintyNotes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+                <h3>{messages.parent.scientificSources}</h3>
                 <ul>
                   {facts.sources.map((source) => (
                     <li key={source.url}>
                       <a href={source.url} rel="noreferrer" target="_blank">
                         {displaySourceTitle(source.title)}
                       </a>
+                      <small>
+                        {messages.parent.sourceAccessedOn(source.accessedOn)}
+                      </small>
                     </li>
                   ))}
                 </ul>
+                <p className="research-disclosure__byline">
+                  {messages.parent.researchByline(facts.researchReviewedOn)}
+                </p>
               </div>
             </details>
             <details className="source-disclosure">
@@ -310,6 +339,7 @@ export function ParentDrawer({
                 </div>
               </div>
             </details>
+            <OfficialLinks compact />
           </div>
         </div>
         <p className="sr-only" id={scrollHintId}>
@@ -324,7 +354,6 @@ export function ParentDrawer({
           <span>{messages.parent.more}</span>
         </div>
       </section>
-    </div>,
-    document.body,
+    </div>
   )
 }

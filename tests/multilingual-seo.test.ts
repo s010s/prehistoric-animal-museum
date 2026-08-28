@@ -98,7 +98,9 @@ describe('multilingual SEO artifacts', () => {
     const document = parseHtml(artifactSource(artifacts, 'index.html'))
 
     expect(document.documentElement.lang).toBe('zh-CN')
-    expect(document.title).toBe('史前动物博物馆 | 亲子 3D 史前动物展')
+    expect(document.title).toBe(
+      '史前动物博物馆 | 给 2–6 岁孩子的免费 3D 恐龙与古生物网站',
+    )
     expect(document.querySelector('h1')?.textContent).toBe('史前动物博物馆')
     expect(document.querySelectorAll('[data-seo-catalogue] li')).toHaveLength(
       mainCollection.animalIds.length,
@@ -145,7 +147,7 @@ describe('multilingual SEO artifacts', () => {
       fileName: 'zh-CN/index.html',
       lang: 'zh-CN',
       canonical: 'https://example.test/museum/zh-CN/',
-      title: '史前动物博物馆 | 亲子 3D 史前动物展',
+      title: '史前动物博物馆 | 给 2–6 岁孩子的免费 3D 恐龙与古生物网站',
       heading: '史前动物博物馆',
       catalogueEntries: ['剑龙', '沧龙', '无齿翼龙'],
       descriptionFragment: `${mainCollection.animalIds.length} 位来自陆地、天空与水中`,
@@ -158,7 +160,7 @@ describe('multilingual SEO artifacts', () => {
       fileName: 'en/index.html',
       lang: 'en',
       canonical: 'https://example.test/museum/en/',
-      title: 'Prehistoric Animal Museum | A 3D Family Adventure',
+      title: 'Prehistoric Animal Museum for Kids | Free Interactive 3D Exhibits',
       heading: 'Prehistoric Animal Museum',
       catalogueEntries: ['Stegosaurus', 'Mosasaurus', 'Pteranodon'],
       descriptionFragment: `${mainCollection.animalIds.length} prehistoric animals from land, sky and sea`,
@@ -208,6 +210,24 @@ describe('multilingual SEO artifacts', () => {
           .querySelector('meta[property="og:site_name"]')
           ?.getAttribute('content'),
       ).toBe(brand)
+      const museumStructuredData = JSON.parse(
+        document.querySelector('#museum-structured-data')?.textContent ?? '{}',
+      ) as Record<string, unknown>
+      expect(museumStructuredData).toMatchObject({
+        '@type': 'WebApplication',
+        brand: {
+          '@type': 'Brand',
+          alternateName: 'Leon Made This',
+          name: 'Leon做了个',
+          url: 'https://example.test/',
+        },
+        creator: {
+          '@type': 'Person',
+          name: 'Leon',
+          url: 'https://example.test/',
+        },
+        url: canonical,
+      })
       expect(
         document
           .querySelector(`nav a[hreflang="${otherLanguage}"]`)
@@ -299,6 +319,7 @@ describe('multilingual SEO artifacts', () => {
         }
         description?: string
         inLanguage?: string
+        isPartOf?: { brand?: { name?: string }; url?: string }
         name?: string
         url?: string
       }
@@ -326,6 +347,12 @@ describe('multilingual SEO artifacts', () => {
           item: canonical,
         },
       ])
+      expect(structuredData.isPartOf).toMatchObject({
+        brand: {
+          name: 'Leon做了个',
+        },
+        url: `https://example.test/museum/${locale}/`,
+      })
     },
   )
 

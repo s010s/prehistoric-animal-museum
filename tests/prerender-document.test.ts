@@ -253,6 +253,35 @@ describe('localized museum prerender document', () => {
         expect(document.querySelector('#animal-detail-fallback-style')).toBeNull()
         expect(document.querySelector('.animal-page')).toBeNull()
         expect(document.querySelector('.seo-static-shell')).toBeNull()
+        expect(document.querySelector('.museum-reading-room')).toBeNull()
+        expect(document.querySelectorAll('.drawer-layer[hidden]')).toHaveLength(2)
+        expect(
+          document.querySelector('.research-disclosure')?.textContent,
+        ).toContain(content.facts.period)
+        expect(
+          document.querySelector('.research-disclosure')?.textContent,
+        ).toContain(content.parentClassificationNote)
+        if (content.facts.size.kind === 'group-range') {
+          const researchText =
+            document.querySelector('.research-disclosure')?.textContent ?? ''
+          expect(researchText).toContain(content.facts.size.note)
+          expect(researchText).not.toContain(
+            locale === 'zh-CN'
+              ? `参考范围为${content.facts.size.note}`
+              : `uses ${content.facts.size.note}`,
+          )
+        }
+        expect(
+          document.querySelector('.research-disclosure summary')?.textContent,
+        ).toContain(content.name)
+        expect(
+          document.querySelector('.research-disclosure')?.hasAttribute('open'),
+        ).toBe(false)
+        expect(
+          document.querySelector<HTMLAnchorElement>(
+            '.parent-drawer a[href="https://leon-made-this.work/"]',
+          ),
+        ).not.toBeNull()
       }
 
       expect(englishMosasaurus).toContain('id="museum-experience"')

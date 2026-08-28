@@ -990,6 +990,17 @@ describe('App', () => {
       'href',
       'https://github.com/s010s/prehistoric-animal-museum/blob/main/LICENSING.md',
     )
+    expect(
+      within(dialog).getByRole('link', {
+        name: /史前动物博物馆官方网站/,
+      }),
+    ).toHaveAttribute(
+      'href',
+      'https://leon-made-this.work/museum/zh-CN/',
+    )
+    expect(
+      within(dialog).getByRole('link', { name: /Leon 的个人官网/ }),
+    ).toHaveAttribute('href', 'https://leon-made-this.work/')
     expect(navigation).toHaveAttribute('inert')
 
     await user.click(
@@ -1033,6 +1044,38 @@ describe('App', () => {
         '这是剑龙，它是一种生活在晚侏罗世的食草恐龙。看看它背上的两排骨板，像不像一列起伏的小山？',
       ),
     ).toBeVisible()
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: '关闭家长资料' }),
+      ).toHaveFocus()
+    })
+    const researchDisclosure = within(dialog)
+      .getByText('剑龙研究资料')
+      .closest('details')
+    expect(
+      Array.from(
+        dialog.querySelectorAll(
+          '.narration-transcript, .research-disclosure',
+        ),
+      ).map((element) => element.classList[0]),
+    ).toEqual(['narration-transcript', 'research-disclosure'])
+    expect(researchDisclosure).not.toHaveAttribute('open')
+    await user.click(within(dialog).getByText('剑龙研究资料'))
+    expect(researchDisclosure).toHaveAttribute('open')
+    expect(
+      within(dialog).getByText(/剑龙属于剑龙类恐龙。已知化石年代为晚侏罗世/),
+    ).toBeVisible()
+    expect(
+      within(dialog).getByText('化石证据与复原边界'),
+    ).toBeVisible()
+    expect(
+      within(dialog).getByText(
+        '不把骨板颜色和叫声描述成已经证实的事实。',
+      ),
+    ).toBeVisible()
+    expect(
+      within(dialog).getByText(/本页研究资料由 Leon做了个依据公开博物馆资料和科学论文整理/),
+    ).toBeVisible()
     expect(
       screen.getByRole('link', { name: 'PBR Stegasaurus (Animated)' }),
     ).toHaveAttribute(
@@ -1056,12 +1099,17 @@ describe('App', () => {
       'href',
       'https://github.com/s010s/prehistoric-animal-museum/blob/main/LICENSING.md',
     )
-    await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: '关闭家长资料' }),
-      ).toHaveFocus()
-    })
-
+    expect(
+      within(dialog).getByRole('link', {
+        name: /史前动物博物馆官方网站/,
+      }),
+    ).toHaveAttribute(
+      'href',
+      'https://leon-made-this.work/museum/zh-CN/',
+    )
+    expect(
+      within(dialog).getByRole('link', { name: /Leon 的个人官网/ }),
+    ).toHaveAttribute('href', 'https://leon-made-this.work/')
     // The action is inert to real users while the dialog is open. Firing it
     // directly creates the otherwise unreachable overlapping state so Escape
     // ordering can be verified deterministically.

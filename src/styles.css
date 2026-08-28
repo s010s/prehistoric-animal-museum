@@ -32,11 +32,24 @@ body,
 
 html {
   background: #d8e7c2;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
 }
 
 body {
   min-height: 100dvh;
   overflow: hidden;
+  scrollbar-width: none;
+}
+
+.museum-page {
+  height: 100dvh;
+  overflow: hidden;
+  background: #d8e7c2;
 }
 
 button,
@@ -3378,6 +3391,156 @@ a:focus-visible {
   background: rgb(255 255 255 / 96%);
 }
 
+/* Official provenance is shared by both pre-rendered drawers. It stays
+   visually separate from the child-facing exhibit. */
+.official-links {
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid rgb(48 91 76 / 16%);
+  border-radius: 24px;
+  background: rgb(255 255 255 / 66%);
+  box-shadow: 0 14px 38px rgb(39 72 59 / 8%);
+}
+
+.official-links__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.official-links__seal {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fffdf7;
+  background: #356859;
+  box-shadow: 0 8px 18px rgb(53 104 89 / 22%);
+}
+
+.official-links__header p,
+.official-links__header h3 {
+  margin: 0;
+}
+
+.official-links__header p {
+  color: #718278;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.official-links__header h3 {
+  margin-top: 2px;
+  color: #244d3d;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.official-links__byline {
+  max-width: 66ch;
+  margin: 12px 0 0;
+  color: #52685f;
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.official-links__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.official-links__actions > a {
+  display: grid;
+  min-width: 0;
+  min-height: 68px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid rgb(53 104 89 / 17%);
+  border-radius: 16px;
+  color: #2e594b;
+  background: rgb(255 253 247 / 84%);
+  text-decoration: none;
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.official-links__actions > a:hover {
+  border-color: rgb(53 104 89 / 34%);
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.official-links__actions > a:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.official-links__actions span {
+  min-width: 0;
+}
+
+.official-links__actions strong,
+.official-links__actions small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.official-links__actions strong {
+  font-size: 0.83rem;
+}
+
+.official-links__actions small {
+  margin-top: 3px;
+  color: #74837d;
+  font-size: 0.66rem;
+  font-weight: 620;
+}
+
+.official-links--compact {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 19px;
+  box-shadow: none;
+}
+
+.official-links--compact .official-links__byline {
+  font-size: 0.82rem;
+}
+
+.official-links--compact .official-links__actions {
+  grid-template-columns: 1fr;
+}
+
+.official-links--compact .official-links__actions > a {
+  min-height: 58px;
+}
+
+.official-links--compact .official-links__actions strong,
+.official-links--compact .official-links__actions small {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.official-links--compact .official-links__actions small {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .official-links__actions {
+    grid-template-columns: 1fr;
+  }
+}
 .museum-mark {
   width: 26px;
   height: 26px;
@@ -3627,6 +3790,54 @@ a:focus-visible {
 
 .source-disclosure .source-list ul {
   margin-top: 0;
+}
+
+.research-disclosure__body {
+  display: grid;
+  gap: 10px;
+  padding: 0 2px 18px !important;
+}
+
+.research-disclosure__body h3 {
+  margin: 8px 0 0;
+  color: #315446;
+  font-size: 0.8rem;
+  font-weight: 830;
+  letter-spacing: 0.05em;
+}
+
+.research-disclosure__body p,
+.research-disclosure__body ul {
+  margin: 0;
+  color: #4c574f;
+  font-size: 0.88rem;
+  line-height: 1.72;
+}
+
+.research-disclosure__body ul {
+  display: grid;
+  gap: 7px;
+  padding-left: 1.2rem;
+}
+
+.research-disclosure__body li::marker {
+  color: var(--animal-accent);
+}
+
+.research-disclosure__body li small {
+  display: block;
+  margin-top: 2px;
+  color: #788078;
+  font-size: 0.72rem;
+}
+
+.research-disclosure__byline {
+  padding: 12px 14px;
+  border: 1px solid rgb(45 72 57 / 10%);
+  border-radius: 14px;
+  background: #f7f3e5;
+  color: #5c655e !important;
+  font-size: 0.78rem !important;
 }
 
 .collection-layer {

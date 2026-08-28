@@ -24,6 +24,11 @@ describe('museum server rendering', () => {
     expect(html).toContain('data-requested-animal-id="stegosaurus"')
     expect(html).toContain('Prehistoric Animal Museum')
     expect(html).toContain('Stegosaurus')
+    expect(html).toContain('Research notes about Stegosaurus')
+    expect(html).toContain('Classification used here: Stegosaur dinosaur')
+    expect(html).toContain('Fossil evidence and reconstruction limits')
+    expect(html).toContain('https://leon-made-this.work/museum/en/')
+    expect(html).toContain('https://leon-made-this.work/')
     expect(html.match(/data-animal-detail-link=""/g)).toHaveLength(
       mainCollection.animalIds.length,
     )
@@ -77,6 +82,13 @@ describe('museum server rendering', () => {
     expect(html).toContain('data-requested-animal-id="mosasaurus"')
     expect(html).toContain('Prehistoric Animal Museum')
     expect(html).toContain('<h1 class="animal-title">Mosasaurus</h1>')
+    expect(html).toContain('Research notes about Mosasaurus')
+    expect(html).toContain('Late Cretaceous')
+    expect(html).toContain('Scientific sources')
+    expect(html).toContain('Made by Leon Made This')
+    expect(html).toContain(
+      'Leon Made This compiled these research notes from public museum resources and scientific papers',
+    )
     expect(html).toContain(
       'data-museum-return="" href="../../../en/?animal=mosasaurus"',
     )
@@ -86,6 +98,9 @@ describe('museum server rendering', () => {
     for (const animalId of mainCollection.animalIds) {
       expect(html).toContain(`href="../${animalId}/"`)
     }
+    expect(html).not.toContain(
+      'The content below uses the same reviewed data as the guide for grown-ups',
+    )
     expect(html).not.toContain('seo-static-shell')
   })
 })

@@ -58,7 +58,12 @@ import type { PublishedAnimalPackage } from './content/types'
 import { I18nProvider, useI18n } from './i18n/I18nProvider'
 import { localeFromPath, type Locale } from './i18n/locale'
 import { updateLocalizedMetadata } from './i18n/metadata'
-import { dietLabel, formatSizeFact, messagesFor } from './i18n/messages'
+import {
+  dietLabel,
+  formatResearchSizeFact,
+  formatSizeFact,
+  messagesFor,
+} from './i18n/messages'
 import { localReviewAnimals } from 'virtual:local-review-catalog'
 import {
   MODEL_DATA_REMINDER_STORAGE_KEY,
@@ -416,6 +421,7 @@ function toRuntimeAnimal(
     throw new Error(`动物 “${animal.id}” 没有可预览的 ${locale} 内容。`)
   }
   const size = formatSizeFact(content.facts.size, locale)
+  const researchSize = formatResearchSizeFact(content.facts.size, locale)
   const review: ParentReviewFacts | null = animal.review
     ? {
         badge: animal.review.badge,
@@ -459,17 +465,26 @@ function toRuntimeAnimal(
     narrationScript: content.narration.sentences,
     review,
     facts: {
+      animalName: content.name,
       assetCredits,
       classification: content.classificationLabel,
       classificationNote: content.parentClassificationNote,
       diet: dietLabel(content.facts.diet, locale),
       discoveryRegions: [...content.facts.discoveryRegions],
+      researchSize: researchSize.value,
+      researchSizeNote: researchSize.note,
       size: size.value,
       sizeLabel: size.label,
       period: content.facts.period,
       narrationScript: content.narration.sentences,
+      researchReviewedOn: content.editorial.reviewedOn,
+      researchUncertaintyNotes: [...content.editorial.uncertaintyNotes],
       ...(review ? { review } : {}),
-      sources: content.sources.map(({ title, url }) => ({ title, url })),
+      sources: content.sources.map(({ accessedOn, title, url }) => ({
+        accessedOn,
+        title,
+        url,
+      })),
     },
     assets: {
       model: animal.assets.model,
@@ -2113,7 +2128,8 @@ function MuseumApp({
   } as CSSProperties
 
   return (
-    <main
+    <div className="museum-page">
+      <main
       className={`museum-experience ${focusMode ? 'museum-experience--focus' : ''}${
         scaleEncounterOpen ? ' museum-experience--scale-encounter' : ''
       }`}
@@ -2650,18 +2666,6 @@ function MuseumApp({
         </Suspense>
       ) : null}
 
-      <ParentDrawer
-        facts={activeAnimal.facts}
-        onClose={() => setDrawerOpen(false)}
-        open={drawerOpen && !focusMode}
-        returnFocusTo={drawerTriggerRef}
-        showReviewDetails={localReviewMode}
-      />
-      <AboutDrawer
-        onClose={() => setAboutOpen(false)}
-        open={aboutOpen && !focusMode}
-        returnFocusTo={aboutTriggerRef}
-      />
       <AnimalCollectionSheet
         animals={collectionAnimals}
         currentAnimalId={loadSnapshot.readyAnimalId ?? activeAnimal.id}
@@ -2682,7 +2686,20 @@ function MuseumApp({
         open={collectionOpen && !focusMode}
         returnFocusTo={collectionTriggerRef}
       />
-    </main>
+      </main>
+      <ParentDrawer
+        facts={activeAnimal.facts}
+        onClose={() => setDrawerOpen(false)}
+        open={drawerOpen && !focusMode}
+        returnFocusTo={drawerTriggerRef}
+        showReviewDetails={localReviewMode}
+      />
+      <AboutDrawer
+        onClose={() => setAboutOpen(false)}
+        open={aboutOpen && !focusMode}
+        returnFocusTo={aboutTriggerRef}
+      />
+    </div>
   )
 }
 

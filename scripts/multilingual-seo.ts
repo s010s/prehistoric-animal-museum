@@ -234,7 +234,7 @@ const pageCopy = {
     locale: 'zh-CN',
     htmlLang: 'zh-CN',
     brand: 'Leon做了个',
-    title: '史前动物博物馆 | 亲子 3D 史前动物展',
+    title: '史前动物博物馆 | 给 2–6 岁孩子的免费 3D 恐龙与古生物网站',
     description: `和孩子一起走进 3D 史前动物博物馆，观察 ${catalogueAnimalCount} 位来自陆地、天空与水中的史前朋友。`,
     heading: '史前动物博物馆',
     introduction:
@@ -250,7 +250,7 @@ const pageCopy = {
     locale: 'en',
     htmlLang: 'en',
     brand: 'Leon Made This',
-    title: 'Prehistoric Animal Museum | A 3D Family Adventure',
+    title: 'Prehistoric Animal Museum for Kids | Free Interactive 3D Exhibits',
     description: `Explore ${catalogueAnimalCount} prehistoric animals from land, sky and sea in a gentle 3D museum made for young children and their grown-ups.`,
     heading: 'Prehistoric Animal Museum',
     introduction:
@@ -318,6 +318,57 @@ function canonicalUrl(
   return `${options.siteOrigin}${options.museumPath}${suffix}`
 }
 
+function museumStructuredData(
+  copy: SeoPageCopy,
+  options: ResolvedSeoOptions,
+): string {
+  const personalSite = `${options.siteOrigin}/`
+  const museumUrl = canonicalUrl(copy.locale, options)
+  const museumName =
+    copy.locale === 'en' ? 'Prehistoric Animal Museum' : '史前动物博物馆'
+  const alternateMuseumName =
+    copy.locale === 'en' ? '史前动物博物馆' : 'Prehistoric Animal Museum'
+
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    '@id': `${museumUrl}#museum`,
+    alternateName: alternateMuseumName,
+    applicationCategory: 'EducationalApplication',
+    brand: {
+      '@type': 'Brand',
+      '@id': `${personalSite}#leon-made-this`,
+      alternateName: 'Leon Made This',
+      name: 'Leon做了个',
+      url: personalSite,
+    },
+    copyrightHolder: {
+      '@type': 'Person',
+      '@id': `${personalSite}#leon`,
+      name: 'Leon',
+      url: personalSite,
+    },
+    creator: {
+      '@type': 'Person',
+      '@id': `${personalSite}#leon`,
+      name: 'Leon',
+      url: personalSite,
+    },
+    description: copy.description,
+    inLanguage: copy.htmlLang,
+    isAccessibleForFree: true,
+    isPartOf: {
+      '@type': 'WebSite',
+      '@id': `${personalSite}#website`,
+      name: 'Leon做了个',
+      url: personalSite,
+    },
+    name: museumName,
+    operatingSystem: 'Any',
+    url: museumUrl,
+  }).replaceAll('<', '\\u003c')
+}
+
 function renderHead(copy: SeoPageCopy, options: ResolvedSeoOptions): string {
   const canonical = canonicalUrl(copy.locale, options)
   const socialImage = `${options.siteOrigin}${options.museumPath}${copy.socialImageFileName}`
@@ -348,6 +399,7 @@ function renderHead(copy: SeoPageCopy, options: ResolvedSeoOptions): string {
     <meta name="twitter:description" content="${escapeHtml(copy.description)}" />
     <meta name="twitter:image" content="${escapeHtml(socialImage)}" />
     <meta name="twitter:image:alt" content="${escapeHtml(copy.socialImageAlt)}" />
+    <script id="museum-structured-data" type="application/ld+json">${museumStructuredData(copy, options)}</script>
     ${staticShellStyle}`
 }
 
@@ -598,9 +650,34 @@ function renderAnimalDetailDocument(
         },
       ],
     },
+    copyrightHolder: {
+      '@type': 'Person',
+      '@id': `${options.siteOrigin}/#leon`,
+      name: 'Leon',
+      url: `${options.siteOrigin}/`,
+    },
+    creator: {
+      '@type': 'Person',
+      '@id': `${options.siteOrigin}/#leon`,
+      name: 'Leon',
+      url: `${options.siteOrigin}/`,
+    },
     description,
     image: socialImage,
     inLanguage: locale,
+    isPartOf: {
+      '@type': 'WebApplication',
+      '@id': `${canonicalUrl(locale, options)}#museum`,
+      brand: {
+        '@type': 'Brand',
+        '@id': `${options.siteOrigin}/#leon-made-this`,
+        alternateName: 'Leon Made This',
+        name: 'Leon做了个',
+        url: `${options.siteOrigin}/`,
+      },
+      name: museumName,
+      url: canonicalUrl(locale, options),
+    },
     name: content.name,
     url: canonical,
   }).replaceAll('<', '\\u003c')

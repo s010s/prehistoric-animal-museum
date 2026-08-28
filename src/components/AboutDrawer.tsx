@@ -1,10 +1,10 @@
-import { createPortal } from 'react-dom'
 import { useEffect, useId, useRef } from 'react'
 import { Code2, ExternalLink, X } from 'lucide-react'
 import { GITHUB_LICENSING_URL, GITHUB_REPOSITORY_URL } from '../github'
 import { useI18n } from '../i18n/I18nProvider'
 import { IconButton } from './IconButton'
 import { LanguageMenu } from './LanguageMenu'
+import { OfficialLinks } from './OfficialLinks'
 
 interface AboutDrawerProps {
   readonly onClose: () => void
@@ -64,12 +64,8 @@ export function AboutDrawer({
     }
   }, [open, returnFocusTo])
 
-  if (!open) {
-    return null
-  }
-
-  return createPortal(
-    <div className="drawer-layer">
+  return (
+    <div className="drawer-layer" hidden={!open}>
       <div
         aria-hidden="true"
         className="drawer-backdrop"
@@ -81,7 +77,7 @@ export function AboutDrawer({
       />
       <section
         aria-labelledby={titleId}
-        aria-modal="true"
+        aria-modal={open || undefined}
         className="parent-drawer about-drawer"
         ref={drawerRef}
         role="dialog"
@@ -111,6 +107,7 @@ export function AboutDrawer({
                 <p key={paragraph}>{paragraph}</p>
               ))}
             </section>
+            <OfficialLinks compact />
             <div className="about-links">
               <a
                 className="about-link about-link--primary"
@@ -135,7 +132,6 @@ export function AboutDrawer({
           </div>
         </div>
       </section>
-    </div>,
-    document.body,
+    </div>
   )
 }
