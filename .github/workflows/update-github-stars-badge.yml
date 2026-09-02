@@ -1,0 +1,38 @@
+name: Update GitHub stars badge
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-github-stars-badge
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fetch star count and render badge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          stars="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.stargazers_count')"
+          node scripts/render-github-stars-badge.mjs "$stars"
+
+      - name: Commit a changed badge
+        run: |
+          if git diff --quiet -- assets/readme/github-stars.svg; then
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/readme/github-stars.svg
+          git commit -m "chore: update GitHub stars badge"
+          git push

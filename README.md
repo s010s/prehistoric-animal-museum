@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="Prehistoric Animal Museum — a free 3D world for children and grown-ups to explore together">
+  <img src="./assets/readme/hero.svg" width="100%" alt="Prehistoric Animal Museum, a free 3D world for children and grown-ups to explore together">
 </p>
 
 <p align="center">
@@ -37,7 +37,7 @@ This museum is not designed to keep children on the screen. Discovering one inte
 
 The museum follows the device language on a first visit. You can switch between English and Simplified Chinese at any time; the choice is remembered, and each language has a shareable link.
 
-It is designed mainly for children aged 2–6 with a grown-up nearby, but curiosity matters more than the age label. If an image or sound feels uncomfortable, choose another animal or close the page.
+It is designed mainly for children aged 2-6 with a grown-up nearby, but curiosity matters more than the age label. If an image or sound feels uncomfortable, choose another animal or close the page.
 
 ## Exhibits across sea, land, and sky
 
@@ -97,3 +97,22 @@ This repository has several clear legal layers:
 - “Leon做了个 / Leon Made This”, the project names, logos, and source-identifying brand elements are reserved to prevent confusion about the official source; renamed and rebranded forks remain welcome within the applicable licences.
 
 See the [licensing guide](LICENSING.md), [brand policy](BRAND_POLICY.md), [contribution terms](CONTRIBUTING.md), and [third-party notices](THIRD_PARTY_NOTICES.md) for licensing boundaries and recorded attributions, sources, and modifications.
+
+<br><br>
+
+<p align="center">
+  <a href="https://github.com/s010s/prehistoric-animal-museum/stargazers">
+    <img src="./assets/readme/github-stars.svg" height="54" alt="GitHub Stars">
+  </a>
+  &nbsp;
+  <a href="https://atomgit.com/leonleung/prehistoric-animal-museum">
+    <img src="https://atomgit.com/leonleung/prehistoric-animal-museum/star/new_badge.svg" height="54" alt="AtomGit G-Star">
+  </a>
+</p>
+
+<p align="center">
+  <sub>
+    <a href="https://github.com/s010s/prehistoric-animal-museum"><strong>GitHub</strong></a> is the primary repository for development, Issues, and pull requests.<br>
+    <a href="https://atomgit.com/leonleung/prehistoric-animal-museum"><strong>AtomGit</strong></a> is the official mirror for visitors in Mainland China.
+  </sub>
+</p>

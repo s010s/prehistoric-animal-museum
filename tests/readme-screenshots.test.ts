@@ -70,8 +70,13 @@ describe('README reference screenshot plan', () => {
         (match) => match[1] ?? '',
       ),
     ]
+    const sharedReadmeGraphics = new Set([
+      './assets/readme/github-stars.svg',
+      'https://atomgit.com/leonleung/prehistoric-animal-museum/star/new_badge.svg',
+    ])
     const isAllowedReadmeImage = (source: string, hero: string) =>
       source === hero ||
+      sharedReadmeGraphics.has(source) ||
       /^\.\/src\/content\/animals\/[a-z0-9-]+\/images\/thumbnail\.webp$/u.test(
         source,
       )
@@ -88,6 +93,8 @@ describe('README reference screenshot plan', () => {
     ).toBe(true)
     expect(englishReadme).toContain('./assets/readme/hero.svg')
     expect(chineseReadme).toContain('./assets/readme/hero.zh-CN.svg')
+    expect(englishReadme).toContain('./assets/readme/github-stars.svg')
+    expect(chineseReadme).toContain('./assets/readme/github-stars.svg')
     expect(englishReadme).toContain('/images/thumbnail.webp')
     expect(chineseReadme).toContain('/images/thumbnail.webp')
   })

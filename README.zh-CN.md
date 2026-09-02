@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.zh-CN.svg" width="100%" alt="史前动物博物馆——给孩子和家长一起观察的免费 3D 史前动物小世界">
+  <img src="./assets/readme/hero.zh-CN.svg" width="100%" alt="史前动物博物馆，给孩子和家长一起观察的免费 3D 史前动物小世界">
 </p>
 
 <p align="center">
@@ -97,3 +97,22 @@ npm run test:e2e
 - “Leon做了个 / Leon Made This”、项目名称、标志及用于识别官方来源的品牌元素仅保留防止冒充官方所需的权利；在适用许可范围内，改名和替换品牌后的 Fork 仍然受到欢迎。
 
 许可边界以及已记录的署名、来源和修改信息见[许可说明](LICENSING.md)、[品牌政策](BRAND_POLICY.md)、[贡献指南](CONTRIBUTING.md)与[第三方素材说明](THIRD_PARTY_NOTICES.md)。
+
+<br><br>
+
+<p align="center">
+  <a href="https://github.com/s010s/prehistoric-animal-museum/stargazers">
+    <img src="./assets/readme/github-stars.svg" height="54" alt="GitHub Stars">
+  </a>
+  &nbsp;
+  <a href="https://atomgit.com/leonleung/prehistoric-animal-museum">
+    <img src="https://atomgit.com/leonleung/prehistoric-animal-museum/star/new_badge.svg" height="54" alt="AtomGit G-Star">
+  </a>
+</p>
+
+<p align="center">
+  <sub>
+    <a href="https://github.com/s010s/prehistoric-animal-museum"><strong>GitHub</strong></a> 是项目主仓与开发协作入口，Issue 和 Pull Request 请在 GitHub 提交。<br>
+    <a href="https://atomgit.com/leonleung/prehistoric-animal-museum"><strong>AtomGit</strong></a> 是面向中国大陆访问者的官方同步镜像。
+  </sub>
+</p>
