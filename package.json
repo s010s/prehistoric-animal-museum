@@ -25,6 +25,7 @@
     "generate:review-model-previews": "tsx scripts/render-model-previews.ts --target=review",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest",
+    "test:github-stars-badge": "vitest run tests/github-stars-badge-worker.test.ts",
     "test:review": "playwright test --config playwright.review.config.ts",
     "validate:content": "tsx scripts/validate-content.ts",
     "validate:production-boundary": "tsx scripts/validate-production-boundary.ts",
@@ -33,6 +34,7 @@
     "validate:review": "tsx scripts/validate-review-assets.ts && npm run validate:review-model-previews",
     "generate:credits": "tsx scripts/generate-credits.ts",
     "capture:readme-screenshots": "playwright test --config playwright.readme-screenshots.config.ts",
+    "deploy:github-stars-badge": "npx --yes wrangler@4.128.0 deploy --config workers/github-stars-badge/wrangler.jsonc",
     "test:e2e": "playwright test"
   },
   "dependencies": {

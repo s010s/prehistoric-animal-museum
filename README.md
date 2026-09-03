@@ -102,7 +102,7 @@ See the [licensing guide](LICENSING.md), [brand policy](BRAND_POLICY.md), [contr
 
 <p align="center">
   <a href="https://github.com/s010s/prehistoric-animal-museum/stargazers">
-    <img src="./assets/readme/github-stars.svg" height="54" alt="GitHub Stars">
+    <img src="https://badges.leon-made-this.work/github-stars.svg" height="54" alt="GitHub Stars">
   </a>
   &nbsp;
   <a href="https://atomgit.com/leonleung/prehistoric-animal-museum">

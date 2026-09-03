@@ -1,6 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="54" viewBox="0 0 240 54" role="img" aria-labelledby="title desc">
+export const FALLBACK_STAR_COUNT = 860
+
+export function parseStarCount(payload) {
+  const count = payload?.stargazers_count
+  if (!Number.isSafeInteger(count) || count < 0) {
+    throw new Error('GitHub returned an invalid stargazers_count.')
+  }
+  return count
+}
+
+export function formatStars(count) {
+  if (!Number.isSafeInteger(count) || count < 0) {
+    throw new Error('Star count must be a non-negative safe integer.')
+  }
+  if (count < 1_000) return String(count)
+  if (count < 10_000) {
+    return `${(count / 1_000).toFixed(1).replace(/\.0$/u, '')}k`
+  }
+  return `${Math.round(count / 1_000)}k`
+}
+
+export function renderBadge(count) {
+  const display = formatStars(count)
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="54" viewBox="0 0 240 54" role="img" aria-labelledby="title desc">
   <title id="title">GitHub Stars for Prehistoric Animal Museum</title>
-  <desc id="desc">The primary repository on GitHub currently has 849 stars.</desc>
+  <desc id="desc">The primary repository on GitHub currently has ${count} stars.</desc>
 
   <rect x="1" y="1" width="238" height="52" rx="13" fill="#fffdf7" stroke="#356859" stroke-width="2"/>
 
@@ -11,6 +35,7 @@
     <text x="51" y="19" font-size="8.5" font-weight="700" letter-spacing=".8" fill="#356859">PRIMARY REPOSITORY</text>
     <text x="50" y="40" font-size="20" font-weight="800" fill="#20352f">GitHub</text>
     <path d="m181 20.5 2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.4 2.4.8-5-3.6-3.5 5-.7z" fill="#f4b85f"/>
-    <text x="225" y="38" text-anchor="end" font-size="15" font-weight="750" fill="#20352f">849</text>
+    <text x="225" y="38" text-anchor="end" font-size="15" font-weight="750" fill="#20352f">${display}</text>
   </g>
-</svg>
+</svg>`
+}

@@ -1,0 +1,16 @@
+{
+  "name": "prehistoric-animal-museum-github-stars",
+  "main": "index.mjs",
+  "compatibility_date": "2026-09-03",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "badges.leon-made-this.work",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
