@@ -6,7 +6,9 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
+  pull-requests: write
 
 concurrency:
   group: update-github-stars-badge
@@ -25,14 +27,73 @@ jobs:
           stars="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.stargazers_count')"
           node scripts/render-github-stars-badge.mjs "$stars"
 
-      - name: Commit a changed badge
+      - name: Publish a changed badge through a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if git diff --quiet -- assets/readme/github-stars.svg; then
             exit 0
           fi
 
+          branch="automation/update-github-stars-badge"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
           git add assets/readme/github-stars.svg
           git commit -m "chore: update GitHub stars badge"
-          git push
+          git push --force origin "HEAD:refs/heads/$branch"
+
+          pr_number="$(
+            gh pr list \
+              --base main \
+              --head "$branch" \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty'
+          )"
+
+          if [ -z "$pr_number" ]; then
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --title "chore: update GitHub stars badge" \
+              --body "Automated refresh of the custom GitHub stars badge."
+            pr_number="$(
+              gh pr list \
+                --base main \
+                --head "$branch" \
+                --state open \
+                --json number \
+                --jq '.[0].number'
+            )"
+          fi
+
+          head_sha="$(git rev-parse HEAD)"
+          gh workflow run pages.yml --ref "$branch"
+
+          run_id=""
+          for attempt in $(seq 1 20); do
+            run_id="$(
+              gh run list \
+                --workflow pages.yml \
+                --branch "$branch" \
+                --event workflow_dispatch \
+                --limit 10 \
+                --json databaseId,headSha \
+                --jq ".[] | select(.headSha == \"$head_sha\") | .databaseId" \
+                | head -n 1
+            )"
+            if [ -n "$run_id" ]; then
+              break
+            fi
+            sleep 3
+          done
+
+          if [ -z "$run_id" ]; then
+            echo "Could not find the dispatched build for $head_sha." >&2
+            exit 1
+          fi
+
+          gh run watch "$run_id" --compact --exit-status
+          gh pr checks "$pr_number" --required --watch --fail-fast
+          gh pr merge "$pr_number" --squash --delete-branch
