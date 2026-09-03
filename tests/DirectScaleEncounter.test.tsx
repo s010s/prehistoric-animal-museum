@@ -1342,7 +1342,7 @@ describe('DirectScaleEncounter', () => {
     expect(presentation?.backgroundScale).toBeCloseTo(1.28 / 0.92, 8)
   })
 
-  it('moves only while arrow keys are held in the child POV and stops on release', async () => {
+  it('moves only while arrow or WASD keys are held in the child POV and stops on release', async () => {
     const user = userEvent.setup()
     const controller = makeController()
     renderPteranodonEncounter(controller)
@@ -1378,15 +1378,15 @@ describe('DirectScaleEncounter', () => {
     const right = screen.getByRole('button', {
       name: '向右绕着动物看',
     })
-    expect(left).toHaveAttribute('aria-keyshortcuts', 'ArrowLeft')
-    expect(right).toHaveAttribute('aria-keyshortcuts', 'ArrowRight')
+    expect(left).toHaveAttribute('aria-keyshortcuts', 'ArrowLeft A')
+    expect(right).toHaveAttribute('aria-keyshortcuts', 'ArrowRight D')
     expect(screen.getByRole('button', { name: '退后一点' })).toHaveAttribute(
       'aria-keyshortcuts',
-      'ArrowDown',
+      'ArrowDown S',
     )
     expect(screen.getByRole('button', { name: '靠近一点' })).toHaveAttribute(
       'aria-keyshortcuts',
-      'ArrowUp',
+      'ArrowUp W',
     )
     controller.setScaleEncounterOrbitMotion.mockClear()
     controller.setScaleEncounterDistanceMotion.mockClear()
@@ -1411,6 +1411,27 @@ describe('DirectScaleEncounter', () => {
     fireEvent.keyDown(document, { key: 'ArrowDown' })
     expect(controller.setScaleEncounterDistanceMotion).toHaveBeenLastCalledWith(-1)
     fireEvent.keyUp(document, { key: 'ArrowDown' })
+    expect(controller.setScaleEncounterDistanceMotion).toHaveBeenLastCalledWith(0)
+
+    fireEvent.keyDown(document, { code: 'KeyA', key: 'a' })
+    expect(controller.setScaleEncounterOrbitMotion).toHaveBeenLastCalledWith(-1)
+    fireEvent.keyUp(document, { code: 'KeyA', key: 'a' })
+    expect(controller.setScaleEncounterOrbitMotion).toHaveBeenLastCalledWith(0)
+    fireEvent.keyDown(document, { code: 'KeyD', key: 'D' })
+    expect(controller.setScaleEncounterOrbitMotion).toHaveBeenLastCalledWith(1)
+    fireEvent.keyUp(document, { code: 'KeyD', key: 'D' })
+    expect(controller.setScaleEncounterOrbitMotion).toHaveBeenLastCalledWith(0)
+    fireEvent.keyDown(document, { code: 'KeyS', key: 's' })
+    expect(controller.setScaleEncounterDistanceMotion).toHaveBeenLastCalledWith(-1)
+    fireEvent.keyUp(document, { code: 'KeyS', key: 's' })
+    expect(controller.setScaleEncounterDistanceMotion).toHaveBeenLastCalledWith(0)
+
+    fireEvent.keyDown(document, { code: 'KeyW', key: 'w' })
+    fireEvent.keyDown(document, { key: 'ArrowUp' })
+    expect(controller.setScaleEncounterDistanceMotion).toHaveBeenLastCalledWith(1)
+    fireEvent.keyUp(document, { code: 'KeyW', key: 'w' })
+    expect(controller.setScaleEncounterDistanceMotion).toHaveBeenLastCalledWith(1)
+    fireEvent.keyUp(document, { key: 'ArrowUp' })
     expect(controller.setScaleEncounterDistanceMotion).toHaveBeenLastCalledWith(0)
 
     expect(controller.adjustScaleEncounterOrbit.mock.calls).toEqual([

@@ -112,11 +112,44 @@ interface PointerButtonHold {
   timer: number
 }
 
-type MovementArrowKey =
+type MovementKey =
   | 'ArrowDown'
   | 'ArrowLeft'
   | 'ArrowRight'
   | 'ArrowUp'
+  | 'KeyA'
+  | 'KeyD'
+  | 'KeyS'
+  | 'KeyW'
+
+function movementKeyForEvent(event: KeyboardEvent): MovementKey | null {
+  switch (event.key) {
+    case 'ArrowDown':
+    case 'ArrowLeft':
+    case 'ArrowRight':
+    case 'ArrowUp':
+      return event.key
+  }
+  switch (event.code) {
+    case 'KeyA':
+    case 'KeyD':
+    case 'KeyS':
+    case 'KeyW':
+      return event.code
+  }
+  switch (event.key.toLowerCase()) {
+    case 'a':
+      return 'KeyA'
+    case 'd':
+      return 'KeyD'
+    case 's':
+      return 'KeyS'
+    case 'w':
+      return 'KeyW'
+    default:
+      return null
+  }
+}
 
 const DISTANCE_BUTTON_HOLD_DELAY_MS = 260
 const AMBIENT_AUDIO_URL = new URL(
@@ -342,7 +375,7 @@ export function DirectScaleEncounter({
   const suppressDistanceClickRef = useRef(false)
   const orbitButtonHoldRef = useRef<PointerButtonHold | null>(null)
   const suppressOrbitClickRef = useRef(false)
-  const heldMovementKeysRef = useRef(new Set<MovementArrowKey>())
+  const heldMovementKeysRef = useRef(new Set<MovementKey>())
   const contextActionHeldRef = useRef(false)
   const mountedRef = useRef(false)
   const beginTokenRef = useRef(0)
@@ -1085,9 +1118,11 @@ export function DirectScaleEncounter({
     const syncKeyboardMotion = () => {
       const held = heldMovementKeysRef.current
       const orbitDirection =
-        Number(held.has('ArrowRight')) - Number(held.has('ArrowLeft'))
+        Number(held.has('ArrowRight') || held.has('KeyD')) -
+        Number(held.has('ArrowLeft') || held.has('KeyA'))
       const distanceDirection =
-        Number(held.has('ArrowUp')) - Number(held.has('ArrowDown'))
+        Number(held.has('ArrowUp') || held.has('KeyW')) -
+        Number(held.has('ArrowDown') || held.has('KeyS'))
       controller.setScaleEncounterOrbitMotion(
         orbitDirection as -1 | 0 | 1,
       )
@@ -1119,18 +1154,18 @@ export function DirectScaleEncounter({
         }
         return
       }
+      const movementKey = movementKeyForEvent(event)
       if (
         startedRef.current &&
         ['arrival', 'eyes'].includes(phase) &&
         !event.altKey &&
         !event.ctrlKey &&
         !event.metaKey &&
-        ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp'].includes(event.key)
+        movementKey !== null
       ) {
         event.preventDefault()
-        const key = event.key as MovementArrowKey
-        if (!heldMovementKeysRef.current.has(key)) {
-          heldMovementKeysRef.current.add(key)
+        if (!heldMovementKeysRef.current.has(movementKey)) {
+          heldMovementKeysRef.current.add(movementKey)
           syncKeyboardMotion()
         }
         return
@@ -1178,12 +1213,8 @@ export function DirectScaleEncounter({
         endContextAction()
         return
       }
-      if (
-        !['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp'].includes(event.key)
-      ) {
-        return
-      }
-      const key = event.key as MovementArrowKey
+      const key = movementKeyForEvent(event)
+      if (key === null) return
       if (!heldMovementKeysRef.current.delete(key)) return
       event.preventDefault()
       syncKeyboardMotion()
@@ -2076,7 +2107,7 @@ export function DirectScaleEncounter({
           {viewIsPov ? (
             <>
               <button
-                aria-keyshortcuts="ArrowLeft"
+                aria-keyshortcuts="ArrowLeft A"
                 aria-label={content.copy.controls.orbitLeft}
                 className="scale-encounter-orbit-button scale-encounter-orbit-button--left"
                 onClick={() => clickOrbitButton(-1)}
@@ -2094,7 +2125,7 @@ export function DirectScaleEncounter({
                 <ChevronLeft aria-hidden="true" size={28} strokeWidth={2.4} />
               </button>
               <button
-                aria-keyshortcuts="ArrowRight"
+                aria-keyshortcuts="ArrowRight D"
                 aria-label={content.copy.controls.orbitRight}
                 className="scale-encounter-orbit-button scale-encounter-orbit-button--right"
                 onClick={() => clickOrbitButton(1)}
@@ -2116,7 +2147,7 @@ export function DirectScaleEncounter({
           <div className="scale-encounter-controls">
             <div className="scale-encounter-distance-control">
               <button
-                aria-keyshortcuts={viewIsPov ? 'ArrowDown' : undefined}
+                aria-keyshortcuts={viewIsPov ? 'ArrowDown S' : undefined}
                 aria-label={content.copy.controls.farther}
                 onClick={() => clickDistanceButton(-1)}
                 onLostPointerCapture={(event) =>
@@ -2148,7 +2179,7 @@ export function DirectScaleEncounter({
                 </small>
               </span>
               <button
-                aria-keyshortcuts={viewIsPov ? 'ArrowUp' : undefined}
+                aria-keyshortcuts={viewIsPov ? 'ArrowUp W' : undefined}
                 aria-label={content.copy.controls.closer}
                 onClick={() => clickDistanceButton(1)}
                 onLostPointerCapture={(event) =>
