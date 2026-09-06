@@ -2147,7 +2147,7 @@ export class ViewerController {
         // exposure or the child's cold-weather outfit.
         mammothAnimalGrade = applyMammothSubjectGrade(current.modelRoot, {
           midtoneExponent: 0.62,
-          minimumFill: 0.075,
+          minimumFill: 0.18,
           saturation: 1.08,
         })
       }
@@ -3432,7 +3432,7 @@ export class ViewerController {
     encounter.oceanAvatarGrade?.restore()
     encounter.oceanAnimalGrade?.restore()
     encounter.boostFlow?.dispose()
-    encounter.animalPresence?.restore()
+    encounter.animalPresence?.dispose()
     encounter.environment?.root.removeFromParent()
     disposeScaleEncounterEnvironment(encounter.environment)
     disposeScaleEncounterAvatar(encounter.avatar, this.renderer)
@@ -3463,6 +3463,7 @@ export class ViewerController {
     delete this.renderer.domElement.dataset.scaleEncounter
     delete this.renderer.domElement.dataset.scaleEncounterAnimalAttention
     delete this.renderer.domElement.dataset.scaleEncounterAnimalAcknowledgements
+    delete this.renderer.domElement.dataset.scaleEncounterAtmosphereParticles
     delete this.renderer.domElement.dataset.scaleEncounterCameraStage
     delete this.renderer.domElement.dataset.scaleEncounterEnvironment
     delete this.renderer.domElement.dataset.scaleEncounterSceneCandidate
@@ -5570,6 +5571,9 @@ export class ViewerController {
           this.reducedMotion,
           this.camera,
           this.scaleEncounterRiverVisitor(),
+        )
+        this.renderer.domElement.dataset.scaleEncounterAtmosphereParticles = String(
+          this.scaleEncounter.environment?.atmosphere?.particleCount ?? 0,
         )
         this.scaleEncounter.boostFlow?.update(
           deltaSeconds,

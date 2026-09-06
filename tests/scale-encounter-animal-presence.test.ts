@@ -1,12 +1,14 @@
 import { readFileSync } from 'node:fs'
-import { Bone, BoxGeometry, Group, MathUtils, Mesh, MeshBasicMaterial, PropertyBinding, Quaternion, Vector3 } from 'three'
+import { Bone, Box3, BoxGeometry, Group, MathUtils, Mesh, MeshBasicMaterial, PropertyBinding, Quaternion, SkinnedMesh, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { createAnimalPresence, ENCOUNTER_ATTENTION_JOINTS } from '../src/viewer/scale-encounter-animal-presence'
+import { loadTexturelessAnimal } from './helpers/load-textureless-animal'
 
 function rig(parentYaw = 0) {
   const model = new Group()
   model.add(new Mesh(new BoxGeometry(2, 1, 1), new MeshBasicMaterial()))
   const parent = new Bone()
+  parent.name = 'neck'
   parent.rotation.y = parentYaw
   const head = new Bone()
   head.name = 'head'
@@ -31,7 +33,7 @@ describe('gentle animal attention', () => {
         presence.update({ deltaSeconds: 1 / 60, visitorEye: new Vector3(3, 1, 3), active: true, reducedMotion: false })
       }
       expect(presence.yawRadians).toBeLessThan(-.16)
-      expect(Math.abs(presence.yawRadians)).toBeLessThanOrEqual(MathUtils.degToRad(10))
+      expect(Math.abs(presence.yawRadians)).toBeLessThanOrEqual(MathUtils.degToRad(26))
       presence.restore()
       expect(head.quaternion.angleTo(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), .03))).toBeLessThan(.000001)
       head.quaternion.copy(original)
@@ -44,60 +46,75 @@ describe('gentle animal attention', () => {
     }
   })
 
-  it('acknowledges a sustained approach once, with a 4 cm foot lift and a leave/re-enter latch', () => {
-    const { model, foot } = rig()
-    const presence = createAnimalPresence('mammoth', model)!
-    let impacts = 0
-    let maximumLift = 0
+  it('corrects the real mammoth skin and bends its foreleg visibly without moving joint origins', async () => {
+    const model = await loadTexturelessAnimal('mammoth')
+    model.scale.setScalar(3.4 / new Box3().setFromObject(model, true).getSize(new Vector3()).y)
+    model.updateMatrixWorld(true)
+    let mesh!: SkinnedMesh
+    model.traverse((object) => { if (object instanceof SkinnedMesh) mesh = object as SkinnedMesh })
+    const sourceGeometry = mesh.geometry, sourceSkeleton = mesh.skeleton
+    sourceSkeleton.update()
+    const originalVertices = Array.from({ length: mesh.geometry.getAttribute('position').count }, (_, i) => mesh.getVertexPosition(i, new Vector3()))
+    const centre = new Box3().setFromObject(model, true).getCenter(new Vector3())
+    const presence = createAnimalPresence('mammoth', model, centre.clone().add(new Vector3(0, 0, 12)))!
+    expect(presence).not.toBeNull()
+    mesh.skeleton.update()
+    let restError = 0
+    originalVertices.forEach((point, i) => { restError = Math.max(restError, point.distanceTo(mesh.getVertexPosition(i, new Vector3()))) })
+    expect(restError).toBeLessThan(.00001)
+    const upper = model.getObjectByName('leg_front_left') as Bone
+    const lower = model.getObjectByName('encounter_mammoth_front_elbow') as Bone
+    const upperStart = upper.quaternion.clone(), lowerStart = lower.quaternion.clone()
+    const upperPosition = upper.position.clone(), lowerPosition = lower.position.clone()
+    let impacts = 0, peakBend = 0, peakLift = 0
+    const bottom = originalVertices.reduce((index, point, i) => point.y < originalVertices[index]!.y ? i : index, 0)
+    // Use the actual left-front plantar vertices, not the joint origin.
+    const positions = mesh.geometry.getAttribute('position')
+    let footVertex = bottom
+    for (let i = 0; i < positions.count; i++) if (positions.getY(i) < -.61 && positions.getX(i) < .15 && positions.getZ(i) > .15) { footVertex = i; break }
+    const footStart = mesh.getVertexPosition(footVertex, new Vector3()).applyMatrix4(mesh.matrixWorld)
     function run(seconds: number, near = true) {
       for (let i = 0; i < seconds * 60; i++) {
-        const impact = presence.update({ deltaSeconds: 1 / 60, visitorEye: new Vector3(near ? 3 : 12, 1, 1), active: true, reducedMotion: false })
-        maximumLift = Math.max(maximumLift, foot.position.y)
-        if (impact) impacts++
+        if (presence.update({ deltaSeconds: 1 / 60, visitorEye: centre.clone().add(new Vector3(0, 0, near ? 2.8 : 14)), active: true, reducedMotion: false })) impacts++
+        model.updateMatrixWorld(true); mesh.skeleton.update()
+        peakBend = Math.max(peakBend, lower.quaternion.angleTo(lowerStart))
+        peakLift = Math.max(peakLift, mesh.getVertexPosition(footVertex, new Vector3()).applyMatrix4(mesh.matrixWorld).y - footStart.y)
       }
     }
-    run(1)
-    expect(presence.acknowledgementCount).toBe(0)
+    run(1); expect(presence.acknowledgementCount).toBe(0)
     run(30)
     expect(presence.acknowledgementCount).toBe(1)
     expect(impacts).toBe(1)
-    expect(maximumLift).toBeGreaterThan(.039)
-    expect(maximumLift).toBeLessThanOrEqual(.04001)
+    expect(peakBend).toBeGreaterThan(MathUtils.degToRad(50))
+    expect(peakLift).toBeGreaterThan(.15)
+    expect(peakLift).toBeLessThan(.4)
+    expect(upper.position).toEqual(upperPosition)
+    expect(lower.position).toEqual(lowerPosition)
     run(2, false); run(5)
     expect(presence.acknowledgementCount).toBe(2)
-    expect(impacts).toBe(2)
-    presence.restore()
-    expect(foot.position.y).toBe(0)
+    presence.update({ deltaSeconds: .1, visitorEye: centre, active: true, reducedMotion: true })
+    expect(upper.quaternion.angleTo(upperStart)).toBeLessThan(.00001)
+    expect(lower.quaternion.angleTo(lowerStart)).toBeLessThan(.00001)
+    presence.dispose()
+    expect(mesh.geometry).toBe(sourceGeometry)
+    expect(mesh.skeleton).toBe(sourceSkeleton)
+    expect(model.getObjectByName(lower.name)).toBeUndefined()
   })
 
-  it('restores immediately for reduced motion and does not apply unsupported rig guesses', () => {
-    const { model, head, foot } = rig()
-    const presence = createAnimalPresence('mammoth', model)!
-    const input = { deltaSeconds: .1, visitorEye: new Vector3(3, 1, 1), active: true, reducedMotion: false }
-    for (let i = 0; i < 22; i++) presence.update(input)
-    expect(foot.position.y).toBeGreaterThan(0)
+  it('increases close attention through the neck chain and restores reduced motion immediately', () => {
+    const { model, head } = rig()
+    const presence = createAnimalPresence('tyrannosaurus-rex', model)!
+    const input = { deltaSeconds: .1, visitorEye: new Vector3(15, 1, 15), active: true, reducedMotion: false }
+    for (let i = 0; i < 80; i++) presence.update(input)
+    const distant = Math.abs(presence.yawRadians)
+    for (let i = 0; i < 80; i++) presence.update({ ...input, visitorEye: new Vector3(2, 1, 2) })
+    expect(Math.abs(presence.yawRadians)).toBeGreaterThan(distant * 1.6)
+    expect(head.parent!.quaternion.angleTo(new Quaternion())).toBeGreaterThan(head.quaternion.angleTo(new Quaternion()))
     presence.update({ ...input, reducedMotion: true })
-    expect(foot.position.y).toBe(0)
     expect(head.quaternion.angleTo(new Quaternion())).toBeLessThan(.000001)
+    expect(head.parent!.quaternion.angleTo(new Quaternion())).toBeLessThan(.000001)
     expect(createAnimalPresence('mosasaurus', model)).toBeNull()
-    expect(createAnimalPresence('mammoth', new Group())).toBeNull()
-  })
-
-  it('keeps the arrival pose even with a remote head pivot and detects approach at the visible body', () => {
-    const { model, head, foot } = rig()
-    head.position.set(-5, 2, 0)
-    model.scale.setScalar(.5)
-    const presence = createAnimalPresence('mammoth', model, new Vector3(8, 1, 0))!
-    let highestWorldFoot = 0
-    for (let i = 0; i < 250; i++) {
-      presence.update({ deltaSeconds: 1 / 60, visitorEye: new Vector3(2, 1, 0), active: true, reducedMotion: false })
-      highestWorldFoot = Math.max(highestWorldFoot, foot.getWorldPosition(new Vector3()).y)
-    }
-    expect(presence.yawRadians).toBe(0)
-    expect(presence.acknowledgementCount).toBe(1)
-    expect(highestWorldFoot).toBeGreaterThan(.039)
-    expect(highestWorldFoot).toBeLessThanOrEqual(.04001)
-    presence.restore()
+    expect(createAnimalPresence('mammoth', model)).toBeNull()
   })
 
   it('uses unique head joints actually present in each shipped GLB skin', () => {
@@ -110,7 +127,40 @@ describe('gentle animal attention', () => {
       expect([...joints].filter((i) => document.nodes[i]?.name === joint), id).toHaveLength(1)
       const { model, head } = rig()
       head.name = PropertyBinding.sanitizeNodeName(joint)
-      expect(createAnimalPresence(id as keyof typeof ENCOUNTER_ATTENTION_JOINTS, model), id).not.toBeNull()
+      if (id !== 'mammoth') expect(createAnimalPresence(id as keyof typeof ENCOUNTER_ATTENTION_JOINTS, model), id).not.toBeNull()
     }
   })
+
+  it('keeps coincident head and neck skin seams together at the larger turn on shipped rigs', async () => {
+    for (const id of Object.keys(ENCOUNTER_ATTENTION_JOINTS)) {
+      const model = await loadTexturelessAnimal(id)
+      const bounds = new Box3().setFromObject(model, true)
+      const size = bounds.getSize(new Vector3()).length()
+      model.scale.setScalar(5 / size)
+      model.updateMatrixWorld(true)
+      const centre = new Box3().setFromObject(model, true).getCenter(new Vector3())
+      const presence = createAnimalPresence(id as keyof typeof ENCOUNTER_ATTENTION_JOINTS, model, centre.clone().add(new Vector3(0, 0, 8)))!
+      for (let i = 0; i < 90; i++) presence.update({ deltaSeconds: .1, visitorEye: centre.clone().add(new Vector3(2, 0, 2)), active: true, reducedMotion: false })
+      model.updateMatrixWorld(true)
+      let maximumGap = 0
+      model.traverse((object) => {
+        if (!(object instanceof SkinnedMesh)) return
+        const skinned = object as SkinnedMesh
+        skinned.skeleton.update()
+        const positions = skinned.geometry.getAttribute('position')
+        const matches = new Map<string, number>()
+        for (let i = 0; i < positions.count; i++) {
+          const key = [positions.getX(i), positions.getY(i), positions.getZ(i)].join(',')
+          const point = object.getVertexPosition(i, new Vector3()).applyMatrix4(object.matrixWorld)
+          const previous = matches.get(key)
+          if (previous !== undefined) {
+            const gap = object.getVertexPosition(previous, new Vector3()).applyMatrix4(object.matrixWorld).distanceTo(point)
+            maximumGap = Math.max(maximumGap, gap)
+          } else matches.set(key, i)
+        }
+      })
+      expect(maximumGap, `${id}: coincident skin seam gap`).toBeLessThan(.0001)
+      presence.dispose()
+    }
+  }, 15_000)
 })
