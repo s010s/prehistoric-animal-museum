@@ -355,6 +355,11 @@ const backgroundFragmentShader = /* glsl */ `
         (1.0 - smoothstep(0.46, 0.72, direction.y));
       float backgroundCloud = 0.0;
       cachedSky = mix(cachedSky, vec3(0.88, 0.94, 0.965), backgroundCloud);
+      // Evaluate the small solar aureole analytically in direction space.
+      // This stays round at any resolution instead of stretching a LUT texel.
+      float solarDot = max(dot(direction, normalize(uSunDirection)), 0.0);
+      cachedSky += vec3(1.0, .83, .58) * pow(solarDot, 220.0) * .11;
+      cachedSky = mix(cachedSky, vec3(1.0, .97, .85), smoothstep(.99980, .99996, solarDot) * .78);
       float cachedHeight = clamp(direction.y * 0.5 + 0.5, 0.0, 1.0);
       vec3 diagnosticColour = mix(
         vec3(0.018, 0.028, 0.052),
@@ -893,6 +898,9 @@ export function createSkyEnvironmentCandidate(
   const background = createBackgroundLayer(radianceTexture)
   const flight = createFlightLayer(radianceTexture, input.coastTemplate)
   const clouds = createCloudLayers()
+  const cloudOrigins = clouds.entries.map((cloud) => cloud.object.position.clone())
+  let livingTime = 0
+  let previousTime: number | null = null
   const debug = createFlightVolumeDebug()
   const layerGroups: Readonly<Record<Exclude<SkyLayerId, 'subject'>, Group>> = {
     'background-atmosphere': background.group,
@@ -1070,8 +1078,19 @@ export function createSkyEnvironmentCandidate(
     },
     update: (elapsedSeconds, reducedMotion, camera) => {
       background.sky.position.copy(camera.position)
-      for (const cloud of clouds.entries) cloud.object.quaternion.copy(camera.quaternion)
-      const time = reducedMotion ? 0 : elapsedSeconds
+      const delta = previousTime === null ? 0 : Math.min(.1, Math.max(0, elapsedSeconds - previousTime))
+      previousTime = elapsedSeconds
+      if (!reducedMotion) livingTime += delta
+      clouds.entries.forEach((cloud, index) => {
+        cloud.object.quaternion.copy(camera.quaternion)
+        const origin = cloudOrigins[index]!
+        cloud.object.position.set(
+          origin.x + Math.sin(livingTime * .025) * (3 + index * .6),
+          origin.y + Math.sin(livingTime * .016) * .35,
+          origin.z + Math.sin(livingTime * .019) * 1.4,
+        )
+      })
+      const time = livingTime
       flight.seaMaterial.uniforms.uTime!.value = time
       const cameraPositionUniform = flight.seaMaterial.uniforms
         .uCameraPosition as { value: Vector3 }

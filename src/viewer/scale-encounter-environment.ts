@@ -1,4 +1,5 @@
 import { applyAuthoredGroundMaterial } from './scale-encounter-authored-ground'
+import { createLivingAtmosphere, type LivingAtmosphere } from './scale-encounter-living-atmosphere'
 import { createRiverWater } from './scale-encounter-river-water'
 import type { RiverVisitor } from './scale-encounter-water-interaction'
 import { FOREST_STREAM_LEVEL_METERS, forestWaterForAnimal } from './scale-encounter-forest-water'
@@ -129,6 +130,7 @@ function surfaceRepeatCount(physicalWidthMeters: number): number {
 }
 
 export interface ScaleEncounterEnvironment {
+  readonly atmosphere?: LivingAtmosphere
   readonly animalContactCue: Mesh | null
   readonly borrowedTextures: ReadonlySet<Texture>
   readonly cameraCentredSkyDome: boolean
@@ -3148,6 +3150,21 @@ export function createScaleEncounterEnvironment(
   panoramaTexture: Texture | null = null,
   options: ScaleEncounterEnvironmentOptions = {},
 ): ScaleEncounterEnvironment | null {
+  const environment = createScaleEncounterEnvironmentBase(habitat, variant, panoramaTexture, options)
+  if (!environment) return null
+  const atmosphere = createLivingAtmosphere(
+    habitat, options.animalId === 'mammoth', environment.groundHeightAtWorld, options.renderer, environment.root,
+  )
+  environment.root.add(atmosphere.root)
+  return { ...environment, atmosphere }
+}
+
+function createScaleEncounterEnvironmentBase(
+  habitat: ScaleEncounterHabitat,
+  variant: ScaleEncounterEnvironmentVariant,
+  panoramaTexture: Texture | null = null,
+  options: ScaleEncounterEnvironmentOptions = {},
+): ScaleEncounterEnvironment | null {
   const sceneCandidateVariant = options.sceneCandidateVariant ?? 'off'
   const environmentTheme = options.animalId
     ? SCALE_ENCOUNTER_DEFINITIONS[options.animalId].environmentTheme
@@ -3462,6 +3479,7 @@ export function updateScaleEncounterEnvironment(
     camera,
     visitor,
   )
+  environment.atmosphere?.update(elapsedSeconds, reducedMotion, camera)
   // Sky is effectively infinitely distant: keep the inward-facing dome
   // centred on the camera while ground, trees, clouds and water proxies stay
   // in world space. This prevents narrow portrait overviews from ever moving
@@ -3498,6 +3516,7 @@ export function disposeScaleEncounterEnvironment(
   environment: ScaleEncounterEnvironment | null,
 ): void {
   if (!environment) return
+  environment.atmosphere?.dispose()
   if (environment.disposeCandidate) {
     environment.disposeCandidate()
     return
