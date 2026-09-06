@@ -62,13 +62,13 @@ describe('scale encounter content', () => {
     const baryonyxZhScript = `${baryonyxZh.copy.intro}${baryonyxZh.copy.transition}${baryonyxZh.copy.arrival}`
     const baryonyxEnScript = `${baryonyxEn.copy.intro}${baryonyxEn.copy.transition}${baryonyxEn.copy.arrival}`
 
-    expect(baryonyxZh.sceneLabel).toBe('森林相遇')
+    expect(baryonyxZh.sceneLabel).toBe('河岸湿林')
     expect(baryonyxZhScript).toContain('森林')
     expect(baryonyxZhScript).toMatch(/长嘴|细长的嘴/)
     expect(baryonyxZhScript).toContain('大爪子')
     expect(baryonyxZhScript).toContain('寻找食物')
     expect(baryonyxZhScript).not.toMatch(/河边|河岸|水边|芦苇|八米七五/)
-    expect(baryonyxEn.sceneLabel).toBe('Forest encounter')
+    expect(baryonyxEn.sceneLabel).toBe('Riverbank woodland')
     expect(baryonyxEnScript).toMatch(/forest/i)
     expect(baryonyxEnScript).toMatch(/long snout/i)
     expect(baryonyxEnScript).toMatch(/claw/i)
@@ -79,12 +79,12 @@ describe('scale encounter content', () => {
     const spinosaurusEn = scaleEncounterContentFor('spinosaurus', 'en')
     const spinosaurusZhScript = `${spinosaurusZh.copy.intro}${spinosaurusZh.copy.transition}${spinosaurusZh.copy.arrival}`
     const spinosaurusEnScript = `${spinosaurusEn.copy.intro}${spinosaurusEn.copy.transition}${spinosaurusEn.copy.arrival}`
-    expect(spinosaurusZh.sceneLabel).toBe('森林相遇')
+    expect(spinosaurusZh.sceneLabel).toBe('林缘浅滩')
     expect(spinosaurusZhScript).toMatch(/森林|林间|树影/)
     expect(spinosaurusZhScript).not.toMatch(/河岸|河边|泥滩|水里|芦苇/)
     expect(spinosaurusZh.copy.transition).toContain('相对较短的后腿')
     expect(spinosaurusZh.copy.transition).not.toContain('粗壮后腿')
-    expect(spinosaurusEn.sceneLabel).toBe('Forest encounter')
+    expect(spinosaurusEn.sceneLabel).toBe('Woodland shallows')
     expect(spinosaurusEnScript).toMatch(/forest|trees/i)
     expect(spinosaurusEnScript).not.toMatch(
       /riverbank|riverside|muddy bank|water|reeds?/i,
@@ -102,7 +102,7 @@ describe('scale encounter content', () => {
     const archaeopteryxZhScript = `${archaeopteryxZh.copy.intro}${archaeopteryxZh.copy.transition}${archaeopteryxZh.copy.arrival}`
     const archaeopteryxEnScript = `${archaeopteryxEn.copy.intro}${archaeopteryxEn.copy.transition}${archaeopteryxEn.copy.arrival}`
 
-    expect(archaeopteryxZh.sceneLabel).toBe('森林倒木相遇')
+    expect(archaeopteryxZh.sceneLabel).toBe('水畔倒木')
     expect(archaeopteryxZhScript).toMatch(/森林|林地/)
     expect(archaeopteryxZhScript).toContain('倒木')
     expect(archaeopteryxZhScript).not.toContain('木桩')
@@ -115,7 +115,7 @@ describe('scale encounter content', () => {
     expect(archaeopteryxZhScript).not.toMatch(
       /飞行装备|天空|滑翔|飞到对面|向前滑|一条手臂/,
     )
-    expect(archaeopteryxEn.sceneLabel).toBe('Forest fallen-log encounter')
+    expect(archaeopteryxEn.sceneLabel).toBe('Waterside fallen log')
     expect(archaeopteryxEnScript).toMatch(/forest/i)
     expect(archaeopteryxEnScript).toMatch(/fallen log/i)
     expect(archaeopteryxEnScript).not.toMatch(/tree stump/i)
@@ -268,22 +268,22 @@ describe('scale encounter content', () => {
     expect(plesiosaur.copy.intro).not.toContain('蛇颈龙类')
     expect(plesiosaur.copy.transition).toContain('我们轻轻摆动脚蹼')
     expect(plesiosaur.copy.transition).toContain('蛇颈龙正从对面游来')
-    expect(meganeura.sceneLabel).toBe('森林相遇')
+    expect(meganeura.sceneLabel).toBe('林间湿地')
     expect(meganeura.copy.arrival).toContain('七十厘米')
   })
 
-  it('keeps the three restored land encounters aligned with their forest narration', () => {
-    for (const animalId of [
-      'gigantoraptor',
-      'dilophosaurus',
-      'meganeura',
+  it('names each river habitat while preserving the recorded forest narration', () => {
+    for (const [animalId, zhLabel, enLabel] of [
+      ['gigantoraptor', '植被河漫平原', 'Vegetated river plain'],
+      ['dilophosaurus', '季节性河谷', 'Seasonal river valley'],
+      ['meganeura', '林间湿地', 'Forest wetland'],
     ] as const) {
       const zh = scaleEncounterContentFor(animalId, 'zh-CN')
       const english = scaleEncounterContentFor(animalId, 'en')
 
-      expect(zh.sceneLabel).toBe('森林相遇')
+      expect(zh.sceneLabel).toBe(zhLabel)
       expect(zh.copy.intro).toMatch(/森林/)
-      expect(english.sceneLabel).toBe('Forest encounter')
+      expect(english.sceneLabel).toBe(enLabel)
       expect(english.copy.intro).toMatch(/forest/i)
     }
   })
