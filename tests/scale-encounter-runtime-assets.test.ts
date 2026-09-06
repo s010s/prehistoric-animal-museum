@@ -69,6 +69,7 @@ describe('scale encounter runtime asset identities', () => {
     const newSceneAssets = [
       'braided-sand-unique-v2.webp',
       'clouds-unique-v2.webp',
+      'clouds-natural-v3.webp',
       'forest-floor-unique-v2.webp',
       'footstep-water-splash-v1.webp',
       'island-landforms-v2.glb',

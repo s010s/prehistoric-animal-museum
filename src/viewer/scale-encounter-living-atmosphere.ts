@@ -1,6 +1,6 @@
 import {
-  AdditiveBlending, BufferAttribute, BufferGeometry, Color, DoubleSide,
-  Group, InstancedMesh, MathUtils, Mesh, PerspectiveCamera, PlaneGeometry, Points,
+  BufferAttribute, BufferGeometry, Color, DoubleSide,
+  Group, InstancedMesh, MathUtils, Matrix4, Mesh, PerspectiveCamera, PlaneGeometry, Points,
   ShaderMaterial, Vector3, type Material, type WebGLRenderer,
 } from 'three'
 import type { ScaleEncounterHabitat } from './scale-encounter'
@@ -11,6 +11,7 @@ export interface LivingAtmosphere {
   readonly root: Group
   readonly kind: LivingAtmosphereKind
   readonly particleCount: number
+  readonly particleCapacity: number
   readonly timeSeconds: number
   update(time: number, reducedMotion: boolean, camera?: PerspectiveCamera | Vector3): void
   settleFoot(point: Vector3): void
@@ -27,11 +28,17 @@ export function createLivingAtmosphere(
   const kind: LivingAtmosphereKind = snow ? 'snow' : habitat === 'land' ? 'forest' : habitat
   const root = new Group()
   root.name = `scale-encounter-living-${kind}`
-  const count = kind === 'snow' ? 640 : kind === 'forest' ? 180 : kind === 'water' ? 160 : 0
-  const width = kind === 'snow' ? 48 : 38
-  const height = kind === 'snow' ? 19 : kind === 'water' ? 24 : 8
+  const count = kind === 'snow' ? 2800 : kind === 'forest' ? 700 : kind === 'water' ? 240 : 0
+  const minimum = kind === 'snow' ? 700 : kind === 'forest' ? 180 : kind === 'water' ? 80 : 0
+  let population = kind === 'snow' ? 1800 : kind === 'forest' ? 480 : kind === 'water' ? 160 : 0
+  let targetPopulation = population
+  let frameAverage = 1 / 60
+  let sampleSeconds = 0
+  let healthySeconds = 0
+  const width = kind === 'snow' ? 42 : 32
+  const height = kind === 'snow' ? 16 : kind === 'water' ? 24 : 7
   const uniforms = {
-    uTime: { value: 0 }, uCentre: { value: new Vector3() },
+    uPopulation: { value: population }, uTime: { value: 0 }, uCentre: { value: new Vector3() },
     uViewport: { value: 900 }, uWidth: { value: width }, uHeight: { value: height },
     uSnow: { value: snow ? 1 : 0 }, uWater: { value: kind === 'water' ? 1 : 0 },
     uColour: { value: new Color(snow ? '#edf5ff' : kind === 'water' ? '#99d6d9' : '#e7d8a4') },
@@ -43,11 +50,22 @@ export function createLivingAtmosphere(
     environmentRoot?.traverse((object) => {
       if (!(object instanceof InstancedMesh) || !/(hero-ferns|real-ferns|fern-frond-batch|riparian-whorl-batch)$/.test(object.name)) return
       const plant = object as InstancedMesh<BufferGeometry, Material | Material[]>
-      plant.geometry.computeBoundingBox()
-      const bounds = plant.geometry.boundingBox!
-      const bottom = bounds.min.y
-      const top = bounds.max.y
-      const amplitude = Math.min(bounds.max.x - bounds.min.x, top - bottom) * .025
+      const flatFrond = object.name.endsWith('fern-frond-batch')
+      const sourceToWorld = new Matrix4()
+      plant.getMatrixAt(0, sourceToWorld)
+      plant.updateWorldMatrix(true, false)
+      sourceToWorld.premultiply(plant.matrixWorld)
+      const sourceUp = new Vector3(0, 1, 0).transformDirection(sourceToWorld.invert())
+      const positions = plant.geometry.getAttribute('position')
+      let bottom = Infinity, top = -Infinity
+      const vertex = new Vector3()
+      for (let i = 0; i < positions.count; i++) {
+        vertex.fromBufferAttribute(positions, i)
+        const along = flatFrond ? vertex.x : vertex.dot(sourceUp)
+        bottom = Math.min(bottom, along); top = Math.max(top, along)
+      }
+      const amplitude = (top - bottom) * (flatFrond ? .10 : .085)
+      const up = `vec3(${sourceUp.toArray().map((n) => n.toFixed(6)).join(',')})`
       for (const entry of Array.isArray(plant.material) ? plant.material : [plant.material]) {
         if (animatedMaterials.has(entry)) continue
         animatedMaterials.add(entry)
@@ -59,11 +77,13 @@ export function createLivingAtmosphere(
           shader.vertexShader = shader.vertexShader
             .replace('#include <common>', '#include <common>\nuniform float uEncounterBreeze;')
             .replace('#include <begin_vertex>', `#include <begin_vertex>
-              float leafTip = smoothstep(${bottom.toFixed(6)}, ${(top + .00001).toFixed(6)}, position.y);
-              transformed.x += sin(uEncounterBreeze * .85 + position.x * 3. + position.z * 2.) * leafTip * leafTip * ${amplitude.toFixed(6)};
+              float leafTip = smoothstep(${bottom.toFixed(6)}, ${(top + .00001).toFixed(6)}, ${flatFrond ? 'position.x' : `dot(position, ${up})`});
+              float plantPhase = instanceMatrix[3].x * .31 + instanceMatrix[3].z * .23;
+              float wind = sin(uEncounterBreeze * 1.35 + plantPhase) * .78 + sin(uEncounterBreeze * 2.1 + plantPhase * 1.7) * .22;
+              transformed += ${flatFrond ? 'vec3(0.,1.,.28)' : `(${up} * .3 + vec3(.8,0.,.45))`} * wind * leafTip * leafTip * ${amplitude.toFixed(6)};
             `)
         }
-        entry.customProgramCacheKey = () => `${cacheKey}-living-leaf-tips-v1-${bottom}-${top}-${amplitude}`
+        entry.customProgramCacheKey = () => `${cacheKey}-living-leaf-tips-v2-${bottom}-${top}-${amplitude}-${up}-${flatFrond}`
         entry.needsUpdate = true
       }
     })
@@ -81,12 +101,14 @@ export function createLivingAtmosphere(
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new BufferAttribute(seeds, 3))
   geometry.setAttribute('aSize', new BufferAttribute(sizes, 1))
+  geometry.setAttribute('aRank', new BufferAttribute(Float32Array.from({ length: count }, (_, i) => i), 1))
+  geometry.setDrawRange(0, population)
   const material = new ShaderMaterial({
     uniforms, transparent: true, depthWrite: false, toneMapped: false,
     vertexShader: /* glsl */ `
-      uniform float uTime, uWidth, uHeight, uViewport, uSnow, uWater;
+      uniform float uTime, uWidth, uHeight, uViewport, uSnow, uWater, uPopulation;
       uniform vec3 uCentre;
-      attribute float aSize;
+      attribute float aSize, aRank;
       varying float vAlpha;
       void main() {
         vec3 p = position;
@@ -99,7 +121,9 @@ export function createLivingAtmosphere(
         float edge = 1. - smoothstep(uWidth * .32, uWidth * .49, length(p.xz - uCentre.xz));
         float groundFade = smoothstep(0., .6, p.y - uCentre.y);
         float nearFade = smoothstep(.9, 2.8, -mv.z);
-        vAlpha = edge * groundFade * nearFade * mix(.32, .78, uSnow);
+        float lightPocket = .75 + .25 * sin(p.x * .31 + p.z * .19);
+        float populationFade = 1. - smoothstep(max(0., uPopulation - 70.), uPopulation, aRank);
+        vAlpha = edge * groundFade * nearFade * mix(.43 * lightPocket, .8, uSnow) * populationFade;
         gl_PointSize = clamp(aSize * uViewport * projectionMatrix[1][1] / max(1., -mv.z), 1., 9.);
         gl_Position = projectionMatrix * mv;
       }
@@ -121,40 +145,15 @@ export function createLivingAtmosphere(
   particles.frustumCulled = false
   if (count > 0) root.add(particles)
 
-  // Soft, depth-tested shafts sit in the clearing's outer vegetation, aligned
-  // with the existing sun. Their silhouettes fade at both ends and all edges.
-  // Air stays clear; visible shafts need suspended matter and an occluder.
-  const shafts: Mesh<PlaneGeometry, ShaderMaterial>[] = []
-  if (kind === 'forest') {
-    for (const [x, z, length, breadth] of [[-10, -10, 16, 2.3], [12, -16, 19, 3.2], [-21, 6, 17, 2.1]] as const) {
-      const shaft = new Mesh(new PlaneGeometry(breadth, length), new ShaderMaterial({
-        transparent: true, depthWrite: false, side: DoubleSide, blending: AdditiveBlending,
-        uniforms: { uTime: uniforms.uTime, uPhase: { value: x }, uOpacity: { value: 0.055 } },
-        vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-        fragmentShader: `
-          varying vec2 vUv; uniform float uTime, uPhase, uOpacity;
-          void main(){
-            float across = exp(-pow((vUv.x-.5)*4.8,2.));
-            float ends = smoothstep(0.,.25,vUv.y)*(1.-smoothstep(.65,1.,vUv.y));
-            float breeze=.88+.12*sin(uTime*.23+uPhase);
-            gl_FragColor=vec4(.94,.87,.64,across*ends*uOpacity*breeze);
-            #include <colorspace_fragment>
-          }`,
-      }))
-      shaft.position.set(x, groundHeightAt(x, z) + length * .46, z)
-      // Project the fixed world sun into a broad vertical ribbon.
-      shaft.rotation.set(0, -.574, -.59)
-      shaft.name = 'scale-encounter-canopy-sunbeam'
-      shafts.push(shaft); root.add(shaft)
-    }
-  }
+  // No flat light ribbons: they have no canopy occluder and reveal their
+  // plane when walking around them. Sunlit motes carry the clearing's light.
   const puff = new Mesh(new PlaneGeometry(1, 1), new ShaderMaterial({
     transparent: true, depthWrite: false, side: DoubleSide,
     uniforms: { uLife: { value: 0 }, uColour: uniforms.uColour },
     vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader: `varying vec2 vUv; uniform float uLife; uniform vec3 uColour;
       void main(){float r=length((vUv-.5)*2.);float a=exp(-r*r*5.)*(1.-smoothstep(.6,1.,r));
-      gl_FragColor=vec4(uColour,a*sin(uLife*3.14159)*.17);
+      gl_FragColor=vec4(uColour,a*sin(uLife*3.14159)*.3);
       #include <colorspace_fragment>}`,
   }))
   puff.name = 'scale-encounter-soft-foot-settle'
@@ -164,10 +163,27 @@ export function createLivingAtmosphere(
   let time = 0
   let puffStart = -100
   return {
-    root, kind, particleCount: count,
+    root, kind, particleCapacity: count,
+    get particleCount() { return Math.round(population) },
     get timeSeconds() { return time },
     update: (elapsed, reducedMotion, camera) => {
-      const dt = lastTime === null ? 0 : MathUtils.clamp(elapsed - lastTime, 0, .1)
+      const frame = lastTime === null ? 0 : elapsed - lastTime
+      const dt = MathUtils.clamp(frame, 0, .1)
+      // Measure sustained frame delivery, with hysteresis and no allocations.
+      // Loading stalls and background-tab gaps never act as hardware scores.
+      if (!reducedMotion && frame > 0 && frame < .25) {
+        frameAverage = MathUtils.damp(frameAverage, frame, 1.5, frame)
+        sampleSeconds += frame
+        healthySeconds = frameAverage < 1 / 55 ? healthySeconds + frame : 0
+        if (sampleSeconds >= 2 && time > 3) {
+          if (frameAverage > 1 / 40) targetPopulation = Math.max(minimum, targetPopulation * .72)
+          else if (healthySeconds > 6) targetPopulation = Math.min(count, targetPopulation + count * .12)
+          sampleSeconds = 0
+        }
+        population = MathUtils.damp(population, targetPopulation, 1.6, dt)
+      }
+      uniforms.uPopulation.value = population
+      geometry.setDrawRange(0, Math.ceil(population))
       lastTime = elapsed
       if (!reducedMotion) time += dt
       uniforms.uTime.value = time
@@ -182,7 +198,7 @@ export function createLivingAtmosphere(
       puff.visible = !reducedMotion && life >= 0 && life < 1
       if (puff.visible) {
         puff.material.uniforms.uLife!.value = life
-        puff.scale.set(.45 + life * .7, .22 + life * .34, 1)
+        puff.scale.set(.65 + life * 1.2, .3 + life * .5, 1)
       }
     },
     settleFoot: (point) => {
@@ -192,7 +208,6 @@ export function createLivingAtmosphere(
     dispose: () => {
       root.removeFromParent()
       geometry.dispose(); material.dispose()
-      shafts.forEach((s) => { s.geometry.dispose(); s.material.dispose() })
       puff.geometry.dispose(); puff.material.dispose()
       root.clear()
     },

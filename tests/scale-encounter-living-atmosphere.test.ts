@@ -4,17 +4,37 @@ import { createLivingAtmosphere } from '../src/viewer/scale-encounter-living-atm
 
 describe('living habitat atmosphere', () => {
   it('has distinct bounded populations, leaves open air clear, and disposes GPU resources', () => {
-    for (const [habitat, snow, count] of [['land', true, 640], ['land', false, 180], ['water', false, 160], ['air', false, 0]] as const) {
+    for (const [habitat, snow, count] of [['land', true, 1800], ['land', false, 480], ['water', false, 160], ['air', false, 0]] as const) {
       const atmosphere = createLivingAtmosphere(habitat, snow)
       const owner = new Group(); owner.add(atmosphere.root)
       const disposers = atmosphere.root.children.flatMap((child) => child instanceof Points || child instanceof Mesh
         ? [vi.spyOn(child.geometry, 'dispose'), vi.spyOn(child.material, 'dispose')] : [])
       expect(atmosphere.particleCount).toBe(count)
-      if (habitat === 'air') expect(atmosphere.root.getObjectByName('scale-encounter-canopy-sunbeam')).toBeUndefined()
+      if (habitat === 'air' || habitat === 'land') expect(atmosphere.root.getObjectByName('scale-encounter-canopy-sunbeam')).toBeUndefined()
       atmosphere.dispose()
       expect(owner.children).toHaveLength(0)
       expect(disposers.every((spy) => spy.mock.calls.length === 1)).toBe(true)
     }
+  })
+
+  it('reduces density under sustained slow frames and recovers cautiously with fixed buffers', () => {
+    const atmosphere = createLivingAtmosphere('land', true)
+    const particles = atmosphere.root.getObjectByName('scale-encounter-snow-drift') as Points
+    const positions = particles.geometry.getAttribute('position')
+    let t = 0
+    atmosphere.update(t, false)
+    for (let i = 0; i < 450; i++) atmosphere.update(t += 1 / 30, false)
+    expect(atmosphere.particleCount).toBeLessThan(800)
+    expect(atmosphere.particleCount).toBeGreaterThanOrEqual(700)
+    for (let i = 0; i < 2400; i++) atmosphere.update(t += 1 / 60, false)
+    expect(atmosphere.particleCount).toBeGreaterThan(2600)
+    expect(atmosphere.particleCount).toBeLessThanOrEqual(2800)
+    expect(particles.geometry.getAttribute('position')).toBe(positions)
+    expect(particles.geometry.drawRange.count).toBeLessThanOrEqual(2800)
+    const beforePause = atmosphere.particleCount
+    atmosphere.update(t + 900, false)
+    expect(atmosphere.particleCount).toBe(beforePause)
+    atmosphere.dispose()
   })
 
   it('pauses without time jumps, caps tab-resume deltas, and keeps weather out of the close lens', () => {

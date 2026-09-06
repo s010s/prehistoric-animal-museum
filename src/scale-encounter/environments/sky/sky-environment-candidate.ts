@@ -267,10 +267,10 @@ function createSkyRadianceLut(): DataTexture {
 
 // Four different photographic cloud silhouettes, placed individually in space.
 const CLOUD_CLUSTERS: readonly CloudClusterSpec[] = [
-  { id: 'cloud-bank-west', layer: 'mid-cloud', position: [-45, -22, -56], size: [43, 23], rect: [0, .5, .64, .5], atlasPart: 0, opacity: .58 },
-  { id: 'cloud-wisp-east', layer: 'near-air', position: [62, 19, -108], size: [28, 24], rect: [.64, .5, .36, .5], atlasPart: 1, opacity: .48 },
-  { id: 'cloud-billow-north', layer: 'far-cloud', position: [-108, -30, 100], size: [58, 48], rect: [0, 0, .60, .5], atlasPart: 2, opacity: .66 },
-  { id: 'cloud-ribbon-east', layer: 'mid-cloud', position: [86, -26, 37], size: [52, 42], rect: [.5, 0, .5, .5], atlasPart: 3, opacity: .4 },
+  { id: 'cloud-bank-west', layer: 'mid-cloud', position: [-45, -22, -56], size: [43, 31], rect: [0, .5, .5, .5], atlasPart: 0, opacity: .54 },
+  { id: 'cloud-wisp-east', layer: 'near-air', position: [62, 19, -108], size: [28, 26], rect: [.5, .5, .5, .5], atlasPart: 1, opacity: .42 },
+  { id: 'cloud-billow-north', layer: 'far-cloud', position: [-108, -30, 100], size: [58, 52], rect: [0, 0, .5, .5], atlasPart: 2, opacity: .6 },
+  { id: 'cloud-ribbon-east', layer: 'mid-cloud', position: [86, -26, 37], size: [58, 42], rect: [.5, 0, .5, .5], atlasPart: 3, opacity: .34 },
 ]
 
 const backgroundVertexShader = /* glsl */ `
@@ -604,12 +604,11 @@ const cloudFragmentShader = /* glsl */ `
   varying vec2 vCloudUv;
   void main() {
     vec2 atlasUv = uCloudRect.xy + vCloudUv * uCloudRect.zw;
-    // The two lower silhouettes have a diagonal transparent gutter.
-    float gutter = .5 + atlasUv.y * .2;
-    if (uAtlasPart > 1.5 && uAtlasPart < 2.5 && atlasUv.x > gutter) discard;
-    if (uAtlasPart > 2.5 && atlasUv.x < gutter) discard;
     vec4 cloud = texture2D(uCloudAtlas, atlasUv);
-    float alpha = smoothstep(.025, .95, cloud.a) * uOpacity;
+    // Preserve translucent fringes and blend the far cloud into its aerial
+    // haze. Avoid the old threshold that made small lobes look like dot rows.
+    float edge = smoothstep(0., .035, min(min(vCloudUv.x, 1.-vCloudUv.x), min(vCloudUv.y, 1.-vCloudUv.y)));
+    float alpha = smoothstep(.012, .98, cloud.a) * uOpacity * edge;
     vec3 colour = mix(cloud.rgb, vec3(1.0, .18, .02), uOverdrawDiagnostic);
     gl_FragColor = vec4(colour, alpha);
     #include <tonemapping_fragment>
@@ -757,7 +756,7 @@ function createCloudLayers(): {
     'far-cloud': far,
   }
   const atlas = new TextureLoader().load(new URL(
-    '../../assets/environments/clouds-unique-v2.webp', import.meta.url,
+    '../../assets/environments/clouds-natural-v3.webp', import.meta.url,
   ).href)
   atlas.colorSpace = SRGBColorSpace
   const entries = CLOUD_CLUSTERS.map((spec) => createCloudEntry(spec, atlas))
