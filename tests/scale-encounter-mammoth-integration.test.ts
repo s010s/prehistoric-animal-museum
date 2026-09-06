@@ -1,4 +1,5 @@
 import { Group } from 'three'
+import { mammothAcceptedGroundHeightAtWorld } from '../src/scale-encounter/environments/glacier/mammoth-accepted-snow-environment'
 
 import {
   createScaleEncounterEnvironment,
@@ -14,6 +15,20 @@ import {
 } from '../src/scale-encounter/environments/scene-candidate'
 
 describe('mammoth palaeoenvironment main-runtime registration', () => {
+  it('keeps the observation rail level while continuous drifts rise on both sides', () => {
+    for (const x of [-30, -10, 0, 10, 30]) {
+      expect(mammothAcceptedGroundHeightAtWorld(x, 0)).toBe(-0.035)
+    }
+    expect(mammothAcceptedGroundHeightAtWorld(-17, -10)).toBeGreaterThan(0.9)
+    expect(mammothAcceptedGroundHeightAtWorld(16, 12)).toBeGreaterThan(1.2)
+    let previous = mammothAcceptedGroundHeightAtWorld(16, -30)
+    for (let z = -29.9; z < 30; z += 0.1) {
+      const height = mammothAcceptedGroundHeightAtWorld(16, z)
+      expect(Math.abs(height - previous)).toBeLessThan(0.055)
+      previous = height
+    }
+    expect(mammothAcceptedGroundHeightAtWorld(80, 0)).toBe(-0.035)
+  })
   it('keeps the candidate opt-in and rejects invalid URL values', () => {
     expect(parseScaleEncounterSceneCandidateVariant(null)).toBe('off')
     expect(parseScaleEncounterSceneCandidateVariant('production')).toBe('off')

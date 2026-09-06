@@ -1,5 +1,6 @@
 import {
   EquirectangularReflectionMapping,
+  ClampToEdgeWrapping,
   LinearFilter,
   LinearMipmapLinearFilter,
   NoColorSpace,
@@ -135,17 +136,19 @@ export async function acquireScaleEncounterLandBiomeArt(
   panoramaSourceUrl = biome.assets.panoramaSourceUrl,
 ): Promise<ScaleEncounterLandBiomeArtLease> {
   evictInactiveThemeTextures(biome.themeId)
+  const uniqueSourceUrl = biome.assets.uniqueGroundSourceUrl
   const urls = [
     panoramaSourceUrl,
     biome.assets.groundAlbedoSourceUrl,
     sharedNormalSourceUrl,
     sharedRoughnessSourceUrl,
-    ...(biome.profile === 'kayenta-seasonal-floodplain'
+    ...(biome.profile !== 'carboniferous-coal-swamp'
       ? [matureTreeAtlasSourceUrl]
       : []),
     ...(biome.profile === 'carboniferous-coal-swamp'
       ? [carboniferousFrondAtlasSourceUrl]
       : []),
+    ...(uniqueSourceUrl ? [uniqueSourceUrl] : []),
   ]
   const [
     panorama,
@@ -154,27 +157,30 @@ export async function acquireScaleEncounterLandBiomeArt(
     roughness,
     matureTreeAtlas,
     landBiomeFrondAtlas,
+    uniqueAlbedo,
     props,
   ] =
     await Promise.all([
-      // The panorama is now a licensed pure-sky plate shared by all three
-      // themes. Every readable landform and plant remains world-space geometry.
+      // Existing art plates provide the distant backdrop; the walkable floor,
+      // banks and near vegetation are continuous world-space geometry.
       loadTexture(urls[0]!, 'shared', 'panorama'),
       loadTexture(urls[1]!, biome.themeId, 'colour'),
       loadTexture(urls[2]!, 'shared', 'data'),
       loadTexture(urls[3]!, 'shared', 'data'),
-      biome.profile === 'kayenta-seasonal-floodplain'
+      biome.profile !== 'carboniferous-coal-swamp'
         ? loadTexture(matureTreeAtlasSourceUrl, biome.themeId, 'colour')
         : Promise.resolve(null),
       biome.profile === 'carboniferous-coal-swamp'
         ? loadTexture(carboniferousFrondAtlasSourceUrl, biome.themeId, 'colour')
         : Promise.resolve(null),
+      uniqueSourceUrl ? loadTexture(uniqueSourceUrl, biome.themeId, 'colour') : Promise.resolve(null),
       import.meta.env.MODE === 'test'
         ? Promise.resolve(null)
-        : biome.profile === 'kayenta-seasonal-floodplain'
+        : biome.profile !== 'carboniferous-coal-swamp'
           ? loadReviewCandidateForestEcology()
           : loadReviewCandidateForestEcologyProps(),
     ])
+  if (uniqueAlbedo) uniqueAlbedo.wrapS = uniqueAlbedo.wrapT = ClampToEdgeWrapping
   urls.forEach(retain)
   let released = false
 
@@ -184,6 +190,7 @@ export async function acquireScaleEncounterLandBiomeArt(
     props,
     surfaceTextures: {
       albedo,
+      uniqueAlbedo,
       landBiomeFrondAtlas,
       normal,
       physicalWidthMeters: biome.assets.groundPhysicalWidthMeters,

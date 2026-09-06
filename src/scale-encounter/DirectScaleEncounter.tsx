@@ -1,3 +1,4 @@
+import { loadSkyCoastTemplate } from './environments/sky/sky-coast'
 import {
   ArrowLeft,
   ArrowUp,
@@ -452,13 +453,17 @@ export function DirectScaleEncounter({
     controller.setScaleEncounterEcologyDensity(ecologyDensity)
     controller.setScaleEncounterEnvironmentVariant(environmentVariant)
     const shouldLoadReviewForestProps =
-      environmentVariant !== 'baseline' &&
-      (animal.id === 'tyrannosaurus-rex' || animal.id === 'archaeopteryx')
+      (environmentVariant !== 'baseline' &&
+        environmentThemePlan.runtime.id === 'cretaceous-forest') ||
+      (animal.id === 'mammoth' && sceneCandidateVariant === 'E') ||
+      environmentThemePlan.runtime.id === 'cretaceous-sky'
     if (shouldLoadReviewForestProps) {
       const productionEcology =
-        animal.id === 'tyrannosaurus-rex' &&
+        environmentThemePlan.runtime.id === 'cretaceous-forest' &&
         environmentVariant === 'production-slice'
-      const request = productionEcology
+      const request = environmentThemePlan.runtime.id === 'cretaceous-sky'
+        ? loadSkyCoastTemplate()
+        : productionEcology
         ? (forestEcologyLoadRef.current ??=
             loadReviewCandidateForestEcology())
         : (forestPropsLoadRef.current ??= loadReviewCandidateForestProps())
@@ -490,6 +495,7 @@ export function DirectScaleEncounter({
     controller,
     ecologyDensity,
     environmentVariant,
+    environmentThemePlan.runtime.id,
     prototypeFlightApproximation,
     sceneCandidateVariant,
     syncScenePresentation,
@@ -728,14 +734,19 @@ export function DirectScaleEncounter({
       }, 2_200)
 
       try {
-        const archaeopteryxForestProps =
-          animal.id === 'archaeopteryx' &&
-          environmentVariant !== 'baseline'
+        const encounterProps =
+          environmentThemePlan.runtime.id === 'cretaceous-sky'
+            ? loadSkyCoastTemplate()
+            : environmentThemePlan.runtime.id === 'cretaceous-forest' &&
+          environmentVariant === 'production-slice'
+            ? (forestEcologyLoadRef.current ??= loadReviewCandidateForestEcology())
+            : (animal.id === 'archaeopteryx' && environmentVariant !== 'baseline') ||
+                (animal.id === 'mammoth' && sceneCandidateVariant === 'E')
             ? (forestPropsLoadRef.current ??=
                 loadReviewCandidateForestProps().catch((error: unknown) => {
                   forestPropsLoadRef.current = null
                   console.warn(
-                    'Scanned Archaeopteryx perch unavailable; keeping the natural-form fallback.',
+                    'Scanned encounter props unavailable.',
                     error,
                   )
                   return null
@@ -745,7 +756,7 @@ export function DirectScaleEncounter({
           await Promise.all([
             ensureReviewCandidateAvatar(nextProfile),
             ensureReviewCandidateEnvironment(),
-            archaeopteryxForestProps,
+            encounterProps,
           ])
         if (
           !mountedRef.current ||
@@ -861,6 +872,7 @@ export function DirectScaleEncounter({
       ensureReviewCandidateAvatar,
       ensureReviewCandidateEnvironment,
       environmentVariant,
+      environmentThemePlan.runtime.id,
       releaseCandidateLease,
       releaseEnvironmentLease,
       requiresProceduralLandBiome,

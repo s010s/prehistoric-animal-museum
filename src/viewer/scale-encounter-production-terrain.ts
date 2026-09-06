@@ -131,19 +131,12 @@ function subjectFloorReliefMask(localX: number, localY: number): number {
 }
 
 function microRelief(localX: number, localY: number): number {
-  const fine =
-    Math.sin(localX * 0.93 + localY * 0.31 + 0.7) * 0.031 +
-    Math.sin(localX * -0.43 + localY * 0.79 - 1.2) * 0.022 +
-    Math.cos(localX * 0.19 - localY * 0.57 + 2.1) * 0.016
-  const cellX = Math.floor((localX + 512) / 5.5)
-  const cellY = Math.floor((localY + 512) / 5.5)
-  const mottling = (hash01(cellX, cellY, 73) - 0.5) * 0.018
-  return Math.max(
-    -SCALE_ENCOUNTER_PRODUCTION_MICRO_RELIEF_MAXIMUM_METERS,
-    Math.min(
-      SCALE_ENCOUNTER_PRODUCTION_MICRO_RELIEF_MAXIMUM_METERS,
-      fine + mottling,
-    ),
+  // Broad individual humps replace periodic centimetre waves, whose normals
+  // formed long rows across the clearing at a grazing camera angle.
+  return (
+    Math.exp(-(((localX + 18) / 12) ** 2 + ((localY + 12) / 9) ** 2)) * 0.05 +
+    Math.exp(-(((localX - 22) / 14) ** 2 + ((localY - 16) / 7) ** 2)) * 0.06 +
+    Math.exp(-(((localX + 8) / 10) ** 2 + ((localY - 20) / 11) ** 2)) * 0.035
   )
 }
 
@@ -247,9 +240,23 @@ function terrainGroundColour(sample: TerrainSample, target: Color): Color {
  * ring has a deterministic angular phase and radius jitter. The topology keeps
  * one draw call and stable world-scale UVs without long collinear ring edges.
  */
-export function createScaleEncounterProductionTerrainGeometry(): BufferGeometry {
-  const radii = createTerrainRadii()
-  const centreHeight = scaleEncounterProductionTerrainHeight(0, 0)
+export function createScaleEncounterProductionTerrainGeometry(
+  heightAtWorld?: (x: number, z: number) => number,
+): BufferGeometry {
+  const regularRadii = createTerrainRadii()
+  // A stream needs real vertices in the clearing and across both banks. Only
+  // the wetland refines the near mesh; the outer forest keeps its existing LOD.
+  const radii = heightAtWorld
+    ? [
+        ...Array.from({ length: 91 }, (_, index) => index * 0.2),
+        ...Array.from({ length: 74 }, (_, index) => 18.5 + index * 0.5),
+        ...regularRadii.filter((radius) => radius > 55),
+      ]
+    : regularRadii
+  const heightAt = heightAtWorld
+    ? (x: number, y: number) => heightAtWorld(x, -y) - SCALE_ENCOUNTER_PRODUCTION_TERRAIN_WORLD_Y_METERS
+    : scaleEncounterProductionTerrainHeight
+  const centreHeight = heightAt(0, 0)
   const positions: number[] = [0, 0, centreHeight]
   const colours: number[] = []
   const uvs: number[] = [0.5, 0.5]
@@ -269,24 +276,28 @@ export function createScaleEncounterProductionTerrainGeometry(): BufferGeometry 
     )
     ringStarts.push(positions.length / 3)
     ringSegments.push(segmentCount)
-    const ringPhase = hash01(ringIndex, 17, 5) * (TAU / segmentCount)
+    const ringPhase = heightAtWorld ? 0 : hash01(ringIndex, 17, 5) * (TAU / segmentCount)
+    const ringSpacing = Math.min(
+      baseRadius - radii[ringIndex - 1]!,
+      (radii[ringIndex + 1] ?? baseRadius + 8) - baseRadius,
+    )
     for (let segment = 0; segment < segmentCount; segment += 1) {
       const angularJitter =
-        (hash01(ringIndex, segment, 11) - 0.5) * ANGLE_JITTER_RADIANS
+        heightAtWorld ? 0 : (hash01(ringIndex, segment, 11) - 0.5) * ANGLE_JITTER_RADIANS
       const angle =
         (segment / segmentCount) * TAU + ringPhase + angularJitter
       const clearingLocked = baseRadius <= 25
       const radialJitter = clearingLocked
         ? 0
         : (hash01(ringIndex, segment, 29) - 0.5) *
-          Math.min(baseRadius * RADIUS_JITTER_RATIO, 4.8)
+          Math.min(baseRadius * RADIUS_JITTER_RATIO, 4.8, ringSpacing * 0.65)
       const radius = Math.max(
-        SCALE_ENCOUNTER_PRODUCTION_CLEARING_RADIUS_METERS,
+        0,
         Math.min(SCALE_ENCOUNTER_PRODUCTION_TERRAIN_RADIUS_METERS, baseRadius + radialJitter),
       )
       const localX = Math.cos(angle) * radius
       const localY = Math.sin(angle) * radius
-      const height = scaleEncounterProductionTerrainHeight(localX, localY)
+      const height = heightAt(localX, localY)
       const sample = { height, localX, localY, radius }
       positions.push(localX, localY, height)
       terrainGroundColour(sample, colour).toArray(colours, colours.length)

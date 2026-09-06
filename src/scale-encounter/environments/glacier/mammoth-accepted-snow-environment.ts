@@ -1,29 +1,23 @@
+import { applyAuthoredGroundMaterial } from '../../../viewer/scale-encounter-authored-ground'
 import {
   BackSide,
-  BufferGeometry,
   Color,
   DataTexture,
   DirectionalLight,
-  DodecahedronGeometry,
-  DoubleSide,
-  Float32BufferAttribute,
   Fog,
   Group,
-  InstancedMesh,
   LinearFilter,
   LinearMipmapLinearFilter,
   Mesh,
-  MeshDepthMaterial,
   MeshStandardMaterial,
-  Object3D,
   PlaneGeometry,
   PMREMGenerator,
   RedFormat,
   RepeatWrapping,
-  RGBADepthPacking,
   Scene,
   ShaderMaterial,
   SphereGeometry,
+  SRGBColorSpace,
   TextureLoader,
   UnsignedByteType,
   Vector2,
@@ -58,8 +52,8 @@ export interface MammothAcceptedSnowEnvironment {
 }
 
 /**
- * The owner-approved mammoth landscape promoted from the Snowflow comparison.
- * The near field stays procedural and walkable; a real Mapzen Terrarium DEM
+ * Keeps the approved Snowflow basin and replaces its near-field props with scans.
+ * The walkable near field uses the existing matched snow scan; a real Mapzen Terrarium DEM
  * supplies only elevation for the distant Three.js mountain basin. No modern
  * photograph, road, building or dam is present in the rendered environment.
  */
@@ -79,8 +73,8 @@ export function createMammothAcceptedSnowEnvironment(
     id: MAMMOTH_ACCEPTED_SNOW_ENVIRONMENT_ID,
     elevationSource: 'mapzen-terrarium-z12-2139-1449',
     modernPhotography: false,
-    ownerVisualApproval: '2026-08-19',
-    productionApproved: true,
+    baseOwnerVisualApproval: '2026-08-19',
+    localRevision: 'scanned-snow-and-rocks-2026-09-05',
   }
 
   const environmentTarget = renderer
@@ -91,12 +85,13 @@ export function createMammothAcceptedSnowEnvironment(
     candidate,
     environmentIntensity: 0.76,
     environmentMap: environmentTarget?.texture ?? null,
-    fog: new Fog('#bdd8e4', 520, 1_950),
+    fog: new Fog('#bdd8e4', 950, 3_600),
     groundHeightAtWorld: mammothAcceptedGroundHeightAtWorld,
     root: candidate.root,
     skyDome: sky.mesh,
     dispose: () => {
       candidate.dispose()
+      heroZone.textures.forEach((texture) => texture.dispose())
       terrain.heightMap.dispose()
       sky.cloudMap.dispose()
       environmentTarget?.dispose()
@@ -128,251 +123,98 @@ function hideSupersededCandidateLayers(
   })
 }
 
-function createHeroZone(): { readonly root: Group } {
+function createHeroZone(): {
+  readonly root: Group
+  readonly textures: readonly Texture[]
+} {
   const root = new Group()
   root.name = 'scale-encounter-mammoth-accepted-hero-zone'
-
-  const geometry = new PlaneGeometry(144, 144, 240, 240)
-  const material = createHeroSnowMaterial()
-  const ground = new Mesh(geometry, material)
-  ground.name = 'scale-encounter-mammoth-multiscale-snow-ground'
-  ground.rotation.x = -Math.PI / 2
-  ground.position.y = -0.035
-  ground.receiveShadow = true
-  ground.customDepthMaterial = createHeroSnowDepthMaterial()
-  root.add(ground)
-
-  const rockGeometry = new DodecahedronGeometry(0.42, 1)
-  const rocks = new InstancedMesh(
-    rockGeometry,
-    new MeshStandardMaterial({
-      color: '#56534b',
-      metalness: 0,
-      roughness: 0.86,
-    }),
-    34,
-  )
-  rocks.name = 'scale-encounter-mammoth-near-rocks'
-  rocks.castShadow = true
-  rocks.receiveShadow = true
-
-  const tufts = new InstancedMesh(
-    createTaperedTuftGeometry(),
-    new MeshStandardMaterial({
-      color: '#766b4d',
-      roughness: 0.96,
-      side: DoubleSide,
-    }),
-    88,
-  )
-  tufts.name = 'scale-encounter-mammoth-sparse-sedge'
-  tufts.receiveShadow = true
-
-  const helper = new Object3D()
-  const random = seededRandom(0x5a10_f10f)
-  let rockIndex = 0
-  let tuftIndex = 0
-  for (
-    let attempt = 0;
-    attempt < 1_400 && (rockIndex < rocks.count || tuftIndex < tufts.count);
-    attempt += 1
-  ) {
-    const angle = random() * Math.PI * 2
-    const radius = 24 + Math.sqrt(random()) * 34
-    const x = ANIMAL_X + Math.cos(angle) * radius
-    const z = ANIMAL_Z + Math.sin(angle) * radius
-    const snow = heroSnowCoverageAt(x, -z)
-    const y = mammothAcceptedGroundHeightAtWorld(x, z) + 0.015
-
-    if (rockIndex < rocks.count && random() > 0.88) {
-      const scale = 0.28 + random() * 0.86
-      helper.position.set(x, y + scale * 0.18, z)
-      helper.rotation.set(random() * 0.42, random() * Math.PI, random() * 0.28)
-      helper.scale.set(
-        scale * (0.9 + random() * 0.65),
-        scale,
-        scale * (0.7 + random() * 0.45),
-      )
-      helper.updateMatrix()
-      rocks.setMatrixAt(rockIndex, helper.matrix)
-      rockIndex += 1
-      continue
-    }
-
-    if (tuftIndex < tufts.count && snow < 0.68 && random() > 0.42) {
-      const scale = 0.46 + random() * 0.68
-      helper.position.set(x, y, z)
-      helper.rotation.set(0, random() * Math.PI, (random() - 0.5) * 0.12)
-      helper.scale.set(scale * (0.7 + random() * 0.55), scale, scale)
-      helper.updateMatrix()
-      tufts.setMatrixAt(tuftIndex, helper.matrix)
-      tuftIndex += 1
-    }
+  const loader = new TextureLoader()
+  const albedo = loader.load(new URL(
+    '../../assets/environments/surface-snow-albedo-1024.webp', import.meta.url,
+  ).href)
+  const normal = loader.load(new URL(
+    '../../assets/environments/surface-snow-normal-1024.webp', import.meta.url,
+  ).href)
+  const roughness = loader.load(new URL(
+    '../../assets/environments/surface-snow-roughness-1024.webp', import.meta.url,
+  ).href)
+  const soil = loader.load(new URL(
+    '../../assets/environments/surface-land-albedo-1024.webp', import.meta.url,
+  ).href)
+  const soilNormal = loader.load(new URL(
+    '../../assets/environments/surface-land-normal-1024.webp', import.meta.url,
+  ).href)
+  albedo.colorSpace = SRGBColorSpace
+  soil.colorSpace = SRGBColorSpace
+  const colourMap = loader.load(new URL(
+    '../../assets/environments/snow-earth-patches-v3.webp', import.meta.url,
+  ).href)
+  colourMap.colorSpace = SRGBColorSpace
+  colourMap.anisotropy = 8
+  const textures = [albedo, normal, roughness, soil, soilNormal]
+  for (const texture of textures) {
+    texture.wrapS = texture.wrapT = RepeatWrapping
+    texture.repeat.set(72, 72) // The source scan covers two metres.
+    texture.anisotropy = 4
   }
-  rocks.count = rockIndex
-  rocks.instanceMatrix.needsUpdate = true
-  tufts.count = tuftIndex
-  tufts.instanceMatrix.needsUpdate = true
-  root.add(rocks, tufts)
-
-  return { root }
-}
-
-function createTaperedTuftGeometry(): BufferGeometry {
-  const vertices: number[] = []
-  const halfWidth = 0.055
-  const height = 0.56
-  for (const angle of [0, Math.PI / 3, (Math.PI * 2) / 3]) {
-    const sideX = Math.cos(angle) * halfWidth
-    const sideZ = Math.sin(angle) * halfWidth
-    const bendX = -Math.sin(angle) * 0.075
-    const bendZ = Math.cos(angle) * 0.075
-    vertices.push(
-      -sideX, 0, -sideZ,
-      sideX, 0, sideZ,
-      bendX, height, bendZ,
-    )
-  }
-  const geometry = new BufferGeometry()
-  geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3))
-  geometry.computeVertexNormals()
-  return geometry
-}
-
-function createHeroSnowMaterial(): MeshStandardMaterial {
   const material = new MeshStandardMaterial({
-    alphaTest: 0.015,
     color: '#ffffff',
-    depthWrite: true,
+    map: albedo,
+    normalMap: normal,
+    normalScale: new Vector2(0.24, 0.24),
+    roughnessMap: roughness,
+    roughness: 0.94,
     metalness: 0,
-    roughness: 0.68,
     transparent: true,
+    depthWrite: true,
   })
-  material.name = 'scale-encounter-mammoth-accepted-snow-pbr'
-  material.onBeforeCompile = (shader) => {
-    shader.vertexShader = injectHeroSnowVertex(shader.vertexShader)
+  material.name = 'scale-encounter-mammoth-scanned-snow-pbr'
+  applyAuthoredGroundMaterial(material, {
+    colourMap,
+    widthMeters: 112,
+    detailMeters: 1.3,
+    farColour: '#e5e9e6',
+    grainStrength: 0.06,
+    colourMipLevel: 1,
+  })
+  const authoredCompile = material.onBeforeCompile.bind(material)
+  material.onBeforeCompile = (shader, renderer) => {
+    authoredCompile(shader, renderer)
+    shader.uniforms.uExposedSoil = { value: soil }
+    shader.uniforms.uExposedSoilNormal = { value: soilNormal }
     shader.fragmentShader = shader.fragmentShader
-      .replace(
-        '#include <common>',
-        `#include <common>
-varying vec3 vHeroSnowWorld;
-
-float heroHash(vec2 value) {
-  return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
-}`,
-      )
-      .replace(
-        '#include <normal_fragment_maps>',
-        `#include <normal_fragment_maps>
-vec3 heroDx = dFdx(vHeroSnowWorld);
-vec3 heroDy = dFdy(vHeroSnowWorld);
-vec3 heroGeoNormal = normalize(cross(heroDx, heroDy));
-if (heroGeoNormal.y < 0.0) heroGeoNormal *= -1.0;
-float heroFineDx =
-  cos(vHeroSnowWorld.x * 3.8 + vHeroSnowWorld.z * 0.32) * 0.095 +
-  cos(vHeroSnowWorld.x * 8.7 - vHeroSnowWorld.z * 0.81 + 1.7) * 0.035;
-float heroFineDz =
-  cos(vHeroSnowWorld.z * 2.1 - vHeroSnowWorld.x * 0.17) * 0.045 -
-  cos(vHeroSnowWorld.x * 8.7 - vHeroSnowWorld.z * 0.81 + 1.7) * 0.0033;
-vec3 heroWorldNormal = normalize(heroGeoNormal + vec3(-heroFineDx, 0.0, -heroFineDz));
-normal = normalize((viewMatrix * vec4(heroWorldNormal, 0.0)).xyz);`,
-      )
-      .replace(
-        '#include <map_fragment>',
-        `#include <map_fragment>
-float heroMacro =
-  sin(vHeroSnowWorld.x * 0.17 + vHeroSnowWorld.z * 0.07) * 0.46 +
-  sin(vHeroSnowWorld.x * -0.08 + vHeroSnowWorld.z * 0.21 + 1.9) * 0.31 +
-  sin(vHeroSnowWorld.x * 0.51 - vHeroSnowWorld.z * 0.13 - 0.6) * 0.16;
-float heroWind = sin(vHeroSnowWorld.x * 1.55 + vHeroSnowWorld.z * 0.19 + heroMacro) * 0.16;
-float heroSnowCoverage = smoothstep(-0.30, 0.36, heroMacro + heroWind + 0.16);
-float heroRail = 1.0 - smoothstep(0.28, 1.05, abs(vHeroSnowWorld.z));
-heroRail *= 1.0 - smoothstep(10.0, 15.5, abs(vHeroSnowWorld.x + 4.0));
-float heroCompression = heroRail * 0.22;
-vec3 heroSoil = vec3(0.285, 0.27, 0.225);
-vec3 heroFrost = vec3(0.49, 0.51, 0.48);
-vec3 heroSnow = vec3(0.76, 0.83, 0.9);
-float heroGranule = heroHash(floor(vHeroSnowWorld.xz * 10.0));
-vec3 heroSurface = mix(heroSoil, heroFrost, smoothstep(0.06, 0.62, heroSnowCoverage));
-heroSurface = mix(heroSurface, heroSnow, smoothstep(0.38, 0.82, heroSnowCoverage));
-heroSurface *= 0.94 + heroGranule * 0.075;
-heroSurface = mix(heroSurface, vec3(0.56, 0.64, 0.75), heroCompression);
-diffuseColor.rgb *= heroSurface;`,
-      )
-      .replace(
-        '#include <roughnessmap_fragment>',
-        `#include <roughnessmap_fragment>
-roughnessFactor = mix(0.91, 0.57, heroSnowCoverage);
-roughnessFactor = mix(roughnessFactor, 0.38, heroCompression);`,
-      )
-      .replace(
-        '#include <opaque_fragment>',
-        `float heroViewGrazing = pow(1.0 - saturate(dot(normal, geometryViewDir)), 2.2);
-float heroCrystal = smoothstep(
-  0.992,
-  0.999,
-  heroHash(floor(vHeroSnowWorld.xz * 29.0) + floor(geometryViewDir.xz * 19.0))
-);
-float heroGlint = heroCrystal * heroViewGrazing * heroSnowCoverage * 0.38;
-outgoingLight += vec3(0.68, 0.79, 1.0) * heroGlint;
-outgoingLight += vec3(0.025, 0.038, 0.06) * heroSnowCoverage * (1.0 - saturate(normal.y));
-float heroTerrainDistance = length(
-  vHeroSnowWorld.xz - vec2(${ANIMAL_X.toFixed(1)}, ${ANIMAL_Z.toFixed(1)})
-);
-float heroTerrainBlend = 1.0 - smoothstep(52.0, 68.0, heroTerrainDistance);
-diffuseColor.a *= heroTerrainBlend;
-if (diffuseColor.a < 0.015) discard;
-#include <opaque_fragment>`,
-      )
+      .replace('uniform sampler2D uGroundColourPlate;', `uniform sampler2D uGroundColourPlate;
+uniform sampler2D uExposedSoil;
+uniform sampler2D uExposedSoilNormal;`)
+      // The authored image defines snow coverage, not metre-wide blurred
+      // pebbles. Both surfaces retain the physical grain of the source scans.
+      .replace('diffuseColor.rgb *= groundColour;', `
+vec3 snowPlate = textureLod(uGroundColourPlate, groundPlateUv, 0.0).rgb;
+float snowCover = smoothstep(.34, .62, dot(snowPlate, vec3(.2126, .7152, .0722)));
+snowCover = mix(1.0, snowCover, groundPlateFade);
+vec3 soilColour = sampleGroundScan(uExposedSoil, groundDetailUv).rgb * .4;
+vec3 snowColour = vec3(.73, .79, .81) * mix(.94, 1.06, groundGrain);
+diffuseColor.rgb *= mix(soilColour, snowColour, snowCover);`)
+      .replaceAll('sampleGroundScan( normalMap, groundDetailUv )',
+        'mix(sampleGroundScan(uExposedSoilNormal, groundDetailUv), sampleGroundScan(normalMap, groundDetailUv), snowCover)')
+      .replace('#include <opaque_fragment>', `
+diffuseColor.a *= 1.0 - smoothstep(64.0, 78.0, length(vAuthoredGroundWorld.xz));
+#include <opaque_fragment>`)
   }
-  material.customProgramCacheKey = () =>
-    'scale-encounter-mammoth-accepted-snow-pbr-v1'
-  return material
-}
-
-function createHeroSnowDepthMaterial(): MeshDepthMaterial {
-  const material = new MeshDepthMaterial({ depthPacking: RGBADepthPacking })
-  material.name = 'scale-encounter-mammoth-accepted-snow-depth'
-  material.onBeforeCompile = (shader) => {
-    shader.vertexShader = injectHeroSnowVertex(shader.vertexShader)
+  material.customProgramCacheKey = () => 'mammoth-patchy-snow-ground-v3'
+  const geometry = new PlaneGeometry(164, 164, 164, 164)
+  geometry.rotateX(-Math.PI / 2)
+  const positions = geometry.getAttribute('position')
+  for (let i = 0; i < positions.count; i += 1) {
+    positions.setY(i, mammothAcceptedGroundHeightAtWorld(positions.getX(i), positions.getZ(i)))
   }
-  material.customProgramCacheKey = () =>
-    'scale-encounter-mammoth-accepted-snow-depth-v1'
-  return material
-}
-
-function injectHeroSnowVertex(source: string): string {
-  return source
-    .replace(
-      '#include <common>',
-      `#include <common>
-varying vec3 vHeroSnowWorld;
-
-float heroSnowSupportMask(vec2 point) {
-  float railSegment = 1.0 - smoothstep(10.0, 15.0, abs(point.x + 4.0));
-  float rail = smoothstep(0.65, 2.15, abs(point.y));
-  rail = mix(1.0, rail, railSegment);
-  vec2 animalDelta = (point - vec2(${ANIMAL_X.toFixed(1)}, ${ANIMAL_Z.toFixed(1)})) / vec2(4.1, 2.0);
-  float animal = smoothstep(0.78, 1.25, length(animalDelta));
-  return min(rail, animal);
-}
-
-float heroSnowHeight(vec2 point) {
-  float broad =
-    sin(point.x * 0.23 + point.y * 0.08) * 0.075 +
-    sin(point.x * -0.11 + point.y * 0.31 + 1.6) * 0.046;
-  float ripple =
-    sin(point.x * 1.55 + point.y * 0.19 + sin(point.y * 0.22)) * 0.017 +
-    sin(point.x * 3.8 + point.y * 0.32) * 0.006;
-  return (broad + ripple) * heroSnowSupportMask(point);
-}`,
-    )
-    .replace(
-      '#include <begin_vertex>',
-      `#include <begin_vertex>
-transformed.z += heroSnowHeight(transformed.xy);
-vHeroSnowWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
-    )
+  geometry.computeVertexNormals()
+  const ground = new Mesh(geometry, material)
+  ground.name = 'scale-encounter-mammoth-continuous-snow-drifts'
+  ground.receiveShadow = true
+  root.add(ground)
+  return { root, textures: [...textures, colourMap] }
 }
 
 function createAlpineSkyDome(): {
@@ -607,7 +449,7 @@ float alpineValueNoise(vec2 point) {
         '#include <map_fragment>',
         `#include <map_fragment>
 vec3 alpineWorldNormal = normalize(vAlpineWorldNormal);
-float alpineUpward = smoothstep(0.34, 0.82, alpineWorldNormal.y);
+float alpineUpward = smoothstep(0.90, 0.995, alpineWorldNormal.y);
 float alpineAltitude = smoothstep(40.0, 430.0, vAlpineRelief);
 float alpineMacro = alpineValueNoise(vAlpineWorld.xz * 0.0045);
 float alpineDetail = alpineValueNoise(vAlpineWorld.xz * 0.035);
@@ -721,56 +563,34 @@ function tightenHeroShadow(root: Group): void {
     object.shadow.camera.far = 142
     object.shadow.bias = -0.00012
     object.shadow.normalBias = 0.012
+    object.shadow.radius = 1.6
     object.shadow.camera.updateProjectionMatrix()
   })
 }
 
-export function mammothAcceptedGroundHeightAtWorld(
-  x: number,
-  z: number,
-): number {
-  return heroSnowHeightAt(x, -z)
-}
+// Broad individually placed drifts form one surface. Keep the animal's feet
+// and the child's observation rail level, then rise gently on both sides.
+const SNOW_DRIFTS = [
+  [-17, -10, 14, 5, 1.05, -0.35],
+  [16, 12, 18, 6, 1.32, -0.46],
+  [28, -22, 23, 8, 1.8, -0.25],
+  [-31, 24, 20, 7, 1.5, -0.55],
+  [-8, -38, 31, 10, 1.7, -0.32],
+  [39, 39, 24, 11, 2.05, -0.6],
+] as const
 
-function heroSnowHeightAt(x: number, z: number): number {
-  const broad =
-    Math.sin(x * 0.23 + z * 0.08) * 0.075 +
-    Math.sin(x * -0.11 + z * 0.31 + 1.6) * 0.046
-  const ripple =
-    Math.sin(x * 1.55 + z * 0.19 + Math.sin(z * 0.22)) * 0.017 +
-    Math.sin(x * 3.8 + z * 0.32) * 0.006
-  return (broad + ripple) * heroSnowSupportMaskAt(x, z) - 0.035
-}
-
-function heroSnowSupportMaskAt(x: number, z: number): number {
-  const railSegment = 1 - smoothstep(10, 15, Math.abs(x + 4))
-  const rail = mix(1, smoothstep(0.65, 2.15, Math.abs(z)), railSegment)
-  const animal = smoothstep(
-    0.78,
-    1.25,
-    Math.hypot((x - ANIMAL_X) / 4.1, (z - ANIMAL_Z) / 2),
-  )
-  return Math.min(rail, animal)
-}
-
-function heroSnowCoverageAt(x: number, z: number): number {
-  const macro =
-    Math.sin(x * 0.17 + z * 0.07) * 0.46 +
-    Math.sin(x * -0.08 + z * 0.21 + 1.9) * 0.31 +
-    Math.sin(x * 0.51 - z * 0.13 - 0.6) * 0.16
-  const wind = Math.sin(x * 1.55 + z * 0.19 + macro) * 0.16
-  return smoothstep(-0.3, 0.36, macro + wind + 0.16)
-}
-
-function seededRandom(seed: number): () => number {
-  let state = seed >>> 0
-  return () => {
-    state += 0x6d2b79f5
-    let value = state
-    value = Math.imul(value ^ (value >>> 15), value | 1)
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
-    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296
+export function mammothAcceptedGroundHeightAtWorld(x = 0, z = 0): number {
+  let height = 0
+  for (const [cx, cz, width, depth, rise, yaw] of SNOW_DRIFTS) {
+    const dx = x - cx
+    const dz = z - cz
+    const u = (dx * Math.cos(yaw) + dz * Math.sin(yaw)) / width
+    const v = (-dx * Math.sin(yaw) + dz * Math.cos(yaw)) / depth
+    height += rise * Math.exp(-(u * u + v * v) * 2)
   }
+  const footClearance = smoothstep(3.8, 7.5, Math.abs(z))
+  const outerBlend = 1 - smoothstep(58, 78, Math.hypot(x, z))
+  return -0.035 + height * footClearance * outerBlend
 }
 
 function smoothstep(start: number, end: number, value: number): number {

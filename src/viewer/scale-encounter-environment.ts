@@ -1,3 +1,7 @@
+import { applyAuthoredGroundMaterial } from './scale-encounter-authored-ground'
+import { createRiverWater } from './scale-encounter-river-water'
+import type { RiverVisitor } from './scale-encounter-water-interaction'
+import { FOREST_STREAM_LEVEL_METERS, forestWaterForAnimal } from './scale-encounter-forest-water'
 import {
   BackSide,
   BatchedMesh,
@@ -90,11 +94,7 @@ import {
   createScaleEncounterProductionMidgroundOverviewClearance,
 } from './scale-encounter-production-midground'
 import { createScaleEncounterProductionFarDepth } from './scale-encounter-production-far-depth'
-import { createScaleEncounterProductionGroundDetail } from './scale-encounter-production-ground-detail'
-import { createScaleEncounterProductionUnderstory } from './scale-encounter-production-understory'
-import { applyScaleEncounterStochasticGroundMaterialCandidate } from './scale-encounter-stochastic-ground-material-candidate'
 import {
-  scaleEncounterEcologyCount,
   type ScaleEncounterEcologyDensity,
 } from './scale-encounter-ecology-density'
 import { createScaleEncounterProceduralLandBiome } from './scale-encounter-procedural-land-biome'
@@ -157,11 +157,14 @@ export interface ScaleEncounterEnvironment {
     elapsedSeconds: number,
     reducedMotion: boolean,
     camera?: PerspectiveCamera | Vector3,
+    visitor?: RiverVisitor | null,
   ) => void
 }
 
 export interface ScaleEncounterSurfaceTextures {
   readonly albedo: Texture
+  /** Authored clearing colour, mapped once over the terrain. */
+  readonly uniqueAlbedo?: Texture | null
   /** Optional second albedo scan used only by the production forest biome. */
   readonly dryLitterAlbedo?: Texture | null
   /** Preloaded frond component atlas used by the Carboniferous depth layer. */
@@ -681,10 +684,11 @@ function createLandGroundGeometry(
     | 'ground-slice'
     | 'hybrid-slice'
     | 'production-slice',
+  heightAtWorld?: (x: number, z: number) => number,
 ): BufferGeometry {
   if (!snow && forestUpgrade !== 'none') {
     if (forestUpgrade === 'production-slice') {
-      return createScaleEncounterProductionTerrainGeometry()
+      return createScaleEncounterProductionTerrainGeometry(heightAtWorld)
     }
     return createForestGroundGeometry(
       forestUpgrade === 'hybrid-slice',
@@ -971,32 +975,6 @@ function createLightShaftAlphaTexture(): DataTexture {
   )
   texture.needsUpdate = true
   return texture
-}
-
-function createGroundContactCue(
-  name: string,
-  colour: string,
-  opacity: number,
-  groundY = -0.018,
-): Mesh {
-  const cue = createMesh(
-    name,
-    new CircleGeometry(0.5, 48),
-    new MeshBasicMaterial({
-      alphaMap: createRadialAlphaTexture(),
-      color: colour,
-      depthWrite: false,
-      opacity,
-      side: DoubleSide,
-      transparent: true,
-    }),
-  )
-  cue.rotation.x = -Math.PI / 2
-  cue.position.y = groundY
-  cue.userData.scaleEncounterContactGroundY = groundY
-  cue.renderOrder = -1
-  cue.visible = false
-  return cue
 }
 
 function addSnowGroundDepthAnchors(root: Group): void {
@@ -1970,6 +1948,7 @@ function addProductionForestEcology(
   borrowedTextures: Set<Texture>,
   terrainHeightAtWorld: (worldX: number, worldZ: number) => number,
   density: ScaleEncounterEcologyDensity,
+  forestStream = false,
 ): boolean {
   const templates = new Map<string, ProductionEcologyTemplate>()
   for (const name of SCALE_ENCOUNTER_PRODUCTION_ECOLOGY_TEMPLATE_NAMES) {
@@ -1992,7 +1971,7 @@ function addProductionForestEcology(
   const shadowlessRecipes = propRecipes
     .map((recipe) => ({
       ...recipe,
-      placements: recipe.placements,
+      placements: recipe.placements.filter(({ x, z }) => Math.hypot(x, z) >= 42),
     }))
     .filter(({ placements }) => placements.length > 0)
   const shadowlessProps = createProductionEcologyMaterialBatches(
@@ -2008,13 +1987,11 @@ function addProductionForestEcology(
 
   const propRoot = new Group()
   propRoot.name = 'scale-encounter-real-forest-props'
-  propRoot.userData.scaleEncounterEcologyCounts = {
-    ...scatter.counts,
-    fern: 0,
-    litter: 0,
-    moss: 0,
-    shrub: 0,
-  }
+  propRoot.userData.scaleEncounterEcologyCounts = Object.fromEntries(
+    ['branch', 'log', 'rock'].map((kind) => [kind, shadowlessRecipes
+      .filter((recipe) => recipe.kind === kind)
+      .reduce((count, recipe) => count + recipe.placements.length, 0)]),
+  )
   propRoot.userData.scaleEncounterEcologyDensity = density
   propRoot.userData.scaleEncounterEcologyDrawCalls =
     shadowlessProps.length
@@ -2022,152 +1999,68 @@ function addProductionForestEcology(
   propRoot.add(...shadowlessProps)
   root.add(propRoot)
 
-  // The procedural population is deliberately sparse near the participants,
-  // but the comparison clearing still needs a handful of metre-scale anchors
-  // to establish parallax and stop reading as an empty studio cyclorama.
-  // Reuse the full PBR templates as independent material-preserving batches;
-  // the generic BatchedMesh above cannot safely mix their rock/log/foliage
-  // materials.
-  const heroFern = propTemplate(forestProps, 'fern_02')
-  const heroRock = propTemplate(forestProps, 'rock_07')
-  const heroLog = propTemplate(forestProps, 'dead_tree_trunk')
-  const heroShrub = propTemplate(forestProps, 'shrub_04')
-  if (heroFern && heroRock && heroLog && heroShrub) {
+  // Three hand-arranged groups use the original scans with independent PBR.
+  // Keep the comparison rail open and place smaller plants around fallen wood.
+  const fern = propTemplate(forestProps, 'fern_02')
+  const rock = propTemplate(forestProps, 'rock_07')
+  const log = propTemplate(forestProps, 'dead_tree_trunk')
+  if (fern && rock && log) {
     const heroRoot = new Group()
     heroRoot.name = 'scale-encounter-production-hero-ecology'
-    const heroFernCandidates: ReadonlyArray<ScaleEncounterForestPropPlacement> = [
-      { aspect: 1.08, pitch: 0.01, roll: -0.01, scale: 0.84, tier: 'near', x: -4.8, yaw: 0.9, z: -6.8 },
-      { aspect: 0.9, pitch: -0.01, roll: 0.01, scale: 0.78, tier: 'near', x: 7.8, yaw: 2.6, z: 6.2 },
-      { aspect: 1.14, pitch: 0.01, roll: 0.01, scale: 0.76, tier: 'near', x: 11.6, yaw: 4.2, z: -5.8 },
-      { aspect: 0.86, pitch: -0.01, roll: -0.01, scale: 0.72, tier: 'near', x: -9.4, yaw: 5.4, z: 5.2 },
-      { aspect: 1.02, pitch: 0.01, roll: 0.01, scale: 0.8, tier: 'near', x: -17, yaw: 1.8, z: -5.5 },
-      { aspect: 1.18, pitch: 0.01, roll: -0.02, scale: 1.55, tier: 'near', x: -18.5, yaw: 0.42, z: 12.8 },
-      { aspect: 0.94, pitch: -0.02, roll: 0.01, scale: 1.34, tier: 'near', x: 18.8, yaw: 2.2, z: 15.6 },
-      { aspect: 1.12, pitch: 0.02, roll: 0.01, scale: 1.42, tier: 'near', x: -22.4, yaw: 4.5, z: -17.8 },
-      { aspect: 0.88, pitch: -0.01, roll: -0.02, scale: 1.27, tier: 'near', x: 24.5, yaw: 5.4, z: -15.2 },
-      { aspect: 1.05, pitch: 0.01, roll: 0.01, scale: 1.18, tier: 'near', x: -11.8, yaw: 1.7, z: 23.8 },
-      { aspect: 1.2, pitch: 0.01, roll: -0.01, scale: 1.33, tier: 'near', x: 13.8, yaw: 3.6, z: 25.2 },
-      { aspect: 0.9, pitch: -0.01, roll: 0.02, scale: 1.16, tier: 'near', x: -31.2, yaw: 5.1, z: 5.8 },
-      { aspect: 1.14, pitch: 0.02, roll: -0.01, scale: 1.24, tier: 'near', x: 31.6, yaw: 1.2, z: -4.8 },
-      { aspect: 1.02, pitch: 0.01, roll: 0.01, scale: 1.12, tier: 'near', x: 5.5, yaw: 2.7, z: -27.8 },
-      { aspect: 0.92, pitch: -0.01, roll: 0.02, scale: 1.06, tier: 'near', x: -7.2, yaw: 4.4, z: -10.4 },
-      { aspect: 1.16, pitch: 0.02, roll: -0.01, scale: 0.96, tier: 'near', x: -2.8, yaw: 0.3, z: -12.2 },
-      { aspect: 0.86, pitch: -0.02, roll: 0.01, scale: 1.14, tier: 'near', x: 10.8, yaw: 2.1, z: 9.8 },
-      { aspect: 1.22, pitch: 0.01, roll: -0.02, scale: 0.92, tier: 'near', x: 14.7, yaw: 5.2, z: 12.4 },
-      { aspect: 1.08, pitch: 0.02, roll: 0.01, scale: 1.28, tier: 'near', x: -20.6, yaw: 1.4, z: 15.8 },
-      { aspect: 0.9, pitch: -0.01, roll: -0.01, scale: 1.1, tier: 'near', x: -24.2, yaw: 3.8, z: 11.6 },
-      { aspect: 1.18, pitch: 0.01, roll: 0.02, scale: 1.22, tier: 'near', x: 21.4, yaw: 4.7, z: 18.2 },
-      { aspect: 0.84, pitch: -0.02, roll: 0.01, scale: 1.04, tier: 'near', x: 26.2, yaw: 0.8, z: 14.4 },
-      { aspect: 1.12, pitch: 0.01, roll: -0.02, scale: 1.2, tier: 'near', x: -24.8, yaw: 2.9, z: -19.2 },
-      { aspect: 0.94, pitch: -0.01, roll: 0.01, scale: 1.02, tier: 'near', x: -29.4, yaw: 5.7, z: -15.6 },
-      { aspect: 1.2, pitch: 0.02, roll: -0.01, scale: 1.18, tier: 'near', x: 25.5, yaw: 1.9, z: -19.8 },
-      { aspect: 0.88, pitch: -0.01, roll: 0.02, scale: 1.08, tier: 'near', x: 30.8, yaw: 4.1, z: -14.6 },
-      { aspect: 1.14, pitch: 0.01, roll: 0.01, scale: 1.16, tier: 'near', x: -14.6, yaw: 0.6, z: 27.2 },
-      { aspect: 0.9, pitch: -0.02, roll: -0.01, scale: 1.12, tier: 'near', x: 17.2, yaw: 3.4, z: 28.8 },
+    const place = (
+      x: number, z: number, scale: number, yaw: number,
+      aspect = 1,
+    ): ScaleEncounterForestPropPlacement => ({
+      x, z, scale, yaw, aspect, pitch: 0, roll: 0, tier: 'near',
+    })
+    const ferns = forestStream ? [
+      place(-13.2, -1.2, 1.15, 0.5), place(-11.5, -1.1, 1.1, 2.1),
+      place(-10, -1.8, 1.35, 4.6), place(-8.5, -3.2, 0.95, 1.4),
+      place(-5.5, -7.2, 1.2, 3.6), place(-4, -8.8, 0.9, 5.1),
+      place(-10.2, 6.8, 1.05, 2.8), place(-9.2, 5.2, 1.25, 0.9),
+      place(-8.3, 3.3, 0.9, 3.3), place(1.2, -9.7, 1.2, 5.1),
+      place(2.5, -9.3, 1.1, 2.4), place(3.8, -8.7, 1.35, 4.4),
+      place(5.3, -8.4, 0.95, 1.2), place(7.5, -7.8, 1.3, 3.9),
+      place(8.7, -7.9, 0.85, 2.5), place(10.1, -7.8, 1.15, 0.7),
+      place(15.2, -8.3, 1.4, 4.2), place(16.8, -8.7, 0.95, 5.3),
+    ] : [
+      place(-8.5, -8.8, 1.45, 0.5), place(-6.8, -9.4, 1.2, 2.1),
+      place(-5.6, -8.7, 1.6, 4.6), place(-9.2, -7.1, 1.1, 1.4),
+      place(-6.1, -7.2, 1.35, 3.6), place(-10.2, -9.5, 0.9, 5.1),
+      place(-4.6, -10.2, 1.05, 2.8),
+      place(10.2, 8.6, 1.7, 0.9), place(12.3, 9.5, 1.4, 3.3),
+      place(13.8, 8.4, 1.3, 5.1), place(11.8, 6.9, 1.1, 2.4),
+      place(9.6, 7.1, 1.2, 4.4), place(14.9, 10.2, 0.95, 1.2),
+      place(12.6, 11.3, 1.1, 3.9),
+      place(16.2, -11.1, 1.6, 2.5), place(18.4, -12.2, 1.35, 0.7),
+      place(19.9, -10.8, 1.55, 4.2), place(17.5, -9.3, 1.15, 5.3),
+      place(20.4, -13.2, 0.95, 1.9), place(15.1, -12.9, 1.2, 3.4),
+      place(21.3, -10.5, 1.0, 4.8),
     ]
-    const heroFerns = heroFernCandidates.slice(
-      0,
-      scaleEncounterEcologyCount(10, density),
-    )
-    const heroRocks: ReadonlyArray<ScaleEncounterForestPropPlacement> = [
-      { aspect: 1.32, pitch: 0.04, roll: -0.03, scale: 2.55, tier: 'near', x: -24.5, yaw: 0.4, z: 17.2 },
-      { aspect: 0.86, pitch: -0.02, roll: 0.05, scale: 2.2, tier: 'near', x: 26.8, yaw: 2.1, z: 18.6 },
-      { aspect: 1.14, pitch: 0.02, roll: 0.02, scale: 2.05, tier: 'near', x: -30.5, yaw: 4.5, z: -23.5 },
-    ]
-    const heroLogs: ReadonlyArray<ScaleEncounterForestPropPlacement> = [
-      { aspect: 1.12, pitch: 0.03, roll: 0.02, scale: 1.55, tier: 'near', x: -26.8, yaw: 0.58, z: -19.6 },
-      { aspect: 0.92, pitch: -0.04, roll: -0.02, scale: 1.42, tier: 'near', x: 29.2, yaw: -0.42, z: -27.5 },
-    ]
-    const heroShrubCandidates: ReadonlyArray<ScaleEncounterForestPropPlacement> = [
-      { aspect: 1.08, pitch: 0.01, roll: -0.01, scale: 0.56, tier: 'near', x: 10.2, yaw: 1.1, z: 7.4 },
-      { aspect: 0.9, pitch: -0.01, roll: 0.01, scale: 0.52, tier: 'near', x: -4.1, yaw: 2.7, z: -8.6 },
-      { aspect: 1.14, pitch: 0.01, roll: 0.01, scale: 0.58, tier: 'near', x: -12.2, yaw: 4.1, z: 6.9 },
-      { aspect: 0.88, pitch: -0.01, roll: -0.01, scale: 0.54, tier: 'near', x: -18.2, yaw: 5.2, z: -7.3 },
-      { aspect: 1.12, pitch: 0.01, roll: -0.02, scale: 0.94, tier: 'near', x: -17.2, yaw: 0.42, z: 10.4 },
-      { aspect: 0.88, pitch: -0.01, roll: 0.02, scale: 0.82, tier: 'near', x: 17.8, yaw: 2.2, z: 10.8 },
-      { aspect: 1.18, pitch: 0.02, roll: 0.01, scale: 1.06, tier: 'near', x: -21.8, yaw: 4.5, z: -11.4 },
-      { aspect: 0.92, pitch: -0.01, roll: -0.02, scale: 0.9, tier: 'near', x: 20.8, yaw: 5.4, z: -12.6 },
-      { aspect: 1.06, pitch: 0.01, roll: 0.01, scale: 1.14, tier: 'near', x: -30.8, yaw: 1.7, z: 8.2 },
-      { aspect: 1.2, pitch: 0.01, roll: -0.01, scale: 1.02, tier: 'near', x: 30.5, yaw: 3.6, z: 7.4 },
-      { aspect: 0.84, pitch: -0.01, roll: 0.02, scale: 0.78, tier: 'near', x: -12.2, yaw: 0.9, z: -20.5 },
-      { aspect: 1.14, pitch: 0.02, roll: -0.01, scale: 0.88, tier: 'near', x: 13.8, yaw: 2.9, z: -22.8 },
-      { aspect: 0.96, pitch: 0.01, roll: 0.01, scale: 1.12, tier: 'near', x: -28.4, yaw: 4.1, z: -25.2 },
-      { aspect: 1.08, pitch: -0.02, roll: 0.01, scale: 1.04, tier: 'near', x: 28.5, yaw: 5.8, z: -28.6 },
-      { aspect: 0.9, pitch: 0.01, roll: -0.02, scale: 0.84, tier: 'near', x: -35.5, yaw: 1.2, z: -7.5 },
-      { aspect: 1.16, pitch: -0.01, roll: 0.02, scale: 0.92, tier: 'near', x: 35.8, yaw: 3.1, z: -10.4 },
-      { aspect: 1.04, pitch: 0.01, roll: -0.02, scale: 0.82, tier: 'near', x: -25.5, yaw: 0.7, z: 22.8 },
-      { aspect: 0.86, pitch: -0.01, roll: 0.02, scale: 0.76, tier: 'near', x: 25.4, yaw: 2.5, z: 24.6 },
-      { aspect: 1.2, pitch: 0.02, roll: 0.01, scale: 0.88, tier: 'near', x: -38.4, yaw: 4.7, z: 14.2 },
-      { aspect: 0.92, pitch: -0.01, roll: -0.02, scale: 0.84, tier: 'near', x: 39.8, yaw: 5.6, z: 16.5 },
-      { aspect: 1.08, pitch: 0.01, roll: 0.01, scale: 0.78, tier: 'near', x: -6.8, yaw: 1.9, z: -30.8 },
-      { aspect: 0.96, pitch: -0.01, roll: 0.02, scale: 0.8, tier: 'near', x: 8.2, yaw: 3.8, z: -32.5 },
-      { aspect: 1.15, pitch: 0.02, roll: -0.01, scale: 0.92, tier: 'near', x: -19.6, yaw: 4.3, z: 17.8 },
-      { aspect: 0.88, pitch: -0.01, roll: 0.02, scale: 0.86, tier: 'near', x: 21.8, yaw: 1.5, z: 19.4 },
-      { aspect: 1.22, pitch: 0.01, roll: -0.02, scale: 1.08, tier: 'near', x: -32.6, yaw: 2.6, z: 18.6 },
-      { aspect: 0.94, pitch: -0.02, roll: 0.01, scale: 1.02, tier: 'near', x: 34.2, yaw: 5.1, z: 22.4 },
-      { aspect: 1.08, pitch: 0.02, roll: 0.01, scale: 0.9, tier: 'near', x: -21.4, yaw: 0.4, z: -24.6 },
-      { aspect: 0.86, pitch: -0.01, roll: -0.01, scale: 0.84, tier: 'near', x: 23.2, yaw: 3.3, z: -25.8 },
-    ]
-    const heroShrubs = heroShrubCandidates.slice(
-      0,
-      scaleEncounterEcologyCount(10, density),
-    )
     heroRoot.add(
       createPropInstances(
-        'scale-encounter-production-hero-ferns',
-        heroFern,
-        heroFerns,
-        'fern',
-        true,
-        borrowedTextures,
-        terrainHeightAtWorld,
-        forestProps,
+        'scale-encounter-production-hero-ferns', fern, ferns, 'fern', true,
+        borrowedTextures, terrainHeightAtWorld, forestProps,
       ),
       createPropInstances(
-        'scale-encounter-production-hero-rocks',
-        heroRock,
-        heroRocks,
-        'rock',
-        true,
-        borrowedTextures,
-        terrainHeightAtWorld,
-        forestProps,
+        'scale-encounter-production-hero-rocks', rock,
+        forestStream
+          ? [place(-10.6, -1.5, 1.0, 0.8), place(-11.2, -1.3, 0.7, 2.6),
+            place(4.3, -8.6, 1.1, 4.1), place(4.9, -8.5, 0.7, 1.2)]
+          : [place(-9.1, -8.2, 1.0, 0.8), place(-8.5, -8.6, 0.7, 2.6),
+          place(13.1, 8.2, 1.4, 4.1), place(13.8, 8.5, 0.8, 1.2),
+          place(17.4, -11.9, 1.2, 3.5), place(18.1, -11.4, 0.75, 5.2)],
+        'rock', true, borrowedTextures, terrainHeightAtWorld, forestProps,
       ),
       createPropInstances(
-        'scale-encounter-production-hero-logs',
-        heroLog,
-        heroLogs,
-        'log',
-        true,
-        borrowedTextures,
-        terrainHeightAtWorld,
-        forestProps,
-      ),
-      createPropInstances(
-        'scale-encounter-production-hero-shrubs',
-        heroShrub,
-        heroShrubs,
-        'shrub',
-        true,
-        borrowedTextures,
-        terrainHeightAtWorld,
-        forestProps,
+        'scale-encounter-production-hero-logs', log,
+        forestStream
+          ? [place(-11.5, -1.9, 1.0, 0.2), place(8.5, -8.2, 0.85, -0.7)]
+          : [place(-7.4, -8.2, 1.1, 0.2), place(11.8, 8.4, 1.05, 1.2),
+          place(18.1, -10.8, 1.25, -0.4)],
+        'log', true, borrowedTextures, terrainHeightAtWorld, forestProps,
       ),
     )
-    // The scanned fern/shrub templates use an opaque shared atlas and expose
-    // their rectangular leaf planes in grazing views. Keep them instantiated
-    // only as a deterministic rollback reference; the alpha-clipped,
-    // bounding-box-grounded understory layer now owns visible plants.
-    for (const supersededName of [
-      'scale-encounter-production-hero-ferns',
-      'scale-encounter-production-hero-shrubs',
-    ]) {
-      const superseded = heroRoot.getObjectByName(supersededName)
-      if (superseded) {
-        superseded.visible = false
-        superseded.userData.scaleEncounterReplacedByGroundedUnderstory = true
-      }
-    }
     root.add(heroRoot)
   }
   return true
@@ -2294,7 +2187,8 @@ function createLandBase(
   ecologyDensity: ScaleEncounterEcologyDensity,
   forestProps: Group<Object3DEventMap> | null,
   borrowedTextures: Set<Texture>,
-): { readonly animalContactCue: Mesh; readonly childContactCue: Mesh } {
+  wetlandHeightAtWorld?: (x: number, z: number) => number,
+): { readonly animalContactCue: null; readonly childContactCue: null } {
   const productionGround = !snow && variant === 'production-slice'
   if (textures) {
     // Poly Haven's source scans cover a two-metre square.  Repeating them at
@@ -2329,11 +2223,9 @@ function createLandBase(
         ? '#ffffff'
         : textures
           ? productionGround
-            // The humus scan is naturally dark, but a pure-white material
-            // multiplier lets the strong encounter skylight wash its olive
-            // and brown mids toward grey. Keep the texture detail intact
-            // while restoring a restrained warm earth response.
-            ? '#f2ead8'
+            // Keep the dry needle scan from washing out under the
+            // strong encounter skylight.
+            ? '#918d7d'
             : '#d7d2bd'
           : snow
             ? '#edf3f8'
@@ -2345,19 +2237,15 @@ function createLandBase(
         ? 0.42
         : variant === 'baseline'
           ? 0.58
-            : variant === 'hybrid-slice'
-              ? 0.18
-            : variant === 'production-slice'
-              ? 0.18
+          : variant === 'hybrid-slice'
+            ? 0.18
             : 0.34,
       snow
         ? 0.42
         : variant === 'baseline'
           ? 0.58
-            : variant === 'hybrid-slice'
-              ? 0.18
-            : variant === 'production-slice'
-              ? 0.18
+          : variant === 'hybrid-slice'
+            ? 0.18
             : 0.34,
     ),
     roughness:
@@ -2384,22 +2272,27 @@ function createLandBase(
       subjectFadeStartMeters: 68,
     })
   } else if (productionGround) {
-    applyScaleEncounterStochasticGroundMaterialCandidate(groundMaterial, {
-      dryLitterAlbedoTexture: textures?.dryLitterAlbedo ?? null,
-      macroVariationStrength: 0.5,
-      macroWorldSizeMeters: SCALE_ENCOUNTER_SURFACE_RADIUS_METERS * 2,
-      normalFadeEndMeters: 112,
-      normalFadeStartMeters: 38,
-      panoramaBlendEndMeters: 230,
-      panoramaBlendStartMeters: 145,
-      // The panorama is a far-field plate. Projecting its camera-relative RGB
-      // onto a world-space floor made texture details slide and created a
-      // horizontal veil during overview/rear transitions.
-      panoramaTexture: null,
-      physicalWidthMeters: textures?.physicalWidthMeters ?? 2,
-      stochasticCellSizeMeters:
-        (textures?.physicalWidthMeters ?? 2) * 3.25,
-    })
+    if (textures?.uniqueAlbedo) {
+      groundMaterial.color.set('#d3cfc4')
+      applyAuthoredGroundMaterial(groundMaterial, {
+        colourMap: textures.uniqueAlbedo,
+        widthMeters: 96,
+        detailMeters: 1.6,
+        farColour: '#50432f',
+        grainStrength: 0.4,
+        colourMipLevel: 6,
+      })
+      if (wetlandHeightAtWorld) {
+        const compile = groundMaterial.onBeforeCompile.bind(groundMaterial)
+        groundMaterial.onBeforeCompile = (shader, renderer) => {
+          compile(shader, renderer)
+          shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+float bankWetness = 1.0 - smoothstep(-.12, .16, vAuthoredGroundWorld.y);
+diffuseColor.rgb *= 1.0 - bankWetness * .24;`)
+        }
+        groundMaterial.customProgramCacheKey = () => 'forest-stream-bank-v4'
+      }
+    }
   }
   const ground = createMesh(
     'scale-encounter-land-ground',
@@ -2408,6 +2301,7 @@ function createLandBase(
     createLandGroundGeometry(
       snow,
       snow || variant === 'baseline' ? 'none' : variant,
+      wetlandHeightAtWorld,
     ),
     groundMaterial,
   )
@@ -2415,35 +2309,7 @@ function createLandBase(
   ground.position.y = SCALE_ENCOUNTER_GROUND_WORLD_Y
   ground.receiveShadow = variant !== 'baseline'
   ground.renderOrder = opaqueControlledGround ? 0 : -20
-  const animalContactCue = createGroundContactCue(
-    'scale-encounter-animal-contact-cue',
-    snow ? '#50627b' : '#211d15',
-    snow ? 0.23 : productionGround ? 0.09 : 0.3,
-    productionGround
-      ? scaleEncounterProductionTerrainHeightAtWorld(2.2, 0) + 0.006
-      : -0.018,
-  )
-  const childContactCue = createGroundContactCue(
-    'scale-encounter-child-contact-cue',
-    snow ? '#50627b' : '#211d15',
-    snow ? 0.28 : productionGround ? 0.24 : 0.34,
-    productionGround
-      ? scaleEncounterProductionTerrainHeightAtWorld(-12, 0) + 0.006
-      : -0.018,
-  )
-  root.add(ground, animalContactCue, childContactCue)
-  if (productionGround) {
-    root.add(
-      createScaleEncounterProductionGroundDetail(
-        scaleEncounterProductionTerrainHeightAtWorld,
-        ecologyDensity,
-      ),
-      createScaleEncounterProductionUnderstory(
-        scaleEncounterProductionTerrainHeightAtWorld,
-        ecologyDensity,
-      ),
-    )
-  }
+  root.add(ground)
   if (withPanoramaBlend) {
     if (snow) {
       addHorizonHaze(
@@ -2496,8 +2362,9 @@ function createLandBase(
               root,
               forestProps,
               borrowedTextures,
-              scaleEncounterProductionTerrainHeightAtWorld,
+              wetlandHeightAtWorld ?? scaleEncounterProductionTerrainHeightAtWorld,
               ecologyDensity,
+              !!wetlandHeightAtWorld,
             )
           : forestProps
             ? addRealForestGroundDetails(
@@ -2508,13 +2375,13 @@ function createLandBase(
               )
             : false
       if (
-        !addedRealDetails
+        !addedRealDetails && !productionGround
       ) {
         addForestGroundDetails(root, true)
       }
     }
   }
-  return { animalContactCue, childContactCue }
+  return { animalContactCue: null, childContactCue: null }
 }
 
 function addForestDepth(root: Group): void {
@@ -2912,13 +2779,34 @@ function mammothCandidateSkyDome(
 function createIntegratedMammothPalaeoenvironment(
   variant: Exclude<ScaleEncounterSceneCandidateVariant, 'off'>,
   legacyVariant: ScaleEncounterEnvironmentVariant,
-  renderer?: WebGLRenderer,
+  options: ScaleEncounterEnvironmentOptions,
 ): ScaleEncounterEnvironment {
   if (variant === 'E') {
-    const accepted = createMammothAcceptedSnowEnvironment(renderer)
+    const accepted = createMammothAcceptedSnowEnvironment(options.renderer)
+    const borrowedTextures = new Set<Texture>()
+    const rock = options.forestProps && propTemplate(options.forestProps, 'rock_07')
+    if (rock && options.forestProps) {
+      const rocks: ScaleEncounterForestPropPlacement[] = [
+        [-17, -6.5, 1.25, 0.6], [-17.8, -6.1, 0.7, 2.4],
+        [10.4, 7.2, 1.7, 1.9], [11.2, 7.6, 0.9, 4.2],
+        [-6.4, -13.5, 1.5, 3.1], [-5.6, -13.8, 0.8, 5.5],
+        [-22.6, 19.5, 1.8, 1.1], [24.1, -22.2, 2.1, 4.8],
+      ].map(([x, z, scale, yaw]) => ({
+        x: x!, z: z!, scale: scale!, yaw: yaw!,
+        aspect: 1, pitch: 0, roll: 0, tier: 'near',
+      }))
+      accepted.root.add(createPropInstances(
+        'scale-encounter-mammoth-scanned-rocks', rock, rocks, 'rock', true,
+        borrowedTextures,
+        // Snow gathers around the base; bury irregular scan undersides so a
+        // tilted bounding box cannot leave a visible gap above the drift.
+        (x, z) => accepted.groundHeightAtWorld(x, z) - 0.16,
+        options.forestProps,
+      ))
+    }
     return {
       animalContactCue: null,
-      borrowedTextures: new Set<Texture>(),
+      borrowedTextures,
       cameraCentredSkyDome: true,
       cameraFarMeters: 3_600,
       childContactCue: null,
@@ -3178,6 +3066,7 @@ function createIntegratedSkyEnvironment(
     .union(cameraSweepBounds)
     .expandByScalar(1)
   const candidate = createSkyEnvironmentCandidate({
+    coastTemplate: options.forestProps ?? null,
     assetLease: {
       assetId: SKY_PRODUCTION_REVIEW_CANDIDATE.assetId,
       manifestSha256: SKY_PRODUCTION_REVIEW_CANDIDATE.manifestSha256,
@@ -3217,13 +3106,10 @@ function createIntegratedSkyEnvironment(
   candidate.root.userData.scaleEncounterSceneCandidate = {
     buildSource: SKY_PRODUCTION_REVIEW_CANDIDATE.buildSource,
     defaultCandidate: variant === 'D',
-    leonApproved: SKY_PRODUCTION_REVIEW_CANDIDATE.leonApproved,
-    naturalnessGate: SKY_PRODUCTION_REVIEW_CANDIDATE.naturalnessGate,
-    naturalnessRevision:
-      variant === 'D'
-        ? 'coherent-sky-radiance-c-coverage-soft-cloud-v4'
-        : SKY_PRODUCTION_REVIEW_CANDIDATE.naturalnessRevision,
-    productionApproved: variant === 'D',
+    baseLeonApproved: SKY_PRODUCTION_REVIEW_CANDIDATE.leonApproved,
+    naturalnessGate: 'local-review-2026-09-05',
+    naturalnessRevision: 'vegetated-landforms-and-fixed-shore-v2',
+    productionApproved: false,
     semanticName: 'sky',
     variant,
   }
@@ -3231,6 +3117,7 @@ function createIntegratedSkyEnvironment(
     animalContactCue: null,
     borrowedTextures: new Set<Texture>(),
     cameraCentredSkyDome: false,
+    cameraFarMeters: 1000,
     childContactCue: null,
     distanceFogColour: null,
     environmentIntensity: variant === 'D' ? 0.68 : null,
@@ -3279,7 +3166,7 @@ export function createScaleEncounterEnvironment(
     return createIntegratedMammothPalaeoenvironment(
       sceneCandidateVariant,
       variant,
-      options.renderer,
+      options,
     )
   }
   if (
@@ -3340,6 +3227,18 @@ export function createScaleEncounterEnvironment(
       ? variant
       : 'baseline'
   const ecologyDensity = options.ecologyDensity ?? 'current'
+  const forestWater = options.animalId && effectiveVariant === 'production-slice'
+    ? forestWaterForAnimal(options.animalId)
+    : null
+  const wetlandHeightAtWorld = forestWater?.heightAtWorld
+  const landHeightAtWorld = wetlandHeightAtWorld ?? scaleEncounterProductionTerrainHeightAtWorld
+  const forestRiver = forestWater
+    ? createRiverWater(forestWater.heightAtWorld, forestWater.centreZ, FOREST_STREAM_LEVEL_METERS, 84)
+    : null
+  if (forestRiver) {
+    forestRiver.name = `scale-encounter-${options.animalId}-forest-stream-water`
+    root.add(forestRiver)
+  }
   root.userData.scaleEncounterEcologyDensity = ecologyDensity
   const skyDome = panoramaTexture
     ? createPanoramaDome(
@@ -3360,6 +3259,7 @@ export function createScaleEncounterEnvironment(
   if (panoramaTexture) borrowedTextures.add(panoramaTexture)
   if (surfaceTextures) {
     borrowedTextures.add(surfaceTextures.albedo)
+    if (surfaceTextures.uniqueAlbedo) borrowedTextures.add(surfaceTextures.uniqueAlbedo)
     borrowedTextures.add(surfaceTextures.normal)
     borrowedTextures.add(surfaceTextures.roughness)
     if (surfaceTextures.dryLitterAlbedo) {
@@ -3396,6 +3296,7 @@ export function createScaleEncounterEnvironment(
       ecologyDensity,
       options.forestProps ?? null,
       borrowedTextures,
+      wetlandHeightAtWorld,
     )
     animalContactCue = contacts.animalContactCue
     childContactCue = contacts.childContactCue
@@ -3432,15 +3333,16 @@ export function createScaleEncounterEnvironment(
     ) {
       root.add(
         createScaleEncounterProductionMidground(
-          scaleEncounterProductionTerrainHeightAtWorld,
+          landHeightAtWorld,
           ecologyDensity,
           options.forestProps ?? null,
           borrowedTextures,
           options.matureTreeAtlas ?? null,
           forestOverviewClearance,
+          ['araucarian-conifer'],
         ),
         createScaleEncounterProductionFarDepth(
-          scaleEncounterProductionTerrainHeightAtWorld,
+          landHeightAtWorld,
           ecologyDensity,
           options.forestProps ?? null,
           borrowedTextures,
@@ -3492,7 +3394,7 @@ export function createScaleEncounterEnvironment(
     ...(habitat === 'land' && effectiveVariant === 'production-slice'
       ? {
           groundHeightAtWorld:
-            scaleEncounterProductionTerrainHeightAtWorld,
+            landHeightAtWorld,
         }
       : {}),
     ownsLighting: false,
@@ -3500,6 +3402,9 @@ export function createScaleEncounterEnvironment(
     root,
     sceneCandidateSemantic: null,
     sceneCandidateVariant: 'off',
+    ...(forestRiver ? {
+      updateCandidate: forestRiver.updateWater,
+    } : {}),
     skyDome,
     toneMappingExposure: null,
     variant,
@@ -3546,6 +3451,7 @@ export function updateScaleEncounterEnvironment(
   elapsedSeconds: number,
   reducedMotion: boolean,
   camera?: PerspectiveCamera | Vector3,
+  visitor?: RiverVisitor | null,
 ): void {
   if (!environment) {
     return
@@ -3554,6 +3460,7 @@ export function updateScaleEncounterEnvironment(
     elapsedSeconds,
     reducedMotion,
     camera,
+    visitor,
   )
   // Sky is effectively infinitely distant: keep the inward-facing dome
   // centred on the camera while ground, trees, clouds and water proxies stay

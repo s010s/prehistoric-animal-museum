@@ -231,10 +231,7 @@ describe('scale encounter environment', () => {
     // near an end may rise a little higher than the bird's foot plane.
     expect(bounds.max.y).toBeGreaterThanOrEqual(supportTopY)
     expect(bounds.max.y).toBeLessThan(supportTopY + 0.12)
-    expect(
-      environment.animalContactCue?.userData
-        .scaleEncounterContactGroundY,
-    ).toBeCloseTo(supportTopY + 0.009, 8)
+    expect(environment.animalContactCue).toBeNull()
     perch.traverse((object) => {
       if (!(object instanceof Mesh)) return
       expect(object.castShadow).toBe(true)
@@ -276,19 +273,11 @@ describe('scale encounter environment', () => {
       .scaleEncounterProductionMidground as
       | { readonly totalInstances: number }
       | undefined
-    expect(metadata?.totalInstances).toBe(180)
+    expect(metadata?.totalInstances).toBe(46)
     const groundDetail = environment?.root.getObjectByName(
       'scale-encounter-production-ground-detail',
     )
-    expect(groundDetail).toBeDefined()
-    const groundDetailMetadata = groundDetail?.userData
-      .scaleEncounterProductionGroundDetail as
-      | { readonly drawCalls: number; readonly instanceCount: number }
-      | undefined
-    expect(groundDetailMetadata).toMatchObject({
-      drawCalls: 2,
-      instanceCount: 520,
-    })
+    expect(groundDetail).toBeUndefined()
     const farDepth = environment?.root.getObjectByName(
       'scale-encounter-production-far-depth',
     )
@@ -308,7 +297,7 @@ describe('scale encounter environment', () => {
     'stegosaurus',
     'triceratops',
     'apatosaurus',
-  ] as const)('opens the mobile overview corridor for %s from its live subject bounds', (animalId) => {
+  ] as const)('keeps the reduced conifer layer clear of the %s mobile overview corridor', (animalId) => {
     const environment = createScaleEncounterEnvironment(
       'land',
       'production-slice',
@@ -337,24 +326,22 @@ describe('scale encounter environment', () => {
         }
       | undefined
 
-    expect(metadata?.unfilteredInstances).toBe(180)
-    expect(metadata?.filteredForOverviewCount).toBeGreaterThan(0)
-    expect(metadata?.totalInstances).toBeLessThan(180)
+    expect(metadata?.unfilteredInstances).toBe(46)
+    expect(metadata?.filteredForOverviewCount).toBe(0)
+    expect(metadata?.totalInstances).toBe(46)
     disposeScaleEncounterEnvironment(environment)
   })
 
   it.each([
-    ['current', 180, 520, 15, 114, 893],
-    ['1.25x', 226, 650, 19, 143, 1_118],
-    ['1.5x', 270, 780, 19, 171, 1_336],
+    ['current', 46, 15, 61],
+    ['1.25x', 58, 19, 77],
+    ['1.5x', 69, 19, 88],
   ] as const)(
     'builds the %s ecology population as a shareable environment version',
     (
       ecologyDensity,
       midgroundCount,
-      groundDetailCount,
       farTreeCount,
-      understoryCount,
       totalCount,
     ) => {
       const environment = createScaleEncounterEnvironment(
@@ -379,11 +366,7 @@ describe('scale encounter environment', () => {
       const groundDetail = environment?.root.getObjectByName(
         'scale-encounter-production-ground-detail',
       )
-      expect(
-        groundDetail?.userData.scaleEncounterProductionGroundDetail,
-      ).toMatchObject({
-        instanceCount: groundDetailCount,
-      })
+      expect(groundDetail).toBeUndefined()
       const farDepth = environment?.root.getObjectByName(
         'scale-encounter-production-far-depth',
       )
@@ -397,23 +380,7 @@ describe('scale encounter environment', () => {
       const understory = environment?.root.getObjectByName(
         'scale-encounter-production-grounded-understory',
       )
-      const understoryMetadata = understory?.userData
-        .scaleEncounterProductionUnderstory as unknown as
-        | {
-            readonly airborneInstanceCount: number
-            readonly maximumAbsoluteGroundingError: number
-            readonly totalInstances: number
-          }
-        | undefined
-      expect(
-        understoryMetadata,
-      ).toMatchObject({
-        airborneInstanceCount: 0,
-        totalInstances: understoryCount,
-      })
-      expect(
-        understoryMetadata?.maximumAbsoluteGroundingError,
-      ).toBeLessThan(1e-9)
+      expect(understory).toBeUndefined()
       expect(
         environment?.root.userData.scaleEncounterEcologyPopulation,
       ).toMatchObject({ totalInstances: totalCount })
@@ -540,19 +507,15 @@ describe('scale encounter environment', () => {
     const child = new Mesh(new BoxGeometry(0.5, 1.1, 0.35))
     child.position.set(-4, 0.55, 2)
     syncScaleEncounterGroundContacts(environment, animal, child)
-    expect(environment.animalContactCue?.visible).toBe(true)
-    expect(environment.animalContactCue?.position.x).toBeCloseTo(8)
-    expect(environment.animalContactCue?.position.z).toBeCloseTo(-3)
-    expect(environment.childContactCue?.visible).toBe(true)
-    expect(environment.childContactCue?.position.x).toBeCloseTo(-4)
-    expect(environment.childContactCue?.position.z).toBeCloseTo(2)
+    expect(environment.animalContactCue).toBeNull()
+    expect(environment.childContactCue).toBeNull()
 
     animal.geometry.dispose()
     child.geometry.dispose()
     disposeScaleEncounterEnvironment(environment)
   })
 
-  it('keeps production contact cues tight, visible and attached to the world support plane', () => {
+  it('uses real shadows without circular contact overlays, including after subject movement', () => {
     const environment = createScaleEncounterEnvironment(
       'land',
       'production-slice',
@@ -568,15 +531,10 @@ describe('scale encounter environment', () => {
     child.position.set(-12, 0.55, 0)
     syncScaleEncounterGroundContacts(environment, animal, child)
 
-    const animalMaterial = environment.animalContactCue
-      ?.material as MeshBasicMaterial
-    const childMaterial = environment.childContactCue
-      ?.material as MeshBasicMaterial
-    expect(animalMaterial.opacity).toBeGreaterThanOrEqual(0.09)
-    expect(childMaterial.opacity).toBeGreaterThanOrEqual(0.24)
-    expect(environment.animalContactCue?.position.y).toBeCloseTo(0.006, 3)
-    expect(environment.childContactCue?.position.y).toBeCloseTo(0.006, 3)
-    expect(environment.childContactCue?.scale.x).toBeLessThan(0.4)
+    expect(environment.animalContactCue).toBeNull()
+    expect(environment.childContactCue).toBeNull()
+    expect(environment.root.getObjectByName('scale-encounter-child-contact-cue')).toBeUndefined()
+    expect(environment.root.getObjectByName('scale-encounter-land-ground')?.receiveShadow).toBe(true)
 
     animal.geometry.dispose()
     child.geometry.dispose()
@@ -683,7 +641,7 @@ describe('scale encounter environment', () => {
     expect(material.transparent).toBe(false)
     expect(material.alphaMap).toBeNull()
     expect(material.depthWrite).toBe(true)
-    expect(material.color.getHexString()).toBe('f2ead8')
+    expect(material.color.getHexString()).toBe('918d7d')
     expect(material.roughness).toBe(1)
     expect(material.roughnessMap).toBe(surfaceTextures.roughness)
     const farDepth = environment.root.getObjectByName(

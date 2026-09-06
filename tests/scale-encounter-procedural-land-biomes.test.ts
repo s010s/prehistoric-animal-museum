@@ -1,11 +1,12 @@
 import {
-  InstancedMesh,
   Mesh,
   Texture,
   TextureLoader,
   type Material,
   type MeshStandardMaterial,
+  type ShaderMaterial,
 } from 'three'
+import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
 import {
   acquireProceduralLandBiomeEnvironmentLease,
   loadPreparedScaleEncounterLandBiome,
@@ -23,12 +24,12 @@ import type { ScaleEncounterAnimalId } from '../src/viewer/scale-encounter'
 const THEME_CASES = [
   {
     animalId: 'gigantoraptor',
-    absentMarkers: ['seasonal-channel-water', 'swamp-pool', 'distant-mesa-batch'],
-    markers: ['terrain', 'drought-shrub-batch', 'gravel-batch'],
-    panoramaFile: 'panorama-gobi-irendabas-photoreal-v1-4096.webp',
+    absentMarkers: ['swamp-pool', 'distant-mesa-batch'],
+    markers: ['terrain', 'drought-shrub-batch', 'seasonal-channel-water'],
+    panoramaFile: 'panorama-land-cretaceous-v5-farfield-4096.webp',
     profile: 'gobi-braided-basin',
     themeId: 'gobi',
-    groundFile: 'surface-gobi-gravel-albedo-v1.webp',
+    groundFile: 'surface-land-albedo-1024.webp',
   },
   {
     animalId: 'dilophosaurus',
@@ -36,14 +37,12 @@ const THEME_CASES = [
     markers: [
       'terrain',
       'seasonal-channel-water',
-      'overbank-sediment-bars',
-      'riparian-stem-batch',
       'fern-frond-batch',
     ],
-    panoramaFile: 'panorama-floodplain-kayenta-photoreal-v1-4096.webp',
+    panoramaFile: 'panorama-air-cretaceous-4096.webp',
     profile: 'kayenta-seasonal-floodplain',
     themeId: 'floodplain',
-    groundFile: 'surface-floodplain-red-silt-albedo-v1.webp',
+    groundFile: 'surface-land-albedo-1024.webp',
   },
   {
     animalId: 'meganeura',
@@ -95,7 +94,7 @@ describe('scale encounter procedural land biomes', () => {
       const lease = await acquireProceduralLandBiomeEnvironmentLease(themeId)
 
       expect(textureLoad).toHaveBeenCalledTimes(
-        themeId === 'gobi' ? 4 : 5,
+        themeId === 'carboniferous-wetland-forest' ? 5 : 6,
       )
       const requestedUrls = textureLoad.mock.calls.map(([sourceUrl]) =>
         String(sourceUrl),
@@ -103,7 +102,7 @@ describe('scale encounter procedural land biomes', () => {
       expect(requestedUrls.some((url) => url.includes(panoramaFile))).toBe(true)
       expect(requestedUrls.some((url) => url.includes(groundFile))).toBe(true)
       const unrelatedThemeFiles = THEME_CASES
-        .filter((theme) => theme.themeId !== themeId)
+        .filter((theme) => theme.themeId !== themeId && theme.groundFile !== groundFile)
         .map((theme) => theme.groundFile)
       unrelatedThemeFiles.forEach((fileName) => {
         expect(requestedUrls.some((url) => url.includes(fileName))).toBe(false)
@@ -119,7 +118,7 @@ describe('scale encounter procedural land biomes', () => {
         themeId,
       })
       expect(lease.matureTreeAtlas instanceof Texture).toBe(
-        themeId === 'floodplain',
+        themeId !== 'carboniferous-wetland-forest',
       )
       expect(
         lease.surfaceTextures?.landBiomeFrondAtlas instanceof Texture,
@@ -152,7 +151,7 @@ describe('scale encounter procedural land biomes', () => {
     if (!environment) throw new Error('Expected photoreal Gobi environment.')
 
     expect(environment.panoramaTexture).toBe(panorama)
-    expect(environment.skyDome.name).toContain('licensed-pure-sky-dome')
+    expect(environment.skyDome.name).toContain('distant-art-dome')
     expect(environment.borrowedTextures).toEqual(
       new Set([panorama, albedo, normal, roughness]),
     )
@@ -172,12 +171,12 @@ describe('scale encounter procedural land biomes', () => {
     expect(disposeAlbedo).not.toHaveBeenCalled()
   })
 
-  it('uses the same Gobi composition at 2K only for a constrained connection', async () => {
+  it('reuses the sky-only plate at 2K for a constrained connection', async () => {
     const textureLoad = vi
       .spyOn(TextureLoader.prototype, 'loadAsync')
       .mockImplementation(() => Promise.resolve(new Texture()))
     const lease = await acquireProceduralLandBiomeEnvironmentLease(
-      'gobi',
+      'floodplain',
       8192,
       { saveData: true },
     )
@@ -185,12 +184,12 @@ describe('scale encounter procedural land biomes', () => {
     expect(lease.quality).toBe('low')
     expect(lease.panoramaWidth).toBe(2048)
     expect(lease.sourceUrl).toContain(
-      'panorama-gobi-irendabas-photoreal-v1-2048.webp',
+      'panorama-air-cretaceous-2048.webp',
     )
     expect(
       textureLoad.mock.calls.some(([sourceUrl]) =>
         String(sourceUrl).includes(
-          'panorama-gobi-irendabas-photoreal-v1-4096.webp',
+          'panorama-air-cretaceous-4096.webp',
         ),
       ),
     ).toBe(false)
@@ -253,13 +252,13 @@ describe('scale encounter procedural land biomes', () => {
     },
   )
 
-  it('does not route an unselected procedural candidate into the public forest encounter', () => {
+  it('keeps the unselected Carboniferous candidate out of the forest encounter', () => {
     const panorama = new Texture()
     const environment = createScaleEncounterEnvironment(
       'land',
       'production-slice',
       panorama,
-      { animalId: 'gigantoraptor' },
+      { animalId: 'meganeura' },
     )
 
     expect(environment?.root.userData).toMatchObject({
@@ -279,13 +278,16 @@ describe('scale encounter procedural land biomes', () => {
     panorama.dispose()
   })
 
-  it('scales shared ecology batches with the existing density control and animates real water geometry', async () => {
-    const preparedLandBiome = await loadPreparedScaleEncounterLandBiome('floodplain')
+  it.each([
+    ['floodplain', 'dilophosaurus'],
+    ['gobi', 'gigantoraptor'],
+  ] as const)('keeps %s river banks, wading depth and moving reflection on one fixed surface', async (themeId, animalId) => {
+    const preparedLandBiome = await loadPreparedScaleEncounterLandBiome(themeId)
     const current = createScaleEncounterProceduralLandBiome(
       preparedLandBiome,
       'production-slice',
       {
-        animalId: 'dilophosaurus',
+        animalId,
         ecologyDensity: 'current',
       },
     )
@@ -293,7 +295,7 @@ describe('scale encounter procedural land biomes', () => {
       preparedLandBiome,
       'production-slice',
       {
-        animalId: 'dilophosaurus',
+        animalId,
         ecologyDensity: '1.5x',
       },
     )
@@ -303,26 +305,47 @@ describe('scale encounter procedural land biomes', () => {
       .scaleEncounterLandBiomePopulation as Record<string, number>
     const densePopulation = dense.root.userData
       .scaleEncounterLandBiomePopulation as Record<string, number>
-    expect(densePopulation.ferns).toBeGreaterThan(currentPopulation.ferns!)
-    expect(densePopulation.riparianPlants).toBeGreaterThan(
-      currentPopulation.riparianPlants!,
-    )
+    expect(densePopulation.ferns! + densePopulation.shrubs!).toBeGreaterThan(currentPopulation.ferns! + currentPopulation.shrubs!)
+
 
     const water = current.root.getObjectByName(
-      'scale-encounter-floodplain-seasonal-channel-water',
+      `scale-encounter-${themeId}-seasonal-channel-water`,
     )
-    if (!(water instanceof Mesh)) throw new Error('Expected channel water.')
+    if (!(water instanceof Reflector)) throw new Error('Expected reflective channel water.')
+    const waterMaterial = water.material as ShaderMaterial
+    // Three refreshes these uniforms on the first render whenever fog is on.
+    // Omitting them used to make the entire encounter fail at entry.
+    expect(waterMaterial.fog).toBe(true)
+    for (const key of ['fogColor', 'fogNear', 'fogFar']) {
+      expect(waterMaterial.uniforms[key]).toHaveProperty('value')
+    }
+    const positions = water.geometry.getAttribute('position')
+    const depths = water.geometry.getAttribute('waterDepth')
+    // The reach at the animal's X position must read as a river in portrait.
+    const middle = (positions.count / 13 - 1) / 2 * 13
+    expect(Math.abs(positions.getY(middle + 12) - positions.getY(middle))).toBeGreaterThan(12)
+    expect(current.groundHeightAtWorld!(2.2, 0)).toBeGreaterThan(water.position.y)
+    expect(current.groundHeightAtWorld!(-13, 0)).toBeGreaterThan(water.position.y)
+    expect(water.geometry.getAttribute('normal').getZ(240 * 13 + 6)).toBeCloseTo(1)
+    for (let index = 0; index < positions.count; index += 1) {
+      const x = positions.getX(index)
+      const z = -positions.getY(index)
+      const terrainHeight = current.groundHeightAtWorld!(x, z)
+      expect(depths.getX(index)).toBeCloseTo(Math.max(0, water.position.y - terrainHeight), 4)
+      expect(depths.getX(index)).toBeLessThanOrEqual(0.50001)
+      if (index % 13 === 0 || index % 13 === 12) {
+        expect(depths.getX(index)).toBeLessThan(0.002)
+      }
+    }
+    const disposeReflection = vi.spyOn(water.getRenderTarget(), 'dispose')
     const before = water.position.y
     updateScaleEncounterEnvironment(current, 3, false)
-    expect(water.position.y).not.toBe(before)
+    expect(water.position.y).toBe(before)
+    expect((water.material as ShaderMaterial).uniforms.uTime?.value).toBe(3)
 
-    const riparian = dense.root.getObjectByName(
-      'scale-encounter-floodplain-riparian-stem-batch',
-    )
-    expect(riparian).toBeInstanceOf(InstancedMesh)
-    expect((riparian as InstancedMesh).count).toBe(densePopulation.riparianPlants)
 
     disposeScaleEncounterEnvironment(current)
+    expect(disposeReflection).toHaveBeenCalledOnce()
     disposeScaleEncounterEnvironment(dense)
   })
 })

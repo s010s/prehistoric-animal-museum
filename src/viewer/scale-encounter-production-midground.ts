@@ -2348,6 +2348,7 @@ export function createScaleEncounterProductionMidground(
   preparedFrondAtlas: Texture | null = null,
 ): Group {
   const unfilteredPlan = createScaleEncounterProductionMidgroundPlan(density)
+    .filter((anchor) => includedKinds.includes(anchor.kind))
   const plan = overviewClearance
     ? unfilteredPlan.filter((anchor) =>
         isScaleEncounterProductionMidgroundAnchorClearOfOverview(
@@ -2438,7 +2439,7 @@ export function createScaleEncounterProductionMidground(
         .filter(({ radius }) => radius < 32)
         .map((anchor) => ({
           ...anchor,
-          height: Math.min(anchor.height, 5.4),
+          height: Math.min(anchor.height, 3.6),
         }))
       // The 32–68 m band is close enough that crossed cards reveal their
       // planes during a 360-degree orbit.  Keep genuine three-dimensional CC0
@@ -2449,7 +2450,7 @@ export function createScaleEncounterProductionMidground(
         .filter(({ radius }) => radius >= 32 && radius < 68)
         .map((anchor) => ({
           ...anchor,
-          height: Math.max(6.4, Math.min(13.2, anchor.height * 1.16)),
+          height: Math.max(3.4, Math.min(6.8, anchor.height * 0.7)),
           widthScale: anchor.widthScale * 0.9,
         }))
       const volumetricAnchors: ReadonlyArray<ScaleEncounterProductionMidgroundAnchor> = []

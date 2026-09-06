@@ -1,3 +1,6 @@
+import { createRiverWater, type RiverWater } from './scale-encounter-river-water'
+import { applyAcceptedForestFarFieldCompression } from '../scale-encounter/environments/forest/accepted-forest-basin'
+import { applyAuthoredGroundMaterial } from './scale-encounter-authored-ground'
 import {
   BackSide,
   BufferAttribute,
@@ -85,7 +88,11 @@ function channelHalfWidth(
   longitudinal: number,
 ): number {
   if (profile === 'kayenta-seasonal-floodplain') {
-    return 2.8 + (Math.sin(longitudinal * 0.05) + 1) * 1.1
+    const bendPool = Math.exp(-(((longitudinal + 16) / 18) ** 2))
+    return 7 + bendPool * 5.4 + Math.sin(longitudinal * 0.067 + 0.6) ** 2 * 1.4
+  }
+  if (profile === 'gobi-braided-basin') {
+    return 7.5 + 3.6 * Math.exp(-(((longitudinal + 18) / 24) ** 2))
   }
   return 5.5 + (Math.cos(longitudinal * 0.043) + 1) * 2.4
 }
@@ -97,12 +104,12 @@ function channelHalfWidth(
  * longitudinal ribbon collapsed into a thin artificial line in overview.
  */
 function floodplainRiverCentreZ(x: number): number {
-  return (
-    -10 +
-    x * 0.42 +
-    Math.sin(x * 0.16 + 0.4) * 6 +
-    Math.sin(x * 0.055 - 0.8) * 2.5
-  )
+  return -18 + Math.tanh(x / 18) * 10 + Math.sin(x * 0.06 + 0.4) * 3
+}
+
+function gobiRiverCentreZ(x: number): number {
+  return -16 + 32 * Math.exp(-(((x + 22) / 6) ** 2))
+    + 5 * Math.exp(-(((x - 24) / 20) ** 2))
 }
 
 function channelCoordinates(
@@ -110,10 +117,10 @@ function channelCoordinates(
   longitudinal: number,
   lateral = 0,
 ): Readonly<{ x: number; z: number }> {
-  if (profile === 'kayenta-seasonal-floodplain') {
+  if (profile !== 'carboniferous-coal-swamp') {
     return {
       x: longitudinal,
-      z: floodplainRiverCentreZ(longitudinal) + lateral,
+      z: (profile === 'gobi-braided-basin' ? gobiRiverCentreZ(longitudinal) : floodplainRiverCentreZ(longitudinal)) + lateral,
     }
   }
   return {
@@ -129,6 +136,8 @@ function channelDistanceAt(
 ): number {
   return profile === 'kayenta-seasonal-floodplain'
     ? Math.abs(z - floodplainRiverCentreZ(x))
+    : profile === 'gobi-braided-basin'
+      ? Math.abs(z - gobiRiverCentreZ(x))
     : Math.abs(x - channelCentreX(profile, z))
 }
 
@@ -188,29 +197,21 @@ function createHeightSampler(
           ),
         ) *
         (2.2 + Math.sin(angle * 9 + 0.8) * 0.8)
-      const drySwaleCentre = -36 + Math.sin(x * 0.017) * 19
-      const drySwale = Math.exp(-Math.pow((z - drySwaleCentre) / 13, 2)) * 0.72
       const gravelTerraces =
         Math.sin(x * 0.012 - z * 0.019) * 0.38 +
         Math.cos(x * 0.047 + z * 0.024) * 0.16
-      return clearing *
-        (
-          broadNoise * 0.62 +
-          gravelTerraces +
-          outerRise +
-          erodedShoulder -
-          drySwale * 0.62
-        )
+      const channel = (1 - smoothstep(0.25, 1,
+        channelDistanceAt(biome.profile, x, z) / (channelHalfWidth(biome.profile, x) + 2),
+      )) * smoothstep(3, 7, radius)
+      const terrace = clearing * (0.45 + broadNoise * 0.22 + gravelTerraces * 0.5 + outerRise + erodedShoulder)
+      return terrace * (1 - channel) - 0.68 * channel
     }
 
     if (biome.profile === 'kayenta-seasonal-floodplain') {
       const channelDistance = channelDistanceAt(biome.profile, x, z)
-      const channel =
-        Math.max(
-          0,
-          1 - channelDistance /
-            (channelHalfWidth(biome.profile, x) + 2.5),
-        ) ** 2
+      const channel = 1 - smoothstep(0.35, 1,
+        channelDistance / (channelHalfWidth(biome.profile, x) + 2.5),
+      )
       const overbank = Math.sin(z * 0.038 + x * 0.009) * 0.34
       const angle = Math.atan2(z, x)
       const outerBench = smoothstep(112, 318, radius) *
@@ -220,8 +221,11 @@ function createHeightSampler(
           Math.cos(angle * 9 + radius * 0.025) * 0.55
         )
       return (
-        clearing * (broadNoise * 0.58 + overbank + outerBench) -
-        channel * 1.62 * smoothstep(3, 8, radius)
+        // The overbank terrace stays above the stream. Carve the channel
+        // into it, so a distant low patch cannot leave an open water edge.
+        clearing * (0.95 + broadNoise * 0.58 + overbank + outerBench) * (1 - channel) -
+        // Water is at -0.18 m: a -0.68 m bed limits wading depth to 0.5 m.
+        channel * 0.68 * smoothstep(3, 8, radius)
       )
     }
 
@@ -277,8 +281,7 @@ function createTerrain(
   // triangles and straight chords. These selected-theme-only meshes stay well
   // inside the existing runtime budget while giving every bank several rows
   // of actual world-space geometry.
-  const terrainSegments =
-    biome.profile === 'gobi-braided-basin' ? 144 : 224
+  const terrainSegments = 224
   const geometry = new PlaneGeometry(
     BIOME_RADIUS_METERS * 2,
     BIOME_RADIUS_METERS * 2,
@@ -287,6 +290,15 @@ function createTerrain(
   )
   geometry.rotateX(-Math.PI / 2)
   const positions = geometry.getAttribute('position')
+  if (biome.profile !== 'carboniferous-coal-swamp') {
+    // Concentrate the existing grid in the first 90 metres to resolve the
+    // river cut and nearby banks, without adding a second overlapping floor.
+    for (let i = 0; i < positions.count; i += 1) {
+      const refine = (v: number) => Math.sign(v) * 360 * (Math.abs(v) / 360) ** 1.65
+      positions.setX(i, refine(positions.getX(i)))
+      positions.setZ(i, refine(positions.getZ(i)))
+    }
+  }
   const colours = new Float32Array(positions.count * 3)
   const colour = new Color()
   for (let index = 0; index < positions.count; index += 1) {
@@ -315,6 +327,7 @@ function createTerrain(
     texture.needsUpdate = true
   })
   const material = new MeshStandardMaterial({
+    color: biome.profile === 'gobi-braided-basin' ? '#b6aaa1' : '#ffffff',
     emissive:
       biome.profile === 'carboniferous-coal-swamp' ? '#405146' : '#000000',
     emissiveIntensity:
@@ -332,7 +345,26 @@ function createTerrain(
     roughnessMap: surfaceTextures?.roughness ?? null,
     vertexColors: !surfaceTextures,
   })
-  if (surfaceTextures) {
+  if (surfaceTextures?.uniqueAlbedo) {
+    applyAuthoredGroundMaterial(material, {
+      colourMap: surfaceTextures.uniqueAlbedo,
+      widthMeters: 144,
+      detailMeters: 1.7,
+      farColour: biome.palette.groundMid,
+      grainStrength: 0.65,
+      colourMipLevel: 6,
+    })
+    if (biome.profile !== 'carboniferous-coal-swamp') {
+      const compile = material.onBeforeCompile.bind(material)
+      material.onBeforeCompile = (shader, renderer) => {
+        compile(shader, renderer)
+        shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+float bankWetness = 1.0 - smoothstep(-.18, .10, vAuthoredGroundWorld.y);
+diffuseColor.rgb *= 1.0 - bankWetness * .3;`)
+      }
+      material.customProgramCacheKey = () => `${biome.themeId}-authored-bank-v4`
+    }
+  } else if (surfaceTextures) {
     applyScaleEncounterLandBiomeGroundMaterial(material, {
       darkTint: biome.palette.groundDark,
       lightTint: biome.palette.groundLight,
@@ -455,7 +487,12 @@ function createSkyDome(biome: ScaleEncounterPreparedLandBiome): Mesh {
 function createPanoramaDome(
   biome: ScaleEncounterPreparedLandBiome,
   panoramaTexture: Texture,
+  maxAnisotropy: number,
 ): Mesh {
+  // Latitude compression otherwise selects an overly soft isotropic mip
+  // across the horizon, blurring cliffs and trees into horizontal smears.
+  panoramaTexture.anisotropy = Math.min(8, maxAnisotropy)
+  panoramaTexture.needsUpdate = true
   const geometry = new SphereGeometry(500, 64, 32)
   geometry.scale(-1, 1, 1)
   const dome = new Mesh(
@@ -468,35 +505,27 @@ function createPanoramaDome(
       toneMapped: true,
     }),
   )
-  dome.name = `scale-encounter-${biome.themeId}-licensed-pure-sky-dome`
+  dome.name = `scale-encounter-${biome.themeId}-distant-art-dome`
   dome.frustumCulled = false
   dome.renderOrder = -100
-  // Only sky and cloud radiance remain on this sphere. Theme identity,
-  // landforms, vegetation and water are world-space, depth-writing geometry.
+  // Distant art remains on the panorama. The near bank, river and vegetation
+  // use geometry and share one world-space ground.
   dome.rotation.y = biome.assets.panoramaYawRadians
-  return dome
-}
-
-function createContactAlphaTexture(): DataTexture {
-  const size = 32
-  const data = new Uint8Array(size * size * 4)
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const nx = ((x + 0.5) / size - 0.5) * 2
-      const ny = ((y + 0.5) / size - 0.5) * 2
-      const alpha = Math.max(0, 1 - Math.hypot(nx, ny)) ** 2
-      const offset = (y * size + x) * 4
-      data[offset] = 255
-      data[offset + 1] = 255
-      data[offset + 2] = 255
-      data[offset + 3] = Math.round(alpha * 255)
+  if (biome.profile === 'kayenta-seasonal-floodplain') {
+    // This plate contains only sky. Mapping its clear lower sky to the
+    // horizon avoids enlarging the old low-resolution painted trees/cliffs.
+    const uvs = geometry.getAttribute('uv')
+    for (let i = 0; i < uvs.count; i += 1) {
+      uvs.setY(i, Math.max(0, (uvs.getY(i) - 0.5) * 2))
     }
+    uvs.needsUpdate = true
+  } else if (biome.profile === 'gobi-braided-basin') {
+    // Reuse the established sky plate behind actual banks and tree colonies.
+    // The rejected flat plain photograph no longer represents the near horizon.
+    applyAcceptedForestFarFieldCompression(dome)
+    dome.scale.y = 0.32
   }
-  const texture = new DataTexture(data, size, size, RGBAFormat, UnsignedByteType)
-  texture.magFilter = LinearFilter
-  texture.minFilter = LinearFilter
-  texture.needsUpdate = true
-  return texture
+  return dome
 }
 
 function createHorizonMistAlphaTexture(): DataTexture {
@@ -550,27 +579,6 @@ function createHorizonMistRing(
   ring.position.y = 7
   ring.renderOrder = 3
   return ring
-}
-
-function createContactCue(name: string, colour: string): Mesh {
-  const cue = new Mesh(
-    new CircleGeometry(0.5, 40),
-    new MeshBasicMaterial({
-      alphaMap: createContactAlphaTexture(),
-      color: colour,
-      depthWrite: false,
-      opacity: 0.3,
-      side: DoubleSide,
-      transparent: true,
-    }),
-  )
-  cue.name = name
-  cue.position.y = 0.028
-  cue.rotation.x = -Math.PI / 2
-  cue.renderOrder = 2
-  cue.userData.scaleEncounterContactGroundY = 0.028
-  cue.visible = false
-  return cue
 }
 
 function applyInstance(
@@ -645,6 +653,7 @@ function scannedPropRecipes(
   switch (biome.assets.scannedPropProfile) {
     case 'dry-basin':
       return [
+        { count: 72, kind: 'fern', maximumRadius: 64, maximumScale: 2.8, minimumRadius: 14, minimumScale: 1.2, templateName: 'fern_02_a_lod0' },
         { count: 22, kind: 'rock', maximumRadius: 140, maximumScale: 6.2, minimumRadius: 17, minimumScale: 3.1, templateName: 'rock_07_lod0' },
         { count: 19, kind: 'rock', maximumRadius: 150, maximumScale: 10.4, minimumRadius: 23, minimumScale: 5.2, templateName: 'stone_01_lod0' },
         { count: 22, kind: 'branch', maximumRadius: 125, maximumScale: 2.1, minimumRadius: 20, minimumScale: 1.05, templateName: 'dry_branch_a_lod0' },
@@ -1438,7 +1447,8 @@ function addFloodplainRiparianWoodland(
   heightAtWorld: HeightSampler,
   atlas: Texture,
 ): number {
-  const count = scaleEncounterEcologyCount(218, density ?? 'current')
+  const openPlain = biome.profile === 'gobi-braided-basin'
+  const count = scaleEncounterEcologyCount(openPlain ? 300 : 218, density ?? 'current')
   const random = seededRandom(biome.seed ^ 0x7a31d)
   const profileCount = 8
   const placements = Array.from({ length: profileCount }, () => [] as Array<{
@@ -1456,9 +1466,16 @@ function addFloodplainRiparianWoodland(
       Math.cos(angle * 7.1 - 0.8) * 0.32
     if (random() > 0.72 + colonySignal * 0.2) continue
     const radius = 102 + random() ** 0.72 * 158
-    const x = Math.cos(angle) * radius + (random() - 0.5) * 14
-    const z = Math.sin(angle) * radius + (random() - 0.5) * 14
-    const height = 8.2 + random() * 9.8
+    const copses = [
+      [-42, -35], [45, -42], [-25, -62], [14, -78], [65, -85],
+      [-75, -105], [-15, -145], [55, -160], [-130, -130], [120, -100],
+      [-45, 82], [32, 120], [110, 45],
+    ]
+    const copse = copses[accepted % copses.length]!
+    const clustered = openPlain || accepted < count * 0.7
+    const x = clustered ? copse[0]! + (random() - 0.5) * 38 : Math.cos(angle) * radius + (random() - 0.5) * 14
+    const z = clustered ? copse[1]! + (random() - 0.5) * 32 : Math.sin(angle) * radius + (random() - 0.5) * 14
+    const height = openPlain ? 8 + random() * 10 : 8.2 + random() * 9.8
     placements[accepted % profileCount]!.push({
       height,
       width: height * (0.48 + random() * 0.24),
@@ -2074,7 +2091,7 @@ function addDistantRidge(
 function waterLevelFor(
   biome: ScaleEncounterPreparedLandBiome,
 ): number {
-  return biome.profile === 'kayenta-seasonal-floodplain' ? -0.32 : -0.22
+  return biome.profile !== 'carboniferous-coal-swamp' ? -0.18 : -0.22
 }
 
 function createWaterNormalTexture(): DataTexture {
@@ -2138,185 +2155,6 @@ function createWaterMaterial(
     transparent: true,
     vertexColors: true,
   })
-}
-
-function createChannelBanks(
-  biome: ScaleEncounterPreparedLandBiome,
-  heightAtWorld: HeightSampler,
-): Mesh {
-  const segmentCount = 160
-  const positions: number[] = []
-  const colours: number[] = []
-  const indices: number[] = []
-  const wetMud = new Color(biome.palette.groundDark).multiplyScalar(0.72)
-  const dryBank =
-    biome.profile === 'kayenta-seasonal-floodplain'
-      ? new Color(biome.palette.groundLight).lerp(
-          new Color(biome.palette.groundMid),
-          0.36,
-        )
-      : new Color(biome.palette.groundMid).lerp(
-          new Color(biome.palette.groundDark),
-          0.5,
-        )
-  const colour = new Color()
-  const waterY = waterLevelFor(biome)
-  for (let segment = 0; segment <= segmentCount; segment += 1) {
-    const longitudinal = -315 + (segment / segmentCount) * 630
-    const halfWidth =
-      channelHalfWidth(biome.profile, longitudinal) +
-      Math.sin(longitudinal * 0.083 + 0.7) * 0.72
-    for (const side of [-1, 1] as const) {
-      const distances = [
-        halfWidth +
-          3.4 +
-          Math.sin(longitudinal * 0.039 + side) * 0.62,
-        halfWidth + 1.15,
-        halfWidth + 0.18,
-      ] as const
-      distances.forEach((distance, row) => {
-        const position = channelCoordinates(
-          biome.profile,
-          longitudinal,
-          side * distance,
-        )
-        const terrainY = heightAtWorld(position.x, position.z)
-        const y =
-          row === 0
-            ? terrainY + 0.025
-            : row === 1
-              ? Math.min(
-                  terrainY + 0.02,
-                  waterY +
-                    (biome.profile === 'carboniferous-coal-swamp'
-                      ? 0.08
-                      : 0.17),
-                )
-              : waterY - 0.12
-        positions.push(position.x, y, position.z)
-        colour
-          .copy(wetMud)
-          .lerp(dryBank, row === 0 ? 0.78 : row === 1 ? 0.34 : 0.04)
-          .toArray(colours, colours.length)
-      })
-    }
-    if (segment < segmentCount) {
-      const current = segment * 6
-      const next = current + 6
-      for (const sideOffset of [0, 3]) {
-        for (let row = 0; row < 2; row += 1) {
-          indices.push(
-            current + sideOffset + row,
-            next + sideOffset + row,
-            next + sideOffset + row + 1,
-            current + sideOffset + row,
-            next + sideOffset + row + 1,
-            current + sideOffset + row + 1,
-          )
-        }
-      }
-    }
-  }
-  const geometry = new BufferGeometry()
-  geometry.setAttribute(
-    'position',
-    new BufferAttribute(new Float32Array(positions), 3),
-  )
-  geometry.setAttribute(
-    'color',
-    new BufferAttribute(new Float32Array(colours), 3),
-  )
-  geometry.setIndex(indices)
-  geometry.computeVertexNormals()
-  const banks = new Mesh(
-    geometry,
-    new MeshStandardMaterial({
-      metalness: 0,
-      roughness: 0.98,
-      vertexColors: true,
-    }),
-  )
-  banks.name = `scale-encounter-${biome.themeId}-integrated-channel-banks`
-  banks.receiveShadow = true
-  return banks
-}
-
-function createChannelWater(
-  biome: ScaleEncounterPreparedLandBiome,
-  normalMap: Texture,
-): Mesh {
-  const segmentCount = 160
-  const crossSections = [-1, -0.64, 0, 0.64, 1] as const
-  const positions: number[] = []
-  const colours: number[] = []
-  const uvs: number[] = []
-  const indices: number[] = []
-  const waterY = waterLevelFor(biome)
-  const edgeColour = new Color(biome.palette.water ?? '#607f77').lerp(
-    new Color(biome.palette.groundDark),
-    0.12,
-  )
-  const centreColour = new Color(biome.palette.water ?? '#506e68').multiplyScalar(
-    biome.profile === 'carboniferous-coal-swamp' ? 0.9 : 0.95,
-  )
-  const colour = new Color()
-  for (let segment = 0; segment <= segmentCount; segment += 1) {
-    const longitudinal = -315 + (segment / segmentCount) * 630
-    const halfWidth =
-      channelHalfWidth(biome.profile, longitudinal) +
-      Math.sin(longitudinal * 0.083 + 0.7) * 0.72
-    crossSections.forEach((crossSection) => {
-      const edge = Math.abs(crossSection)
-      const position = channelCoordinates(
-        biome.profile,
-        longitudinal,
-        crossSection * halfWidth +
-          Math.sin(longitudinal * 0.11 - 0.6) * 0.38,
-      )
-      positions.push(
-        position.x,
-        waterY + (1 - edge) * 0.018,
-        position.z,
-      )
-      colour
-        .copy(centreColour)
-        .lerp(edgeColour, smoothstep(0.58, 1, edge))
-        .toArray(colours, colours.length)
-      uvs.push(crossSection * 1.6, longitudinal / 7.5)
-    })
-    if (segment < segmentCount) {
-      const current = segment * crossSections.length
-      const next = current + crossSections.length
-      for (let row = 0; row < crossSections.length - 1; row += 1) {
-        indices.push(
-          current + row,
-          next + row,
-          next + row + 1,
-          current + row,
-          next + row + 1,
-          current + row + 1,
-        )
-      }
-    }
-  }
-  const geometry = new BufferGeometry()
-  geometry.setAttribute(
-    'position',
-    new BufferAttribute(new Float32Array(positions), 3),
-  )
-  geometry.setAttribute(
-    'color',
-    new BufferAttribute(new Float32Array(colours), 3),
-  )
-  geometry.setAttribute('uv', new BufferAttribute(new Float32Array(uvs), 2))
-  geometry.setIndex(indices)
-  geometry.computeVertexNormals()
-  const mesh = new Mesh(geometry, createWaterMaterial(biome, normalMap))
-  mesh.name = `scale-encounter-${biome.themeId}-seasonal-channel-water`
-  mesh.receiveShadow = true
-  mesh.renderOrder = 1
-  mesh.userData.scaleEncounterWaterBaseY = 0
-  return mesh
 }
 
 function addWetlandPools(
@@ -2460,15 +2298,25 @@ function addLighting(root: Group, biome: ScaleEncounterPreparedLandBiome): void 
   sun.name = `scale-encounter-${biome.themeId}-sun-light`
   sun.position.set(...biome.atmosphere.sunPosition)
   sun.castShadow = true
-  sun.shadow.mapSize.set(1_024, 1_024)
-  sun.shadow.camera.left = -65
-  sun.shadow.camera.right = 65
-  sun.shadow.camera.top = 65
-  sun.shadow.camera.bottom = -65
+  sun.shadow.mapSize.set(2_048, 2_048)
+  sun.shadow.camera.left = -42
+  sun.shadow.camera.right = 42
+  sun.shadow.camera.top = 42
+  sun.shadow.camera.bottom = -42
   sun.shadow.camera.near = 1
   sun.shadow.camera.far = 260
+  sun.shadow.bias = -0.00015
+  sun.shadow.normalBias = 0.015
+  sun.shadow.radius = 1.6
   sun.target.name = `scale-encounter-${biome.themeId}-sun-target`
   root.add(hemisphere, sun, sun.target)
+  if (biome.profile !== 'carboniferous-coal-swamp') {
+    const fill = new DirectionalLight('#e8edf1', 1.65)
+    fill.name = `scale-encounter-${biome.themeId}-sky-bounce`
+    fill.position.set(-sun.position.x, 42, -sun.position.z)
+    fill.target.position.set(0, 2, 0)
+    root.add(fill, fill.target)
+  }
   if (biome.profile === 'carboniferous-coal-swamp') {
     // A broad camera-side bounce keeps the child and Meganeura readable under
     // the tall wetland canopy without flattening the sun/contact shadows.
@@ -2547,7 +2395,7 @@ function publishThemeDiagnostics(
   root.userData.scaleEncounterEnvironmentTargetTheme = biome.themeId
   root.userData.scaleEncounterEnvironmentUsingCompatibilityFallback = false
   root.userData.scaleEncounterGeneratedAssetBoundary =
-    'licensed-pure-sky-and-world-space-geometry'
+    'authored-art-plates-scanned-props-and-continuous-terrain'
   root.userData.scaleEncounterFarFieldRepresentation =
     'depth-writing-world-space-landforms-and-vegetation'
   root.userData.scaleEncounterLandBiomeProfile = biome.profile
@@ -2571,6 +2419,7 @@ export function createScaleEncounterProceduralLandBiome(
   if (panoramaTexture) borrowedTextures.add(panoramaTexture)
   if (surfaceTextures) {
     borrowedTextures.add(surfaceTextures.albedo)
+    if (surfaceTextures.uniqueAlbedo) borrowedTextures.add(surfaceTextures.uniqueAlbedo)
     borrowedTextures.add(surfaceTextures.normal)
     borrowedTextures.add(surfaceTextures.roughness)
     if (surfaceTextures.landBiomeFrondAtlas) {
@@ -2581,7 +2430,7 @@ export function createScaleEncounterProceduralLandBiome(
     borrowedTextures.add(options.matureTreeAtlas)
   }
   const skyDome = panoramaTexture
-    ? createPanoramaDome(biome, panoramaTexture)
+    ? createPanoramaDome(biome, panoramaTexture, options.maxAnisotropy ?? 1)
     : createSkyDome(biome)
   const terrain = createTerrain(
     biome,
@@ -2589,41 +2438,24 @@ export function createScaleEncounterProceduralLandBiome(
     options.maxAnisotropy ?? 1,
     surfaceTextures,
   )
-  const animalContactCue = createContactCue(
-    `scale-encounter-${biome.themeId}-animal-contact`,
-    biome.palette.groundDark,
-  )
-  const childContactCue = createContactCue(
-    `scale-encounter-${biome.themeId}-child-contact`,
-    biome.palette.groundDark,
-  )
-  root.add(
-    skyDome,
-    terrain,
-    createHorizonMistRing(biome),
-    animalContactCue,
-    childContactCue,
-  )
+  root.add(skyDome, terrain, createHorizonMistRing(biome))
   addLighting(root, biome)
-  addDistantRidge(root, biome, heightAtWorld, surfaceTextures)
-  addSedimentBars(root, biome, random)
+  if (!surfaceTextures?.uniqueAlbedo) addDistantRidge(root, biome, heightAtWorld, surfaceTextures)
+  if (biome.profile === 'carboniferous-coal-swamp') addSedimentBars(root, biome, random)
 
   const waterMeshes: Mesh[] = []
+  let river: RiverWater | null = null
   let waterNormalTexture: DataTexture | null = null
-  if (biome.palette.water && biome.profile !== 'gobi-braided-basin') {
-    waterNormalTexture = createWaterNormalTexture()
-    if (biome.profile === 'kayenta-seasonal-floodplain') {
-      const channel = createChannelWater(biome, waterNormalTexture)
-      root.add(createChannelBanks(biome, heightAtWorld), channel)
-      waterMeshes.push(channel)
-    }
-    addWetlandPools(
-      root,
-      biome,
-      heightAtWorld,
-      waterNormalTexture,
-      waterMeshes,
+  if (biome.profile !== 'carboniferous-coal-swamp' && biome.palette.water) {
+    river = createRiverWater(heightAtWorld,
+      biome.profile === 'gobi-braided-basin' ? gobiRiverCentreZ : floodplainRiverCentreZ,
+      waterLevelFor(biome),
     )
+    river.name = `scale-encounter-${biome.themeId}-seasonal-channel-water`
+    root.add(river)
+  } else if (biome.profile === 'carboniferous-coal-swamp' && biome.palette.water) {
+    waterNormalTexture = createWaterNormalTexture()
+    addWetlandPools(root, biome, heightAtWorld, waterNormalTexture, waterMeshes)
   }
 
   const scannedPopulation = options.forestProps
@@ -2646,8 +2478,7 @@ export function createScaleEncounterProceduralLandBiome(
     // The established forest succeeds because real trunks overlap in several
     // depth bands. Give the river margin the same world-space density while
     // preserving the user's explicit 1.5x ceiling.
-    const density =
-      requestedDensity === 'current' ? '1.25x' : '1.5x'
+    const density = requestedDensity
     root.add(
       createScaleEncounterProductionMidground(
         heightAtWorld,
@@ -2673,6 +2504,9 @@ export function createScaleEncounterProceduralLandBiome(
       heightAtWorld,
       options.matureTreeAtlas,
     )
+  }
+  if (biome.profile === 'gobi-braided-basin' && options.matureTreeAtlas) {
+    addFloodplainRiparianWoodland(root, biome, options.ecologyDensity, heightAtWorld, options.matureTreeAtlas)
   }
   if (
     biome.profile === 'carboniferous-coal-swamp' &&
@@ -2748,7 +2582,7 @@ export function createScaleEncounterProceduralLandBiome(
       ? 0
       : addFerns(root, biome, options.ecologyDensity, heightAtWorld, random),
     gravel:
-      biome.profile === 'gobi-braided-basin' || !scannedPopulation
+      !scannedPopulation
         ? addGravel(root, biome, options.ecologyDensity, heightAtWorld, random)
         : 0,
     lycopsids:
@@ -2763,7 +2597,7 @@ export function createScaleEncounterProceduralLandBiome(
           )
         : 0,
     riparianPlants:
-      biome.profile === 'kayenta-seasonal-floodplain' || !scannedPopulation
+      !scannedPopulation
         ? addRiparianPlants(
             root,
             biome,
@@ -2795,11 +2629,11 @@ export function createScaleEncounterProceduralLandBiome(
   publishThemeDiagnostics(root, biome, population)
 
   return {
-    animalContactCue,
+    animalContactCue: null,
     borrowedTextures,
     cameraCentredSkyDome: true,
     cameraFarMeters: 540,
-    childContactCue,
+    childContactCue: null,
     distanceFogColour: new Color(biome.palette.fog),
     fog: new Fog(
       biome.palette.fog,
@@ -2815,7 +2649,8 @@ export function createScaleEncounterProceduralLandBiome(
     skyDome,
     toneMappingExposure: biome.atmosphere.exposure,
     variant,
-    updateCandidate: (elapsedSeconds, reducedMotion) => {
+    updateCandidate: (elapsedSeconds, reducedMotion, camera, visitor) => {
+      river?.updateWater(elapsedSeconds, reducedMotion, camera, visitor)
       if (reducedMotion) return
       if (waterNormalTexture) {
         waterNormalTexture.offset.set(

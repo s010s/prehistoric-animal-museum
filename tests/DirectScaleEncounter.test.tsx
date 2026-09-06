@@ -43,6 +43,12 @@ const forestPropsMock = vi.hoisted(() => ({
   load: vi.fn(),
 }))
 
+vi.mock('../src/scale-encounter/environments/sky/sky-coast', () => ({
+  loadSkyCoastTemplate: () => Promise.resolve(null),
+}))
+
+const forestEcologyMock = vi.hoisted(() => ({ load: vi.fn() }))
+
 vi.mock('../src/scale-encounter/avatar-review-candidate', () => ({
   acquireReviewCandidateAvatarFactory: reviewCandidateMock.acquire,
 }))
@@ -52,7 +58,7 @@ vi.mock('../src/scale-encounter/environment-review-candidate', () => ({
 }))
 
 vi.mock('../src/scale-encounter/forest-ecology-review-candidate', () => ({
-  loadReviewCandidateForestEcology: vi.fn().mockResolvedValue(null),
+  loadReviewCandidateForestEcology: forestEcologyMock.load,
 }))
 
 vi.mock('../src/scale-encounter/forest-props-review-candidate', () => ({
@@ -403,6 +409,7 @@ describe('DirectScaleEncounter', () => {
     reviewEnvironmentMock.release.mockReset()
     reviewEnvironmentMock.startPanoramaUpgrade.mockReset().mockResolvedValue(null)
     forestPropsMock.load.mockReset().mockResolvedValue(null)
+    forestEcologyMock.load.mockReset().mockResolvedValue(null)
     vi.stubGlobal('Audio', TestAudio)
     window.localStorage.clear()
     window.localStorage.setItem('museum.locale', 'zh-CN')
@@ -457,7 +464,7 @@ describe('DirectScaleEncounter', () => {
     )
     const controller = makeController()
     const scannedForestProps = { name: 'reviewed-forest-props' }
-    forestPropsMock.load.mockResolvedValue(scannedForestProps)
+    forestEcologyMock.load.mockResolvedValue(scannedForestProps)
 
     renderArchaeopteryxEncounter(controller, {
       gender: 'boy',
@@ -470,7 +477,7 @@ describe('DirectScaleEncounter', () => {
         heightCm: 100,
       })
     })
-    expect(forestPropsMock.load).toHaveBeenCalledOnce()
+    expect(forestEcologyMock.load).toHaveBeenCalledOnce()
     expect(controller.setScaleEncounterForestProps).toHaveBeenCalledWith(
       scannedForestProps,
     )
@@ -478,6 +485,34 @@ describe('DirectScaleEncounter', () => {
       controller.setScaleEncounterForestProps.mock.invocationCallOrder[0],
     ).toBeLessThan(controller.beginScaleEncounter.mock.invocationCallOrder[0]!)
   })
+
+  it.each(['tyrannosaurus-rex', 'apatosaurus', 'carnotaurus'] as const)(
+    'waits for scanned forest ecology before starting %s', async (animalId) => {
+      const controller = makeController()
+      const ecology = deferred<{ name: string }>()
+      forestEcologyMock.load.mockReturnValue(ecology.promise)
+      render(<DirectScaleEncounter
+        animal={{ atmosphere: 'forest', id: animalId, name: animalId,
+          backgroundLandscape: '/forest.webp', backgroundPortrait: '/forest.webp',
+          poster: '/animal.webp', posterPortrait: '/animal.webp' }}
+        controller={controller as unknown as ViewerController}
+        locale="zh-CN" onClose={vi.fn()} onProfileChange={vi.fn()}
+        onScenePresentationChange={vi.fn()} onPresentationStateChange={vi.fn()}
+        profile={{ gender: 'girl', heightCm: 110 }}
+      />)
+      await waitFor(() => expect(forestEcologyMock.load).toHaveBeenCalledOnce())
+      expect(controller.beginScaleEncounter).not.toHaveBeenCalled()
+      const scans = { name: 'combined-scanned-ecology' }
+      await act(async () => {
+        ecology.resolve(scans)
+        await ecology.promise
+      })
+      await waitFor(() => expect(controller.beginScaleEncounter).toHaveBeenCalledOnce())
+      expect(controller.setScaleEncounterForestProps).toHaveBeenCalledWith(scans)
+      expect(controller.setScaleEncounterForestProps.mock.invocationCallOrder.at(-1))
+        .toBeLessThan(controller.beginScaleEncounter.mock.invocationCallOrder[0]!)
+    },
+  )
 
   it('uses the accepted D sky scene when the formal URL has no review override', async () => {
     const controller = makeController()

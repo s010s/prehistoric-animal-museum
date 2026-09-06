@@ -325,7 +325,7 @@ const zhCN: Readonly<
   },
   'tyrannosaurus-rex': {
     animalId: 'tyrannosaurus-rex',
-    sceneLabel: '森林相遇 · 小朋友眼睛视角',
+    sceneLabel: '河岸森林 · 小朋友眼睛视角',
     transitionDurationMs: 9_422,
     copy: {
       title: '和霸王龙比一比',
@@ -405,7 +405,7 @@ const zhCN: Readonly<
   },
   gigantoraptor: {
     animalId: 'gigantoraptor',
-    sceneLabel: '森林相遇 · 小朋友眼睛视角',
+    sceneLabel: '植被河漫平原 · 小朋友眼睛视角',
     transitionDurationMs: 8_331,
     copy: {
       title: '和巨盗龙比一比',
@@ -533,7 +533,7 @@ const zhCN: Readonly<
   },
   meganeura: {
     animalId: 'meganeura',
-    sceneLabel: '森林相遇 · 小朋友眼睛视角',
+    sceneLabel: '林间湿地 · 小朋友眼睛视角',
     transitionDurationMs: 8_457,
     copy: {
       title: '和巨脉蜻蜓比一比',
@@ -549,7 +549,7 @@ const zhCN: Readonly<
   },
   dilophosaurus: {
     animalId: 'dilophosaurus',
-    sceneLabel: '森林相遇 · 小朋友眼睛视角',
+    sceneLabel: '季节性河谷 · 小朋友眼睛视角',
     transitionDurationMs: 7_867,
     copy: {
       title: '和双冠龙比一比',
@@ -565,7 +565,7 @@ const zhCN: Readonly<
   },
   spinosaurus: {
     animalId: 'spinosaurus',
-    sceneLabel: '森林相遇 · 小朋友眼睛视角',
+    sceneLabel: '林缘浅滩 · 小朋友眼睛视角',
     transitionDurationMs: 9_856,
     copy: {
       title: '和棘龙比一比',
@@ -581,7 +581,7 @@ const zhCN: Readonly<
   },
   lystrosaurus: {
     animalId: 'lystrosaurus',
-    sceneLabel: '林地相遇 · 小朋友眼睛视角',
+    sceneLabel: '林地浅水河道 · 小朋友眼睛视角',
     transitionDurationMs: 9_990,
     copy: {
       title: '和水龙兽比一比',
@@ -597,7 +597,7 @@ const zhCN: Readonly<
   },
   baryonyx: {
     animalId: 'baryonyx',
-    sceneLabel: '森林相遇 · 小朋友眼睛视角',
+    sceneLabel: '河岸湿林 · 小朋友眼睛视角',
     transitionDurationMs: 9_285,
     copy: {
       title: '和重爪龙比一比',
@@ -613,7 +613,7 @@ const zhCN: Readonly<
   },
   archaeopteryx: {
     animalId: 'archaeopteryx',
-    sceneLabel: '森林倒木相遇 · 小朋友眼睛视角',
+    sceneLabel: '水畔倒木 · 小朋友眼睛视角',
     transitionDurationMs: 4_400,
     copy: {
       title: '和始祖鸟比一比',
@@ -629,7 +629,7 @@ const zhCN: Readonly<
   },
   carnotaurus: {
     animalId: 'carnotaurus',
-    sceneLabel: '森林相遇 · 小朋友眼睛视角',
+    sceneLabel: '林缘浅水河道 · 小朋友眼睛视角',
     transitionDurationMs: 13_418,
     copy: {
       title: '和食肉牛龙比一比',
@@ -850,7 +850,7 @@ const en: Readonly<
   },
   'tyrannosaurus-rex': {
     animalId: 'tyrannosaurus-rex',
-    sceneLabel: 'Shared ground · side-by-side encounter',
+    sceneLabel: 'Riverbank forest · child eye level',
     transitionDurationMs: 10_018,
     copy: {
       title: 'Compare with Tyrannosaurus rex',
@@ -927,7 +927,7 @@ const en: Readonly<
   },
   gigantoraptor: {
     animalId: 'gigantoraptor',
-    sceneLabel: 'Forest encounter · child eye level',
+    sceneLabel: 'Vegetated river plain · child eye level',
     transitionDurationMs: 7_307,
     copy: {
       title: 'Compare with Gigantoraptor',
@@ -1049,7 +1049,7 @@ const en: Readonly<
   },
   meganeura: {
     animalId: 'meganeura',
-    sceneLabel: 'Forest encounter · child eye level',
+    sceneLabel: 'Forest wetland · child eye level',
     transitionDurationMs: 7_818,
     copy: {
       title: 'Compare with Meganeura',
@@ -1065,7 +1065,7 @@ const en: Readonly<
   },
   dilophosaurus: {
     animalId: 'dilophosaurus',
-    sceneLabel: 'Forest encounter · child eye level',
+    sceneLabel: 'Seasonal river valley · child eye level',
     transitionDurationMs: 7_947,
     copy: {
       title: 'Compare with Dilophosaurus',
@@ -1081,7 +1081,7 @@ const en: Readonly<
   },
   spinosaurus: {
     animalId: 'spinosaurus',
-    sceneLabel: 'Forest encounter · child eye level',
+    sceneLabel: 'Woodland shallows · child eye level',
     transitionDurationMs: 10_661,
     copy: {
       title: 'Compare with Spinosaurus',
@@ -1097,7 +1097,7 @@ const en: Readonly<
   },
   lystrosaurus: {
     animalId: 'lystrosaurus',
-    sceneLabel: 'Woodland encounter · child eye level',
+    sceneLabel: 'Woodland shallows · child eye level',
     transitionDurationMs: 7_885,
     copy: {
       title: 'Compare with Lystrosaurus',
@@ -1113,7 +1113,7 @@ const en: Readonly<
   },
   baryonyx: {
     animalId: 'baryonyx',
-    sceneLabel: 'Forest encounter · child eye level',
+    sceneLabel: 'Riverbank woodland · child eye level',
     transitionDurationMs: 9_833,
     copy: {
       title: 'Compare with Baryonyx',
@@ -1129,7 +1129,7 @@ const en: Readonly<
   },
   archaeopteryx: {
     animalId: 'archaeopteryx',
-    sceneLabel: 'Forest fallen-log encounter · child eye level',
+    sceneLabel: 'Waterside fallen log · child eye level',
     transitionDurationMs: 4_400,
     copy: {
       title: 'Compare with Archaeopteryx',
@@ -1145,7 +1145,7 @@ const en: Readonly<
   },
   carnotaurus: {
     animalId: 'carnotaurus',
-    sceneLabel: 'Forest encounter · child eye level',
+    sceneLabel: 'Woodland-edge channel · child eye level',
     transitionDurationMs: 13_870,
     copy: {
       title: 'Compare with Carnotaurus',

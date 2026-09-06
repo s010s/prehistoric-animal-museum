@@ -49,6 +49,7 @@ export interface ScaleEncounterLandBiomePopulation {
 
 export interface ScaleEncounterLandBiomeArtAssets {
   readonly groundAlbedoSourceUrl: string
+  readonly uniqueGroundSourceUrl?: string
   readonly groundPhysicalWidthMeters: number
   readonly panoramaLowSourceUrl: string
   readonly panoramaLowWidth: number

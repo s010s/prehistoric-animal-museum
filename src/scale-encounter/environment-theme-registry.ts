@@ -86,20 +86,20 @@ export const SCALE_ENCOUNTER_ENVIRONMENT_THEMES: Readonly<
   },
   gobi: {
     id: 'gobi',
-    labels: { en: 'Gobi', zhCN: '戈壁' },
+    labels: { en: 'Vegetated river plain', zhCN: '植被河漫平原' },
     rendererFamily: 'forest',
     runtimePanoramaTheme: null,
     runtimeKind: 'procedural-biome',
     assetNamespace: 'gobi',
     assetStatus: 'active',
     fallbackThemeId: 'cretaceous-forest',
-    baselineAssetContract: PROCEDURAL_LAND_BASELINE_CONTRACT,
+    baselineAssetContract: PROCEDURAL_WET_LAND_BASELINE_CONTRACT,
     loadPolicy: 'selected-theme-only',
     revealPolicy: 'keep-current-scene-until-baseline-ready',
   },
   floodplain: {
     id: 'floodplain',
-    labels: { en: 'Floodplain', zhCN: '洪泛平原' },
+    labels: { en: 'Seasonal river valley', zhCN: '季节性河谷' },
     rendererFamily: 'forest',
     runtimePanoramaTheme: null,
     runtimeKind: 'procedural-biome',
@@ -169,12 +169,11 @@ export const SCALE_ENCOUNTER_ENVIRONMENT_THEMES: Readonly<
 
 const TARGET_THEME_OVERRIDES: Readonly<
   Partial<Record<ScaleEncounterAnimalId, ScaleEncounterEnvironmentThemeId>>
-> = {}
+> = { gigantoraptor: 'gobi', dilophosaurus: 'floodplain' }
 
-// The Gobi, floodplain and Carboniferous packages remain reusable candidates,
-// but the final product review restored Gigantoraptor, Dilophosaurus and
-// Meganeura to the accepted forest. Do not assign those candidates here until
-// a later scene review explicitly replaces that shipping decision.
+// The September scene revision restores two dedicated, ground-first habitats.
+// The legacy gobi identifier remains stable; its label describes the evidenced
+// vegetated Iren Dabasu floodplain, not the modern desert.
 
 const DEFAULT_THEME_BY_RENDERER_FAMILY: Readonly<
   Record<ScaleEncounterEnvironmentTheme, ScaleEncounterEnvironmentThemeId>
