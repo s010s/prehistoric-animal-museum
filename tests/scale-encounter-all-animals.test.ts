@@ -137,7 +137,8 @@ describe('complete twenty-four-animal scale encounter catalog', () => {
       )
       expect(presentation.profile).toBe(definition.avatarProfile)
       expect(scaleEncounterPanoramaThemeFor(animalId)).toBe(
-        panoramaByTheme[definition.environmentTheme],
+        animalId === 'gigantoraptor' || animalId === 'dilophosaurus'
+          ? null : panoramaByTheme[definition.environmentTheme],
       )
     }
   })

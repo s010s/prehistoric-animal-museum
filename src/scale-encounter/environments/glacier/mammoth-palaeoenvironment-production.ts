@@ -2168,7 +2168,7 @@ function addAtmosphere(atmosphere: Group): void {
 }
 
 function addWorldLighting(background: Group): void {
-  const hemisphere = new HemisphereLight('#c8d9e0', '#87795d', 2.08)
+  const hemisphere = new HemisphereLight('#d5e3eb', '#b9c7d0', 2.65)
   hemisphere.name = 'glacier-world-hemisphere-light'
 
   const sun = new DirectionalLight('#ffe5bd', 3.8)
@@ -2185,7 +2185,7 @@ function addWorldLighting(background: Group): void {
   sun.shadow.bias = -0.0001
   sun.shadow.normalBias = 0.025
 
-  const skyFill = new DirectionalLight('#a9c6d5', 1.18)
+  const skyFill = new DirectionalLight('#c6e0ed', 2.1)
   skyFill.name = 'glacier-world-sky-fill'
   skyFill.position.set(38, 28, -26)
   skyFill.castShadow = false

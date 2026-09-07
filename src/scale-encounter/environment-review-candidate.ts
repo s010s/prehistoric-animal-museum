@@ -144,19 +144,6 @@ const productionSliceLandPanoramaUrls = {
   )),
 } as const
 
-const productionSliceLandAlbedoUrl = reviewCandidateUrl(new URL(
-  './assets/environments/surface-land-v4-humus-albedo-1254.webp',
-  import.meta.url,
-))
-
-// The 1K CC0 scan is sufficient for a secondary, stochastic litter domain and
-// costs about 5.3 MiB decoded with mipmaps, rather than adding another 2K PBR
-// triplet. Normal and roughness detail stay shared and synchronized.
-const productionSliceLandDryLitterAlbedoUrl = reviewCandidateUrl(new URL(
-  './assets/environments/surface-land-albedo-1024.webp',
-  import.meta.url,
-))
-
 const productionSliceMatureTreeAtlasUrls = {
   high: reviewCandidateUrl(new URL(
     './assets/environments/midground-mature-tree-atlas-v1.webp',
@@ -474,10 +461,11 @@ export async function acquireReviewCandidateEnvironment(
   const surfaceQuality = quality === 'low' ? 'low' : 'high'
   const surfaceDefinition = surfaceTheme ? surfaceUrls[surfaceTheme] : null
   const surface = surfaceDefinition?.[surfaceQuality] ?? null
-  const productionSurface =
-    useProductionSliceLandArt && surface
-      ? { ...surface, albedo: productionSliceLandAlbedoUrl }
-      : surface
+  // Use all three channels of the same ground scan at the same physical scale.
+  const productionSurface = surface
+  const uniqueColourUrl = useProductionSliceLandArt
+    ? new URL('./assets/environments/forest-floor-unique-v2.webp', import.meta.url).href
+    : null
   const matureTreeAtlasQuality =
     maximumTextureSize >= 2_048 && viewportWidth * devicePixelRatio >= 1_280
       ? 'high'
@@ -490,27 +478,23 @@ export async function acquireReviewCandidateEnvironment(
     albedo,
     normal,
     roughness,
-    dryLitterAlbedo,
     matureTreeAtlas,
+    uniqueAlbedo,
   ] = await Promise.all([
     loadPanorama(sourceUrl, theme),
     productionSurface ? loadSurfaceTexture(productionSurface.albedo, true, theme) : Promise.resolve(null),
     productionSurface ? loadSurfaceTexture(productionSurface.normal, false, theme) : Promise.resolve(null),
     productionSurface ? loadSurfaceTexture(productionSurface.roughness, false, theme) : Promise.resolve(null),
-    useProductionSliceLandArt
-      ? loadSurfaceTexture(productionSliceLandDryLitterAlbedoUrl, true, theme)
-      : Promise.resolve(null),
     matureTreeAtlasUrl
       ? loadSurfaceTexture(matureTreeAtlasUrl, true, theme, false)
       : Promise.resolve(null),
+    uniqueColourUrl ? loadSurfaceTexture(uniqueColourUrl, true, theme, false) : Promise.resolve(null),
   ])
   const retainedUrls = new Set([
+    ...(uniqueColourUrl ? [uniqueColourUrl] : []),
     sourceUrl,
     ...(productionSurface
       ? [productionSurface.albedo, productionSurface.normal, productionSurface.roughness]
-      : []),
-    ...(useProductionSliceLandArt
-      ? [productionSliceLandDryLitterAlbedoUrl]
       : []),
     ...(matureTreeAtlasUrl ? [matureTreeAtlasUrl] : []),
   ])
@@ -532,7 +516,7 @@ export async function acquireReviewCandidateEnvironment(
       albedo && normal && roughness && surfaceDefinition
         ? {
             albedo,
-            dryLitterAlbedo,
+            uniqueAlbedo,
             normal,
             physicalWidthMeters: surfaceDefinition.physicalWidthMeters,
             roughness,

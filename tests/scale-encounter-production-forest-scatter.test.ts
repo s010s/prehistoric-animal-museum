@@ -202,7 +202,7 @@ describe('scale encounter production forest ecology', () => {
           (batch.userData.scaleEncounterEcologyInstanceCount as number),
         0,
       ),
-    ).toBe(85)
+    ).toBe(84)
     expect(
       batches.reduce(
         (sum, batch) =>

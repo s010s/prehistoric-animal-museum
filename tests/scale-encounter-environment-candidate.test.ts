@@ -252,11 +252,9 @@ describe('scale encounter review panorama candidate', () => {
       'panorama-land-cretaceous-v5-farfield-4096.webp',
     )
     expect(lease.surfaceTextures?.albedo.name).toContain(
-      'surface-land-v4-humus-albedo-1254.webp',
+      'surface-land-albedo-2048.webp',
     )
-    expect(lease.surfaceTextures?.dryLitterAlbedo?.name).toContain(
-      'surface-land-albedo-1024.webp',
-    )
+    expect(lease.surfaceTextures?.dryLitterAlbedo).toBeUndefined()
     await expect(lease.startPanoramaUpgrade()).resolves.toBeNull()
     expect(load).toHaveBeenCalledTimes(6)
     expect(lease.matureTreeAtlas?.name).toContain(

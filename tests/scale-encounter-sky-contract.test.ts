@@ -3,16 +3,15 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   Box3,
+  BoxGeometry,
+  Group,
+  Texture,
   Mesh,
+  MeshStandardMaterial,
   PerspectiveCamera,
-  RepeatWrapping,
-  ShaderMaterial,
-  SRGBColorSpace,
+  type ShaderMaterial,
   Vector3,
   type BufferGeometry,
-  type CylinderGeometry,
-  type Group,
-  type Texture,
 } from 'three'
 import {
   SKY_HEIGHT_BANDS,
@@ -256,7 +255,14 @@ describe('scale encounter sky candidate layer runtime', () => {
       viewportHeight: 900,
       viewportWidth: 1440,
     }
+    const scan = new Mesh(new BoxGeometry(100, 10, 100).translate(0, 5.24, 0), new MeshStandardMaterial({
+      map: new Texture(), normalMap: new Texture(), roughnessMap: new Texture(),
+    }))
+    scan.name = 'woodland-island'
+    const template = new Group()
+    template.add(scan)
     const candidate = createSkyEnvironmentCandidate({
+      coastTemplate: template,
       assetLease: {
         assetId: 'scale-encounter-sky-coastal-v1',
         manifestSha256: 'fixture',
@@ -292,7 +298,7 @@ describe('scale encounter sky candidate layer runtime', () => {
     ['B', 0, ['background-atmosphere', 'flight-volume']],
     [
       'C',
-      8,
+      4,
       [
         'background-atmosphere',
         'flight-volume',
@@ -303,7 +309,7 @@ describe('scale encounter sky candidate layer runtime', () => {
     ],
     [
       'D',
-      8,
+      4,
       [
         'background-atmosphere',
         'flight-volume',
@@ -340,7 +346,7 @@ describe('scale encounter sky candidate layer runtime', () => {
       fixtureValue.subjectBounds,
       fixtureValue.avatarBounds,
     )
-    expect(diagnostic.cloudDiagnostics).toHaveLength(8)
+    expect(diagnostic.cloudDiagnostics).toHaveLength(4)
     expect(diagnostic.corridorOverlapCount).toBe(0)
     expect(
       diagnostic.cloudDiagnostics.every(
@@ -349,15 +355,15 @@ describe('scale encounter sky candidate layer runtime', () => {
     ).toBe(true)
     expect(diagnostic.alpha).toMatchObject({
       alphaMode: 'premultiplied-blend',
-      alphaTextureCount: 0,
+      alphaTextureCount: 1,
       cloudMaterialsPremultiplied: true,
-      cloudMaterialsUseMipmaps: false,
+      cloudMaterialsUseMipmaps: true,
       cloudMaterialsDepthWriteDisabled: true,
     })
     fixtureValue.candidate.dispose()
   })
 
-  it('feathers the finite sea and horizon haze before their geometry can form polygonal skyline segments', () => {
+  it('feathers the finite sea before its geometry can form polygonal skyline segments', () => {
     const fixtureValue = fixture('C')
     const sea = fixtureValue.candidate.root.getObjectByName(
       'world-space-open-sea',
@@ -378,202 +384,33 @@ describe('scale encounter sky candidate layer runtime', () => {
       'vWorldPosition.xz - uCameraPosition.xz',
     )
 
-    const horizonHaze = fixtureValue.candidate.root.getObjectByName(
-      'necessary-horizon-atmosphere-depth',
-    ) as Mesh<CylinderGeometry, ShaderMaterial>
-    expect(horizonHaze.geometry.parameters.radialSegments).toBe(192)
-    expect(horizonHaze.material.transparent).toBe(true)
-    expect(horizonHaze.material.fragmentShader).toContain('lowerFeather')
-    expect(horizonHaze.material.fragmentShader).toContain('upperFeather')
-
-    const islands = fixtureValue.candidate.root.getObjectByName(
-      'distant-haze-islands',
-    ) as Group
-    expect(islands.children).toHaveLength(2)
-    expect(
-      islands.children.every((island) => island.frustumCulled === false),
-    ).toBe(true)
-    expect(
-      islands.children.every(
-        (island) => Math.hypot(island.position.x, island.position.z) < 175,
-      ),
-    ).toBe(true)
-    expect(
-      islands.children.some((island) =>
-        island.name.startsWith('distant-island-'),
-      ),
-    ).toBe(false)
-    const archipelago = islands.getObjectByName(
-      'aerial-archipelago-terrain',
-    ) as Mesh<BufferGeometry, ShaderMaterial>
-    const portraitArchipelago = islands.getObjectByName(
-      'aerial-archipelago-terrain-portrait',
-    ) as Mesh<BufferGeometry, ShaderMaterial>
-    expect(archipelago).toBeInstanceOf(Mesh)
-    expect(portraitArchipelago).toBeInstanceOf(Mesh)
-    expect(archipelago.visible).toBe(true)
-    expect(portraitArchipelago.visible).toBe(false)
-    expect(islands.userData.activeResponsiveLayout).toBe('landscape')
-    expect(archipelago.material).toBeInstanceOf(ShaderMaterial)
-    expect(archipelago.material.transparent).toBe(false)
-    expect(archipelago.material.depthTest).toBe(true)
-    expect(archipelago.material.depthWrite).toBe(true)
-    expect(archipelago.material.fragmentShader).toContain('terrainFbm')
-    expect(archipelago.material.fragmentShader).toContain('uIslandAtlas')
-    expect(archipelago.material.fragmentShader).toContain(
-      'photographedSurface',
-    )
-    expect(archipelago.material.fragmentShader).toContain(
-      'islandSample.a < 0.14',
-    )
-    expect(archipelago.material.fragmentShader).toContain('atlasTexel')
-    expect(archipelago.material.fragmentShader).toContain(
-      'vTerrainUv, 0.9',
-    )
-    expect(archipelago.material.fragmentShader).toContain('distanceHaze')
-    const terrainSurface = archipelago.material.uniforms.uIslandAtlas!
-      .value as Texture
-    expect(terrainSurface.name).toBe(
-      'aerial-island-cutout-atlas-photoreal-v1',
-    )
-    expect(terrainSurface.colorSpace).toBe(SRGBColorSpace)
-    expect(terrainSurface.wrapS).toBe(RepeatWrapping)
-    expect(terrainSurface.wrapT).toBe(RepeatWrapping)
-    const archipelagoMetadata = archipelago.userData as {
-      readonly furthestIslandCentreDistanceMeters: number
-      readonly islandNames: readonly string[]
-      readonly atlasAnisotropy: number
-      readonly atlasBlurTapCount: number
-      readonly atlasSampleMipBias: number
-      readonly distribution: string
-      readonly maximumSeaWaveDisplacementMeters: number
-      readonly minimumStableCoreClearanceMeters: number
-      readonly nearestIslandCentreDistanceMeters: number
-    }
-    expect(archipelagoMetadata).toMatchObject({
-      aerialIslandCount: 6,
-      atlasAnisotropy: 1,
-      atlasBlurTapCount: 5,
-      atlasSampleMipBias: 0.9,
-      distribution: 'staggered-landscape-depth-bands',
-      maximumSeaWaveDisplacementMeters: 0.74,
-      presentation: 'distant-phototextured-topographic-archipelago',
-      shoreline: 'photoreal-rock-and-cove-cutout-over-submerged-coast',
-      surface:
-        'six-distinct-softened-photoreal-aerial-islands-and-distance-haze',
-      topology: 'atlas-cutout-over-dense-radial-world-space-topography',
-      responsiveLayout: 'landscape',
-    })
-    expect(archipelagoMetadata.islandNames).toHaveLength(6)
-    expect(
-      archipelagoMetadata.nearestIslandCentreDistanceMeters,
-    ).toBeGreaterThan(27)
-    expect(
-      archipelagoMetadata.furthestIslandCentreDistanceMeters,
-    ).toBeGreaterThan(40)
-    expect(
-      archipelagoMetadata.minimumStableCoreClearanceMeters,
-    ).toBeGreaterThan(
-      archipelagoMetadata.maximumSeaWaveDisplacementMeters,
-    )
-    const terrainPositions = archipelago.geometry.getAttribute('position')
-    expect(terrainPositions.count).toBe(6 * (64 * 8 + 1))
-    expect(archipelago.geometry.getAttribute('color').count).toBe(
-      terrainPositions.count,
-    )
-    expect(archipelago.geometry.getAttribute('aTerrainRadius').count).toBe(
-      terrainPositions.count,
-    )
-    expect(archipelago.geometry.getAttribute('uv').count).toBe(
-      terrainPositions.count,
-    )
-    expect(archipelago.geometry.getAttribute('normal').count).toBe(
-      terrainPositions.count,
-    )
-    expect(archipelago.geometry.getAttribute('aIsletEdge')).toBeUndefined()
-    archipelago.geometry.computeBoundingBox()
-    expect(archipelago.geometry.boundingBox?.max.x).toBeLessThan(-17)
-    expect(archipelago.geometry.boundingBox?.min.y).toBeLessThan(
-      SKY_REFERENCE_Y_METERS,
-    )
-    expect(archipelago.geometry.boundingBox?.max.y).toBeGreaterThan(
-      SKY_REFERENCE_Y_METERS + 1.3,
-    )
-
-    const portraitMetadata = portraitArchipelago.userData as {
-      readonly distribution: string
-      readonly islandCentres: readonly (readonly [number, number])[]
-      readonly islandNames: readonly string[]
-      readonly minimumStableCoreClearanceMeters: number
-      readonly responsiveLayout: string
-    }
-    expect(portraitMetadata).toMatchObject({
-      aerialIslandCount: 6,
-      distribution: 'portrait-sea-footprint-depth-bands',
-      responsiveLayout: 'portrait',
-    })
-    expect(portraitMetadata.islandCentres).toEqual([
-      [-8, -30],
-      [4, -24],
-      [-2, -16],
-      [8, -8],
-      [-6, 0],
-      [2, 8],
-    ])
-    expect(portraitMetadata.islandNames).toEqual(
-      archipelagoMetadata.islandNames,
-    )
-    expect(portraitMetadata.minimumStableCoreClearanceMeters).toBeGreaterThan(
-      archipelagoMetadata.maximumSeaWaveDisplacementMeters,
-    )
-    portraitArchipelago.geometry.computeBoundingBox()
-    expect(portraitArchipelago.geometry.boundingBox?.min.x).toBeGreaterThan(-10)
-    expect(portraitArchipelago.geometry.boundingBox?.max.x).toBeLessThan(10)
-    expect(portraitArchipelago.geometry.boundingBox?.min.z).toBeLessThan(-30)
-    expect(portraitArchipelago.geometry.boundingBox?.max.z).toBeGreaterThan(8)
-
-    const portraitCamera = new PerspectiveCamera(29, 390 / 844, 0.03, 240)
-    const portraitTarget = new Vector3(0, 4.7, 7.5)
-    const portraitElevation = (70 * Math.PI) / 180
-    portraitCamera.position
-      .copy(portraitTarget)
-      .add(
-        new Vector3(
-          0,
-          Math.sin(portraitElevation),
-          Math.cos(portraitElevation),
-        ).multiplyScalar(70),
-      )
-    portraitCamera.up.set(
-      0,
-      Math.cos(portraitElevation),
-      -Math.sin(portraitElevation),
-    )
-    portraitCamera.lookAt(portraitTarget)
-    portraitCamera.updateProjectionMatrix()
-    portraitCamera.updateMatrixWorld(true)
-    const projectedPortraitCentres = portraitMetadata.islandCentres.map(
-      ([worldX, worldZ]) =>
-        new Vector3(
-          worldX,
-          SKY_REFERENCE_Y_METERS + 1,
-          worldZ,
-        ).project(portraitCamera),
-    )
-    expect(
-      projectedPortraitCentres.every(
-        (centre) =>
-          Math.abs(centre.x) < 0.62 &&
-          Math.abs(centre.y) < 0.8 &&
-          centre.z > -1 &&
-          centre.z < 1,
-      ),
-    ).toBe(true)
-    fixtureValue.candidate.update(0, true, portraitCamera)
-    expect(archipelago.visible).toBe(false)
-    expect(portraitArchipelago.visible).toBe(true)
-    expect(islands.userData.activeResponsiveLayout).toBe('portrait')
     fixtureValue.candidate.dispose()
+  })
+
+  it('keeps vegetated islands below the flight corridor and retains borrowed texture ownership', () => {
+    const { candidate, camera } = fixture('D')
+    candidate.root.updateMatrixWorld(true)
+    const coast = candidate.root.getObjectByName('sky-woodland-island') as Mesh<BufferGeometry, MeshStandardMaterial>
+    expect(coast).toBeInstanceOf(Mesh)
+    const bounds = new Box3().setFromObject(coast)
+    expect(bounds.min.y).toBeGreaterThan(SKY_REFERENCE_Y_METERS)
+    expect(bounds.max.y).toBeGreaterThan(SKY_REFERENCE_Y_METERS)
+    expect(bounds.max.y).toBeLessThan(SKY_REFERENCE_Y_METERS + 20)
+    expect(coast.material.map).toBeTruthy()
+    expect(coast.material.normalMap).toBeTruthy()
+    expect(coast.material.roughness).toBeGreaterThan(0.9)
+    const before = coast.matrixWorld.clone()
+    camera.aspect = 390 / 844
+    camera.updateProjectionMatrix()
+    candidate.update(3, true, camera)
+    coast.updateWorldMatrix(true, false)
+    expect(coast.matrixWorld.equals(before)).toBe(true)
+    const textureDisposals = [coast.material.map!, coast.material.normalMap!]
+      .map((texture) => vi.spyOn(texture, 'dispose'))
+    const geometryDisposal = vi.spyOn(coast.geometry, 'dispose')
+    candidate.dispose()
+    textureDisposals.forEach((dispose) => expect(dispose).not.toHaveBeenCalled())
+    expect(geometryDisposal).toHaveBeenCalledOnce()
   })
 
   it('registers C through the shared environment factory with actual camera and bounds', () => {
@@ -605,7 +442,7 @@ describe('scale encounter sky candidate layer runtime', () => {
     expect(environment?.root.getObjectByName(
       'distant-directional-coast-proxy',
     )).toBeFalsy()
-    expect(environment?.root.getObjectByName('distant-haze-islands')).toBeTruthy()
+    expect(environment?.root.getObjectByName('distant-vegetated-coast')).toBeTruthy()
     expect(
       environment?.root.getObjectByName(
         'sky-candidate-rear-upper-flight-fill',
@@ -614,10 +451,9 @@ describe('scale encounter sky candidate layer runtime', () => {
     expect(environment?.root.userData.scaleEncounterSceneCandidate).toMatchObject({
       buildSource: 'sky-production-review-2026-08-17-v2',
       defaultCandidate: false,
-      leonApproved: true,
-      naturalnessGate: 'owner-approved-2026-08-24',
-      naturalnessRevision:
-        'responsive-portrait-and-landscape-aerial-island-atlas-subject-fill-v11',
+      baseLeonApproved: true,
+      naturalnessGate: 'local-review-2026-09-05',
+      naturalnessRevision: 'vegetated-landforms-and-fixed-shore-v2',
       productionApproved: false,
       semanticName: 'sky',
     })

@@ -206,7 +206,7 @@ function createForestedMountainTerrain(
   geometry.computeBoundingSphere()
 
   const material = new MeshStandardMaterial({
-    color: '#ffffff',
+    color: '#918d7d',
     map: surfaceTextures?.albedo ?? null,
     metalness: 0,
     normalMap: surfaceTextures?.normal ?? null,

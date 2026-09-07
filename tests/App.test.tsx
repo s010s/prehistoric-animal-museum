@@ -246,6 +246,18 @@ vi.mock('../src/scale-encounter/avatar-review-candidate', () => ({
   ),
 }))
 
+// Scene assets now finish loading before the comparison is revealed. These
+// App navigation tests use a mock viewer and must not fetch actual GLBs.
+vi.mock('../src/scale-encounter/forest-ecology-review-candidate', () => ({
+  loadReviewCandidateForestEcology: vi.fn(() => Promise.resolve(null)),
+}))
+vi.mock('../src/scale-encounter/forest-props-review-candidate', () => ({
+  loadReviewCandidateForestProps: vi.fn(() => Promise.resolve(null)),
+}))
+vi.mock('../src/scale-encounter/environments/sky/sky-coast', () => ({
+  loadSkyCoastTemplate: vi.fn(() => Promise.resolve(null)),
+}))
+
 vi.mock('../src/scale-encounter/environment-review-candidate', () => ({
   acquireReviewCandidateEnvironment: vi.fn(() =>
     Promise.resolve({

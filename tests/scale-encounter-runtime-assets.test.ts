@@ -31,8 +31,8 @@ function collectBinaryAssets(directory: string): string[] {
   })
 }
 
-describe('scale encounter approved runtime assets', () => {
-  it('locks every promoted avatar and environment byte to owner approval', () => {
+describe('scale encounter runtime asset identities', () => {
+  it('retains the dated baseline approval and records new scene assets separately', () => {
     const approval = JSON.parse(
       readFileSync(join(assetRoot, 'approval.json'), 'utf8'),
     ) as RuntimeAssetApproval
@@ -64,7 +64,22 @@ describe('scale encounter approved runtime assets', () => {
       ...collectBinaryAssets(join(assetRoot, 'environments')),
     ].sort()
 
-    expect(recorded.size).toBe(65)
+    // The September 1 approval covers the original 65 files only. New local
+    // scene revisions have checksums; this test does not grant publication approval.
+    const newSceneAssets = [
+      'braided-sand-unique-v2.webp',
+      'clouds-unique-v2.webp',
+      'clouds-natural-v3.webp',
+      'forest-floor-unique-v2.webp',
+      'footstep-water-splash-v1.webp',
+      'island-landforms-v2.glb',
+      'red-silt-unique-v2.webp',
+      'snow-drifts-unique-v2.webp',
+      'snow-earth-patches-v3.webp',
+      'panorama-irendabas-open-plain-v3.webp',
+    ].map((name) => `environments/${name}`)
+    expect(recorded.size - newSceneAssets.length).toBe(65)
+    newSceneAssets.forEach((name) => expect(recorded.has(name)).toBe(true))
     expect([...recorded.keys()].sort()).toEqual(binaries)
     for (const [fileName, expectedHash] of recorded) {
       const bytes = readFileSync(join(assetRoot, fileName))

@@ -53,7 +53,7 @@ const sourceMaps = files.filter((file) => extname(file) === '.map')
 const expectedAnimalAssetCount = mainCollection.animalIds.length
 const expectedNarrationAssetCount =
   expectedAnimalAssetCount * supportedLocales.length
-const expectedScaleEncounterGlbCount = 11
+const expectedScaleEncounterGlbCount = 12
 const narrationManifest = JSON.parse(
   await readFile(
     join(process.cwd(), 'src/scale-encounter/audio/narration-candidates.json'),
@@ -135,11 +135,26 @@ if (distributionPaths.has('.vite/manifest.json')) {
     join(process.cwd(), 'src/scale-encounter/assets/SHA256SUMS'),
     'utf8',
   )
+  // Retain historical source hashes without requiring replaced textures to
+  // ship alongside their replacements.
+  const supersededEnvironmentAssets = new Set([
+    'environments/clouds-unique-v2.webp',
+    'environments/panorama-gobi-irendabas-photoreal-v1-2048.webp',
+    'environments/panorama-gobi-irendabas-photoreal-v1-4096.webp',
+    'environments/sky/aerial-island-atlas-v1.webp',
+    'environments/surface-floodplain-red-silt-albedo-v1.webp',
+    'environments/surface-gobi-gravel-albedo-v1.webp',
+    'environments/surface-land-v4-humus-albedo-1254.webp',
+    'environments/snow-drifts-unique-v2.webp',
+    'environments/panorama-irendabas-open-plain-v3.webp',
+    'environments/panorama-floodplain-kayenta-photoreal-v1-2048.webp',
+    'environments/panorama-floodplain-kayenta-photoreal-v1-4096.webp',
+  ])
   const expectedRuntimeSources = runtimeChecksums
     .trim()
     .split('\n')
     .map((line) => line.match(/^[a-f0-9]{64} {2}(.+)$/)?.[1])
-    .filter((fileName): fileName is string => Boolean(fileName))
+    .filter((fileName): fileName is string => typeof fileName === 'string' && !supersededEnvironmentAssets.has(fileName))
     .map((fileName) => `src/scale-encounter/assets/${fileName}`)
   const expectedNarrationSources = expectedScaleEncounterNarrationFiles
     .map(({ file }) => `src/scale-encounter/audio/${file}`)

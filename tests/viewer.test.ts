@@ -28,6 +28,7 @@ import {
   modelScaleForViewport,
 } from '../src/viewer/model-preview-profiles'
 import { disposeObject3D } from '../src/viewer/dispose'
+import type { RiverVisitor } from '../src/viewer/scale-encounter-water-interaction'
 import {
   computeContactShadowLayout,
   classifyModelResourceTiming,
@@ -803,9 +804,11 @@ describe('scale encounter avatar locomotion', () => {
 
       harness.controller.adjustScaleEncounterOrbit(1)
       for (let frame = 1; frame <= 12; frame += 1) {
+        internals.updateScaleEncounterDistance(1 / 60, frame * 16)
         internals.updateScaleEncounterOrbit(1 / 60, frame * 16)
         internals.updateScaleEncounterAvatarMotion(1 / 60)
       }
+      expect(harness.encounter.orbitAngleRadians).toBeGreaterThan(0.01)
       expect(
         harness.encounter.targetOrbitAngleRadians -
           harness.encounter.orbitAngleRadians,
@@ -1766,6 +1769,43 @@ function createGroundedPovController(
     renderer,
   }
 }
+
+describe('scale encounter visitor water contact', () => {
+  it('reports terrain plus jump height, independent of the eye or animated model root', () => {
+    const { controller, encounter } = createGroundedPovController(1.5, 'meganeura')
+    encounter.environment = { groundHeightAtWorld: () => -0.62 }
+    encounter.avatarPreviousEyePosition.set(2, 4, 3)
+    encounter.jumpOffsetMeters = 0.3
+    encounter.jumpVelocityMetersPerSecond = -1.5
+    encounter.jumpPhase = 'airborne'
+    const position = computeScaleEncounterOrbitedEyePosition(
+      encounter.placement, 'land', encounter.observerDistance, encounter.orbitAngleRadians,
+    )
+    const internals = controller as unknown as { scaleEncounterRiverVisitor(): RiverVisitor | null }
+    expect(internals.scaleEncounterRiverVisitor()).toEqual({
+      x: position.x, z: position.z, feetY: -0.32, heightMeters: 1,
+      verticalVelocity: -1.5, airborne: true,
+    })
+    encounter.avatarPreviousEyePosition.add(new Vector3(0.02, 0.1, 0.01))
+    expect(internals.scaleEncounterRiverVisitor()?.x).toBe(position.x)
+    expect(internals.scaleEncounterRiverVisitor()?.z).toBe(position.z)
+  })
+
+  it('disables visitor impacts during overview, scripted transitions and underwater encounters', () => {
+    const { controller, encounter } = createGroundedPovController(1.5, 'meganeura')
+    encounter.environment = { groundHeightAtWorld: () => -0.62 }
+    const internals = controller as unknown as { scaleEncounterRiverVisitor(): RiverVisitor | null }
+    expect(internals.scaleEncounterRiverVisitor()).not.toBeNull()
+    encounter.view = 'overview'
+    expect(internals.scaleEncounterRiverVisitor()).toBeNull()
+    encounter.view = 'pov'
+    encounter.transition = { targetView: 'pov' }
+    expect(internals.scaleEncounterRiverVisitor()).toBeNull()
+    encounter.transition = null
+    encounter.definition = SCALE_ENCOUNTER_DEFINITIONS.mosasaurus
+    expect(internals.scaleEncounterRiverVisitor()).toBeNull()
+  })
+})
 
 describe('scale encounter child viewpoint switch', () => {
   it('moves the eye-view camera with the child instead of pinning it at the initial distance', () => {

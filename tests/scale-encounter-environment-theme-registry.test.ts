@@ -12,8 +12,6 @@ import { SCALE_ENCOUNTER_DEFINITIONS } from '../src/viewer/scale-encounter'
 
 describe('scale encounter reusable environment theme registry', () => {
   it.each([
-    'gigantoraptor',
-    'dilophosaurus',
     'meganeura',
   ] as const)(
     'keeps %s on the forest selected by the final product review',
@@ -43,7 +41,18 @@ describe('scale encounter reusable environment theme registry', () => {
     },
   )
 
-  it('keeps the three unselected procedural packages available for later iteration', () => {
+  it.each([
+    ['gigantoraptor', 'gobi', '植被河漫平原'],
+    ['dilophosaurus', 'floodplain', '季节性河谷'],
+  ] as const)('uses the complete dedicated environment for %s', (animalId, themeId, label) => {
+    const plan = scaleEncounterEnvironmentThemePlanFor(animalId, 'forest')
+    expect(plan.target.id).toBe(themeId)
+    expect(plan.runtime.labels.zhCN).toBe(label)
+    expect(plan.usingCompatibilityFallback).toBe(false)
+    expect(createScaleEncounterEnvironment('land', 'production-slice', new Texture(), { animalId })).toBeNull()
+  })
+
+  it('keeps the biome presets behind the same selected-theme loading contract', () => {
     for (const themeId of [
       'gobi',
       'floodplain',
@@ -83,7 +92,7 @@ describe('scale encounter reusable environment theme registry', () => {
       'land',
       'production-slice',
       panorama,
-      { animalId: 'gigantoraptor' },
+      { animalId: 'meganeura' },
     )
 
     expect(environment?.root.userData).toMatchObject({

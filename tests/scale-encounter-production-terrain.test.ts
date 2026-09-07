@@ -86,6 +86,14 @@ describe('scale encounter production terrain', () => {
     expect(scaleEncounterProductionTerrainAngularSegmentsForRadius(120)).toBe(216)
     expect(scaleEncounterProductionTerrainAngularSegmentsForRadius(240)).toBe(144)
     expect(geometry.index?.count).toBeGreaterThan(positions.count * 5)
+    // Inner radii used to be clamped to 22 m, overlapping all of the near
+    // rings and leaving a flat centre fan that could not resolve a riverbank.
+    const innerRadii = new Set<number>()
+    for (let i = 1; i < positions.count; i++) {
+      const radius = Math.hypot(positions.getX(i), positions.getY(i))
+      if (radius < 20) innerRadii.add(Math.round(radius * 10))
+    }
+    expect(innerRadii.size).toBeGreaterThan(8)
     geometry.dispose()
   })
 

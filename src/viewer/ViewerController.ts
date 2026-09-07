@@ -84,6 +84,8 @@ import {
   type ScaleEncounterEnvironmentVariant,
   type ScaleEncounterSurfaceTextures,
 } from './scale-encounter-environment'
+import type { RiverVisitor } from './scale-encounter-water-interaction'
+import { createAnimalPresence, type AnimalPresence } from './scale-encounter-animal-presence'
 import type { ScaleEncounterEcologyDensity } from './scale-encounter-ecology-density'
 import { inspectScaleEncounterSceneResources } from './scale-encounter-performance'
 import type { ScaleEncounterSceneCandidateVariant } from '../scale-encounter/environments/scene-candidate'
@@ -352,6 +354,7 @@ interface ScaleEncounterCameraTransition {
 }
 
 interface ScaleEncounterRuntime {
+  animalPresence: AnimalPresence | null
   actionBoostActive: boolean
   actionBoostMultiplier: number
   avatar: ScaleEncounterAvatar
@@ -1368,6 +1371,7 @@ export class ViewerController {
   private firstFrameConfirmationFrame: number | null = null
   private readonly scaleEncounterListeners = new Set<() => void>()
   private scaleEncounter: ScaleEncounterRuntime | null = null
+  private readonly animalPresenceVisitorEye = new Vector3()
   private scaleEncounterSnapshot = INACTIVE_SCALE_ENCOUNTER_SNAPSHOT
   private scaleEncounterAvatarFactory: ScaleEncounterAvatarFactory = () => {
     throw new Error('scale-encounter-avatar-factory-unavailable')
@@ -1458,6 +1462,7 @@ export class ViewerController {
     // Keep the first shadow texel attached to small shoes and claws. A 3.5 cm
     // normal offset created an obvious floating gap at child-eye height.
     this.scaleEncounterSunLight.shadow.normalBias = 0.012
+    this.scaleEncounterSunLight.shadow.radius = 1.6
     // A fixed, shadowless skylight from the opposite hemisphere preserves
     // texture on the child and animal's camera-facing backs. It stays in
     // world space so rear/POV moves do not make the lighting chase the lens.
@@ -2142,13 +2147,14 @@ export class ViewerController {
         // exposure or the child's cold-weather outfit.
         mammothAnimalGrade = applyMammothSubjectGrade(current.modelRoot, {
           midtoneExponent: 0.62,
-          minimumFill: 0.075,
+          minimumFill: 0.18,
           saturation: 1.08,
         })
       }
 
       this.camera.clearViewOffset()
       this.scaleEncounter = {
+        animalPresence: createAnimalPresence(definition.id, current.modelRoot, placement.defaultEyePosition),
         actionBoostActive: false,
         actionBoostMultiplier: 1,
         avatar,
@@ -2314,6 +2320,7 @@ export class ViewerController {
     }
     this.finishScaleEncounterTransition()
     this.resetScaleEncounterContextAction()
+    encounter.animalPresence?.restore()
 
     const normalizedProfile = normalizeScaleEncounterProfile(profile)
     const replacement = this.scaleEncounterAvatarFactory(
@@ -3069,7 +3076,10 @@ export class ViewerController {
           encounter.orbitAngleRadians,
         )
         encounter.targetObserverDistance = encounter.observerDistance
-      } else if (encounter.definition.habitat === 'land') {
+      } else if (
+        encounter.definition.habitat === 'land' &&
+        encounter.targetObserverDistance !== previous
+      ) {
         const currentWorldDirection =
           computeScaleEncounterOrbitedEyePosition(
             encounter.placement,
@@ -3422,6 +3432,7 @@ export class ViewerController {
     encounter.oceanAvatarGrade?.restore()
     encounter.oceanAnimalGrade?.restore()
     encounter.boostFlow?.dispose()
+    encounter.animalPresence?.dispose()
     encounter.environment?.root.removeFromParent()
     disposeScaleEncounterEnvironment(encounter.environment)
     disposeScaleEncounterAvatar(encounter.avatar, this.renderer)
@@ -3450,6 +3461,9 @@ export class ViewerController {
     this.resize()
     this.scaleEncounterSnapshot = INACTIVE_SCALE_ENCOUNTER_SNAPSHOT
     delete this.renderer.domElement.dataset.scaleEncounter
+    delete this.renderer.domElement.dataset.scaleEncounterAnimalAttention
+    delete this.renderer.domElement.dataset.scaleEncounterAnimalAcknowledgements
+    delete this.renderer.domElement.dataset.scaleEncounterAtmosphereParticles
     delete this.renderer.domElement.dataset.scaleEncounterCameraStage
     delete this.renderer.domElement.dataset.scaleEncounterEnvironment
     delete this.renderer.domElement.dataset.scaleEncounterSceneCandidate
@@ -4675,6 +4689,24 @@ export class ViewerController {
       motionState.speedMetersPerSecond
   }
 
+  private scaleEncounterRiverVisitor(): RiverVisitor | null {
+    const encounter = this.scaleEncounter
+    const heightAt = encounter?.environment?.groundHeightAtWorld
+    if (!encounter || !heightAt || encounter.definition.habitat !== 'land'
+      || encounter.view !== 'pov' || encounter.transition) return null
+    // Read locomotion coordinates, not the rig's breathing/head sway.
+    const { x, z } = computeScaleEncounterOrbitedEyePosition(
+      encounter.placement, 'land', encounter.observerDistance, encounter.orbitAngleRadians,
+    )
+    return {
+      x, z,
+      feetY: heightAt(x, z) + encounter.jumpOffsetMeters,
+      heightMeters: encounter.profile.heightMeters,
+      verticalVelocity: encounter.jumpVelocityMetersPerSecond,
+      airborne: encounter.jumpPhase === 'airborne',
+    }
+  }
+
   private publishScaleEncounterAvatarMotionDiagnostics(): void {
     const encounter = this.scaleEncounter
     if (!encounter) return
@@ -5484,6 +5516,7 @@ export class ViewerController {
           : null
       }
       const holdingInitialPose = time < this.initialPoseHoldUntil
+      this.scaleEncounter?.animalPresence?.restore()
       if (holdingInitialPose) {
         this.controls.autoRotate = false
         this.renderer.domElement.dataset.autoRotate = 'false'
@@ -5517,11 +5550,30 @@ export class ViewerController {
           this.reducedMotion,
         )
         this.publishScaleEncounterAvatarMotionDiagnostics()
+        const presence = this.scaleEncounter.animalPresence
+        if (presence) {
+          const impact = presence.update({
+            deltaSeconds,
+            visitorEye: this.scaleEncounter.avatar.eyeAnchor.getWorldPosition(this.animalPresenceVisitorEye),
+            active: !this.scaleEncounter.transition,
+            reducedMotion: this.reducedMotion,
+          })
+          if (impact) this.scaleEncounter.environment?.atmosphere?.settleFoot(impact)
+          this.renderer.domElement.dataset.scaleEncounterAnimalAttention = presence.yawRadians.toFixed(4)
+          this.renderer.domElement.dataset.scaleEncounterAnimalAcknowledgements = String(presence.acknowledgementCount)
+        } else {
+          this.renderer.domElement.dataset.scaleEncounterAnimalAttention = 'authored-idle'
+          this.renderer.domElement.dataset.scaleEncounterAnimalAcknowledgements = '0'
+        }
         updateScaleEncounterEnvironment(
           this.scaleEncounter.environment,
           time / 1_000,
           this.reducedMotion,
           this.camera,
+          this.scaleEncounterRiverVisitor(),
+        )
+        this.renderer.domElement.dataset.scaleEncounterAtmosphereParticles = String(
+          this.scaleEncounter.environment?.atmosphere?.particleCount ?? 0,
         )
         this.scaleEncounter.boostFlow?.update(
           deltaSeconds,

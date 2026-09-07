@@ -43,6 +43,13 @@ const forestPropsMock = vi.hoisted(() => ({
   load: vi.fn(),
 }))
 
+const skyCoastMock = vi.hoisted(() => ({ load: vi.fn() }))
+vi.mock('../src/scale-encounter/environments/sky/sky-coast', () => ({
+  loadSkyCoastTemplate: skyCoastMock.load,
+}))
+
+const forestEcologyMock = vi.hoisted(() => ({ load: vi.fn() }))
+
 vi.mock('../src/scale-encounter/avatar-review-candidate', () => ({
   acquireReviewCandidateAvatarFactory: reviewCandidateMock.acquire,
 }))
@@ -52,7 +59,7 @@ vi.mock('../src/scale-encounter/environment-review-candidate', () => ({
 }))
 
 vi.mock('../src/scale-encounter/forest-ecology-review-candidate', () => ({
-  loadReviewCandidateForestEcology: vi.fn().mockResolvedValue(null),
+  loadReviewCandidateForestEcology: forestEcologyMock.load,
 }))
 
 vi.mock('../src/scale-encounter/forest-props-review-candidate', () => ({
@@ -61,6 +68,7 @@ vi.mock('../src/scale-encounter/forest-props-review-candidate', () => ({
 
 interface Deferred<T> {
   readonly promise: Promise<T>
+  readonly reject: (reason: unknown) => void
   readonly resolve: (value: T) => void
 }
 
@@ -84,10 +92,12 @@ const testAudioInstances: TestAudio[] = []
 
 function deferred<T>(): Deferred<T> {
   let resolvePromise: (value: T) => void = () => undefined
-  const promise = new Promise<T>((resolve) => {
+  let rejectPromise: (reason: unknown) => void = () => undefined
+  const promise = new Promise<T>((resolve, reject) => {
     resolvePromise = resolve
+    rejectPromise = reject
   })
-  return { promise, resolve: resolvePromise }
+  return { promise, resolve: resolvePromise, reject: rejectPromise }
 }
 
 function makeController() {
@@ -403,6 +413,8 @@ describe('DirectScaleEncounter', () => {
     reviewEnvironmentMock.release.mockReset()
     reviewEnvironmentMock.startPanoramaUpgrade.mockReset().mockResolvedValue(null)
     forestPropsMock.load.mockReset().mockResolvedValue(null)
+    forestEcologyMock.load.mockReset().mockResolvedValue(null)
+    skyCoastMock.load.mockReset().mockResolvedValue(null)
     vi.stubGlobal('Audio', TestAudio)
     window.localStorage.clear()
     window.localStorage.setItem('museum.locale', 'zh-CN')
@@ -457,7 +469,7 @@ describe('DirectScaleEncounter', () => {
     )
     const controller = makeController()
     const scannedForestProps = { name: 'reviewed-forest-props' }
-    forestPropsMock.load.mockResolvedValue(scannedForestProps)
+    forestEcologyMock.load.mockResolvedValue(scannedForestProps)
 
     renderArchaeopteryxEncounter(controller, {
       gender: 'boy',
@@ -470,7 +482,7 @@ describe('DirectScaleEncounter', () => {
         heightCm: 100,
       })
     })
-    expect(forestPropsMock.load).toHaveBeenCalledOnce()
+    expect(forestEcologyMock.load).toHaveBeenCalledOnce()
     expect(controller.setScaleEncounterForestProps).toHaveBeenCalledWith(
       scannedForestProps,
     )
@@ -478,6 +490,71 @@ describe('DirectScaleEncounter', () => {
       controller.setScaleEncounterForestProps.mock.invocationCallOrder[0],
     ).toBeLessThan(controller.beginScaleEncounter.mock.invocationCallOrder[0]!)
   })
+
+  it.each(['tyrannosaurus-rex', 'apatosaurus', 'carnotaurus'] as const)(
+    'waits for scanned forest ecology before starting %s', async (animalId) => {
+      const controller = makeController()
+      const ecology = deferred<{ name: string }>()
+      forestEcologyMock.load.mockReturnValue(ecology.promise)
+      render(<DirectScaleEncounter
+        animal={{ atmosphere: 'forest', id: animalId, name: animalId,
+          backgroundLandscape: '/forest.webp', backgroundPortrait: '/forest.webp',
+          poster: '/animal.webp', posterPortrait: '/animal.webp' }}
+        controller={controller as unknown as ViewerController}
+        locale="zh-CN" onClose={vi.fn()} onProfileChange={vi.fn()}
+        onScenePresentationChange={vi.fn()} onPresentationStateChange={vi.fn()}
+        profile={{ gender: 'girl', heightCm: 110 }}
+      />)
+      await waitFor(() => expect(forestEcologyMock.load).toHaveBeenCalledOnce())
+      expect(controller.beginScaleEncounter).not.toHaveBeenCalled()
+      const scans = { name: 'combined-scanned-ecology' }
+      await act(async () => {
+        ecology.resolve(scans)
+        await ecology.promise
+      })
+      await waitFor(() => expect(controller.beginScaleEncounter).toHaveBeenCalledOnce())
+      expect(controller.setScaleEncounterForestProps).toHaveBeenCalledWith(scans)
+      expect(controller.setScaleEncounterForestProps.mock.invocationCallOrder.at(-1))
+        .toBeLessThan(controller.beginScaleEncounter.mock.invocationCallOrder[0]!)
+    },
+  )
+
+  it.each(['tyrannosaurus-rex', 'mammoth', 'pteranodon'] as const)(
+    'recovers from a failed %s scene download through the retry action', async (animalId) => {
+      const user = userEvent.setup()
+      const controller = makeController()
+      const pending = deferred<{ name: string }>()
+      const loader = animalId === 'pteranodon' ? skyCoastMock.load
+        : animalId === 'mammoth' ? forestPropsMock.load : forestEcologyMock.load
+      loader.mockReturnValue(pending.promise)
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      render(<DirectScaleEncounter
+        animal={{ atmosphere: animalId === 'pteranodon' ? 'air' : 'forest', id: animalId, name: animalId,
+          backgroundLandscape: '/habitat.webp', backgroundPortrait: '/habitat.webp',
+          poster: '/animal.webp', posterPortrait: '/animal.webp' }}
+        controller={controller as unknown as ViewerController}
+        locale="zh-CN" onClose={vi.fn()} onProfileChange={vi.fn()}
+        onScenePresentationChange={vi.fn()} onPresentationStateChange={vi.fn()}
+        profile={{ gender: 'girl', heightCm: 110 }}
+      />)
+      await waitFor(() => expect(loader).toHaveBeenCalled())
+      const error = new Error('scene-download-offline')
+      await act(async () => {
+        pending.reject(error)
+        await pending.promise.catch(() => undefined)
+      })
+      expect(screen.getByTestId('scale-encounter')).toHaveAttribute('data-phase', 'error')
+      expect(controller.beginScaleEncounter).not.toHaveBeenCalled()
+      expect(log).toHaveBeenCalledWith('Encounter scene unavailable.', error)
+      const scans = { name: 'recovered-scene-props' }
+      loader.mockResolvedValue(scans)
+      await user.click(screen.getByRole('button', { name: '再试一次' }))
+      await waitFor(() => expect(controller.beginScaleEncounter).toHaveBeenCalledOnce())
+      expect(controller.setScaleEncounterForestProps).toHaveBeenCalledWith(scans)
+      expect(screen.getByTestId('scale-encounter')).toHaveAttribute('data-phase', 'overview')
+    },
+  )
 
   it('uses the accepted D sky scene when the formal URL has no review override', async () => {
     const controller = makeController()
