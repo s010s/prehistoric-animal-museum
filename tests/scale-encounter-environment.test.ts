@@ -96,9 +96,9 @@ describe('scale encounter environment', () => {
       )
       expect(budget.meshes).toBeGreaterThan(0)
       expect(budget.meshes).toBeLessThanOrEqual(32)
-      // Living atmosphere adds a group, one particle batch, three soft beams
-      // and one pooled foot-settle puff; geometry remains below the same cap.
-      expect(budget.objects).toBeLessThanOrEqual(52)
+      // Living atmosphere adds a group, one particle batch and one pooled
+      // foot-settle puff; geometry remains below the same cap.
+      expect(budget.objects).toBeLessThanOrEqual(49)
       expect(budget.vertices).toBeLessThanOrEqual(12_000)
 
       const geometryDisposals = [...budget.geometries].map((geometry) =>

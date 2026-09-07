@@ -398,6 +398,24 @@ export function DirectScaleEncounter({
   const forestPropsLoadRef = useRef<Promise<Group | null> | null>(null)
   const forestEcologyLoadRef = useRef<Promise<Group | null> | null>(null)
 
+  const loadEncounterSceneProps = useCallback((): Promise<Group | null> => {
+    if (environmentThemePlan.runtime.id === 'cretaceous-sky') return loadSkyCoastTemplate()
+    if (environmentThemePlan.runtime.id === 'cretaceous-forest' && environmentVariant === 'production-slice') {
+      return forestEcologyLoadRef.current ??= loadReviewCandidateForestEcology().catch((error: unknown) => {
+        forestEcologyLoadRef.current = null
+        throw error
+      })
+    }
+    if ((environmentThemePlan.runtime.id === 'cretaceous-forest' && environmentVariant !== 'baseline') ||
+      (animal.id === 'mammoth' && sceneCandidateVariant === 'E')) {
+      return forestPropsLoadRef.current ??= loadReviewCandidateForestProps().catch((error: unknown) => {
+        forestPropsLoadRef.current = null
+        throw error
+      })
+    }
+    return Promise.resolve(null)
+  }, [animal.id, environmentThemePlan.runtime.id, environmentVariant, sceneCandidateVariant])
+
   const setPresentationState = useCallback(
     (nextPhase: ExperiencePhase) => {
       setPhase(nextPhase)
@@ -458,16 +476,7 @@ export function DirectScaleEncounter({
       (animal.id === 'mammoth' && sceneCandidateVariant === 'E') ||
       environmentThemePlan.runtime.id === 'cretaceous-sky'
     if (shouldLoadReviewForestProps) {
-      const productionEcology =
-        environmentThemePlan.runtime.id === 'cretaceous-forest' &&
-        environmentVariant === 'production-slice'
-      const request = environmentThemePlan.runtime.id === 'cretaceous-sky'
-        ? loadSkyCoastTemplate()
-        : productionEcology
-        ? (forestEcologyLoadRef.current ??=
-            loadReviewCandidateForestEcology())
-        : (forestPropsLoadRef.current ??= loadReviewCandidateForestProps())
-      void request
+      void loadEncounterSceneProps()
         .then((forestProps) => {
           if (
             !cancelled &&
@@ -480,7 +489,7 @@ export function DirectScaleEncounter({
         })
         .catch((error: unknown) => {
           console.warn(
-            'Real forest prop candidate unavailable; keeping reviewed fallback props.',
+            'Encounter scene preload unavailable; entry can retry the request.',
             error,
           )
           return null
@@ -496,6 +505,7 @@ export function DirectScaleEncounter({
     ecologyDensity,
     environmentVariant,
     environmentThemePlan.runtime.id,
+    loadEncounterSceneProps,
     prototypeFlightApproximation,
     sceneCandidateVariant,
     syncScenePresentation,
@@ -734,29 +744,16 @@ export function DirectScaleEncounter({
       }, 2_200)
 
       try {
-        const encounterProps =
-          environmentThemePlan.runtime.id === 'cretaceous-sky'
-            ? loadSkyCoastTemplate()
-            : environmentThemePlan.runtime.id === 'cretaceous-forest' &&
-          environmentVariant === 'production-slice'
-            ? (forestEcologyLoadRef.current ??= loadReviewCandidateForestEcology())
-            : (animal.id === 'archaeopteryx' && environmentVariant !== 'baseline') ||
-                (animal.id === 'mammoth' && sceneCandidateVariant === 'E')
-            ? (forestPropsLoadRef.current ??=
-                loadReviewCandidateForestProps().catch((error: unknown) => {
-                  forestPropsLoadRef.current = null
-                  console.warn(
-                    'Scanned encounter props unavailable.',
-                    error,
-                  )
-                  return null
-                }))
-            : Promise.resolve(null)
-        const [candidateLease, environmentLease, encounterForestProps] =
+        const [candidateLease, environmentLease, propsResult] =
           await Promise.all([
             ensureReviewCandidateAvatar(nextProfile),
             ensureReviewCandidateEnvironment(),
-            encounterProps,
+            // Let the owned avatar/environment leases settle before handling
+            // a prop failure, so retry and unmount cannot orphan late loads.
+            loadEncounterSceneProps().then(
+              (value) => ({ value }),
+              (error: unknown) => ({ error }),
+            ),
           ])
         if (
           !mountedRef.current ||
@@ -766,6 +763,8 @@ export function DirectScaleEncounter({
           environmentLease?.release()
           return false
         }
+        if ('error' in propsResult) throw propsResult.error
+        const encounterForestProps = propsResult.value
         const requiresPreparedEnvironment =
           requiresProceduralLandBiome || sceneCandidateVariant === 'off'
         if (
@@ -857,6 +856,15 @@ export function DirectScaleEncounter({
         window.setTimeout(syncScenePresentation, 0)
         window.setTimeout(() => primaryActionRef.current?.focus(), 0)
         return true
+      } catch (error: unknown) {
+        if (mountedRef.current && beginTokenRef.current === beginToken) {
+          console.error('Encounter scene unavailable.', error)
+          setCaption(null)
+          setCaptionVisible(false)
+          setFailure(content.copy.unavailable)
+          setPresentationState('error')
+        }
+        return false
       } finally {
         window.clearTimeout(delayedCaptionTimer)
         if (beginTokenRef.current === beginToken) {
@@ -865,14 +873,13 @@ export function DirectScaleEncounter({
       }
     },
     [
-      animal.id,
       animal.name,
       content.copy,
       controller,
       ensureReviewCandidateAvatar,
       ensureReviewCandidateEnvironment,
       environmentVariant,
-      environmentThemePlan.runtime.id,
+      loadEncounterSceneProps,
       releaseCandidateLease,
       releaseEnvironmentLease,
       requiresProceduralLandBiome,

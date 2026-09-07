@@ -162,7 +162,6 @@ interface CloudClusterSpec {
   readonly position: readonly [number, number, number]
   readonly size: readonly [number, number]
   readonly rect: readonly [number, number, number, number]
-  readonly atlasPart: number
   readonly opacity: number
 }
 
@@ -265,12 +264,12 @@ function createSkyRadianceLut(): DataTexture {
   return texture
 }
 
-// Four different photographic cloud silhouettes, placed individually in space.
+// Four independently generated cloud silhouettes, placed individually in space.
 const CLOUD_CLUSTERS: readonly CloudClusterSpec[] = [
-  { id: 'cloud-bank-west', layer: 'mid-cloud', position: [-45, -22, -56], size: [43, 31], rect: [0, .5, .5, .5], atlasPart: 0, opacity: .54 },
-  { id: 'cloud-wisp-east', layer: 'near-air', position: [62, 19, -108], size: [28, 26], rect: [.5, .5, .5, .5], atlasPart: 1, opacity: .42 },
-  { id: 'cloud-billow-north', layer: 'far-cloud', position: [-108, -30, 100], size: [58, 52], rect: [0, 0, .5, .5], atlasPart: 2, opacity: .6 },
-  { id: 'cloud-ribbon-east', layer: 'mid-cloud', position: [86, -26, 37], size: [58, 42], rect: [.5, 0, .5, .5], atlasPart: 3, opacity: .34 },
+  { id: 'cloud-bank-west', layer: 'mid-cloud', position: [-45, -22, -56], size: [43, 31], rect: [0, .5, .5, .5], opacity: .54 },
+  { id: 'cloud-wisp-east', layer: 'near-air', position: [62, 19, -108], size: [28, 26], rect: [.5, .5, .5, .5], opacity: .42 },
+  { id: 'cloud-billow-north', layer: 'far-cloud', position: [-108, -30, 100], size: [58, 52], rect: [0, 0, .5, .5], opacity: .6 },
+  { id: 'cloud-ribbon-east', layer: 'mid-cloud', position: [86, -26, 37], size: [58, 42], rect: [.5, 0, .5, .5], opacity: .34 },
 ]
 
 const backgroundVertexShader = /* glsl */ `
@@ -598,7 +597,6 @@ const cloudVertexShader = /* glsl */ `
 const cloudFragmentShader = /* glsl */ `
   uniform sampler2D uCloudAtlas;
   uniform vec4 uCloudRect;
-  uniform float uAtlasPart;
   uniform float uOpacity;
   uniform float uOverdrawDiagnostic;
   varying vec2 vCloudUv;
@@ -725,7 +723,6 @@ function createCloudEntry(spec: CloudClusterSpec, atlas: Texture): CloudEntry {
     uniforms: {
       uCloudAtlas: { value: atlas },
       uCloudRect: { value: new Vector4(...spec.rect) },
-      uAtlasPart: { value: spec.atlasPart },
       uOpacity: { value: spec.opacity },
       uOverdrawDiagnostic: { value: 0 },
     },
