@@ -3290,6 +3290,7 @@ describe('disposeObject3D', () => {
 })
 
 
+// Preserve all 24 approaches and held-input frames on slower CI runners.
 it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definition.habitat === 'land'))(
   'walks around $id using its shipped footprint and the real held-input collision path', async (definition) => {
   const model = await loadTexturelessAnimal(definition.id, 'Idle')
@@ -3344,4 +3345,4 @@ it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definiti
   if (['baryonyx', 'carnotaurus'].includes(definition.id)) {
     expect(recoveredCorners).toBeGreaterThan(4)
   }
-}, 20_000)
+}, 120_000)

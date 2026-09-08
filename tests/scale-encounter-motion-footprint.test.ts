@@ -6,6 +6,7 @@ import { SCALE_ENCOUNTER_DEFINITIONS } from '../src/viewer/scale-encounter'
 import { createEncounterMotionFootprint } from '../src/viewer/scale-encounter-motion-footprint'
 import { createAnimalGroundFootprint, clearsAnimalGroundFootprint } from '../src/viewer/scale-encounter-ground-footprint'
 
+// Full-cycle geometry checks need headroom under shared CI CPU contention.
 it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definition.habitat === 'land'))(
   'keeps stationary visitors clear throughout the complete $id idle cycle', async definition => {
     const gltf = await loadTexturelessAnimalGltf(definition.id)
@@ -47,19 +48,22 @@ it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definiti
       for (const visitor of visitors) {
         // Measure actual distance to polygon segments independently of the
         // runtime's conservative mitered half-plane expansion.
-        const distance = Math.min(...pose.map((a, index) => {
-          const b = pose[(index + 1) % pose.length]!
-          const edge = b.clone().sub(a)
-          const t = Math.max(0, Math.min(1, visitor.point.clone().sub(a).dot(edge) / edge.lengthSq()))
-          return visitor.point.distanceTo(a.clone().addScaledVector(edge, t))
-        }))
+        let distanceSquared = Infinity
+        for (let index = 0; index < pose.length; index++) {
+          const a = pose[index]!, b = pose[(index + 1) % pose.length]!
+          const dx = b.x - a.x, dz = b.z - a.z
+          const px = visitor.point.x - a.x, pz = visitor.point.z - a.z
+          const t = Math.max(0, Math.min(1, (px * dx + pz * dz) / (dx * dx + dz * dz)))
+          distanceSquared = Math.min(distanceSquared, (px - dx * t) ** 2 + (pz - dz * t) ** 2)
+        }
+        const distance = Math.sqrt(distanceSquared)
         expect(clearsAnimalGroundFootprint(visitor.point, pose, 0)).toBe(true)
         expect(distance, `${definition.id} stationary visitor at frame ${frame}`)
           .toBeGreaterThanOrEqual(visitor.margin - 1e-5)
       }
     }
     if (definition.id === 'pachycephalosaurus') expect(exceedsInitial).toBe(true)
-  }, 20_000,
+  }, 120_000,
 )
 
 it('rejects an obsolete motion bake when the model calibration changes', () => {

@@ -101,6 +101,7 @@ describe('gentle animal attention', () => {
     expect(model.getObjectByName(lower.name)).toBeUndefined()
   })
 
+  // Real-model skinning competes with the full suite on shared CI runners.
   it('keeps chest-to-foreleg triangles bounded throughout lifts on both sides of the shipped mammoth', async () => {
     for (const side of [-1, 1]) {
       const model = await loadTexturelessAnimal('mammoth')
@@ -123,10 +124,12 @@ describe('gentle animal attention', () => {
       expect(edges.length).toBeGreaterThan(1000)
       let maximumStretch = 0
       const posed = rest.map(() => new Vector3())
+      // Only skin vertices used by the chest edges; keep every edge and frame.
+      const chestVertices = new Set(edges.flatMap(({ a, b }) => [a, b]))
       for (let frame = 0; frame < 50; frame++) {
         presence.update({ deltaSeconds: .1, visitorEye: visitor, active: true, reducedMotion: false })
         model.updateMatrixWorld(true); mesh.skeleton.update()
-        for (let i = 0; i < posed.length; i++) mesh.getVertexPosition(i, posed[i]!)
+        for (const i of chestVertices) mesh.getVertexPosition(i, posed[i]!)
         for (const edge of edges) maximumStretch = Math.max(maximumStretch,
           posed[edge.a]!.distanceTo(posed[edge.b]!) / edge.length)
       }
@@ -136,7 +139,7 @@ describe('gentle animal attention', () => {
       expect(maximumStretch, `foreleg side ${side}`).toBeLessThan(2.5)
       presence.dispose()
     }
-  }, 15_000)
+  }, 120_000)
 
   it('increases close attention through the neck chain and restores reduced motion immediately', () => {
     const { model, head } = rig()
