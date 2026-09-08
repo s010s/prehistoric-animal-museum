@@ -10,7 +10,7 @@ import { createAnimalPresence } from '../src/viewer/scale-encounter-animal-prese
 // movement uses this stable swept area even while the child stands still.
 const selected = new Set(process.argv.slice(2))
 const destination = 'src/viewer/scale-encounter-motion-footprints.json'
-const output: Record<string, unknown> = selected.size ? JSON.parse(readFileSync(destination, 'utf8')) : {}
+const output: Record<string, unknown> = selected.size ? JSON.parse(readFileSync(destination, 'utf8')) as Record<string, unknown> : {}
 for (const definition of Object.values(SCALE_ENCOUNTER_DEFINITIONS)) {
   if (definition.habitat !== 'land' || (selected.size && !selected.has(definition.id))) continue
   const gltf = await loadTexturelessAnimalGltf(definition.id)
