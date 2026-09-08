@@ -685,9 +685,8 @@ export function viewerZoomProfileForPointer(
  * different child eye anchor, below) the land plane.
  *
  * On land the useful interaction is a horizontal dolly at the child's eye
- * height. Existing animals retain their reviewed head-relative rail.
- * Apatosaurus and Spinosaurus use a body-centred linear radius: rotating a
- * head-relative rail around their long bodies left an irreducible gap at
+ * height. Every land animal uses a body-centred linear radius: rotating a
+ * head-relative rail around elongated bodies left an irreducible gap at
  * the legs, while the slant-distance projection collapsed the last part of an
  * approach into a visible forward snap. Air and water retain their authored
  * three-dimensional rails unchanged.
@@ -711,22 +710,6 @@ export function computeScaleEncounterPovEyePosition(
     placement.defaultEyePosition.y,
     SCALE_ENCOUNTER_GROUNDED_CAMERA_MINIMUM_HEIGHT,
   )
-  if (placement.animalId !== 'apatosaurus' && placement.animalId !== 'spinosaurus') {
-    const verticalDistance = placement.target.y - eyeHeight
-    const horizontalDistance = Math.sqrt(
-      Math.max(distance * distance - verticalDistance * verticalDistance, 0),
-    )
-    result.copy(placement.observerRailDirection).setY(0)
-    if (result.lengthSq() < 1e-8) {
-      result.copy(placement.defaultEyePosition).sub(placement.target).setY(0)
-    }
-    if (result.lengthSq() < 1e-8) result.set(-1, 0, 0)
-    return result
-      .normalize()
-      .multiplyScalar(horizontalDistance)
-      .add(placement.target)
-      .setY(eyeHeight)
-  }
   result.copy(placement.defaultEyePosition).sub(placement.orbitCenter).setY(0)
   if (result.lengthSq() < 1e-8) result.set(-1, 0, 0)
   return result
@@ -2077,7 +2060,7 @@ export class ViewerController {
         worldBounds.min,
         worldBounds.max,
         groundedEyeHeight,
-        definition.id === 'spinosaurus' ? createAnimalGroundFootprint(current.modelRoot) : undefined,
+        definition.habitat === 'land' ? createAnimalGroundFootprint(current.modelRoot) : undefined,
       )
       avatar.root.rotation.y = placement.avatarYawRadians
       if (
@@ -2344,7 +2327,7 @@ export class ViewerController {
       worldBounds.min,
       worldBounds.max,
       groundedEyeHeight,
-      encounter.definition.id === 'spinosaurus' ? createAnimalGroundFootprint(current.modelRoot) : undefined,
+      encounter.definition.habitat === 'land' ? createAnimalGroundFootprint(current.modelRoot) : undefined,
     )
     replacement.root.rotation.y = placement.avatarYawRadians
     const sceneReplacement =

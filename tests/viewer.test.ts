@@ -2258,8 +2258,9 @@ describe('grounded scale encounter POV clearance', () => {
     )
     for (const [index, eye] of eyes.entries()) {
       expect(eye.y).toBeCloseTo(placement.defaultEyePosition.y, 10)
-      expect(eye.distanceTo(placement.target)).toBeCloseTo(
-        distances[index]!,
+      const centre = new Vector3().copy(placement.orbitCenter).setY(eye.y)
+      expect(eye.distanceTo(centre)).toBeCloseTo(
+        placement.defaultEyePosition.distanceTo(centre) * distances[index]! / placement.defaultDistance,
         8,
       )
       expect(eye.z).toBeCloseTo(eyes[0]!.z, 10)
@@ -3288,27 +3289,32 @@ describe('disposeObject3D', () => {
 })
 
 
-it('walks into Spinosaurus head-side space using the real held-input collision path', async () => {
-  const model = await loadTexturelessAnimal('spinosaurus', 'Idle')
-  model.rotation.y = -Math.PI / 2
+it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definition.habitat === 'land'))(
+  'walks around $id using its shipped footprint and the real held-input collision path', async (definition) => {
+  const model = await loadTexturelessAnimal(definition.id, 'Idle')
+  model.rotation.y = definition.modelYawRadians
   model.updateMatrixWorld(true)
-  model.scale.multiplyScalar(14.5 / new Box3().setFromObject(model, true).getSize(new Vector3()).x)
+  model.scale.multiplyScalar(definition.displayedMeters / new Box3().setFromObject(model, true).getSize(new Vector3())[definition.measurementAxis])
   model.updateMatrixWorld(true)
   const bounds = new Box3().setFromObject(model, true)
   const hull = createAnimalGroundFootprint(model)
   let recoveredCorners = 0
   for (let i = 0; i < 24; i++) {
-    const {controller, encounter} = createGroundedPovController(1.5, 'spinosaurus', bounds.min, bounds.max)
-    encounter.placement = createScaleEncounterPlacement('spinosaurus', bounds.min, bounds.max, .985, hull)
+    const {controller, encounter} = createGroundedPovController(1.5, definition.id, bounds.min, bounds.max)
+    encounter.placement = createScaleEncounterPlacement(definition.id, bounds.min, bounds.max, .985, hull)
     encounter.profile = {...encounter.profile, approach: 'close', heightCm: 110, heightMeters: 1.1}
     encounter.orbitAngleRadians = i * Math.PI / 12
     encounter.targetOrbitAngleRadians = encounter.orbitAngleRadians
     controller.setScaleEncounterDistanceMotion(1)
     const internals = controller as unknown as {updateScaleEncounterDistance(dt: number, now: number): void}
-    for (let frame = 0; frame < 250; frame++) {
+    for (let frame = 0; frame < 500; frame++) {
+      const previousDistance = encounter.observerDistance
+      const previousAngle = encounter.orbitAngleRadians
       internals.updateScaleEncounterDistance(.1, frame * 100)
       const eye = computeScaleEncounterOrbitedEyePosition(encounter.placement, 'land', encounter.observerDistance, encounter.orbitAngleRadians)
       expect(clearsAnimalGroundFootprint(eye, hull, .55 - 1e-5)).toBe(true)
+      if (Math.abs(encounter.observerDistance - previousDistance) < 1e-8 &&
+          Math.abs(encounter.orbitAngleRadians - previousAngle) < 1e-8) break
     }
     const minimum = minimumScaleEncounterDistanceForProfile(encounter.placement, encounter.definition, encounter.profile, encounter.orbitAngleRadians)
     expect(encounter.observerDistance, `approach angle ${i}`).toBeLessThan(minimum + .03)
@@ -3326,5 +3332,7 @@ it('walks into Spinosaurus head-side space using the real held-input collision p
       expect(Math.abs(encounter.orbitAngleRadians - start)).toBeGreaterThan(.02)
     }
   }
-  expect(recoveredCorners).toBeGreaterThan(4)
+  if (['spinosaurus', 'baryonyx', 'carnotaurus'].includes(definition.id)) {
+    expect(recoveredCorners).toBeGreaterThan(4)
+  }
 }, 20_000)

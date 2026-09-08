@@ -333,38 +333,21 @@ describe('scale encounter geometry', () => {
 
   it.each(
     SCALE_ENCOUNTER_ANIMAL_IDS.filter(
-      (animalId) =>
-        animalId !== 'apatosaurus' && animalId !== 'spinosaurus' &&
-        SCALE_ENCOUNTER_DEFINITIONS[animalId].habitat === 'land',
-    ).map((animalId) => [animalId, animalId] as const),
-  )('keeps the existing head-relative ground rail for %s', (animalId) => {
+      (animalId) => SCALE_ENCOUNTER_DEFINITIONS[animalId].habitat === 'land',
+    ),
+  )('preserves the arrival and permits a continuous body-centred approach for %s', (animalId) => {
     const definition = SCALE_ENCOUNTER_DEFINITIONS[animalId]
     const placement = createScaleEncounterPlacement(
-      animalId,
-      new Vector3(-4, 0, -1),
-      new Vector3(6, 4, 1),
-      1.1,
+      animalId, new Vector3(-4, 0, -1), new Vector3(6, 4, 1), 1.1,
     )
-    const distance = definition.maximumDistance
-    const eye = computeScaleEncounterPovEyePosition(
-      placement,
-      definition.habitat,
-      distance,
-    )
-    const eyeHeight = placement.defaultEyePosition.y
-    const verticalDistance = placement.target.y - eyeHeight
-    const horizontalDistance = Math.sqrt(
-      Math.max(distance * distance - verticalDistance * verticalDistance, 0),
-    )
-    const expected = placement.observerRailDirection
-      .clone()
-      .setY(0)
-      .normalize()
-      .multiplyScalar(horizontalDistance)
-      .add(placement.target)
-      .setY(eyeHeight)
-
-    expect(eye.distanceTo(expected)).toBeLessThan(1e-9)
+    const arrival = computeScaleEncounterPovEyePosition(placement, 'land', definition.defaultDistance)
+    expect(arrival.distanceTo(placement.defaultEyePosition)).toBeLessThan(1e-9)
+    const centre = new Vector3().copy(placement.orbitCenter).setY(arrival.y)
+    const half = computeScaleEncounterPovEyePosition(placement, 'land', definition.defaultDistance / 2)
+    expect(half.distanceTo(centre)).toBeCloseTo(arrival.distanceTo(centre) / 2, 9)
+    const end = computeScaleEncounterPovEyePosition(placement, 'land', 0)
+    expect(end.distanceTo(centre)).toBeLessThan(1e-9)
+    expect(half.y).toBe(arrival.y)
   })
 
   it.each([
