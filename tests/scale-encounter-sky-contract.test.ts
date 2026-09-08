@@ -299,7 +299,7 @@ describe('scale encounter sky candidate layer runtime', () => {
     ['B', 0, ['background-atmosphere', 'flight-volume']],
     [
       'C',
-      12,
+      32,
       [
         'background-atmosphere',
         'flight-volume',
@@ -310,7 +310,7 @@ describe('scale encounter sky candidate layer runtime', () => {
     ],
     [
       'D',
-      12,
+      32,
       [
         'background-atmosphere',
         'flight-volume',
@@ -347,7 +347,7 @@ describe('scale encounter sky candidate layer runtime', () => {
       fixtureValue.subjectBounds,
       fixtureValue.avatarBounds,
     )
-    expect(diagnostic.cloudDiagnostics).toHaveLength(12)
+    expect(diagnostic.cloudDiagnostics).toHaveLength(32)
     expect(diagnostic.corridorOverlapCount).toBe(0)
     expect(
       diagnostic.cloudDiagnostics.every(

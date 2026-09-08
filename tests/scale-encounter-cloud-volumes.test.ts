@@ -8,11 +8,16 @@ describe('random spatial cloud volumes', () => {
     for (let seed = 1; seed <= 16; seed++) {
       const plan = createSkyCloudPlan(seed)
       expect(plan).toHaveLength(SKY_CLOUD_COUNT)
+      expect(plan.filter((cloud) => cloud.distant)).toHaveLength(20)
       const widths = plan.map((cloud) => cloud.size[0])
       expect(Math.max(...widths) / Math.min(...widths)).toBeGreaterThan(2.4)
       expect(new Set(plan.map((cloud) => cloud.position[1])).size).toBe(SKY_CLOUD_COUNT)
       expect(new Set(plan.map((cloud) => cloud.seed)).size).toBe(SKY_CLOUD_COUNT)
       for (const cloud of plan) {
+        if (cloud.distant) {
+          expect(Math.hypot(cloud.position[0], cloud.position[2])).toBeGreaterThanOrEqual(260)
+          expect(Math.hypot(cloud.position[0], cloud.position[2])).toBeLessThanOrEqual(620)
+        }
         expect(Math.hypot(cloud.position[0], cloud.position[2])).toBeGreaterThanOrEqual(65)
         expect(cloud.position[1] + cloud.size[1] / 2).toBeLessThan(-12)
         expect(cloud.position[1] - cloud.size[1] / 2).toBeGreaterThan(-60)

@@ -1,4 +1,4 @@
-import { createSkyCloudPlan, createSkyCloudVolume, SKY_CLOUD_DENSITY_BYTES } from './sky-cloud-volumes'
+import { createSkyCloudPlan, createSkyCloudVolume } from './sky-cloud-volumes'
 import {
   BackSide,
   Box3,
@@ -930,7 +930,7 @@ export function createSkyEnvironmentCandidate(
           ...resourceEstimate,
           activeMaterialCount: materials.length,
           proceduralTextureBytes:
-            (variant === 'D' ? 512 * 256 * 4 * 2 : 0) + clouds.entries.length * SKY_CLOUD_DENSITY_BYTES,
+            (variant === 'D' ? 512 * 256 * 4 * 2 : 0) + clouds.entries.reduce((bytes, cloud) => bytes + cloud.density.image.data!.byteLength, 0),
           transparentDrawEstimate: transparentMaterials.length,
         },
         sceneContractRevision: SKY_SCENE_CONTRACT_REVISION,

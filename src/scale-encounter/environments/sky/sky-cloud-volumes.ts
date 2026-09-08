@@ -2,7 +2,7 @@ import { BackSide, BoxGeometry, Data3DTexture, LinearFilter, Mesh, RGFormat, Sha
 
 const RESOLUTION = 64
 export const SKY_CLOUD_DENSITY_BYTES = RESOLUTION ** 3 * 2
-export const SKY_CLOUD_COUNT = 12
+export const SKY_CLOUD_COUNT = 32
 
 function randomSource(seed: number) {
   let state = seed >>> 0
@@ -15,6 +15,7 @@ export interface SkyCloudPlan {
   readonly yaw: number
   readonly seed: number
   readonly speed: number
+  readonly distant: boolean
 }
 
 /** Sample a volume of air, not a line, arc, grid or repeated cloud photograph.
@@ -24,12 +25,17 @@ export function createSkyCloudPlan(seed = crypto.getRandomValues(new Uint32Array
   return Array.from({ length: SKY_CLOUD_COUNT }, (_, index) => {
     // Mix small fragments and substantial banks without giving them the same
     // aspect ratio. Each size class still has independent random dimensions.
-    const width = index < 3 ? 12 + random() * 12 : index < 9 ? 30 + random() * 24 : 64 + random() * 28
+    const distant = index >= 12
+    const width = distant ? 40 + random() * 70 : index < 3 ? 12 + random() * 12 : index < 9 ? 30 + random() * 24 : 64 + random() * 28
     let x: number, z: number
-    do { x = (random() - .5) * 340; z = (random() - .5) * 320 } while (Math.hypot(x, z) < 65)
+    do {
+      x = (random() - .5) * (distant ? 1240 : 340)
+      z = (random() - .5) * (distant ? 1240 : 320)
+    } while (Math.hypot(x, z) < (distant ? 260 : 65) || (distant && Math.hypot(x, z) > 620))
     return {
-      position: [x, -37 + random() * 12, z],
-      size: [width, Math.min(25, width * (.28 + random() * .28)), width * (.52 + random() * .46)],
+      position: [x, distant ? -34 + random() * 10 : -37 + random() * 12, z],
+      size: [width, Math.min(distant ? 20 : 25, width * (.28 + random() * .28)), width * (.52 + random() * .46)],
+      distant,
       yaw: random() * Math.PI * 2,
       seed: Math.floor(random() * 4294967296),
       speed: .018 + random() * .022,
@@ -37,7 +43,7 @@ export function createSkyCloudPlan(seed = crypto.getRandomValues(new Uint32Array
   })
 }
 
-function createDensity(seed: number): Data3DTexture {
+function createDensity(seed: number, resolution = RESOLUTION): Data3DTexture {
   const random = randomSource(seed)
   const lobes = Array.from({ length: 8 }, () => ({
     x: (random() - .5) * .43, y: (random() - .5) * .36, z: (random() - .5) * .42,
@@ -57,32 +63,32 @@ function createDensity(seed: number): Data3DTexture {
     }
     return value
   }
-  const data = new Uint8Array(RESOLUTION ** 3)
-  for (let z = 0; z < RESOLUTION; z++) for (let y = 0; y < RESOLUTION; y++) for (let x = 0; x < RESOLUTION; x++) {
-    const px = x / (RESOLUTION - 1) - .5, py = y / (RESOLUTION - 1) - .5, pz = z / (RESOLUTION - 1) - .5
+  const data = new Uint8Array(resolution ** 3)
+  for (let z = 0; z < resolution; z++) for (let y = 0; y < resolution; y++) for (let x = 0; x < resolution; x++) {
+    const px = x / (resolution - 1) - .5, py = y / (resolution - 1) - .5, pz = z / (resolution - 1) - .5
     let shape = -1
     for (const lobe of lobes) shape = Math.max(shape, 1 - ((px - lobe.x) / lobe.rx) ** 2 - ((py - lobe.y) / lobe.ry) ** 2 - ((pz - lobe.z) / lobe.rz) ** 2)
     const turbulence = sample((px + .5) * 7.9, (py + .5) * 7.9, (pz + .5) * 7.9) * .65
       + sample((px + .5) * 15.9, (py + .5) * 15.9, (pz + .5) * 15.9) * .35
     const field = Math.max(0, Math.min(1, (shape + (turbulence - .5) * 1.5) * 1.8))
     const edge = Math.max(0, Math.min(1, (.49 - Math.max(Math.abs(px), Math.abs(py), Math.abs(pz))) / .08))
-    data[x + y * RESOLUTION + z * RESOLUTION ** 2] = Math.round(ease(field) * ease(edge) * 255)
+    data[x + y * resolution + z * resolution ** 2] = Math.round(ease(field) * ease(edge) * 255)
   }
   // Bake directional light attenuation too: one GPU texture sample supplies
   // both density and self-shadowing, independent of the rendering frame rate.
-  const lit = new Uint8Array(SKY_CLOUD_DENSITY_BYTES)
-  for (let z = 0; z < RESOLUTION; z++) for (let y = 0; y < RESOLUTION; y++) for (let x = 0; x < RESOLUTION; x++) {
-    const index = x + y * RESOLUTION + z * RESOLUTION ** 2
+  const lit = new Uint8Array(resolution ** 3 * 2)
+  for (let z = 0; z < resolution; z++) for (let y = 0; y < resolution; y++) for (let x = 0; x < resolution; x++) {
+    const index = x + y * resolution + z * resolution ** 2
     let opticalDepth = 0
     for (let step = 1; step <= 6; step++) {
       const sx = x - step * 2, sy = y + step * 3, sz = z - step
-      if (sx < 0 || sy >= RESOLUTION || sz < 0) break
-      opticalDepth += data[sx + sy * RESOLUTION + sz * RESOLUTION ** 2]! / 255
+      if (sx < 0 || sy >= resolution || sz < 0) break
+      opticalDepth += data[sx + sy * resolution + sz * resolution ** 2]! / 255
     }
     lit[index * 2] = data[index]!
     lit[index * 2 + 1] = Math.round((.26 + Math.exp(-opticalDepth * .72) * .74) * 255)
   }
-  const texture = new Data3DTexture(lit, RESOLUTION, RESOLUTION, RESOLUTION)
+  const texture = new Data3DTexture(lit, resolution, resolution, resolution)
   texture.format = RGFormat
   texture.minFilter = texture.magFilter = LinearFilter
   texture.unpackAlignment = 1
@@ -91,13 +97,13 @@ function createDensity(seed: number): Data3DTexture {
 }
 
 export function createSkyCloudVolume(plan: SkyCloudPlan, index: number, steps = 28) {
-  const density = createDensity(plan.seed)
+  const density = createDensity(plan.seed, plan.distant ? 32 : 64)
   const localEye = new Vector3()
   const material = new ShaderMaterial({
     transparent: true, premultipliedAlpha: true, depthWrite: false, side: BackSide,
     uniforms: {
       uDensity: { value: density }, uEye: { value: localEye },
-      uSteps: { value: steps }, uOverdrawDiagnostic: { value: 0 },
+      uSteps: { value: plan.distant ? Math.min(20, steps) : steps }, uOverdrawDiagnostic: { value: 0 },
     },
     vertexShader: `varying vec3 vLocal; void main() {
       vLocal = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);

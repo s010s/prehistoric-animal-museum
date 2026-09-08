@@ -66,9 +66,26 @@ export function prepareMammothInteractionRig(model: Object3D): MammothInteractio
     const factor = remainder > .00001 ? (1 - headWeight) / remainder : 0
     for (let joint = 0; joint < kneeIndex; joint++) influences[joint]! *= factor
     influences[1] = headWeight
+    // The source assigns whole belly triangles to the foreleg with a hard
+    // 0/1 boundary. A large lift stretches adjacent edges more than twentyfold.
+    // Rebuild both shoulder fields in bind space, including the adjoining
+    // torso, so the chest stays attached while the lower leg bends visibly.
+    for (const legIndex of legIndices) {
+      influences[0]! += influences[legIndex]!
+      influences[legIndex] = 0
+    }
+    const z = positions.getZ(i)
+    const frontField = (1 - MathUtils.smoothstep(y, -.32, .08)) *
+      MathUtils.smoothstep(x, -.24, -.09) * (1 - MathUtils.smoothstep(x, .16, .36))
+    const available = influences[0]!
     legIndices.forEach((legIndex, side) => {
-      const lowerWeight = influences[legIndex]! * (1 - MathUtils.smoothstep(y, -.39, -.19))
-      influences[legIndex]! -= lowerWeight
+      const sideField = MathUtils.smoothstep(side === 0 ? z - .012 : .012 - z, .035, .15)
+      const upperWeight = available * frontField * sideField
+      influences[0]! -= upperWeight
+      influences[legIndex] = upperWeight
+
+      const lowerWeight = influences[legIndex] * (1 - MathUtils.smoothstep(y, -.39, -.19))
+      influences[legIndex] -= lowerWeight
       influences[kneeIndex + side] = lowerWeight
     })
     const strongest = Array.from(influences, (weight, joint) => ({ weight, joint }))

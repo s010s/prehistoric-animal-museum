@@ -101,6 +101,43 @@ describe('gentle animal attention', () => {
     expect(model.getObjectByName(lower.name)).toBeUndefined()
   })
 
+  it('keeps chest-to-foreleg triangles bounded throughout lifts on both sides of the shipped mammoth', async () => {
+    for (const side of [-1, 1]) {
+      const model = await loadTexturelessAnimal('mammoth')
+      const centre = new Box3().setFromObject(model, true).getCenter(new Vector3())
+      const visitor = centre.clone().add(new Vector3(0, 0, side))
+      const presence = createAnimalPresence('mammoth', model, visitor)!
+      let mesh!: SkinnedMesh
+      model.traverse((object) => { if (object instanceof SkinnedMesh) mesh = object as SkinnedMesh })
+      mesh.skeleton.update()
+      const positions = mesh.geometry.getAttribute('position')
+      const rest = Array.from({ length: positions.count }, (_, i) => mesh.getVertexPosition(i, new Vector3()))
+      const indices = mesh.geometry.index!
+      const edges: { a: number; b: number; length: number }[] = []
+      for (let i = 0; i < indices.count; i += 3) for (let k = 0; k < 3; k++) {
+        const a = indices.getX(i + k), b = indices.getX(i + (k + 1) % 3)
+        const length = rest[a]!.distanceTo(rest[b]!)
+        if (length > .003 && positions.getX(a) > -.2 && positions.getX(a) < .4 &&
+          positions.getY(a) > -.35 && positions.getY(a) < .12) edges.push({ a, b, length })
+      }
+      expect(edges.length).toBeGreaterThan(1000)
+      let maximumStretch = 0
+      const posed = rest.map(() => new Vector3())
+      for (let frame = 0; frame < 50; frame++) {
+        presence.update({ deltaSeconds: .1, visitorEye: visitor, active: true, reducedMotion: false })
+        model.updateMatrixWorld(true); mesh.skeleton.update()
+        for (let i = 0; i < posed.length; i++) mesh.getVertexPosition(i, posed[i]!)
+        for (const edge of edges) maximumStretch = Math.max(maximumStretch,
+          posed[edge.a]!.distanceTo(posed[edge.b]!) / edge.length)
+      }
+      expect(presence.acknowledgementCount).toBe(1)
+      // The uncorrected belly reached 21.9x during the hold despite passing
+      // coincident-vertex checks after the gesture had already ended.
+      expect(maximumStretch, `foreleg side ${side}`).toBeLessThan(2.5)
+      presence.dispose()
+    }
+  }, 15_000)
+
   it('increases close attention through the neck chain and restores reduced motion immediately', () => {
     const { model, head } = rig()
     const presence = createAnimalPresence('tyrannosaurus-rex', model)!
@@ -140,6 +177,11 @@ describe('gentle animal attention', () => {
       model.updateMatrixWorld(true)
       const centre = new Box3().setFromObject(model, true).getCenter(new Vector3())
       const presence = createAnimalPresence(id as keyof typeof ENCOUNTER_ATTENTION_JOINTS, model, centre.clone().add(new Vector3(0, 0, 8)))!
+      const limbs: { bone: Bone; rotation: Quaternion; position: Vector3 }[] = []
+      if (id !== 'mammoth') model.traverse((object) => {
+        if (object instanceof Bone && /leg|foot|thigh|calf|ankle|knee/i.test(object.name))
+          limbs.push({ bone: object as Bone, rotation: object.quaternion.clone(), position: object.position.clone() })
+      })
       for (let i = 0; i < 90; i++) presence.update({ deltaSeconds: .1, visitorEye: centre.clone().add(new Vector3(2, 0, 2)), active: true, reducedMotion: false })
       model.updateMatrixWorld(true)
       let maximumGap = 0
@@ -159,6 +201,10 @@ describe('gentle animal attention', () => {
           } else matches.set(key, i)
         }
       })
+      for (const limb of limbs) {
+        expect(limb.bone.quaternion.toArray(), `${id}: ${limb.bone.name}`).toEqual(limb.rotation.toArray())
+        expect(limb.bone.position).toEqual(limb.position)
+      }
       expect(maximumGap, `${id}: coincident skin seam gap`).toBeLessThan(.0001)
       presence.dispose()
     }
