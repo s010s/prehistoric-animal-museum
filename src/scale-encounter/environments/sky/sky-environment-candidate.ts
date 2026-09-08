@@ -1,3 +1,4 @@
+import { createSkyCloudPlan, createSkyCloudVolume, SKY_CLOUD_DENSITY_BYTES } from './sky-cloud-volumes'
 import {
   BackSide,
   Box3,
@@ -22,10 +23,6 @@ import {
   ShaderMaterial,
   SphereGeometry,
   Vector3,
-  Vector4,
-  TextureLoader,
-  SRGBColorSpace,
-  type Texture,
   type Camera,
   type LineBasicMaterial,
   type Material,
@@ -55,13 +52,13 @@ import {
   type GeometryResourceEstimate,
   type SerializedBox3,
   type SkyCloudDiagnostic,
-  type SkyCloudDiagnosticInput,
   type TransparentOverdrawEstimate,
 } from './sky-diagnostics'
 import { createSkyCoast } from './sky-coast'
 
 export interface SkyEnvironmentCandidateInput {
   readonly assetLease: SkyAssetLeaseIdentity
+  readonly cloudSeed?: number
   readonly coastTemplate?: Object3D | null
   readonly avatarBounds: Readonly<Box3>
   readonly cameraState: SkyCameraState
@@ -81,7 +78,7 @@ export interface SkyAlphaDiagnostic {
   readonly alphaMode: 'opaque' | 'premultiplied-blend'
   readonly alphaTextureCount: number
   readonly cloudMaterialsPremultiplied: boolean
-  readonly cloudMaterialsUseMipmaps: true
+  readonly cloudMaterialsUseMipmaps: boolean
   readonly cloudMaterialsDepthWriteDisabled: boolean
   readonly edgeRgbPolicy: string
 }
@@ -155,19 +152,6 @@ type CloudLayer = Extract<
   SkyLayerId,
   'near-air' | 'mid-cloud' | 'far-cloud'
 >
-
-interface CloudClusterSpec {
-  readonly id: string
-  readonly layer: CloudLayer
-  readonly position: readonly [number, number, number]
-  readonly size: readonly [number, number]
-  readonly rect: readonly [number, number, number, number]
-  readonly opacity: number
-}
-
-interface CloudEntry extends SkyCloudDiagnosticInput {
-  readonly material: ShaderMaterial
-}
 
 const SUN_DIRECTION = new Vector3(-0.42, 0.78, -0.46).normalize()
 const BACKGROUND_RADIUS_METERS = 850
@@ -263,14 +247,6 @@ function createSkyRadianceLut(): DataTexture {
   texture.needsUpdate = true
   return texture
 }
-
-// Four independently generated cloud silhouettes, placed individually in space.
-const CLOUD_CLUSTERS: readonly CloudClusterSpec[] = [
-  { id: 'cloud-bank-west', layer: 'mid-cloud', position: [-45, -22, -56], size: [43, 31], rect: [0, .5, .5, .5], opacity: .54 },
-  { id: 'cloud-wisp-east', layer: 'near-air', position: [62, 19, -108], size: [28, 26], rect: [.5, .5, .5, .5], opacity: .42 },
-  { id: 'cloud-billow-north', layer: 'far-cloud', position: [-108, -30, 100], size: [58, 52], rect: [0, 0, .5, .5], opacity: .6 },
-  { id: 'cloud-ribbon-east', layer: 'mid-cloud', position: [86, -26, 37], size: [58, 42], rect: [.5, 0, .5, .5], opacity: .34 },
-]
 
 const backgroundVertexShader = /* glsl */ `
   varying vec3 vDirection;
@@ -586,35 +562,6 @@ const horizonHazeFragmentShader = /* glsl */ `
   }
 `
 
-const cloudVertexShader = /* glsl */ `
-  varying vec2 vCloudUv;
-  void main() {
-    vCloudUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`
-
-const cloudFragmentShader = /* glsl */ `
-  uniform sampler2D uCloudAtlas;
-  uniform vec4 uCloudRect;
-  uniform float uOpacity;
-  uniform float uOverdrawDiagnostic;
-  varying vec2 vCloudUv;
-  void main() {
-    vec2 atlasUv = uCloudRect.xy + vCloudUv * uCloudRect.zw;
-    vec4 cloud = texture2D(uCloudAtlas, atlasUv);
-    // Preserve translucent fringes and blend the far cloud into its aerial
-    // haze. Avoid the old threshold that made small lobes look like dot rows.
-    float edge = smoothstep(0., .035, min(min(vCloudUv.x, 1.-vCloudUv.x), min(vCloudUv.y, 1.-vCloudUv.y)));
-    float alpha = smoothstep(.012, .98, cloud.a) * uOpacity * edge;
-    vec3 colour = mix(cloud.rgb, vec3(1.0, .18, .02), uOverdrawDiagnostic);
-    gl_FragColor = vec4(colour, alpha);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-    gl_FragColor.rgb *= gl_FragColor.a;
-  }
-`
-
 function createBackgroundLayer(radianceTexture: DataTexture): {
   readonly flightFill: DirectionalLight
   readonly group: Group
@@ -711,36 +658,7 @@ function createFlightLayer(
   }
 }
 
-function createCloudEntry(spec: CloudClusterSpec, atlas: Texture): CloudEntry {
-  const material = new ShaderMaterial({
-    depthTest: true,
-    depthWrite: false,
-    fragmentShader: cloudFragmentShader,
-    premultipliedAlpha: true,
-    side: DoubleSide,
-    toneMapped: true,
-    transparent: true,
-    uniforms: {
-      uCloudAtlas: { value: atlas },
-      uCloudRect: { value: new Vector4(...spec.rect) },
-      uOpacity: { value: spec.opacity },
-      uOverdrawDiagnostic: { value: 0 },
-    },
-    vertexShader: cloudVertexShader,
-  })
-  const object = new Mesh(new PlaneGeometry(...spec.size), material)
-  object.name = spec.id
-  object.position.set(...spec.position)
-  return { id: spec.id, layer: spec.layer, material, object }
-}
-
-function createCloudLayers(): {
-  readonly entries: readonly CloudEntry[]
-  readonly atlas: Texture
-  readonly far: Group
-  readonly mid: Group
-  readonly near: Group
-} {
+function createCloudLayers(seed?: number, steps = 28) {
   const near = new Group()
   const mid = new Group()
   const far = new Group()
@@ -752,11 +670,7 @@ function createCloudLayers(): {
     'mid-cloud': mid,
     'far-cloud': far,
   }
-  const atlas = new TextureLoader().load(new URL(
-    '../../assets/environments/clouds-natural-v3.webp', import.meta.url,
-  ).href)
-  atlas.colorSpace = SRGBColorSpace
-  const entries = CLOUD_CLUSTERS.map((spec) => createCloudEntry(spec, atlas))
+  const entries = createSkyCloudPlan(seed).map((plan, index) => createSkyCloudVolume(plan, index, steps))
   entries.forEach((entry) => groups[entry.layer].add(entry.object))
 
   const horizonHaze = new Mesh(
@@ -777,7 +691,7 @@ function createCloudLayers(): {
   horizonHaze.position.y = SKY_REFERENCE_Y_METERS + 29
   horizonHaze.renderOrder = 80
   far.add(horizonHaze)
-  return { entries, atlas, far, mid, near }
+  return { entries, far, mid, near }
 }
 
 function createBandHelper(
@@ -893,8 +807,7 @@ export function createSkyEnvironmentCandidate(
   const radianceTexture = createSkyRadianceLut()
   const background = createBackgroundLayer(radianceTexture)
   const flight = createFlightLayer(radianceTexture, input.coastTemplate)
-  const clouds = createCloudLayers()
-  const cloudOrigins = clouds.entries.map((cloud) => cloud.object.position.clone())
+  const clouds = createCloudLayers(input.cloudSeed, input.rendererCapabilities.maxTextureSize < 4096 ? 20 : 28)
   let livingTime = 0
   let previousTime: number | null = null
   const debug = createFlightVolumeDebug()
@@ -958,7 +871,7 @@ export function createSkyEnvironmentCandidate(
       root.removeFromParent()
       disposeGroup(root)
       radianceTexture.dispose()
-      clouds.atlas.dispose()
+      clouds.entries.forEach((cloud) => cloud.density.dispose())
     },
     getDiagnostics: (
       camera,
@@ -996,16 +909,16 @@ export function createSkyEnvironmentCandidate(
         alpha: {
           alphaMode:
             activeClouds.length > 0 ? 'premultiplied-blend' : 'opaque',
-          alphaTextureCount: 1,
+          alphaTextureCount: 0,
           cloudMaterialsPremultiplied: clouds.entries.every(
             (entry) => entry.material.premultipliedAlpha,
           ),
-          cloudMaterialsUseMipmaps: true,
+          cloudMaterialsUseMipmaps: false,
           cloudMaterialsDepthWriteDisabled: clouds.entries.every(
             (entry) => entry.material.depthWrite === false,
           ),
           edgeRgbPolicy:
-            'Four unique generated cloud cutouts use alpha, mipmaps and fixed spatial placements.',
+            'Independent 3D density volumes use trilinear sampling and premultiplied alpha; no cloud atlas.',
         },
         assetLease: input.assetLease,
         avatarOcclusionEvaluated,
@@ -1041,7 +954,7 @@ export function createSkyEnvironmentCandidate(
           ...resourceEstimate,
           activeMaterialCount: materials.length,
           proceduralTextureBytes:
-            variant === 'D' ? 512 * 256 * 4 * 2 : 0,
+            (variant === 'D' ? 512 * 256 * 4 * 2 : 0) + clouds.entries.length * SKY_CLOUD_DENSITY_BYTES,
           transparentDrawEstimate: transparentMaterials.length,
         },
         sceneContractRevision: SKY_SCENE_CONTRACT_REVISION,
@@ -1077,15 +990,7 @@ export function createSkyEnvironmentCandidate(
       const delta = previousTime === null ? 0 : Math.min(.1, Math.max(0, elapsedSeconds - previousTime))
       previousTime = elapsedSeconds
       if (!reducedMotion) livingTime += delta
-      clouds.entries.forEach((cloud, index) => {
-        cloud.object.quaternion.copy(camera.quaternion)
-        const origin = cloudOrigins[index]!
-        cloud.object.position.set(
-          origin.x + Math.sin(livingTime * .025) * (3 + index * .6),
-          origin.y + Math.sin(livingTime * .016) * .35,
-          origin.z + Math.sin(livingTime * .019) * 1.4,
-        )
-      })
+      clouds.entries.forEach((cloud) => cloud.update(livingTime, camera))
       const time = livingTime
       flight.seaMaterial.uniforms.uTime!.value = time
       const cameraPositionUniform = flight.seaMaterial.uniforms

@@ -262,6 +262,7 @@ describe('scale encounter sky candidate layer runtime', () => {
     const template = new Group()
     template.add(scan)
     const candidate = createSkyEnvironmentCandidate({
+      cloudSeed: 8192,
       coastTemplate: template,
       assetLease: {
         assetId: 'scale-encounter-sky-coastal-v1',
@@ -298,7 +299,7 @@ describe('scale encounter sky candidate layer runtime', () => {
     ['B', 0, ['background-atmosphere', 'flight-volume']],
     [
       'C',
-      4,
+      12,
       [
         'background-atmosphere',
         'flight-volume',
@@ -309,7 +310,7 @@ describe('scale encounter sky candidate layer runtime', () => {
     ],
     [
       'D',
-      4,
+      12,
       [
         'background-atmosphere',
         'flight-volume',
@@ -346,7 +347,7 @@ describe('scale encounter sky candidate layer runtime', () => {
       fixtureValue.subjectBounds,
       fixtureValue.avatarBounds,
     )
-    expect(diagnostic.cloudDiagnostics).toHaveLength(4)
+    expect(diagnostic.cloudDiagnostics).toHaveLength(12)
     expect(diagnostic.corridorOverlapCount).toBe(0)
     expect(
       diagnostic.cloudDiagnostics.every(
@@ -355,9 +356,9 @@ describe('scale encounter sky candidate layer runtime', () => {
     ).toBe(true)
     expect(diagnostic.alpha).toMatchObject({
       alphaMode: 'premultiplied-blend',
-      alphaTextureCount: 1,
+      alphaTextureCount: 0,
       cloudMaterialsPremultiplied: true,
-      cloudMaterialsUseMipmaps: true,
+      cloudMaterialsUseMipmaps: false,
       cloudMaterialsDepthWriteDisabled: true,
     })
     fixtureValue.candidate.dispose()

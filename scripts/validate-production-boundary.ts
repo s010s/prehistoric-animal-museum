@@ -139,6 +139,7 @@ if (distributionPaths.has('.vite/manifest.json')) {
   // ship alongside their replacements.
   const supersededEnvironmentAssets = new Set([
     'environments/clouds-unique-v2.webp',
+    'environments/clouds-natural-v3.webp',
     'environments/panorama-gobi-irendabas-photoreal-v1-2048.webp',
     'environments/panorama-gobi-irendabas-photoreal-v1-4096.webp',
     'environments/sky/aerial-island-atlas-v1.webp',
