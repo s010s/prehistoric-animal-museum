@@ -371,9 +371,11 @@ describe('scale encounter sky candidate layer runtime', () => {
     ) as Mesh
     const seaMaterial = sea.material as ShaderMaterial
     expect(seaMaterial.vertexShader).toContain(
-      'scaleEncounterHorizonWaveFade',
+      'modelMatrix * vec4(position, 1.0)',
     )
-    expect(seaMaterial.vertexShader).toContain('145.0')
+    expect(seaMaterial.vertexShader).not.toContain('vWave')
+    expect(seaMaterial.fragmentShader).not.toContain('softCrest')
+    expect(seaMaterial.fragmentShader).not.toContain('longSwell')
     expect(seaMaterial.fragmentShader).toContain(
       'scaleEncounterSeamlessHorizon',
     )

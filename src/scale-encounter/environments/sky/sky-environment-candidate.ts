@@ -384,37 +384,12 @@ const backgroundFragmentShader = /* glsl */ `
 `
 
 const seaVertexShader = /* glsl */ `
-  uniform float uTime;
-  uniform vec3 uCameraPosition;
   varying vec3 vWorldPosition;
-  varying float vWave;
-
-  float waveHeight(vec2 point, float time) {
-    return sin(point.x * 0.055 + time * 0.22) * 0.32 +
-      sin(point.y * 0.041 - time * 0.17 + 1.7) * 0.24 +
-      sin((point.x + point.y) * 0.021 + time * 0.11) * 0.18;
-  }
 
   void main() {
-    vec3 transformed = position;
-    vec4 flatWorldPosition = modelMatrix * vec4(position, 1.0);
-    float horizontalDistance = length(
-      flatWorldPosition.xz - uCameraPosition.xz
-    );
-    // The old moving outer edge met the 240 m far plane as a visibly
-    // piecewise-linear skyline. Flatten the swell before it reaches the
-    // atmospheric horizon; foreground water keeps all of its movement.
-    float scaleEncounterHorizonWaveFade = 1.0 - smoothstep(
-      145.0,
-      215.0,
-      horizontalDistance
-    );
-    vWave = waveHeight(position.xy, uTime) * scaleEncounterHorizonWaveFade;
-    // At aerial scale the visible swell belongs in normals. A fixed sea
-    // elevation keeps the shallow beaches stable instead of submerging them.
-    // No moving geometry crosses the island's alpha-tested shoreline.
-    transformed.z += 0.0;
-    vec4 worldPosition = modelMatrix * vec4(transformed, 1.0);
+    // A fixed sea elevation keeps shorelines and the atmospheric horizon
+    // stable. Fine surface movement is confined to fragment normals.
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
     vWorldPosition = worldPosition.xyz;
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
   }
@@ -427,7 +402,6 @@ const seaFragmentShader = /* glsl */ `
   uniform float uTime;
   uniform float uUseSkyRadiance;
   varying vec3 vWorldPosition;
-  varying float vWave;
 
   vec2 seaDirectionToEquirectUv(vec3 direction) {
     direction = normalize(direction);
@@ -459,18 +433,30 @@ const seaFragmentShader = /* glsl */ `
     return mix(colour, vec3(1.0, 0.94, 0.76), sunDisc * 0.68);
   }
 
+  float seaNoise(vec2 point) {
+    vec2 cell = floor(point), blend = fract(point);
+    blend = blend * blend * (3.0 - 2.0 * blend);
+    vec4 corners = vec4(
+      dot(cell, vec2(127.1, 311.7)),
+      dot(cell + vec2(1., 0.), vec2(127.1, 311.7)),
+      dot(cell + vec2(0., 1.), vec2(127.1, 311.7)),
+      dot(cell + vec2(1., 1.), vec2(127.1, 311.7))
+    );
+    vec4 values = fract(sin(corners) * 43758.5453);
+    return mix(mix(values.x, values.y, blend.x), mix(values.z, values.w, blend.x), blend.y);
+  }
+
   void main() {
-    vec2 point = vWorldPosition.xz;
+    // At flight altitude, broad periodic white crests read as repeated cloud
+    // ribbons. Keep only faint, irregular ripples in the reflected light.
+    vec2 point = vWorldPosition.xz * .18 + vec2(uTime * .014, -uTime * .009);
     vec3 normal = normalize(vec3(
-      -0.022 * cos(point.x * 0.055 + uTime * 0.22) -
-        0.011 * cos((point.x + point.y) * 0.021 + uTime * 0.11),
+      (seaNoise(point) - .5) * .008,
       1.0,
-      -0.010 * cos(point.y * 0.041 - uTime * 0.17 + 1.7) -
-        0.011 * cos((point.x + point.y) * 0.021 + uTime * 0.11)
+      (seaNoise(point + vec2(37.2, -19.4)) - .5) * .008
     ));
     vec3 viewDirection = normalize(uCameraPosition - vWorldPosition);
     float fresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 3.2);
-    vec3 deepWater = vec3(0.018, 0.16, 0.25);
     vec3 openWater = vec3(0.038, 0.28, 0.41);
     vec3 skyReflection = vec3(0.31, 0.57, 0.69);
     if (uUseSkyRadiance > 0.5) {
@@ -483,16 +469,6 @@ const seaFragmentShader = /* glsl */ `
     // Keep enough blue-green body colour beneath the reflected sky for the
     // sea to read as a plane rather than a continuation of the atmosphere.
     vec3 colour = mix(openWater, skyReflection, fresnel * 0.58);
-    colour = mix(colour, deepWater, smoothstep(-0.55, 0.3, vWave) * 0.12);
-    float longSwell = 0.5 + 0.5 * sin(
-      point.x * 0.072 + point.y * 0.026 + uTime * 0.24 +
-      sin(point.y * 0.019 - uTime * 0.09) * 1.35
-    );
-    float crossSwell = 0.5 + 0.5 * sin(
-      point.x * -0.031 + point.y * 0.086 - uTime * 0.19
-    );
-    float softCrest = smoothstep(0.78, 0.98, longSwell * 0.74 + crossSwell * 0.26);
-    colour += vec3(0.10, 0.17, 0.19) * softCrest * (0.16 + fresnel * 0.2);
     vec3 reflectedSun = reflect(-normalize(uSunDirection), normal);
     float glint = pow(max(dot(reflectedSun, viewDirection), 0.0), 92.0);
     colour += vec3(1.0, 0.84, 0.59) * glint * 0.76;
