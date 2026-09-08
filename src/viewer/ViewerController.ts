@@ -685,8 +685,8 @@ export function viewerZoomProfileForPointer(
  *
  * On land the useful interaction is a horizontal dolly at the child's eye
  * height. Existing animals retain their reviewed head-relative rail.
- * Apatosaurus alone uses a body-centred linear radius: rotating its old
- * head-relative rail around a 23 m body left an irreducible multi-metre gap at
+ * Apatosaurus and Spinosaurus use a body-centred linear radius: rotating a
+ * head-relative rail around their long bodies left an irreducible gap at
  * the legs, while the slant-distance projection collapsed the last part of an
  * approach into a visible forward snap. Air and water retain their authored
  * three-dimensional rails unchanged.
@@ -710,7 +710,7 @@ export function computeScaleEncounterPovEyePosition(
     placement.defaultEyePosition.y,
     SCALE_ENCOUNTER_GROUNDED_CAMERA_MINIMUM_HEIGHT,
   )
-  if (placement.animalId !== 'apatosaurus') {
+  if (placement.animalId !== 'apatosaurus' && placement.animalId !== 'spinosaurus') {
     const verticalDistance = placement.target.y - eyeHeight
     const horizontalDistance = Math.sqrt(
       Math.max(distance * distance - verticalDistance * verticalDistance, 0),
@@ -772,7 +772,7 @@ export function scaleEncounterLandRadiusAtDistance(
 /**
  * Inverts a land animal's existing observation rail by world radius. This is
  * what keeps 1.4/2.8 m/s honest on both the legacy slant-distance rails and
- * Apatosaurus's body-centred linear rail without changing either composition.
+ * the long animals' body-centred linear rails without changing either composition.
  */
 export function scaleEncounterLandDistanceForRadius(
   placement: ScaleEncounterPlacement,

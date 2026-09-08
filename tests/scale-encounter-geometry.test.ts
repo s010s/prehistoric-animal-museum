@@ -221,7 +221,7 @@ describe('scale encounter geometry', () => {
       Math.abs(horizontalRail.x),
     )
 
-    expect(collisionMinimum).toBeLessThan(4)
+    expect(collisionMinimum).toBeLessThan(definition.minimumDistance)
     expect(placement.defaultEyePosition.distanceTo(placement.target)).toBeCloseTo(
       12.5,
       8,
@@ -232,6 +232,29 @@ describe('scale encounter geometry', () => {
     expect(definition.minimumDistance).toBe(9)
     expect(definition.maximumDistance).toBe(25)
     expect(definition.defaultDistance).toBeGreaterThan(collisionMinimum)
+  })
+
+  it('reaches both Spinosaurus flanks continuously while preserving the opening position', () => {
+    const definition = SCALE_ENCOUNTER_DEFINITIONS.spinosaurus
+    const placement = createScaleEncounterPlacement('spinosaurus',
+      new Vector3(-4.698872, 0, -1.356681), new Vector3(9.682645, 5.158696, 2.046446), 1.1)
+    const profile = normalizeScaleEncounterProfile({ approach: 'close', gender: 'girl', heightCm: 110 })
+    const initial = computeScaleEncounterPovEyePosition(placement, 'land', definition.defaultDistance)
+    expect(initial.distanceTo(placement.defaultEyePosition)).toBeLessThan(1e-8)
+    const direction = initial.clone().sub(placement.orbitCenter)
+    for (const angle of [Math.atan2(-direction.x, direction.z), Math.atan2(-direction.x, direction.z) + Math.PI]) {
+      const minimum = minimumScaleEncounterDistanceForProfile(placement, definition, profile, angle)
+      const eye = computeScaleEncounterOrbitedEyePosition(placement, 'land', minimum, angle)
+      const next = computeScaleEncounterOrbitedEyePosition(placement, 'land', minimum + .2, angle)
+      const after = computeScaleEncounterOrbitedEyePosition(placement, 'land', minimum + .4, angle)
+      const halfWidth = (placement.animalBoundsMaximum.z - placement.animalBoundsMinimum.z) / 2
+      const clearance = Math.abs(eye.z - placement.orbitCenter.z) - halfWidth
+      expect(clearance).toBeGreaterThanOrEqual(.55 - 1e-5)
+      expect(clearance).toBeLessThan(.56)
+      expect(eye.x).toBeCloseTo(placement.orbitCenter.x, 6)
+      expect(next.distanceTo(eye)).toBeGreaterThan(.1)
+      expect(after.distanceTo(next)).toBeCloseTo(next.distanceTo(eye), 6)
+    }
   })
 
   it('places the Archaeopteryx child on a short diagonal rail without changing the half-metre animal scale', () => {
@@ -311,7 +334,7 @@ describe('scale encounter geometry', () => {
   it.each(
     SCALE_ENCOUNTER_ANIMAL_IDS.filter(
       (animalId) =>
-        animalId !== 'apatosaurus' &&
+        animalId !== 'apatosaurus' && animalId !== 'spinosaurus' &&
         SCALE_ENCOUNTER_DEFINITIONS[animalId].habitat === 'land',
     ).map((animalId) => [animalId, animalId] as const),
   )('keeps the existing head-relative ground rail for %s', (animalId) => {

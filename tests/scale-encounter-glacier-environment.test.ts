@@ -1,4 +1,4 @@
-import { DirectionalLight, Mesh, ShaderMaterial, Texture } from 'three'
+import { DirectionalLight, Mesh, type MeshStandardMaterial, ShaderMaterial, Texture, TextureLoader, type WebGLRenderer } from 'three'
 
 import {
   MAMMOTH_PALAEOENVIRONMENT_ANCHOR,
@@ -9,6 +9,32 @@ import {
 } from '../src/scale-encounter/environments/glacier'
 
 describe('mammoth palaeoenvironment teaching composite', () => {
+  it('keeps a lit soil fallback until the ground image has loaded', () => {
+    const pending: { texture: Texture<HTMLImageElement>; loaded: ((texture: Texture<HTMLImageElement>) => void) | undefined }[] = []
+    const loader = vi.spyOn(TextureLoader.prototype, 'load').mockImplementation((_url, loaded) => {
+      const texture = new Texture<HTMLImageElement>()
+      pending.push({ texture, loaded })
+      return texture
+    })
+    const candidate = createMammothPalaeoenvironmentCandidate('B')
+    try {
+      const ground = candidate.root.getObjectByName('glacier-ground-surface-unglaciated-land') as Mesh
+      const material = ground.material as MeshStandardMaterial
+      const shader = {
+        uniforms: {}, vertexShader: '#include <common>\n#include <worldpos_vertex>',
+        fragmentShader: '#include <common>\n#include <map_fragment>\n#include <opaque_fragment>',
+      } as unknown as Parameters<MeshStandardMaterial['onBeforeCompile']>[0]
+      material.onBeforeCompile(shader, {} as WebGLRenderer)
+      const readiness = shader.uniforms.mammothGroundAlbedoReady!
+      expect(readiness.value).toBe(0)
+      expect(shader.fragmentShader).toContain('if (mammothGroundAlbedoReady < 0.5) diffuseColor.rgb = vec3(0.42, 0.36, 0.26)')
+      const image = pending.find((entry) => entry.texture === material.map)!
+      expect(image).toBeDefined()
+      image.loaded!(image.texture)
+      expect(readiness.value).toBe(1)
+    } finally { candidate.dispose(); loader.mockRestore() }
+  })
+
   it('fits the narrow overview against minimum zoom without changing wide framing', () => {
     const mobileFittingFieldOfView =
       computeMammothOverviewFittingFieldOfView(30, 390 / 844)
