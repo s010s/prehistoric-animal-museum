@@ -15,6 +15,10 @@ export function createAnimalGroundFootprint(model: Object3D): readonly Vector3[]
       points.push(mesh.getVertexPosition(i, new Vector3()).applyMatrix4(mesh.matrixWorld).setY(0))
     }
   })
+  return convexGroundFootprint(points)
+}
+
+export function convexGroundFootprint(points: Vector3[]): readonly Vector3[] {
   points.sort((a, b) => a.x - b.x || a.z - b.z)
   const turn = (a: Vector3, b: Vector3, c: Vector3) =>
     (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x)

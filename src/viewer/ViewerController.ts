@@ -1,4 +1,5 @@
-import { createAnimalGroundFootprint, clearsAnimalGroundFootprint, projectOutsideAnimalGroundFootprint } from './scale-encounter-ground-footprint'
+import { createEncounterMotionFootprint } from './scale-encounter-motion-footprint'
+import { clearsAnimalGroundFootprint, projectOutsideAnimalGroundFootprint } from './scale-encounter-ground-footprint'
 import {
   ACESFilmicToneMapping,
   AnimationMixer,
@@ -934,7 +935,8 @@ export function minimumScaleEncounterDistanceForProfile(
 ): number {
   if (
     profile.approach !== 'close' &&
-    placement.animalId !== 'apatosaurus'
+    placement.animalId !== 'apatosaurus' &&
+    !placement.groundFootprint
   ) {
     return definition.minimumDistance
   }
@@ -2060,7 +2062,7 @@ export class ViewerController {
         worldBounds.min,
         worldBounds.max,
         groundedEyeHeight,
-        definition.habitat === 'land' ? createAnimalGroundFootprint(current.modelRoot) : undefined,
+        definition.habitat === 'land' ? createEncounterMotionFootprint(definition) : undefined,
       )
       avatar.root.rotation.y = placement.avatarYawRadians
       if (
@@ -2327,7 +2329,7 @@ export class ViewerController {
       worldBounds.min,
       worldBounds.max,
       groundedEyeHeight,
-      encounter.definition.habitat === 'land' ? createAnimalGroundFootprint(current.modelRoot) : undefined,
+      encounter.definition.habitat === 'land' ? createEncounterMotionFootprint(encounter.definition) : undefined,
     )
     replacement.root.rotation.y = placement.avatarYawRadians
     const sceneReplacement =
@@ -3201,7 +3203,8 @@ export class ViewerController {
     const substepSeconds = deltaSeconds / substepCount
     const usesExpandedAnimalBounds =
       encounter.profile.approach === 'close' ||
-      encounter.placement.animalId === 'apatosaurus'
+      encounter.placement.animalId === 'apatosaurus' ||
+      Boolean(encounter.placement.groundFootprint)
     const collisionMarginMeters = Math.max(
       0.55,
       encounter.profile.heightMeters * 0.5,

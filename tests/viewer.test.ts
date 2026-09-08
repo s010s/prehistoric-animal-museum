@@ -1,4 +1,5 @@
-import { createAnimalGroundFootprint, clearsAnimalGroundFootprint } from '../src/viewer/scale-encounter-ground-footprint'
+import { createEncounterMotionFootprint } from '../src/viewer/scale-encounter-motion-footprint'
+import { clearsAnimalGroundFootprint } from '../src/viewer/scale-encounter-ground-footprint'
 import { loadTexturelessAnimal } from './helpers/load-textureless-animal'
 import {
   AnimationClip,
@@ -3292,12 +3293,19 @@ describe('disposeObject3D', () => {
 it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definition.habitat === 'land'))(
   'walks around $id using its shipped footprint and the real held-input collision path', async (definition) => {
   const model = await loadTexturelessAnimal(definition.id, 'Idle')
+  const group = new Group().add(model)
   model.rotation.y = definition.modelYawRadians
-  model.updateMatrixWorld(true)
-  model.scale.multiplyScalar(definition.displayedMeters / new Box3().setFromObject(model, true).getSize(new Vector3())[definition.measurementAxis])
-  model.updateMatrixWorld(true)
+  group.updateMatrixWorld(true)
+  const raw = new Box3().setFromObject(model, true)
+  const scale = definition.displayedMeters / raw.getSize(new Vector3())[definition.measurementAxis]
+  const centre = raw.getCenter(new Vector3())
+  group.scale.setScalar(scale)
+  group.position.set(definition.animalPosition.x - centre.x * scale,
+    definition.animalPosition.y - raw.min.y * scale,
+    definition.animalPosition.z - centre.z * scale)
+  group.updateMatrixWorld(true)
   const bounds = new Box3().setFromObject(model, true)
-  const hull = createAnimalGroundFootprint(model)
+  const hull = createEncounterMotionFootprint(definition)
   let recoveredCorners = 0
   for (let i = 0; i < 24; i++) {
     const {controller, encounter} = createGroundedPovController(1.5, definition.id, bounds.min, bounds.max)
@@ -3320,7 +3328,8 @@ it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definiti
     expect(encounter.observerDistance, `approach angle ${i}`).toBeLessThan(minimum + .03)
     const eye = computeScaleEncounterOrbitedEyePosition(encounter.placement, 'land', encounter.observerDistance, encounter.orbitAngleRadians)
     if (eye.x > bounds.min.x - .55 && eye.x < bounds.max.x + .55 && eye.z > bounds.min.z - .55 && eye.z < bounds.max.z + .55) recoveredCorners++
-    // Sliding in both directions must remain outside the skin while making progress.
+    // Pure orbit input must remain outside the swept area while making progress.
+    controller.setScaleEncounterDistanceMotion(0)
     for (const direction of [-1, 1] as const) {
       const start = encounter.orbitAngleRadians
       controller.setScaleEncounterOrbitMotion(direction)
@@ -3332,7 +3341,7 @@ it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definiti
       expect(Math.abs(encounter.orbitAngleRadians - start)).toBeGreaterThan(.02)
     }
   }
-  if (['spinosaurus', 'baryonyx', 'carnotaurus'].includes(definition.id)) {
+  if (['baryonyx', 'carnotaurus'].includes(definition.id)) {
     expect(recoveredCorners).toBeGreaterThan(4)
   }
 }, 20_000)

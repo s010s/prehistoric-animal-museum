@@ -5,7 +5,7 @@ import { MeshoptDecoder } from 'meshoptimizer'
 
 /** Exercise the actual shipped skeleton and compressed skin without a browser
  * or image decoder. Materials are irrelevant to joint/vertex continuity. */
-export async function loadTexturelessAnimal(id: string, clipName?: string) {
+export async function loadTexturelessAnimalGltf(id: string) {
   const source = readFileSync(`src/content/animals/${id}/model/model.glb`)
   const jsonLength = source.readUInt32LE(12)
   const document = JSON.parse(source.subarray(20, 20 + jsonLength).toString()) as { meshes: { primitives: { material?: number }[] }[] }
@@ -19,6 +19,11 @@ export async function loadTexturelessAnimal(id: string, clipName?: string) {
   header.writeUInt32LE(padded.length, 12)
   const buffer = Uint8Array.from(Buffer.concat([header, padded, tail])).buffer
   const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(buffer, '')
+  return gltf
+}
+
+export async function loadTexturelessAnimal(id: string, clipName?: string) {
+  const gltf = await loadTexturelessAnimalGltf(id)
   if (clipName) {
     const clip = gltf.animations.find((animation) => animation.name === clipName)
     if (!clip) throw new Error(`Missing animation ${clipName}`)
