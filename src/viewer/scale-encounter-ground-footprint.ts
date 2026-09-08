@@ -37,3 +37,35 @@ export function clearsAnimalGroundFootprint(eye: Readonly<Vector3>, hull: readon
     return dx * (eye.z - a.z) - dz * (eye.x - a.x) <= -margin * Math.hypot(dx, dz)
   })
 }
+
+/** Project a short locomotion substep onto the same expanded supporting planes
+ * used by the distance limit. The nearest plane preserves tangential motion. */
+export function projectOutsideAnimalGroundFootprint(
+  point: Vector3,
+  hull: readonly Vector3[],
+  margin: number,
+): Vector3 {
+  let nearestDistance = Infinity
+  let outwardX = 0
+  let outwardZ = 0
+  for (let index = 0; index < hull.length; index++) {
+    const a = hull[index]!
+    const b = hull[(index + 1) % hull.length]!
+    const dx = b.x - a.x
+    const dz = b.z - a.z
+    const length = Math.hypot(dx, dz)
+    if (length === 0) continue
+    const penetration = (dx * (point.z - a.z) - dz * (point.x - a.x)) / length + margin
+    if (penetration <= 0) return point
+    if (penetration < nearestDistance) {
+      nearestDistance = penetration
+      outwardX = dz / length
+      outwardZ = -dx / length
+    }
+  }
+  if (Number.isFinite(nearestDistance)) {
+    point.x += outwardX * (nearestDistance + 1e-8)
+    point.z += outwardZ * (nearestDistance + 1e-8)
+  }
+  return point
+}

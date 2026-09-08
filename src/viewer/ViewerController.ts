@@ -1,4 +1,4 @@
-import { createAnimalGroundFootprint, clearsAnimalGroundFootprint } from './scale-encounter-ground-footprint'
+import { createAnimalGroundFootprint, clearsAnimalGroundFootprint, projectOutsideAnimalGroundFootprint } from './scale-encounter-ground-footprint'
 import {
   ACESFilmicToneMapping,
   AnimationMixer,
@@ -3253,11 +3253,16 @@ export class ViewerController {
           intent.tangential * travelSpeedMetersPerSecond * substepSeconds,
         )
       if (usesExpandedAnimalBounds) {
-        projectScaleEncounterLandPointOutsideBounds(
-          nextEye,
-          collisionMinimum,
-          collisionMaximum,
-        )
+        const footprint = encounter.placement.groundFootprint
+        if (footprint && footprint.length >= 3) {
+          projectOutsideAnimalGroundFootprint(nextEye, footprint, collisionMarginMeters)
+        } else {
+          projectScaleEncounterLandPointOutsideBounds(
+            nextEye,
+            collisionMinimum,
+            collisionMaximum,
+          )
+        }
       }
       const nextOffset = nextEye
         .sub(encounter.placement.orbitCenter)

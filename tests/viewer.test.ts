@@ -1,3 +1,5 @@
+import { createAnimalGroundFootprint, clearsAnimalGroundFootprint } from '../src/viewer/scale-encounter-ground-footprint'
+import { loadTexturelessAnimal } from './helpers/load-textureless-animal'
 import {
   AnimationClip,
   AnimationMixer,
@@ -3284,3 +3286,45 @@ describe('disposeObject3D', () => {
     }
   })
 })
+
+
+it('walks into Spinosaurus head-side space using the real held-input collision path', async () => {
+  const model = await loadTexturelessAnimal('spinosaurus', 'Idle')
+  model.rotation.y = -Math.PI / 2
+  model.updateMatrixWorld(true)
+  model.scale.multiplyScalar(14.5 / new Box3().setFromObject(model, true).getSize(new Vector3()).x)
+  model.updateMatrixWorld(true)
+  const bounds = new Box3().setFromObject(model, true)
+  const hull = createAnimalGroundFootprint(model)
+  let recoveredCorners = 0
+  for (let i = 0; i < 24; i++) {
+    const {controller, encounter} = createGroundedPovController(1.5, 'spinosaurus', bounds.min, bounds.max)
+    encounter.placement = createScaleEncounterPlacement('spinosaurus', bounds.min, bounds.max, .985, hull)
+    encounter.profile = {...encounter.profile, approach: 'close', heightCm: 110, heightMeters: 1.1}
+    encounter.orbitAngleRadians = i * Math.PI / 12
+    encounter.targetOrbitAngleRadians = encounter.orbitAngleRadians
+    controller.setScaleEncounterDistanceMotion(1)
+    const internals = controller as unknown as {updateScaleEncounterDistance(dt: number, now: number): void}
+    for (let frame = 0; frame < 250; frame++) {
+      internals.updateScaleEncounterDistance(.1, frame * 100)
+      const eye = computeScaleEncounterOrbitedEyePosition(encounter.placement, 'land', encounter.observerDistance, encounter.orbitAngleRadians)
+      expect(clearsAnimalGroundFootprint(eye, hull, .55 - 1e-5)).toBe(true)
+    }
+    const minimum = minimumScaleEncounterDistanceForProfile(encounter.placement, encounter.definition, encounter.profile, encounter.orbitAngleRadians)
+    expect(encounter.observerDistance, `approach angle ${i}`).toBeLessThan(minimum + .03)
+    const eye = computeScaleEncounterOrbitedEyePosition(encounter.placement, 'land', encounter.observerDistance, encounter.orbitAngleRadians)
+    if (eye.x > bounds.min.x - .55 && eye.x < bounds.max.x + .55 && eye.z > bounds.min.z - .55 && eye.z < bounds.max.z + .55) recoveredCorners++
+    // Sliding in both directions must remain outside the skin while making progress.
+    for (const direction of [-1, 1] as const) {
+      const start = encounter.orbitAngleRadians
+      controller.setScaleEncounterOrbitMotion(direction)
+      for (let frame = 0; frame < 15; frame++) {
+        internals.updateScaleEncounterDistance(.1, frame * 100)
+        const eye = computeScaleEncounterOrbitedEyePosition(encounter.placement, 'land', encounter.observerDistance, encounter.orbitAngleRadians)
+        expect(clearsAnimalGroundFootprint(eye, hull, .55 - 1e-5)).toBe(true)
+      }
+      expect(Math.abs(encounter.orbitAngleRadians - start)).toBeGreaterThan(.02)
+    }
+  }
+  expect(recoveredCorners).toBeGreaterThan(4)
+}, 20_000)
