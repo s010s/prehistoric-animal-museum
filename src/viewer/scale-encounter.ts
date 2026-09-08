@@ -177,6 +177,7 @@ export interface ScaleEncounterDefinition {
 export interface ScaleEncounterPlacement {
   readonly animalId: ScaleEncounterAnimalId
   /** Complete calibrated world-space bounds used by close approach. */
+  readonly groundFootprint?: readonly Vector3[]
   readonly animalBoundsMaximum: Readonly<Vector3>
   readonly animalBoundsMinimum: Readonly<Vector3>
   /** Exact centre of the animal's complete calibrated world-space bounds. */
@@ -1116,6 +1117,7 @@ export function createScaleEncounterPlacement(
   boundsMinimum: Readonly<Vector3>,
   boundsMaximum: Readonly<Vector3>,
   childGroundedEyeHeightMeters: number,
+  groundFootprint?: readonly Vector3[],
 ): ScaleEncounterPlacement {
   const definition = SCALE_ENCOUNTER_DEFINITIONS[animalId]
   const orbitCenter = new Vector3()
@@ -1181,6 +1183,7 @@ export function createScaleEncounterPlacement(
   )
   return {
     animalId,
+    ...(groundFootprint ? { groundFootprint } : {}),
     animalBoundsMaximum: new Vector3().copy(boundsMaximum),
     animalBoundsMinimum: new Vector3().copy(boundsMinimum),
     orbitCenter,

@@ -1,3 +1,4 @@
+import { createAnimalGroundFootprint, clearsAnimalGroundFootprint } from './scale-encounter-ground-footprint'
 import {
   ACESFilmicToneMapping,
   AnimationMixer,
@@ -892,6 +893,9 @@ function scaleEncounterEyeClearsExpandedAnimalBounds(
     distance,
     orbitAngleRadians,
   )
+  if (definition.habitat === 'land' && placement.groundFootprint && placement.groundFootprint.length >= 3) {
+    return clearsAnimalGroundFootprint(eye, placement.groundFootprint, marginMeters)
+  }
   const radial = eye.clone().sub(placement.orbitCenter)
   const halfExtents = new Vector3()
     .subVectors(
@@ -2073,6 +2077,7 @@ export class ViewerController {
         worldBounds.min,
         worldBounds.max,
         groundedEyeHeight,
+        definition.id === 'spinosaurus' ? createAnimalGroundFootprint(current.modelRoot) : undefined,
       )
       avatar.root.rotation.y = placement.avatarYawRadians
       if (
@@ -2339,6 +2344,7 @@ export class ViewerController {
       worldBounds.min,
       worldBounds.max,
       groundedEyeHeight,
+      encounter.definition.id === 'spinosaurus' ? createAnimalGroundFootprint(current.modelRoot) : undefined,
     )
     replacement.root.rotation.y = placement.avatarYawRadians
     const sceneReplacement =

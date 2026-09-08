@@ -130,24 +130,30 @@ function createHeroZone(): {
   const root = new Group()
   root.name = 'scale-encounter-mammoth-accepted-hero-zone'
   const loader = new TextureLoader()
-  const albedo = loader.load(new URL(
+  const ready = { value: 0 }
+  let loaded = 0
+  const loadSurface = (url: string) => loader.load(url, () => {
+    loaded += 1
+    if (loaded === 6) ready.value = 1
+  })
+  const albedo = loadSurface(new URL(
     '../../assets/environments/surface-snow-albedo-1024.webp', import.meta.url,
   ).href)
-  const normal = loader.load(new URL(
+  const normal = loadSurface(new URL(
     '../../assets/environments/surface-snow-normal-1024.webp', import.meta.url,
   ).href)
-  const roughness = loader.load(new URL(
+  const roughness = loadSurface(new URL(
     '../../assets/environments/surface-snow-roughness-1024.webp', import.meta.url,
   ).href)
-  const soil = loader.load(new URL(
+  const soil = loadSurface(new URL(
     '../../assets/environments/surface-land-albedo-1024.webp', import.meta.url,
   ).href)
-  const soilNormal = loader.load(new URL(
+  const soilNormal = loadSurface(new URL(
     '../../assets/environments/surface-land-normal-1024.webp', import.meta.url,
   ).href)
   albedo.colorSpace = SRGBColorSpace
   soil.colorSpace = SRGBColorSpace
-  const colourMap = loader.load(new URL(
+  const colourMap = loadSurface(new URL(
     '../../assets/environments/snow-earth-patches-v3.webp', import.meta.url,
   ).href)
   colourMap.colorSpace = SRGBColorSpace
@@ -178,13 +184,16 @@ function createHeroZone(): {
     grainStrength: 0.06,
     colourMipLevel: 1,
   })
+  material.userData.surfaceReady = ready
   const authoredCompile = material.onBeforeCompile.bind(material)
   material.onBeforeCompile = (shader, renderer) => {
     authoredCompile(shader, renderer)
+    shader.uniforms.uMammothSurfaceReady = ready
     shader.uniforms.uExposedSoil = { value: soil }
     shader.uniforms.uExposedSoilNormal = { value: soilNormal }
     shader.fragmentShader = shader.fragmentShader
       .replace('uniform sampler2D uGroundColourPlate;', `uniform sampler2D uGroundColourPlate;
+uniform float uMammothSurfaceReady;
 uniform sampler2D uExposedSoil;
 uniform sampler2D uExposedSoilNormal;`)
       // The authored image defines snow coverage, not metre-wide blurred
@@ -195,9 +204,13 @@ float snowCover = smoothstep(.34, .62, dot(snowPlate, vec3(.2126, .7152, .0722))
 snowCover = mix(1.0, snowCover, groundPlateFade);
 vec3 soilColour = sampleGroundScan(uExposedSoil, groundDetailUv).rgb * .4;
 vec3 snowColour = vec3(.73, .79, .81) * mix(.94, 1.06, groundGrain);
-diffuseColor.rgb *= mix(soilColour, snowColour, snowCover);`)
+// Until every colour AND normal image is ready, render lit snow. An
+// empty normal sampler otherwise points downward and blackens the surface.
+snowCover = mix(1.0, snowCover, uMammothSurfaceReady);
+diffuseColor.rgb *= mix(vec3(.73, .79, .81), mix(soilColour, snowColour, snowCover), uMammothSurfaceReady);`)
       .replaceAll('sampleGroundScan( normalMap, groundDetailUv )',
         'mix(sampleGroundScan(uExposedSoilNormal, groundDetailUv), sampleGroundScan(normalMap, groundDetailUv), snowCover)')
+      .replace('mapN = normalize(mapN);', 'mapN = uMammothSurfaceReady < .5 ? vec3(0., 0., 1.) : normalize(mapN);')
       .replace('#include <opaque_fragment>', `
 diffuseColor.a *= 1.0 - smoothstep(64.0, 78.0, length(vAuthoredGroundWorld.xz));
 #include <opaque_fragment>`)
@@ -353,7 +366,8 @@ function createAuthenticAlpineTerrain(): {
     (terrainOriginUv.x - 0.5) * terrainSize,
     (terrainOriginUv.y - 0.5) * terrainSize,
   )
-  const heightMap = new TextureLoader().load(alpineDemUrl)
+  const heightReady = { value: 0 }
+  const heightMap = new TextureLoader().load(alpineDemUrl, () => { heightReady.value = 1 })
   heightMap.name = 'scale-encounter-mapzen-alpine-elevation'
   heightMap.generateMipmaps = false
   heightMap.magFilter = LinearFilter
@@ -368,12 +382,14 @@ function createAuthenticAlpineTerrain(): {
   })
   material.name = 'scale-encounter-real-dem-snow-mountain-material'
   material.onBeforeCompile = (shader) => {
+    shader.uniforms.alpineHeightReady = heightReady
     shader.uniforms.alpineHeightMap = { value: heightMap }
     shader.uniforms.alpineOriginLocal = { value: terrainOriginLocal }
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
         `#include <common>
+uniform float alpineHeightReady;
 uniform sampler2D alpineHeightMap;
 uniform vec2 alpineOriginLocal;
 varying float vAlpineRelief;
@@ -381,6 +397,7 @@ varying vec3 vAlpineWorld;
 varying vec3 vAlpineWorldNormal;
 
 float alpineElevationAt(vec2 sampleUv) {
+  if (alpineHeightReady < .5) return 2537.59375;
   vec3 encoded = texture2D(alpineHeightMap, sampleUv).rgb;
   return encoded.r * 65280.0 + encoded.g * 255.0 + encoded.b * 0.99609375 - 32768.0;
 }
