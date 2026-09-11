@@ -514,7 +514,7 @@ describe('App', () => {
     expect(new URL(window.location.href).searchParams.has('gender')).toBe(false)
     expect(
       JSON.parse(
-        window.sessionStorage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY) ?? '',
+        window.localStorage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY) ?? '',
       ),
     ).toEqual({
       profile: { gender: 'boy', heightCm: 115 },
@@ -564,7 +564,7 @@ describe('App', () => {
   })
 
   it('restores the explorer profile after a page refresh and skips setup', async () => {
-    window.sessionStorage.setItem(
+    window.localStorage.setItem(
       SCALE_ENCOUNTER_PROFILE_STORAGE_KEY,
       JSON.stringify({
         profile: { approach: 'close', gender: 'girl', heightCm: 120 },

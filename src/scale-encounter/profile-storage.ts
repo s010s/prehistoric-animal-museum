@@ -42,13 +42,39 @@ export function parseScaleEncounterProfile(
 
 export function readScaleEncounterProfile(
   storage: Pick<Storage, 'getItem'> | null =
-    typeof window === 'undefined' ? null : window.sessionStorage,
+    typeof window === 'undefined' ? null : window.localStorage,
 ): ChildProfile | null {
   if (!storage) return null
   try {
-    return parseScaleEncounterProfile(
+    const directProfile = parseScaleEncounterProfile(
       storage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY),
     )
+    if (directProfile) return directProfile
+
+    if (
+      typeof window !== 'undefined' &&
+      storage === window.localStorage &&
+      window.sessionStorage
+    ) {
+      const sessionProfile = parseScaleEncounterProfile(
+        window.sessionStorage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY),
+      )
+      if (sessionProfile) {
+        try {
+          window.localStorage.setItem(
+            SCALE_ENCOUNTER_PROFILE_STORAGE_KEY,
+            JSON.stringify({
+              profile: sessionProfile,
+              version: 1,
+            } satisfies StoredScaleEncounterProfile),
+          )
+        } catch {
+          // Storage can be disabled or full.
+        }
+        return sessionProfile
+      }
+    }
+    return null
   } catch {
     return null
   }
@@ -57,12 +83,23 @@ export function readScaleEncounterProfile(
 export function writeScaleEncounterProfile(
   profile: ChildProfile | null,
   storage: Pick<Storage, 'removeItem' | 'setItem'> | null =
-    typeof window === 'undefined' ? null : window.sessionStorage,
+    typeof window === 'undefined' ? null : window.localStorage,
 ): void {
   if (!storage) return
   try {
     if (profile === null) {
       storage.removeItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY)
+      if (
+        typeof window !== 'undefined' &&
+        storage === window.localStorage &&
+        window.sessionStorage
+      ) {
+        try {
+          window.sessionStorage.removeItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY)
+        } catch {
+          // ignore
+        }
+      }
       return
     }
     storage.setItem(

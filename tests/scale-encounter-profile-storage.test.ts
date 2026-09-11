@@ -6,9 +6,12 @@ import {
 } from '../src/scale-encounter/profile-storage'
 
 describe('scale encounter profile storage', () => {
-  beforeEach(() => window.sessionStorage.clear())
+  beforeEach(() => {
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
 
-  it('round-trips the explorer profile across refreshes in the same tab', () => {
+  it('round-trips the explorer profile across refreshes in local storage', () => {
     const profile = {
       approach: 'close' as const,
       gender: 'girl' as const,
@@ -18,7 +21,7 @@ describe('scale encounter profile storage', () => {
     writeScaleEncounterProfile(profile)
 
     expect(readScaleEncounterProfile()).toEqual(profile)
-    expect(window.sessionStorage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY))
+    expect(window.localStorage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY))
       .toContain('"version":1')
   })
 
@@ -28,7 +31,38 @@ describe('scale encounter profile storage', () => {
 
     expect(readScaleEncounterProfile()).toBeNull()
     expect(
+      window.localStorage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY),
+    ).toBeNull()
+  })
+
+  it('migrates a legacy profile from session storage into local storage', () => {
+    const profile = {
+      gender: 'girl' as const,
+      heightCm: 105,
+    }
+    window.sessionStorage.setItem(
+      SCALE_ENCOUNTER_PROFILE_STORAGE_KEY,
+      JSON.stringify({ profile, version: 1 }),
+    )
+
+    expect(readScaleEncounterProfile()).toEqual(profile)
+    expect(
+      window.localStorage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY),
+    ).toContain('"version":1')
+  })
+
+  it('cleans up legacy session storage when resetting profile', () => {
+    window.sessionStorage.setItem(
+      SCALE_ENCOUNTER_PROFILE_STORAGE_KEY,
+      JSON.stringify({ profile: { gender: 'boy', heightCm: 100 }, version: 1 }),
+    )
+    writeScaleEncounterProfile(null)
+
+    expect(
       window.sessionStorage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY),
+    ).toBeNull()
+    expect(
+      window.localStorage.getItem(SCALE_ENCOUNTER_PROFILE_STORAGE_KEY),
     ).toBeNull()
   })
 
