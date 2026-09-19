@@ -1,0 +1,214 @@
+{
+  "reviewStatus": "needs_review",
+  "approval": null,
+  "scope": "flight terrain six-source PBR candidate",
+  "licenseSource": "https://polyhaven.com/license",
+  "modifications": "512px WebP derivatives; no baked sun; OpenGL tangent normal; ARM data",
+  "estimatedGpuBytesWithMips": 16777216,
+  "entries": [
+    {
+      "id": "aerial_ground_rock",
+      "role": "rock",
+      "source": "https://polyhaven.com/a/aerial_ground_rock",
+      "license": "CC0-1.0",
+      "metresPerRepeat": 20,
+      "scaleStatus": "source physical width verified against Poly Haven asset page",
+      "maps": {
+        "albedo": {
+          "path": "aerial_ground_rock-albedo.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_ground_rock/aerial_ground_rock_diff_1k.jpg",
+          "downloadBytes": 599629,
+          "bytes": 82372,
+          "sha256": "93e827eb4aa6a6b5b52146c891c7094c8bdf96395efaa5234ce708d74a1f0e07",
+          "colorSpace": "srgb"
+        },
+        "normal": {
+          "path": "aerial_ground_rock-normal.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_ground_rock/aerial_ground_rock_nor_gl_1k.jpg",
+          "downloadBytes": 613846,
+          "bytes": 104678,
+          "sha256": "ee241f31be6ac283bd5747c8a9e0d20721afb073e1f5db5f134d49853c88077a",
+          "colorSpace": "linear-data"
+        },
+        "arm": {
+          "path": "aerial_ground_rock-arm.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_ground_rock/aerial_ground_rock_arm_1k.jpg",
+          "downloadBytes": 186223,
+          "bytes": 50520,
+          "sha256": "592422de5ae6459f3ab240e4f7cc6e67e19094a8634265e3f0b01f127a4612f2",
+          "colorSpace": "linear-data"
+        }
+      }
+    },
+    {
+      "id": "sandy_gravel_02",
+      "role": "dry-soil",
+      "source": "https://polyhaven.com/a/sandy_gravel_02",
+      "license": "CC0-1.0",
+      "metresPerRepeat": 2.5,
+      "scaleStatus": "source physical width verified against Poly Haven asset page",
+      "maps": {
+        "albedo": {
+          "path": "sandy_gravel_02-albedo.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/sandy_gravel_02/sandy_gravel_02_diff_1k.jpg",
+          "downloadBytes": 947222,
+          "bytes": 66592,
+          "sha256": "680e21d87abfdfbeaae24022dd6e7f0d37316612a9b6d3ce2d9b25764fd931d9",
+          "colorSpace": "srgb"
+        },
+        "normal": {
+          "path": "sandy_gravel_02-normal.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/sandy_gravel_02/sandy_gravel_02_nor_gl_1k.jpg",
+          "downloadBytes": 1185078,
+          "bytes": 131094,
+          "sha256": "3c9973281e164d092be18940af066053f74db4b0f2cf68b5066db4aad65823e0",
+          "colorSpace": "linear-data"
+        },
+        "arm": {
+          "path": "sandy_gravel_02-arm.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/sandy_gravel_02/sandy_gravel_02_arm_1k.jpg",
+          "downloadBytes": 820610,
+          "bytes": 42170,
+          "sha256": "31ea7e445aeefdba504bf774e9a78e8926fd6c12368d89f4729d41b8221ccea7",
+          "colorSpace": "linear-data"
+        }
+      }
+    },
+    {
+      "id": "coast_sand_01",
+      "role": "wet-sand",
+      "source": "https://polyhaven.com/a/coast_sand_01",
+      "license": "CC0-1.0",
+      "metresPerRepeat": 15,
+      "scaleStatus": "source physical width verified against Poly Haven asset page",
+      "maps": {
+        "albedo": {
+          "path": "coast_sand_01-albedo.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_01/coast_sand_01_diff_1k.jpg",
+          "downloadBytes": 960614,
+          "bytes": 84388,
+          "sha256": "f76225b5603b07dba85b7b57e76a6438df00288e200e33a84c4e969332881bc0",
+          "colorSpace": "srgb"
+        },
+        "normal": {
+          "path": "coast_sand_01-normal.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_01/coast_sand_01_nor_gl_1k.jpg",
+          "downloadBytes": 1146826,
+          "bytes": 143618,
+          "sha256": "2875dc88117b9a2b92f94d5c0249383ed92486185be89583b1bf88e2f096a3cd",
+          "colorSpace": "linear-data"
+        },
+        "arm": {
+          "path": "coast_sand_01-arm.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_01/coast_sand_01_arm_1k.jpg",
+          "downloadBytes": 662421,
+          "bytes": 23664,
+          "sha256": "a6a8a8cc83d530ee5b9e0ea0af0bb2f00e9da92245ba6d6ef422ee26550792d5",
+          "colorSpace": "linear-data"
+        }
+      }
+    },
+    {
+      "id": "mud_forest",
+      "role": "river-mud",
+      "source": "https://polyhaven.com/a/mud_forest",
+      "license": "CC0-1.0",
+      "metresPerRepeat": 2.3,
+      "scaleStatus": "source physical width verified against Poly Haven asset page",
+      "maps": {
+        "albedo": {
+          "path": "mud_forest-albedo.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/mud_forest/mud_forest_diff_1k.jpg",
+          "downloadBytes": 952076,
+          "bytes": 83564,
+          "sha256": "29a4e4e8920ed5a06a5c4227f3cb69b9819b0f4ca7a675c85efd82e94a55b0b0",
+          "colorSpace": "srgb"
+        },
+        "normal": {
+          "path": "mud_forest-normal.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/mud_forest/mud_forest_nor_gl_1k.jpg",
+          "downloadBytes": 1480930,
+          "bytes": 177792,
+          "sha256": "30305ae47e0c2aad8ca3a4e69eb8386f70c827ab7a6a3fea0ce1e0ad88329f21",
+          "colorSpace": "linear-data"
+        },
+        "arm": {
+          "path": "mud_forest-arm.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/mud_forest/mud_forest_arm_1k.jpg",
+          "downloadBytes": 829634,
+          "bytes": 48540,
+          "sha256": "b76465f8f6f74c5d61fcadae7ba44ed013dfbc396e6e77c82d21dfeaa73d469b",
+          "colorSpace": "linear-data"
+        }
+      }
+    },
+    {
+      "id": "forest_ground_04",
+      "role": "forest-floor",
+      "source": "https://polyhaven.com/a/forest_ground_04",
+      "license": "CC0-1.0",
+      "metresPerRepeat": 3.2,
+      "scaleStatus": "source physical width verified against Poly Haven asset page",
+      "maps": {
+        "albedo": {
+          "path": "forest_ground_04-albedo.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_04/forest_ground_04_diff_1k.jpg",
+          "downloadBytes": 1113899,
+          "bytes": 99018,
+          "sha256": "651e20cac404f4aca7454df19ab3d6063f27901ee793f5e6f18b8a81fba7c826",
+          "colorSpace": "srgb"
+        },
+        "normal": {
+          "path": "forest_ground_04-normal.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_04/forest_ground_04_nor_gl_1k.jpg",
+          "downloadBytes": 1326812,
+          "bytes": 155298,
+          "sha256": "657a3a1a941d2b6f9ab8a20ec6f3f309a892013c008a6e8ed398ebb77f01ee66",
+          "colorSpace": "linear-data"
+        },
+        "arm": {
+          "path": "forest_ground_04-arm.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_04/forest_ground_04_arm_1k.jpg",
+          "downloadBytes": 882694,
+          "bytes": 60964,
+          "sha256": "f4a48e0e5233066043eccc2db9fbc10fa6666d1a5e3c7525202c9c29665e94bd",
+          "colorSpace": "linear-data"
+        }
+      }
+    },
+    {
+      "id": "leafy_grass",
+      "role": "groundcover",
+      "source": "https://polyhaven.com/a/leafy_grass",
+      "license": "CC0-1.0",
+      "metresPerRepeat": 2,
+      "scaleStatus": "source physical width verified against Poly Haven asset page",
+      "maps": {
+        "albedo": {
+          "path": "leafy_grass-albedo.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leafy_grass/leafy_grass_diff_1k.jpg",
+          "downloadBytes": 1195394,
+          "bytes": 114620,
+          "sha256": "ffb19c56e5adddae7b5dbea7abd019235aebf23cdcef84b548a1173055d78f44",
+          "colorSpace": "srgb"
+        },
+        "normal": {
+          "path": "leafy_grass-normal.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leafy_grass/leafy_grass_nor_gl_1k.jpg",
+          "downloadBytes": 1466049,
+          "bytes": 168648,
+          "sha256": "6f93328efb975ecd5ef0059678a1e561e464ea41fc788acd7212af2a3e8de8ee",
+          "colorSpace": "linear-data"
+        },
+        "arm": {
+          "path": "leafy_grass-arm.webp",
+          "sourceUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leafy_grass/leafy_grass_arm_1k.jpg",
+          "downloadBytes": 1010081,
+          "bytes": 77034,
+          "sha256": "1976fa96390b73fbfbda15fa7f990eb40d4fb33b33b127d2a20a7dfca95c9eef",
+          "colorSpace": "linear-data"
+        }
+      }
+    }
+  ]
+}

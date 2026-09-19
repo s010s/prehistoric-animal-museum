@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "reviewStatus": "needs_review",
+  "approval": null,
+  "source": "src/content/animals/pteranodon/model/model.glb",
+  "sourceSha256": "abcde65b2ea29c6ae86d8232a5e1a604b05099deb34cebfb30495aff53f61af1",
+  "author": "Chistodrako._. / Oscar López Riviello",
+  "sourceUrl": "https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b",
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "output": "src/flight-experience/assets/companions/pteranodon-far.glb",
+  "sha256": "5147790ae161df25db7a92f7ba94dcdb7372095e9ea716c8ab6fedc0b866c4fe",
+  "bytes": 313060,
+  "recipe": "scripts/flight/assets/prepare-companion.mjs",
+  "modifications": "Meshopt index/vertex simplification (ratio 0.30, error 0.003, locked borders). Surviving vertex bone indices/weights retained. All original Idle samplers, skin joints, inverse binds, node transforms and scale retained. Textures omitted: borrow source material at runtime. No PoweredFlap or authored animation.",
+  "triangles": 4048,
+  "primitives": 1,
+  "joints": 125,
+  "animationHash": "e200e4facb2b2ec7e71c161189427796d9858c45f36a1aac280771201f54b6a7",
+  "animation": "Idle",
+  "duration": 10.666666984558105,
+  "sourceUnitsSampledBounds": {
+    "min": [
+      -0.528202029,
+      -0.286211741,
+      -0.267591785
+    ],
+    "max": [
+      0.515380412,
+      0.398308744,
+      0.191115568
+    ]
+  },
+  "safetyPaddingSourceUnits": 0.05,
+  "visualReview": "pending headed browser entire original cycle; simplification is for distant companions only"
+}

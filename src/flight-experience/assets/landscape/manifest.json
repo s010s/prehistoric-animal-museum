@@ -1,0 +1,686 @@
+{
+  "version": 1,
+  "reviewStatus": "needs_review",
+  "approval": null,
+  "author": "Project original procedural sample authored with Blender",
+  "license": "CC-BY-NC-SA-4.0",
+  "recipe": "scripts/flight/assets/create-landscape.py",
+  "blender": "5.2.0 LTS",
+  "units": "metres",
+  "axis": "glTF Y-up; Blender Z-up",
+  "sha256": "69c26c9ba7c17497bf8843218b0532adcd2346e26538d0bdc359073161974e46",
+  "bytes": 1718016,
+  "assets": [
+    {
+      "id": "tree-0-0",
+      "kind": "plant",
+      "physicalHeight": 11.359297753777355,
+      "crownRadius": 5.840729713439941,
+      "groundAnchor": [
+        0,
+        0,
+        0
+      ],
+      "footprint": {
+        "radius": 9.02778016092534,
+        "height": 11.351574897766113
+      },
+      "lods": [
+        {
+          "name": "tree-0-0-lod0",
+          "triangles": 3416
+        },
+        {
+          "name": "tree-0-0-lod1",
+          "triangles": 2687
+        },
+        {
+          "name": "tree-0-0-lod2",
+          "triangles": 2687
+        }
+      ],
+      "impostor": {
+        "source": "same LOD0 geometry, unlit albedo, transparent background",
+        "resolution": 256,
+        "views": [
+          {
+            "azimuth": 0,
+            "elevation": 0,
+            "file": "tree-0-0-0.png"
+          },
+          {
+            "azimuth": 1.5707963267948966,
+            "elevation": 0,
+            "file": "tree-0-0-1.png"
+          },
+          {
+            "azimuth": 3.141592653589793,
+            "elevation": 0,
+            "file": "tree-0-0-2.png"
+          },
+          {
+            "azimuth": 4.71238898038469,
+            "elevation": 0,
+            "file": "tree-0-0-3.png"
+          },
+          {
+            "azimuth": 0,
+            "elevation": 1.5707963267948966,
+            "file": "tree-0-0-4.png"
+          }
+        ],
+        "runtime": "front, side and top alpha-tested planes; 6 triangles, same physical size"
+      },
+      "textures": {
+        "resolution": 1024,
+        "maps": [
+          "baseColor",
+          "tangent normal",
+          "ORM"
+        ],
+        "uncompressedBytes": 12582912,
+        "bakeSamples": 8
+      },
+      "sourceBoundsBlender": [
+        [
+          -5.3205885887146,
+          -6.406257629394531,
+          -0.007722856011241674
+        ],
+        [
+          6.360870838165283,
+          4.88980770111084,
+          11.351574897766113
+        ]
+      ]
+    },
+    {
+      "id": "tree-0-1",
+      "kind": "plant",
+      "physicalHeight": 12.149698856286705,
+      "crownRadius": 6.467905044555664,
+      "groundAnchor": [
+        0,
+        0,
+        0
+      ],
+      "footprint": {
+        "radius": 8.997698552771286,
+        "height": 12.142498970031738
+      },
+      "lods": [
+        {
+          "name": "tree-0-1-lod0",
+          "triangles": 3416
+        },
+        {
+          "name": "tree-0-1-lod1",
+          "triangles": 2687
+        },
+        {
+          "name": "tree-0-1-lod2",
+          "triangles": 2687
+        }
+      ],
+      "impostor": {
+        "source": "same LOD0 geometry, unlit albedo, transparent background",
+        "resolution": 256,
+        "views": [
+          {
+            "azimuth": 0,
+            "elevation": 0,
+            "file": "tree-0-1-0.png"
+          },
+          {
+            "azimuth": 1.5707963267948966,
+            "elevation": 0,
+            "file": "tree-0-1-1.png"
+          },
+          {
+            "azimuth": 3.141592653589793,
+            "elevation": 0,
+            "file": "tree-0-1-2.png"
+          },
+          {
+            "azimuth": 4.71238898038469,
+            "elevation": 0,
+            "file": "tree-0-1-3.png"
+          },
+          {
+            "azimuth": 0,
+            "elevation": 1.5707963267948966,
+            "file": "tree-0-1-4.png"
+          }
+        ],
+        "runtime": "front, side and top alpha-tested planes; 6 triangles, same physical size"
+      },
+      "textures": {
+        "resolution": 1024,
+        "maps": [
+          "baseColor",
+          "tangent normal",
+          "ORM"
+        ],
+        "uncompressedBytes": 12582912,
+        "bakeSamples": 8
+      },
+      "sourceBoundsBlender": [
+        [
+          -6.190541744232178,
+          -5.946945667266846,
+          -0.007199886254966259
+        ],
+        [
+          6.74526834487915,
+          5.954824447631836,
+          12.142498970031738
+        ]
+      ]
+    },
+    {
+      "id": "tree-1-0",
+      "kind": "plant",
+      "physicalHeight": 13.346905241720378,
+      "crownRadius": 9.169192790985107,
+      "groundAnchor": [
+        0,
+        0,
+        0
+      ],
+      "footprint": {
+        "radius": 13.665568547197271,
+        "height": 13.340370178222656
+      },
+      "lods": [
+        {
+          "name": "tree-1-0-lod0",
+          "triangles": 3416
+        },
+        {
+          "name": "tree-1-0-lod1",
+          "triangles": 2687
+        },
+        {
+          "name": "tree-1-0-lod2",
+          "triangles": 2687
+        }
+      ],
+      "impostor": {
+        "source": "same LOD0 geometry, unlit albedo, transparent background",
+        "resolution": 256,
+        "views": [
+          {
+            "azimuth": 0,
+            "elevation": 0,
+            "file": "tree-1-0-0.png"
+          },
+          {
+            "azimuth": 1.5707963267948966,
+            "elevation": 0,
+            "file": "tree-1-0-1.png"
+          },
+          {
+            "azimuth": 3.141592653589793,
+            "elevation": 0,
+            "file": "tree-1-0-2.png"
+          },
+          {
+            "azimuth": 4.71238898038469,
+            "elevation": 0,
+            "file": "tree-1-0-3.png"
+          },
+          {
+            "azimuth": 0,
+            "elevation": 1.5707963267948966,
+            "file": "tree-1-0-4.png"
+          }
+        ],
+        "runtime": "front, side and top alpha-tested planes; 6 triangles, same physical size"
+      },
+      "textures": {
+        "resolution": 1024,
+        "maps": [
+          "baseColor",
+          "tangent normal",
+          "ORM"
+        ],
+        "uncompressedBytes": 12582912,
+        "bakeSamples": 8
+      },
+      "sourceBoundsBlender": [
+        [
+          -8.318947792053223,
+          -9.29293441772461,
+          -0.006535063497722149
+        ],
+        [
+          10.019437789916992,
+          7.633793830871582,
+          13.340370178222656
+        ]
+      ]
+    },
+    {
+      "id": "tree-1-1",
+      "kind": "plant",
+      "physicalHeight": 14.14867676422,
+      "crownRadius": 10.031857013702393,
+      "groundAnchor": [
+        0,
+        0,
+        0
+      ],
+      "footprint": {
+        "radius": 13.999569628776632,
+        "height": 14.142520904541016
+      },
+      "lods": [
+        {
+          "name": "tree-1-1-lod0",
+          "triangles": 3416
+        },
+        {
+          "name": "tree-1-1-lod1",
+          "triangles": 2687
+        },
+        {
+          "name": "tree-1-1-lod2",
+          "triangles": 2687
+        }
+      ],
+      "impostor": {
+        "source": "same LOD0 geometry, unlit albedo, transparent background",
+        "resolution": 256,
+        "views": [
+          {
+            "azimuth": 0,
+            "elevation": 0,
+            "file": "tree-1-1-0.png"
+          },
+          {
+            "azimuth": 1.5707963267948966,
+            "elevation": 0,
+            "file": "tree-1-1-1.png"
+          },
+          {
+            "azimuth": 3.141592653589793,
+            "elevation": 0,
+            "file": "tree-1-1-2.png"
+          },
+          {
+            "azimuth": 4.71238898038469,
+            "elevation": 0,
+            "file": "tree-1-1-3.png"
+          },
+          {
+            "azimuth": 0,
+            "elevation": 1.5707963267948966,
+            "file": "tree-1-1-4.png"
+          }
+        ],
+        "runtime": "front, side and top alpha-tested planes; 6 triangles, same physical size"
+      },
+      "textures": {
+        "resolution": 1024,
+        "maps": [
+          "baseColor",
+          "tangent normal",
+          "ORM"
+        ],
+        "uncompressedBytes": 12582912,
+        "bakeSamples": 8
+      },
+      "sourceBoundsBlender": [
+        [
+          -10.186267852783203,
+          -8.979758262634277,
+          -0.006155859678983688
+        ],
+        [
+          9.877446174621582,
+          9.603535652160645,
+          14.142520904541016
+        ]
+      ]
+    },
+    {
+      "id": "rock-0",
+      "kind": "rock",
+      "physicalHeight": 3.200000047683716,
+      "crownRadius": 2.2848790884017944,
+      "groundAnchor": [
+        0,
+        0,
+        0
+      ],
+      "footprint": {
+        "radius": 2.788530491845416,
+        "height": 3.200000047683716
+      },
+      "lods": [
+        {
+          "name": "rock-0-lod0",
+          "triangles": 284
+        },
+        {
+          "name": "rock-0-lod1",
+          "triangles": 136
+        },
+        {
+          "name": "rock-0-lod2",
+          "triangles": 50
+        }
+      ],
+      "impostor": {
+        "source": "same LOD0 geometry, unlit albedo, transparent background",
+        "resolution": 256,
+        "views": [
+          {
+            "azimuth": 0,
+            "elevation": 0,
+            "file": "rock-0-0.png"
+          },
+          {
+            "azimuth": 1.5707963267948966,
+            "elevation": 0,
+            "file": "rock-0-1.png"
+          },
+          {
+            "azimuth": 3.141592653589793,
+            "elevation": 0,
+            "file": "rock-0-2.png"
+          },
+          {
+            "azimuth": 4.71238898038469,
+            "elevation": 0,
+            "file": "rock-0-3.png"
+          },
+          {
+            "azimuth": 0,
+            "elevation": 1.5707963267948966,
+            "file": "rock-0-4.png"
+          }
+        ],
+        "runtime": "not enabled; local review source only"
+      },
+      "textures": {
+        "resolution": 1024,
+        "maps": [
+          "baseColor",
+          "tangent normal",
+          "ORM"
+        ],
+        "uncompressedBytes": 12582912,
+        "bakeSamples": 8
+      },
+      "sourceBoundsBlender": [
+        [
+          -2.2630326747894287,
+          -1.5304328203201294,
+          0.0
+        ],
+        [
+          2.30672550201416,
+          1.566818356513977,
+          3.200000047683716
+        ]
+      ]
+    },
+    {
+      "id": "rock-1",
+      "kind": "rock",
+      "physicalHeight": 3.200000047683716,
+      "crownRadius": 2.1344964504241943,
+      "groundAnchor": [
+        0,
+        0,
+        0
+      ],
+      "footprint": {
+        "radius": 2.749061298624699,
+        "height": 3.200000047683716
+      },
+      "lods": [
+        {
+          "name": "rock-1-lod0",
+          "triangles": 284
+        },
+        {
+          "name": "rock-1-lod1",
+          "triangles": 136
+        },
+        {
+          "name": "rock-1-lod2",
+          "triangles": 50
+        }
+      ],
+      "impostor": {
+        "source": "same LOD0 geometry, unlit albedo, transparent background",
+        "resolution": 256,
+        "views": [
+          {
+            "azimuth": 0,
+            "elevation": 0,
+            "file": "rock-1-0.png"
+          },
+          {
+            "azimuth": 1.5707963267948966,
+            "elevation": 0,
+            "file": "rock-1-1.png"
+          },
+          {
+            "azimuth": 3.141592653589793,
+            "elevation": 0,
+            "file": "rock-1-2.png"
+          },
+          {
+            "azimuth": 4.71238898038469,
+            "elevation": 0,
+            "file": "rock-1-3.png"
+          },
+          {
+            "azimuth": 0,
+            "elevation": 1.5707963267948966,
+            "file": "rock-1-4.png"
+          }
+        ],
+        "runtime": "not enabled; local review source only"
+      },
+      "textures": {
+        "resolution": 1024,
+        "maps": [
+          "baseColor",
+          "tangent normal",
+          "ORM"
+        ],
+        "uncompressedBytes": 12582912,
+        "bakeSamples": 8
+      },
+      "sourceBoundsBlender": [
+        [
+          -2.183802366256714,
+          -1.6474868059158325,
+          0.0
+        ],
+        [
+          2.085190534591675,
+          1.6698338985443115,
+          3.200000047683716
+        ]
+      ]
+    },
+    {
+      "id": "rock-2",
+      "kind": "rock",
+      "physicalHeight": 3.200000047683716,
+      "crownRadius": 2.188881993293762,
+      "groundAnchor": [
+        0,
+        0,
+        0
+      ],
+      "footprint": {
+        "radius": 2.827793343953568,
+        "height": 3.200000047683716
+      },
+      "lods": [
+        {
+          "name": "rock-2-lod0",
+          "triangles": 284
+        },
+        {
+          "name": "rock-2-lod1",
+          "triangles": 136
+        },
+        {
+          "name": "rock-2-lod2",
+          "triangles": 50
+        }
+      ],
+      "impostor": {
+        "source": "same LOD0 geometry, unlit albedo, transparent background",
+        "resolution": 256,
+        "views": [
+          {
+            "azimuth": 0,
+            "elevation": 0,
+            "file": "rock-2-0.png"
+          },
+          {
+            "azimuth": 1.5707963267948966,
+            "elevation": 0,
+            "file": "rock-2-1.png"
+          },
+          {
+            "azimuth": 3.141592653589793,
+            "elevation": 0,
+            "file": "rock-2-2.png"
+          },
+          {
+            "azimuth": 4.71238898038469,
+            "elevation": 0,
+            "file": "rock-2-3.png"
+          },
+          {
+            "azimuth": 0,
+            "elevation": 1.5707963267948966,
+            "file": "rock-2-4.png"
+          }
+        ],
+        "runtime": "not enabled; local review source only"
+      },
+      "textures": {
+        "resolution": 1024,
+        "maps": [
+          "baseColor",
+          "tangent normal",
+          "ORM"
+        ],
+        "uncompressedBytes": 12582912,
+        "bakeSamples": 8
+      },
+      "sourceBoundsBlender": [
+        [
+          -2.0891268253326416,
+          -1.6608898639678955,
+          0.0
+        ],
+        [
+          2.288637161254883,
+          1.6145975589752197,
+          3.200000047683716
+        ]
+      ]
+    },
+    {
+      "id": "cliff-0",
+      "kind": "rock",
+      "physicalHeight": 9,
+      "crownRadius": 7.081073999404907,
+      "groundAnchor": [
+        0,
+        0,
+        0
+      ],
+      "footprint": {
+        "radius": 7.55279359054075,
+        "height": 9
+      },
+      "lods": [
+        {
+          "name": "cliff-0-lod0",
+          "triangles": 480
+        },
+        {
+          "name": "cliff-0-lod1",
+          "triangles": 230
+        },
+        {
+          "name": "cliff-0-lod2",
+          "triangles": 86
+        }
+      ],
+      "impostor": {
+        "source": "same LOD0 geometry, unlit albedo, transparent background",
+        "resolution": 256,
+        "views": [
+          {
+            "azimuth": 0,
+            "elevation": 0,
+            "file": "cliff-0-0.png"
+          },
+          {
+            "azimuth": 1.5707963267948966,
+            "elevation": 0,
+            "file": "cliff-0-1.png"
+          },
+          {
+            "azimuth": 3.141592653589793,
+            "elevation": 0,
+            "file": "cliff-0-2.png"
+          },
+          {
+            "azimuth": 4.71238898038469,
+            "elevation": 0,
+            "file": "cliff-0-3.png"
+          },
+          {
+            "azimuth": 0,
+            "elevation": 1.5707963267948966,
+            "file": "cliff-0-4.png"
+          }
+        ],
+        "runtime": "not enabled; local review source only"
+      },
+      "textures": {
+        "resolution": 1024,
+        "maps": [
+          "baseColor",
+          "tangent normal",
+          "ORM"
+        ],
+        "uncompressedBytes": 12582912,
+        "bakeSamples": 8
+      },
+      "sourceBoundsBlender": [
+        [
+          -7.193488597869873,
+          -2.301828145980835,
+          0.0
+        ],
+        [
+          6.968659400939941,
+          2.2364351749420166,
+          9.0
+        ]
+      ]
+    }
+  ],
+  "limitations": [
+    "Plant runtime LOD2 uses same-source unlit front/side/top cutouts with dynamic lighting, 6 triangles; full mesh LOD2 remains an authoring reference.",
+    "Baked low-poly tangent normals capture mesh shading, not an independent sculpted high-poly surface.",
+    "No automatic asset approval."
+  ],
+  "optimization": "gltf-transform 4.4.2: dedup/prune, WebP, Meshopt; hierarchy/names and authored LOD geometry retained",
+  "textureRuntimePolicy": "Tree/cliff base colour 1k; rock base colour and non-colour channels 512; source bake 1k."
+}

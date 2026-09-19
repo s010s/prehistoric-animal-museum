@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "seed": 193706,
+  "source": "Original deterministic periodic value noise; prepare-cloud-density.mjs",
+  "license": "AGPL-3.0-only",
+  "size": [
+    512,
+    512
+  ],
+  "channels": {
+    "R": "linear base density",
+    "G": "linear detail",
+    "B": "unused",
+    "A": "opaque"
+  },
+  "colorSpace": "linear data / NoColorSpace",
+  "wrap": "repeat",
+  "mipmaps": true,
+  "gpuBytesIncludingMipmaps": 1398102,
+  "sha256": "57254f1b2791f36685a85e7f9efd1ca0630e55d6e93a754c33648e281cf50146"
+}

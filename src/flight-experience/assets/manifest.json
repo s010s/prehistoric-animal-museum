@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "sharedAssets": [
+    {
+      "source": "src/scale-encounter/assets/environments/surface-land-albedo-1024.webp",
+      "license": "Poly Haven CC0 scan derivative",
+      "bytes": 399812,
+      "sha256": "d04d9521ab8f8d8405645de751726105b30e18b6eab36fa516027d072f6ce2d2",
+      "provenance": "src/scale-encounter/assets/PROVENANCE.md"
+    },
+    {
+      "source": "src/scale-encounter/assets/environments/midground-mature-tree-atlas-v1-1024.webp",
+      "license": "Project original, CC-BY-NC-SA-4.0",
+      "bytes": 174702,
+      "sha256": "c97684a1e1856bd79db5e9d1fbd1b00532f15bb4f1ac9e4ca92bd2aab4fa9c67",
+      "provenance": "src/scale-encounter/assets/PROVENANCE.md"
+    }
+  ],
+  "reviewStatus": "needs_review",
+  "source": "src/content/animals/pteranodon/model/model.glb",
+  "sourceSha256": "abcde65b2ea29c6ae86d8232a5e1a604b05099deb34cebfb30495aff53f61af1",
+  "sourceLicense": "CC-BY-4.0",
+  "author": "Chistodrako._. / Oscar López Riviello",
+  "sourceUrl": "https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "output": "src/flight-experience/assets/pteranodon-glide.json",
+  "sha256": "8e386f0a3b09a11a774be7b62be332b3d7c40602f1392e1b97305b77752700dd",
+  "bytes": 253032,
+  "recipe": "scripts/flight/inspect-model.mjs",
+  "poseTime": 3.733333444595337,
+  "duration": 4,
+  "modifications": "Selected widest horizontal source pose; authored 4s mirrored shoulder/forearm flex ±0.014 radians; all translations remain fixed; original Idle unchanged.",
+  "bounds": {
+    "min": [
+      -0.5286343722240393,
+      -0.011543736557009198,
+      -0.1853154084555681
+    ],
+    "max": [
+      0.5025821379588602,
+      0.1268163921391551,
+      0.1901265647498017
+    ]
+  },
+  "approval": null
+}

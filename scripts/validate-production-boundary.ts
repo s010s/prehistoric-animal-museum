@@ -1,3 +1,5 @@
+import {findFlightAssetBoundaryFindings} from './flight/build-asset-boundary.mjs'
+import { createHash } from 'node:crypto'
 import { extname, join, relative } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
@@ -21,6 +23,9 @@ const forbiddenMarkers = [
 ]
 
 const findings: string[] = []
+const flightEnabled=process.env.MUSEUM_FLIGHT === '1'
+const expectedFlightGlbCount = flightEnabled ? 2 : 0
+const expectedFlightLandscapeCount=flightEnabled?1:0
 const files = await collectProductionFiles(distributionRoot)
 const distributionPaths = new Set(
   files.map((absolutePath) => relative(distributionRoot, absolutePath)),
@@ -103,11 +108,18 @@ if (actualDetailPaths.length !== expectedDetailPaths.length) {
 }
 if (
   glbFiles.length !==
-  expectedAnimalAssetCount + expectedScaleEncounterGlbCount
+  expectedAnimalAssetCount + expectedScaleEncounterGlbCount + expectedFlightGlbCount
 ) {
   findings.push(
-    `expected exactly ${expectedAnimalAssetCount + expectedScaleEncounterGlbCount} production GLBs; found ${glbFiles.length}`,
+    `expected exactly ${expectedAnimalAssetCount + expectedScaleEncounterGlbCount + expectedFlightGlbCount} production GLBs; found ${glbFiles.length}`,
   )
+}
+const flightSamples = glbFiles.filter(file => file.includes('ecology-r5-'))
+if (flightSamples.length !== expectedFlightLandscapeCount) findings.push('Flight landscape candidate escaped its build gate or is missing')
+if (expectedFlightLandscapeCount === 1 && flightSamples[0]) {
+  const candidate = JSON.parse(await readFile('src/flight-experience/assets/ecology-r5/manifest.json', 'utf8')) as { sha256: string }
+  const hash = createHash('sha256').update(await readFile(flightSamples[0])).digest('hex')
+  if (hash !== candidate.sha256) findings.push('Flight landscape candidate hash differs from its manifest')
 }
 if (
   mp3Files.length !==
@@ -125,6 +137,7 @@ if (distributionPaths.has('.vite/manifest.json')) {
   const viteManifest = JSON.parse(
     await readFile(join(distributionRoot, '.vite/manifest.json'), 'utf8'),
   ) as Record<string, { readonly file?: string; readonly src?: string }>
+  findings.push(...await findFlightAssetBoundaryFindings(distributionRoot,flightEnabled,files,viteManifest))
   const productionSources = new Set(
     Object.entries(viteManifest).flatMap(([key, entry]) => [
       key,

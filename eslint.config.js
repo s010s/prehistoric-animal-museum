@@ -15,6 +15,7 @@ export default tseslint.config(
       'test-results',
       '.codex',
       '.handoff',
+      '.flight-evidence',
       '.wayfinder',
       'assets/candidates',
       'docs/handoff',

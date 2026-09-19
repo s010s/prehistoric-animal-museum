@@ -43,3 +43,7 @@ tools/animal-onboarding/node_modules/
 .env
 .env.*
 !.env.example
+
+# Local flight implementation evidence and unapproved review records.
+.flight-evidence/
+docs/flight/

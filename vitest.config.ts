@@ -14,6 +14,7 @@ export default defineConfig({
   plugins: [react(), scaleEncounterGlacierAssetUrls('review')],
   resolve: {
     alias: {
+      'virtual:flight-experience-entry': fileURLToPath(new URL('./src/flight-experience/entry-enabled.ts', import.meta.url)),
       'virtual:viewer-controller': fileURLToPath(
         new URL('./src/viewer/ViewerController.ts', import.meta.url),
       ),

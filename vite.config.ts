@@ -1,3 +1,4 @@
+import { flightReviewTracePlugin } from './scripts/flight/review-trace-plugin'
 import { createReadStream, readFileSync, statSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
 import { fileURLToPath } from 'node:url'
@@ -63,10 +64,11 @@ function viewerControllerEntryAlias(mode: string): string {
   return fileURLToPath(new URL(entryFile, import.meta.url))
 }
 
-function bundledNotices(): Plugin {
+function bundledNotices(flightEnabled = false): Plugin {
   return {
     name: 'bundled-notices',
     generateBundle() {
+      if (flightEnabled) this.emitFile({ type: 'asset', fileName: 'FLIGHT_ASSET_PROVENANCE.md', source: readFileSync(new URL('./src/flight-experience/assets/PROVENANCE.md', import.meta.url), 'utf8') })
       for (const fileName of redistributableNotices) {
         this.emitFile({
           type: 'asset',
@@ -325,16 +327,21 @@ export default defineConfig(({ command, mode }) => {
     base: './',
     resolve: {
       alias: {
+        'virtual:flight-experience-entry': fileURLToPath(new URL(
+          command === 'serve' || mode === 'e2e' || env.MUSEUM_FLIGHT === '1'
+            ? './src/flight-experience/entry-enabled.ts'
+            : './src/flight-experience/entry-disabled.ts', import.meta.url)),
         'virtual:scale-encounter-entry': scaleEncounterEntryAlias(mode),
         'virtual:viewer-controller': viewerControllerEntryAlias(mode),
       },
     },
     plugins: [
       react(),
+      flightReviewTracePlugin(),
       scaleEncounterGlacierAssetUrls(
         scaleEncounterEnabledModes.has(mode) ? 'bundled' : 'disabled',
       ),
-      bundledNotices(),
+      bundledNotices(mode === 'e2e' || env.MUSEUM_FLIGHT === '1'),
       multilingualSeoPlugin(),
       privateLocalMaterialGuard(),
       localReview(

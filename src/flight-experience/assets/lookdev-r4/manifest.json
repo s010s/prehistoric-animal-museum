@@ -1,0 +1,499 @@
+{
+  "version": 1,
+  "reviewStatus": "needs_review",
+  "approval": null,
+  "scope": "finite browser lookdev only; not scattered into world",
+  "units": "metres",
+  "axis": "glTF Y-up, Blender Z-up",
+  "blender": "5.2.0 LTS",
+  "geometryLicense": "CC-BY-NC-SA-4.0 project original",
+  "rockMaterialSource": "Poly Haven rock_01 CC0; see ../lookdev-materials/manifest.json",
+  "recipe": "scripts/flight/assets/create-lookdev-r4.py + bake-lookdev-r4.py",
+  "assets": [
+    {
+      "id": "tree-0-0",
+      "kind": "plant",
+      "physicalHeight": 13.512682437896729,
+      "groundAnchor": [
+        0,
+        -0.2744784355163574,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -3.791975259780884,
+          -3.9767539501190186,
+          -0.2744784355163574
+        ],
+        [
+          3.8578665256500244,
+          3.4579784870147705,
+          13.238204002380371
+        ]
+      ],
+      "footprint": {
+        "radius": 5.540551065509478,
+        "height": 13.238204002380371
+      },
+      "highTriangles": 276480,
+      "lowTriangles": 12432,
+      "sourceDetails": "hierarchical branching, dense multiorientation small curved leaves with raised midribs, and root flare",
+      "lods": [
+        {
+          "name": "tree-0-0-lod0",
+          "triangles": 12432
+        },
+        {
+          "name": "tree-0-0-lod1",
+          "triangles": 5594
+        },
+        {
+          "name": "tree-0-0-lod2",
+          "triangles": 1849
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "spatial shader variation / CC0 ARM, not a constant fill",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "tree-0-1",
+      "kind": "plant",
+      "physicalHeight": 13.832093238830566,
+      "groundAnchor": [
+        0,
+        -0.257080078125,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -3.951141595840454,
+          -3.7727208137512207,
+          -0.257080078125
+        ],
+        [
+          3.6448769569396973,
+          3.3820784091949463,
+          13.575013160705566
+        ]
+      ],
+      "footprint": {
+        "radius": 5.463052466240126,
+        "height": 13.575013160705566
+      },
+      "highTriangles": 276480,
+      "lowTriangles": 12432,
+      "sourceDetails": "hierarchical branching, dense multiorientation small curved leaves with raised midribs, and root flare",
+      "lods": [
+        {
+          "name": "tree-0-1-lod0",
+          "triangles": 12432
+        },
+        {
+          "name": "tree-0-1-lod1",
+          "triangles": 5594
+        },
+        {
+          "name": "tree-0-1-lod2",
+          "triangles": 1849
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "spatial shader variation / CC0 ARM, not a constant fill",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "tree-1-0",
+      "kind": "plant",
+      "physicalHeight": 14.74950847029686,
+      "groundAnchor": [
+        0,
+        -0.2719665467739105,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -4.402759552001953,
+          -4.366031169891357,
+          -0.2719665467739105
+        ],
+        [
+          5.094468593597412,
+          3.6461730003356934,
+          14.47754192352295
+        ]
+      ],
+      "footprint": {
+        "radius": 6.709384355334943,
+        "height": 14.47754192352295
+      },
+      "highTriangles": 279360,
+      "lowTriangles": 12400,
+      "sourceDetails": "hierarchical branching, dense multiorientation small curved leaves with raised midribs, and root flare",
+      "lods": [
+        {
+          "name": "tree-1-0-lod0",
+          "triangles": 12400
+        },
+        {
+          "name": "tree-1-0-lod1",
+          "triangles": 5580
+        },
+        {
+          "name": "tree-1-0-lod2",
+          "triangles": 1854
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "spatial shader variation / CC0 ARM, not a constant fill",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "tree-1-1",
+      "kind": "plant",
+      "physicalHeight": 15.343089491128922,
+      "groundAnchor": [
+        0,
+        -0.263606458902359,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -4.0691328048706055,
+          -4.503744125366211,
+          -0.263606458902359
+        ],
+        [
+          5.088744640350342,
+          3.9364054203033447,
+          15.079483032226562
+        ]
+      ],
+      "footprint": {
+        "radius": 6.795515665603677,
+        "height": 15.079483032226562
+      },
+      "highTriangles": 279360,
+      "lowTriangles": 12400,
+      "sourceDetails": "hierarchical branching, dense multiorientation small curved leaves with raised midribs, and root flare",
+      "lods": [
+        {
+          "name": "tree-1-1-lod0",
+          "triangles": 12400
+        },
+        {
+          "name": "tree-1-1-lod1",
+          "triangles": 5580
+        },
+        {
+          "name": "tree-1-1-lod2",
+          "triangles": 1854
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "spatial shader variation / CC0 ARM, not a constant fill",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "understory-0",
+      "kind": "understory",
+      "physicalHeight": 1.4044194631278515,
+      "groundAnchor": [
+        0,
+        -0.02540842816233635,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -1.399910569190979,
+          -1.5044611692428589,
+          -0.02540842816233635
+        ],
+        [
+          1.5383954048156738,
+          1.3807429075241089,
+          1.3790110349655151
+        ]
+      ],
+      "footprint": {
+        "radius": 2.1517583115483885,
+        "height": 1.3790110349655151
+      },
+      "highTriangles": 140112,
+      "lowTriangles": 6104,
+      "sourceDetails": "clustered lower vegetation silhouette",
+      "lods": [
+        {
+          "name": "understory-0-lod0",
+          "triangles": 6104
+        },
+        {
+          "name": "understory-0-lod1",
+          "triangles": 2746
+        },
+        {
+          "name": "understory-0-lod2",
+          "triangles": 908
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "spatial shader variation / CC0 ARM, not a constant fill",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "understory-1",
+      "kind": "understory",
+      "physicalHeight": 2.066969788633287,
+      "groundAnchor": [
+        0,
+        -0.014676488004624844,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -1.1548471450805664,
+          -1.2155903577804565,
+          -0.014676488004624844
+        ],
+        [
+          1.2409340143203735,
+          1.0797712802886963,
+          2.052293300628662
+        ]
+      ],
+      "footprint": {
+        "radius": 1.7371174818722237,
+        "height": 2.052293300628662
+      },
+      "highTriangles": 100080,
+      "lowTriangles": 4360,
+      "sourceDetails": "clustered lower vegetation silhouette",
+      "lods": [
+        {
+          "name": "understory-1-lod0",
+          "triangles": 4360
+        },
+        {
+          "name": "understory-1-lod1",
+          "triangles": 1962
+        },
+        {
+          "name": "understory-1-lod2",
+          "triangles": 649
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "spatial shader variation / CC0 ARM, not a constant fill",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "rock-group-0",
+      "kind": "rock",
+      "physicalHeight": 3.8667231500148773,
+      "groundAnchor": [
+        0,
+        -0.4762035310268402,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -2.9388105869293213,
+          -1.542204737663269,
+          -0.4762035310268402
+        ],
+        [
+          2.9987990856170654,
+          2.004948616027832,
+          3.390519618988037
+        ]
+      ],
+      "footprint": {
+        "radius": 3.607300224379677,
+        "height": 3.390519618988037
+      },
+      "highTriangles": 9264,
+      "lowTriangles": 386,
+      "sourceDetails": "continuous irregular outcrop with tilted bedding, oblique fault seams, convex fracture fragments and graded talus",
+      "lods": [
+        {
+          "name": "rock-group-0-lod0",
+          "triangles": 386
+        },
+        {
+          "name": "rock-group-0-lod1",
+          "triangles": 172
+        },
+        {
+          "name": "rock-group-0-lod2",
+          "triangles": 54
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "spatial shader variation / CC0 ARM, not a constant fill",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "rock-group-1",
+      "kind": "rock",
+      "physicalHeight": 3.8399649560451508,
+      "groundAnchor": [
+        0,
+        -0.47074636816978455,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -3.159092903137207,
+          -1.3985018730163574,
+          -0.47074636816978455
+        ],
+        [
+          2.981987476348877,
+          1.7906039953231812,
+          3.369218587875366
+        ]
+      ],
+      "footprint": {
+        "radius": 3.631271215252202,
+        "height": 3.369218587875366
+      },
+      "highTriangles": 9120,
+      "lowTriangles": 380,
+      "sourceDetails": "continuous irregular outcrop with tilted bedding, oblique fault seams, convex fracture fragments and graded talus",
+      "lods": [
+        {
+          "name": "rock-group-1-lod0",
+          "triangles": 380
+        },
+        {
+          "name": "rock-group-1-lod1",
+          "triangles": 170
+        },
+        {
+          "name": "rock-group-1-lod2",
+          "triangles": 52
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "spatial shader variation / CC0 ARM, not a constant fill",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "cliff-group-0",
+      "kind": "rock",
+      "physicalHeight": 15.123627841472626,
+      "groundAnchor": [
+        0,
+        -0.8106653094291687,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -12.093883514404297,
+          -6.299984931945801,
+          -0.8106653094291687
+        ],
+        [
+          11.940625190734863,
+          7.931296348571777,
+          14.312962532043457
+        ]
+      ],
+      "footprint": {
+        "radius": 14.462623559674366,
+        "height": 14.312962532043457
+      },
+      "highTriangles": 27648,
+      "lowTriangles": 1224,
+      "sourceDetails": "continuous irregular outcrop with tilted bedding, oblique fault seams, convex fracture fragments and graded talus",
+      "lods": [
+        {
+          "name": "cliff-group-0-lod0",
+          "triangles": 1224
+        },
+        {
+          "name": "cliff-group-0-lod1",
+          "triangles": 550
+        },
+        {
+          "name": "cliff-group-0-lod2",
+          "triangles": 171
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "spatial shader variation / CC0 ARM, not a constant fill",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    }
+  ],
+  "sha256": "330f0ca53f506579c0147272cf78fbd01ea8e9d26521c4d648ad86c646e5b543",
+  "bytes": 4337032,
+  "limitations": [
+    "Finite browser lookdev only; silhouette, projected coverage, realism and device budget await human review.",
+    "Mesh LOD2 is a review comparator; no new impostor/scatter rollout before finite-scene approval."
+  ],
+  "textureRuntimePolicy": "Tree/cliff base colour 1k; all other channels 512; selected high-to-low source bake 1k.",
+  "optimization": "gltf-transform 4.4.2: dedup/prune, WebP, Meshopt; hierarchy/names and authored LOD geometry retained"
+}

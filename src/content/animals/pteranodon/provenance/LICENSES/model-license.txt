@@ -1,16 +1,20 @@
 Model license record
 ====================
 
-Asset: PBR Stegasaurus (Animated)
-Creator: Ferocious Industries
+Asset: Pteranodon (Animated)
+Creator: Chistodrako._. / Oscar López Riviello
 License: Creative Commons Attribution 4.0 International (CC BY 4.0)
 License URL: https://creativecommons.org/licenses/by/4.0/
-Source URL: https://sketchfab.com/3d-models/pbr-stegasaurus-animated-ec254ea1554941fe8a131f62db0faf3d
+Source URL: https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b
 Accessed: 2026-07-26
 
 Attribution:
-“PBR Stegasaurus (Animated)” by Ferocious Industries, CC BY 4.0;
-modified for the Prehistoric Animal Museum.
+“Pteranodon (Animated)” by Chistodrako._. / Oscar López Riviello,
+CC BY 4.0; modified for the Prehistoric Animal Museum.
 
-The source title is retained verbatim for attribution. The project-facing
-animal name is corrected to “Stegosaurus”.
+Runtime modifications and source/runtime hashes are recorded in
+../../provenance.ts and model-source.txt. The original flying action was
+transferred to the normalized runtime rig in Blender 5.2, rebased to the
+museum rest origin with translation reduced to 3.5%, and retained as Idle.
+The W2 distant companion preserves that Idle action and its original rig;
+its separate manifest records mesh simplification and borrowed materials.

@@ -30,12 +30,28 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test -- --run
+      - name: Fast contracts and component tests
+        run: npx vitest run --exclude tests/flight/terrain-scheduling.test.ts --exclude tests/flight/terrain-stress.test.ts --exclude tests/flight/lifecycle.test.ts --exclude tests/flight/prop-stream.test.ts
+      - name: Real geometry and lifecycle integration (isolated CPU)
+        run: npx vitest run tests/flight/terrain-scheduling.test.ts tests/flight/terrain-stress.test.ts tests/flight/lifecycle.test.ts tests/flight/prop-stream.test.ts --maxWorkers=1
       - run: npm run build
+      - run: node scripts/flight/validate-build.mjs dist --disabled
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
+
+  flight-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build:flight
+      # Separate job: candidate dist is never uploaded as the Pages artifact.
 
   deploy:
     if: github.event_name != 'pull_request'

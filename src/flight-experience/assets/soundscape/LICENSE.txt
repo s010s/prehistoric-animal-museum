@@ -1,0 +1,5 @@
+These four WAV files are original deterministic procedural audio, generated without recordings, music, voices, or third-party audio. They are synthetic artistic candidates, not field recordings or a scientific reconstruction of prehistoric sound. Human listening approval is pending.
+
+To the extent copyright or related rights subsist in these generated files, the project dedicates those rights under CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/legalcode . This dedication covers only these WAV files. Application and generator code retain the repository's AGPL-3.0-only license.
+
+The manifest records the reproducible generator, seed-derived output hashes, editing, loop metadata, and source PCM measurements. Actual browser-decoded memory is separately enforced by Soundscape using decoded buffer length and channel count. Peak/RMS measurements are engineering observations, not hearing-safety claims. Review on headphones and speakers remains required.

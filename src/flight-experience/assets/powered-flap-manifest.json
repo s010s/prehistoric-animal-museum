@@ -1,0 +1,14 @@
+{
+  "reviewStatus": "needs_review",
+  "approval": null,
+  "source": "src/content/animals/pteranodon/model/model.glb",
+  "sourceSha256": "abcde65b2ea29c6ae86d8232a5e1a604b05099deb34cebfb30495aff53f61af1",
+  "poseSource": "src/flight-experience/assets/pteranodon-glide.json",
+  "poseSourceSha256": "8e386f0a3b09a11a774be7b62be332b3d7c40602f1392e1b97305b77752700dd",
+  "output": "src/flight-experience/assets/pteranodon-powered-flap.json",
+  "sha256": "e1d8926972d4db7ba0117be42e43ab35cd6487730657197b8ebccefa4c4d0ce6",
+  "duration": 1.4,
+  "recipe": "scripts/flight/derive-powered-flap.mjs",
+  "license": "CC-BY-4.0",
+  "modifications": "Authored continuous bilateral shoulder/forearm flex respecting mirrored source joint bases over source-derived glide pose; 1.4s loop, shoulder ±0.48rad and forearm ±0.22rad; fixed translations; original GLB unchanged. Requires human motion review."
+}

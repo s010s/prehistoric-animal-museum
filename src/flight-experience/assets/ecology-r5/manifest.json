@@ -1,0 +1,534 @@
+{
+  "version": 1,
+  "reviewStatus": "integrated-preview",
+  "approval": null,
+  "scope": "multilayer flight ecology; material terrain trials remain isolated",
+  "units": "metres",
+  "axis": "glTF Y-up, Blender Z-up",
+  "blender": "5.2.0 LTS",
+  "geometryLicense": "CC-BY-NC-SA-4.0 project original",
+  "rockMaterialSource": "Poly Haven rock_01 CC0; see ../lookdev-materials/manifest.json",
+  "recipe": "scripts/flight/assets/create-lookdev-r4.py + bake-lookdev-r4.py",
+  "assets": [
+    {
+      "id": "tree-0-0",
+      "kind": "plant",
+      "physicalHeight": 13.512682437896729,
+      "groundAnchor": [
+        0,
+        -0.2744784355163574,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -3.791975259780884,
+          -3.9767539501190186,
+          -0.2744784355163574
+        ],
+        [
+          3.8578665256500244,
+          3.4579784870147705,
+          13.238204002380371
+        ]
+      ],
+      "footprint": {
+        "radius": 5.540551065509478,
+        "height": 13.238204002380371
+      },
+      "highTriangles": 276480,
+      "lowTriangles": 12432,
+      "sourceDetails": "hierarchical branching, dense multiorientation small curved leaves with raised midribs, and root flare",
+      "lods": [
+        {
+          "name": "tree-0-0-lod0",
+          "triangles": 12432
+        },
+        {
+          "name": "tree-0-0-lod1",
+          "triangles": 5594
+        },
+        {
+          "name": "tree-0-0-lod2",
+          "triangles": 1849
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "same source spatial shader / CC0 ARM evaluated on low surface to avoid leaf ray misses",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      },
+      "impostor": {
+        "source": "exact baked LOD0 albedo emission, transparent 512px, front/side/top",
+        "views": [
+          0,
+          1,
+          4
+        ],
+        "physicalSize": 15.53958511352539
+      }
+    },
+    {
+      "id": "tree-0-1",
+      "kind": "plant",
+      "physicalHeight": 13.832093238830566,
+      "groundAnchor": [
+        0,
+        -0.257080078125,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -3.951141595840454,
+          -3.7727208137512207,
+          -0.257080078125
+        ],
+        [
+          3.6448769569396973,
+          3.3820784091949463,
+          13.575013160705566
+        ]
+      ],
+      "footprint": {
+        "radius": 5.463052466240126,
+        "height": 13.575013160705566
+      },
+      "highTriangles": 276480,
+      "lowTriangles": 12432,
+      "sourceDetails": "hierarchical branching, dense multiorientation small curved leaves with raised midribs, and root flare",
+      "lods": [
+        {
+          "name": "tree-0-1-lod0",
+          "triangles": 12432
+        },
+        {
+          "name": "tree-0-1-lod1",
+          "triangles": 5594
+        },
+        {
+          "name": "tree-0-1-lod2",
+          "triangles": 1849
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "same source spatial shader / CC0 ARM evaluated on low surface to avoid leaf ray misses",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      },
+      "impostor": {
+        "source": "exact baked LOD0 albedo emission, transparent 512px, front/side/top",
+        "views": [
+          0,
+          1,
+          4
+        ],
+        "physicalSize": 15.906907081604004
+      }
+    },
+    {
+      "id": "tree-1-0",
+      "kind": "plant",
+      "physicalHeight": 14.956229776144028,
+      "groundAnchor": [
+        0,
+        -0.2719665467739105,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -4.9968695640563965,
+          -5.128998756408691,
+          -0.2719665467739105
+        ],
+        [
+          5.779561996459961,
+          4.59782075881958,
+          14.684263229370117
+        ]
+      ],
+      "footprint": {
+        "radius": 7.72722234144755,
+        "height": 14.684263229370117
+      },
+      "highTriangles": 1037232,
+      "lowTriangles": 44168,
+      "sourceDetails": "hierarchical branching, dense multiorientation small curved leaves with raised midribs, and root flare",
+      "lods": [
+        {
+          "name": "tree-1-0-lod0",
+          "triangles": 44168
+        },
+        {
+          "name": "tree-1-0-lod1",
+          "triangles": 19867
+        },
+        {
+          "name": "tree-1-0-lod2",
+          "triangles": 6601
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "same source spatial shader / CC0 ARM evaluated on low surface to avoid leaf ray misses",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      },
+      "impostor": {
+        "source": "exact baked LOD0 albedo emission, transparent 512px, front/side/top",
+        "views": [
+          0,
+          1,
+          4
+        ],
+        "physicalSize": 17.772611618041992
+      }
+    },
+    {
+      "id": "tree-1-1",
+      "kind": "plant",
+      "physicalHeight": 15.516516119241714,
+      "groundAnchor": [
+        0,
+        -0.263606458902359,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -5.220951557159424,
+          -5.246315956115723,
+          -0.263606458902359
+        ],
+        [
+          5.648146152496338,
+          4.431238174438477,
+          15.252909660339355
+        ]
+      ],
+      "footprint": {
+        "radius": 7.708786290419109,
+        "height": 15.252909660339355
+      },
+      "highTriangles": 1037232,
+      "lowTriangles": 44168,
+      "sourceDetails": "hierarchical branching, dense multiorientation small curved leaves with raised midribs, and root flare",
+      "lods": [
+        {
+          "name": "tree-1-1-lod0",
+          "triangles": 44168
+        },
+        {
+          "name": "tree-1-1-lod1",
+          "triangles": 19867
+        },
+        {
+          "name": "tree-1-1-lod2",
+          "triangles": 6601
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "same source spatial shader / CC0 ARM evaluated on low surface to avoid leaf ray misses",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      },
+      "impostor": {
+        "source": "exact baked LOD0 albedo emission, transparent 512px, front/side/top",
+        "views": [
+          0,
+          1,
+          4
+        ],
+        "physicalSize": 17.843994140625
+      }
+    },
+    {
+      "id": "understory-0",
+      "kind": "understory",
+      "physicalHeight": 1.4044194631278515,
+      "groundAnchor": [
+        0,
+        -0.02540842816233635,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -1.399910569190979,
+          -1.5044611692428589,
+          -0.02540842816233635
+        ],
+        [
+          1.5383954048156738,
+          1.3807429075241089,
+          1.3790110349655151
+        ]
+      ],
+      "footprint": {
+        "radius": 2.1517583115483885,
+        "height": 1.3790110349655151
+      },
+      "highTriangles": 140112,
+      "lowTriangles": 6104,
+      "sourceDetails": "clustered lower vegetation silhouette",
+      "lods": [
+        {
+          "name": "understory-0-lod0",
+          "triangles": 6104
+        },
+        {
+          "name": "understory-0-lod1",
+          "triangles": 2746
+        },
+        {
+          "name": "understory-0-lod2",
+          "triangles": 908
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "same source spatial shader / CC0 ARM evaluated on low surface to avoid leaf ray misses",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "understory-1",
+      "kind": "understory",
+      "physicalHeight": 2.066969788633287,
+      "groundAnchor": [
+        0,
+        -0.014676488004624844,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -1.1548471450805664,
+          -1.2155903577804565,
+          -0.014676488004624844
+        ],
+        [
+          1.2409340143203735,
+          1.0797712802886963,
+          2.052293300628662
+        ]
+      ],
+      "footprint": {
+        "radius": 1.7371174818722237,
+        "height": 2.052293300628662
+      },
+      "highTriangles": 100080,
+      "lowTriangles": 4360,
+      "sourceDetails": "clustered lower vegetation silhouette",
+      "lods": [
+        {
+          "name": "understory-1-lod0",
+          "triangles": 4360
+        },
+        {
+          "name": "understory-1-lod1",
+          "triangles": 1962
+        },
+        {
+          "name": "understory-1-lod2",
+          "triangles": 649
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "same source spatial shader / CC0 ARM evaluated on low surface to avoid leaf ray misses",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "rock-group-0",
+      "kind": "rock",
+      "physicalHeight": 3.8667231500148773,
+      "groundAnchor": [
+        0,
+        -0.4762035310268402,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -2.9388105869293213,
+          -1.542204737663269,
+          -0.4762035310268402
+        ],
+        [
+          2.9987990856170654,
+          2.004948616027832,
+          3.390519618988037
+        ]
+      ],
+      "footprint": {
+        "radius": 3.607300224379677,
+        "height": 3.390519618988037
+      },
+      "highTriangles": 9264,
+      "lowTriangles": 386,
+      "sourceDetails": "continuous irregular outcrop with tilted bedding, oblique fault seams, convex fracture fragments and graded talus",
+      "lods": [
+        {
+          "name": "rock-group-0-lod0",
+          "triangles": 386
+        },
+        {
+          "name": "rock-group-0-lod1",
+          "triangles": 172
+        },
+        {
+          "name": "rock-group-0-lod2",
+          "triangles": 54
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "same source spatial shader / CC0 ARM evaluated on low surface to avoid leaf ray misses",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "rock-group-1",
+      "kind": "rock",
+      "physicalHeight": 3.8399649560451508,
+      "groundAnchor": [
+        0,
+        -0.47074636816978455,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -3.159092903137207,
+          -1.3985018730163574,
+          -0.47074636816978455
+        ],
+        [
+          2.981987476348877,
+          1.7906039953231812,
+          3.369218587875366
+        ]
+      ],
+      "footprint": {
+        "radius": 3.631271215252202,
+        "height": 3.369218587875366
+      },
+      "highTriangles": 9120,
+      "lowTriangles": 380,
+      "sourceDetails": "continuous irregular outcrop with tilted bedding, oblique fault seams, convex fracture fragments and graded talus",
+      "lods": [
+        {
+          "name": "rock-group-1-lod0",
+          "triangles": 380
+        },
+        {
+          "name": "rock-group-1-lod1",
+          "triangles": 170
+        },
+        {
+          "name": "rock-group-1-lod2",
+          "triangles": 52
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "same source spatial shader / CC0 ARM evaluated on low surface to avoid leaf ray misses",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    },
+    {
+      "id": "cliff-group-0",
+      "kind": "rock",
+      "physicalHeight": 15.123627841472626,
+      "groundAnchor": [
+        0,
+        -0.8106653094291687,
+        0
+      ],
+      "boundsBlender": [
+        [
+          -12.093883514404297,
+          -6.299984931945801,
+          -0.8106653094291687
+        ],
+        [
+          11.940625190734863,
+          7.931296348571777,
+          14.312962532043457
+        ]
+      ],
+      "footprint": {
+        "radius": 14.462623559674366,
+        "height": 14.312962532043457
+      },
+      "highTriangles": 27648,
+      "lowTriangles": 1224,
+      "sourceDetails": "continuous irregular outcrop with tilted bedding, oblique fault seams, convex fracture fragments and graded talus",
+      "lods": [
+        {
+          "name": "cliff-group-0-lod0",
+          "triangles": 1224
+        },
+        {
+          "name": "cliff-group-0-lod1",
+          "triangles": 550
+        },
+        {
+          "name": "cliff-group-0-lod2",
+          "triangles": 171
+        }
+      ],
+      "textures": {
+        "sourceResolution": 1024,
+        "normalSource": "subdivided/displaced high surface plus material relief; selected-to-active rays",
+        "roughnessSource": "same source spatial shader / CC0 ARM evaluated on low surface to avoid leaf ray misses",
+        "maps": [
+          "baseColor",
+          "normal",
+          "ORM"
+        ]
+      }
+    }
+  ],
+  "sha256": "db3198f09dadaf1ab9c556d23aa4f29f235071d5ee7bf3d439a6654ebdb1b3ce",
+  "bytes": 5033728,
+  "limitations": [
+    "Family 1 crown density revised for renewed visual review."
+  ],
+  "textureRuntimePolicy": "Tree/cliff base colour 1k; all other channels 512; selected high-to-low source bake 1k.",
+  "optimization": "gltf-transform 4.4.2: dedup/prune, WebP, Meshopt; hierarchy/names and authored LOD geometry retained"
+}

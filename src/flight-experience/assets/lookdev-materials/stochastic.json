@@ -1,0 +1,68 @@
+[
+  {
+    "id": "aerial_ground_rock",
+    "gaussianPath": "aerial_ground_rock-gaussian.webp",
+    "lutPath": "aerial_ground_rock-inverse.png",
+    "gaussianSha256": "7402f5ab62a7a1dfde417bae4ed9fe550a006783efb5b590c51b386bde534f02",
+    "lutSha256": "851b68a9e4600f3ff37ab162437f2d75f8622be13ec15ee2bb4870784dd6761c",
+    "metresPerRepeat": 20,
+    "levels": 10,
+    "method": "per-channel Gaussian rank transform; inverse CDF prefiltered per mip; no RGB eigenspace decorrelation",
+    "reviewStatus": "needs_review"
+  },
+  {
+    "id": "sandy_gravel_02",
+    "gaussianPath": "sandy_gravel_02-gaussian.webp",
+    "lutPath": "sandy_gravel_02-inverse.png",
+    "gaussianSha256": "99accb6f7f4dceeb64537e17bba5fde563508e88f3e749425c084bedbe674a74",
+    "lutSha256": "ad6619682298785ae25bf9830b2f70c0ca8930e0c01fc98f1b2295319289b2ff",
+    "metresPerRepeat": 2.5,
+    "levels": 10,
+    "method": "per-channel Gaussian rank transform; inverse CDF prefiltered per mip; no RGB eigenspace decorrelation",
+    "reviewStatus": "needs_review"
+  },
+  {
+    "id": "coast_sand_01",
+    "gaussianPath": "coast_sand_01-gaussian.webp",
+    "lutPath": "coast_sand_01-inverse.png",
+    "gaussianSha256": "830a0ef0ee3cba258824d348f806442ccc1da04d9f3fb4b21ae421e140ea5843",
+    "lutSha256": "e186f7db7b487541f61d9e1ee14b69bad5c094d63bb98ffc419121487249b406",
+    "metresPerRepeat": 15,
+    "levels": 10,
+    "method": "per-channel Gaussian rank transform; inverse CDF prefiltered per mip; no RGB eigenspace decorrelation",
+    "reviewStatus": "needs_review"
+  },
+  {
+    "id": "mud_forest",
+    "gaussianPath": "mud_forest-gaussian.webp",
+    "lutPath": "mud_forest-inverse.png",
+    "gaussianSha256": "598a13c2d31c701adcfa8488ca8c60bf1a18b385cee9d66190330dc615c3ff32",
+    "lutSha256": "d4bb82123d2055cd9f0b934c82841b93f0f76667aba1123d91699c6c298a449e",
+    "metresPerRepeat": 2.3,
+    "levels": 10,
+    "method": "per-channel Gaussian rank transform; inverse CDF prefiltered per mip; no RGB eigenspace decorrelation",
+    "reviewStatus": "needs_review"
+  },
+  {
+    "id": "forest_ground_04",
+    "gaussianPath": "forest_ground_04-gaussian.webp",
+    "lutPath": "forest_ground_04-inverse.png",
+    "gaussianSha256": "511d8c096f3ee7f0a26a615b7453221a84f4ba20e2891cdffe0988054bbe4994",
+    "lutSha256": "3c1e6a762f7dbc32b41613c44f40a07cb39fc8630f166b5e6810f9b8d00e2e7e",
+    "metresPerRepeat": 3.2,
+    "levels": 10,
+    "method": "per-channel Gaussian rank transform; inverse CDF prefiltered per mip; no RGB eigenspace decorrelation",
+    "reviewStatus": "needs_review"
+  },
+  {
+    "id": "leafy_grass",
+    "gaussianPath": "leafy_grass-gaussian.webp",
+    "lutPath": "leafy_grass-inverse.png",
+    "gaussianSha256": "03e3ab1f82ac1bb27efaf90e75dd09887e982c3098edcb66251d92a64353448e",
+    "lutSha256": "2b9c768242ef7562c62b6d090592d4f4d0f9048418851aeffb8c0ea528c23cc7",
+    "metresPerRepeat": 2,
+    "levels": 10,
+    "method": "per-channel Gaussian rank transform; inverse CDF prefiltered per mip; no RGB eigenspace decorrelation",
+    "reviewStatus": "needs_review"
+  }
+]
