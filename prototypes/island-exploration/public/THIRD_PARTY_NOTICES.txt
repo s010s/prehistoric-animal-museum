@@ -54,6 +54,10 @@ Water extinction / in-scattering and unresolved-variance GGX equations in water.
 src/ocean/WaterMaterial.js; this prototype uses analytic wave packets, not its FFT solver.
 ocean-spectrum.js: dispersion and JONSWAP envelope adapted from src/ocean/OceanFFT.js;
 64-mode quadrature into two WebGL2 slope maps, not the original FFT implementation.
+forest-impostor.js: per-frame view-ray reprojection adapted from
+src/world/vegetation/Impostors.js; local azimuth/elevation atlas and GLSL port.
+Root-anchored vegetation wind and stable shadow projection studied from
+src/world/vegetation/VegMaterials.js and src/engine/render/Shadows.js.
 Rock source: src/world/terrain/RockGeometry.js
 Fixed commit: 4811ba48d795197de5621985f404e765c0b7c0ef
 Surf lace: tools/bake-surf-lace.mjs is adapted from src/ocean/SurfFoam.js at

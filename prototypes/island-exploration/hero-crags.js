@@ -1,3 +1,4 @@
+import {springOrigin,springAt} from './spring.js'
 import * as T from 'three'
 import {buildRockGeometry} from './weathered-rock.js'
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js'
@@ -65,6 +66,20 @@ export function createHeroCragLayout(improved=true){
   const large=hash(i,404)>.82,h=large?12+hash(i,405)*12:2+hash(i,405)*8,w=h*(.8+hash(i,406)*.85);
   put(x,z,[w,h,w*(.75+hash(i,407)*.45)],[(hash(i,408)-.5)*.15,hash(i,409)*6.28,(hash(i,410)-.5)*.16],large?.18:.35,'intertidal-remnant');
  }
+ // Inland escarpments use the western cape's buried, fractured outcrop system.
+ if(improved)for(let i=0;i<92;i++){
+  const z=-1430+i*18+(hash(i,501)-.5)*25,x=riverX(z)-halfWidth(z)-90-hash(i,502)*310;
+  if(slopeAt(x,z)>.85||hash(i,503)<.26)continue;
+  const h=7+hash(i,504)*16;
+  put(x,z,[h*(1.3+hash(i,505)),h,h*(1.1+hash(i,506))],[(hash(i,507)-.5)*.2,hash(i,508)*.9,(hash(i,509)-.5)*.2],.48,'valley-bedrock');
+ }
+ // Asymmetric buried scree around the seep and pool. Keep the low outlet open.
+ if(improved)for(let i=0;i<43;i++){
+  const angle=hash(i,610)*6.283,radius=5+hash(i,611)**.75*21,x=springOrigin.x+Math.cos(angle)*radius,z=springOrigin.z-8+Math.sin(angle)*radius;
+  const water=springAt(x,z);if(!water||water.edge<1.3||terrainHeight(x,z)>213.7||slopeAt(x,z)<.77)continue;
+  const h=(z<springOrigin.z-10?1.4:.5)+hash(i,612)**2*3.6;
+  put(x,z,[h*(1.2+hash(i,613)),h,h*(.8+hash(i,614))],[(hash(i,615)-.5)*.65,hash(i,616)*6.28,(hash(i,617)-.5)*.6],.48+hash(i,618)*.18,'spring-talus');
+ }
  return layout
 }
 export function createHeroCragMeshGeometry(improved=true){
@@ -94,6 +109,8 @@ export async function makeHeroCrags(improved=true){
   float mineral=cragNoise(cragP.xz/13.+cragP.y*.037);diffuseColor.rgb*=mix(vec3(.64,.70,.67),vec3(1.07,1.02,.91),mineral);
   float moss=smoothstep(.35,.90,cragN.y)*(.30+.10*sin(cragP.x*.62+cragP.z*.41));
   diffuseColor.rgb*=mix(vec3(1.),vec3(.50,.67,.37),moss);
+  float springMoist=(1.-smoothstep(9.,27.,length((cragP.xz-vec2(-1760.143113,-4028.))*vec2(1.,.7))))*(1.-smoothstep(210.,216.,cragP.y));
+  diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.42,.55,.38),springMoist*(.45+.35*cragNoise(cragP.xz*.7)));
   float tideWet=1.-smoothstep(.15,2.1,cragP.y);diffuseColor.rgb*=mix(vec3(1.),vec3(.38,.43,.38),tideWet);`)
   .replace('#include <normal_fragment_maps>',`vec3 cw=cragWeights(cragN),cp=cragP/6.1;
   vec3 ca=cragTile(normalMap,cp.zy,1.),cb=cragTile(normalMap,cp.xz,1.),cc=cragTile(normalMap,cp.xy,1.);

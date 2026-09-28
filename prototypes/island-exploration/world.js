@@ -57,7 +57,7 @@ export async function groundMaterial(){
  float litter=forestFloor*smoothstep(.26,.61,nn(p/8.5+nn(p/31.)*3.));
  float coastCover=(1.-smoothstep(4.,21.,landP.y+(nn(p/70.)-.5)*6.))*clamp(localCoast,0.,1.)*(1.-w.x);
  vec3 rock=vec3(.18),gravel=vec3(.18,.17,.14),grass=vec3(.12,.16,.06),sand=vec3(.25,.20,.14);
- if(w.x>.005){rock=tri(groundAlbedo,0.,landP/12.7,landN)*vec3(.43,.47,.44);rock*=.80+.26*nn(p*.023+landP.y*.021);
+ if(w.x>.005){rock=tri(groundAlbedo,0.,landP/6.1,landN)*vec3(.53,.56,.50);rock*=.80+.26*nn(p*.023+landP.y*.021);
  float fracture=nn(landP.xy/vec2(21.,37.)+vec2(nn(landP.zy/61.))*2.);rock*=mix(.56,1.18,structure)*(1.-strataEdge*strataBreak*.27)*(1.-joint*.10);rock*=mix(vec3(.88,.90,.88),vec3(1.10,1.035,.94),nn(vec2(landP.y*.19,nn(p/150.)*3.)));rock=mix(rock,rock*vec3(.67,.79,.55),smoothstep(.55,.88,landN.y)*smoothstep(.4,.75,fracture)*.48);}
  if(w.y>.005||coastCover>.005){gravel=tile(groundAlbedo,1.,p/2.8)*vec3(.86,.89,.84);}
  // Fine sand fades into gravel through a broken sediment fringe, not round noise islands.
@@ -93,11 +93,14 @@ export async function groundMaterial(){
  float wet=1.-smoothstep(localWater+.15,localWater+1.2,landP.y);
  vec3 mud=mix(vec3(.095,.077,.048),vec3(.16,.135,.08),nn(p/3.7))*(.87+.18*nn(p/11.));
  vec3 ground=(rock*w.x+gravel*w.y+grass*w.z)*macro;
+ float springZone=(1.-smoothstep(12.,38.,length((p-vec2(-1760.1431125663364,-4031.))*vec2(1.,.7))))*(1.-smoothstep(212.,230.,landP.y));
+ float seepVein=pow(.5+.5*sin(p.x*1.7+nn(p/3.)*5.),12.);
+ ground=mix(ground,ground*vec3(.38,.49,.35),springZone*(.40+.35*seepVein));
  ground=mix(ground,sand*macro,coastCover);
  ground=mix(ground,mix(grass*mix(vec3(.71,.77,.52),vec3(.92,.87,.63),nn(p/23.)),mud,wet)*macro,marsh*(1.-w.x));
  float recentWater=shoreWet(p);ground*=mix(1.,.55,recentWater);
  ground*=mix(.63,1.,smoothstep(localWater+.05,localWater+1.5,landP.y));diffuseColor.rgb*=ground*bakedShade;`)
- s.fragmentShader=s.fragmentShader.replace('#include <lights_fragment_end>','#include <lights_fragment_end>\nreflectedLight.indirectDiffuse*=mix(1.,.69,canopy.g);reflectedLight.directDiffuse*=mix(1.,mix(.28,1.,canopy.r),smoothstep(65.,100.,viewDistance));');
+ s.fragmentShader=s.fragmentShader.replace('#include <lights_fragment_end>','#include <lights_fragment_end>\nreflectedLight.directSpecular*=mix(1.,.025,w.z*(1.-wet));reflectedLight.indirectSpecular*=mix(1.,.025,w.z*(1.-wet));reflectedLight.indirectDiffuse*=mix(1.,.69,canopy.g);reflectedLight.directDiffuse*=mix(1.,mix(.28,1.,canopy.r),smoothstep(65.,100.,viewDistance));');
  s.fragmentShader=s.fragmentShader.replace('#include <roughnessmap_fragment>',`vec3 arm=vec3(1.,.91,0.);
  if(w.y>.01)arm=mix(arm,tile(groundLinear,3.,p/2.8),w.y);
  if(w.z>.01)arm=mix(arm,mix(tile(groundLinear,7.,p/2.6),tile(groundLinear,5.,p/2.3),litter),w.z);
@@ -109,7 +112,7 @@ export async function groundMaterial(){
  float detailHeight=(structure*2.1-strataEdge*strataBreak*.17-joint*.06)*w.x+nn(landP.xz*2.)*.045*w.y+nn(landP.xz*3.)*.023*w.z+(nn(p*9.)*.018+nn(p*1.7)*.035)*path;
  vec3 swardN=surfaceGradient(landP,normalize(landN),swardHeight);
  vec3 detailedN=surfaceGradient(landP,swardN,detailHeight);
- if(w.x>.05&&detailWeight>.01)detailedN=normalize(mix(detailedN,rockDetail(landP/12.7,normalize(landN)),w.x*.7));
+ if(w.x>.05&&detailWeight>.01)detailedN=normalize(mix(detailedN,rockDetail(landP/6.1,normalize(landN)),w.x*.7));
  if(detailWeight>.01){vec3 soilN=vec3(0.,0.,1.);
  if(w.y>.01)soilN+=tileNormal(groundLinear,2.,p/2.8)*w.y*.52;
  if(w.z>.01)soilN+=mix(tileNormal(groundLinear,6.,p/2.6),tileNormal(groundLinear,4.,p/2.3),litter)*w.z*.65;

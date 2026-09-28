@@ -1,3 +1,4 @@
+import {springAt,springTerrain} from './spring.js'
 // Original flight-world seed and coastal-valley primitives, composed into an authored island.
 import {createWorldSampler,WORLD} from '../../src/flight-experience/world.ts'
 import {riverReach} from './hydrology.js'
@@ -11,8 +12,6 @@ export const hash=(x,z)=>original.hash(Math.floor(x*731),Math.floor(z*193),71)
 export const fbm=(x,z)=>noise(x,z)*.57+noise(x*2.03+17,z*2.03)*.28+noise(x*4.11,z*4.11-9)*.15
 export const riverX=z=>-1830+190*Math.sin(z/640)+72*Math.sin(z/230)-smooth(2400,4000,z)*1550
 export const riverLevel=z=>17.3*(1-smooth(-1550,2800,z))+190*(1-smooth(-3800,-1550,z))-.7
-export const springX=z=>riverX(z)+Math.sin((z+4022)*.19)*.6;
-export const springLevel=z=>riverLevel(z)+Math.max(0,-3980-z)*.26;
 export const headwaters={x:riverX(-3980),z:-3980,level:riverLevel(-3980)}
 export const hero=z=>smooth(-1450,-1050,z)*(1-smooth(0,400,z))
 export const halfWidth=z=>(15+24*Math.exp(-1*((z+3950)/65)**2)+8*noise(z/125,9)+1.8*noise(z/14,7)+smooth(1600,3500,z)*60+15*Math.exp(-1*((z+1800)/260)**2))*(1-.52*hero(z))
@@ -90,16 +89,17 @@ function terrainBase(x,z){
  // Eroded bedding ledges follow the coastal rock mass, not freestanding blocks.
  h+=cliffBand*smooth(70,130,h)*(1-smooth(330,430,h))*((noise(x/37+h/83,z/51)-.5)*18+(noise(x/13,z/29)-.5)*5)
  // Patchy rock ledges remain part of the land itself (not inserted slabs).
- const rockWeight=cliffBand*smooth(45,105,h)*(1-smooth(370,500,h));
+ const inlandRock=smooth(32,88,west)*(1-smooth(430,650,west))*smooth(-1650,-1300,z)*(1-smooth(120,430,z));
+ const rockWeight=Math.max(cliffBand*smooth(45,105,h)*(1-smooth(370,500,h)),inlandRock*smooth(65,120,h));
  const lift=16+13*noise(x/97,z/97),warp=(noise(x/41,z/41)-.5)*10+(noise(x/17,z/17)-.5)*3;
  const band=(h+warp)/lift,ledge=(Math.floor(band)+smooth(.48,.82,band-Math.floor(band)))*lift-warp;
- h+=(ledge-h)*.87*rockWeight;
+ h+=(ledge-h)*.82*rockWeight;
  // Differential erosion leaves broad bedding shelves and narrow vertical joints.
  // World-space ridges vary with height, so the face cannot read as a smooth cone.
  const jointWarp=(noise(x/85,z/130)-.5)*26;
  const buttress=1-Math.abs(noise((x+jointWarp)/27,(z+jointWarp)/98)*2-1);
  const fissure=Math.pow(clamp((noise((x+jointWarp)/19,z/74)-.50)*2.3),2);
- h+=((buttress-.5)*28-fissure*38)*rockWeight;
+ h+=((buttress-.5)*36-fissure*42)*rockWeight;
  // Ravines cut the coastal escarpment into unequal headlands and recessed coves.
  const notch=Math.pow(noise(z/155,91),3)*125+Math.pow(noise(z/51,53),4)*32;
  h-=cliffBand*smooth(65,150,h)*(1-smooth(380,530,h))*notch;
@@ -133,8 +133,8 @@ function terrainBase(x,z){
   const margin=1-smooth(12,110,bank),floor=(bank<0?bed:level+.12+Math.max(0,bank)*.24)+Math.max(0,-3980-z)*.26;
   h=mixHeight(h,Math.min(h,floor),source*margin);
  }
- if(z>-4025&&z<-3972){const t=clamp((z+4022)/48),width=.12+t**1.1*2.1,offset=Math.abs(x-springX(z)),groove=1-smooth(width*.65,width+1.7,offset);h=mixHeight(h,Math.min(h,springLevel(z)-.16+.12*(offset/Math.max(.3,width))**2),groove*smooth(-4025,-4020,z));}
- return h
+
+ return springTerrain(x,z,h)
 }
 // A dry, level observation clearing; the same surface is used by terrain, plants and collision.
 export const encounter={x:riverX(-560)+halfWidth(-560)+44,z:-560};
@@ -142,11 +142,11 @@ encounter.y=terrainBase(encounter.x,encounter.z);
 export function terrainHeight(x,z){const d=Math.hypot(x-encounter.x,z-encounter.z);return mixHeight(encounter.y,terrainBase(x,z),smooth(18,40,d))}
 export function meshHeight(x,z,step=STEP){const gx=Math.floor(x/step)*step,gz=Math.floor(z/step)*step,u=(x-gx)/step,v=(z-gz)/step,a=terrainHeight(gx,gz),b=terrainHeight(gx+step,gz),c=terrainHeight(gx,gz+step),d=terrainHeight(gx+step,gz+step);return u+v<=1?a+u*(b-a)+v*(c-a):d+(1-u)*(c-d)+(1-v)*(b-d)}
 export function slopeAt(x,z){return 1/Math.hypot((terrainHeight(x+2,z)-terrainHeight(x-2,z))/4,1,(terrainHeight(x,z+2)-terrainHeight(x,z-2))/4)}
-export function waterLevelAt(x,z){let level=SEA;if(z>-4000&&z<4320&&Math.abs(x-riverX(z))<halfWidth(z)+25)level=Math.max(level,riverLevel(z));if(Math.abs(x-lake.x)<lake.rx*1.75&&Math.abs(z-lake.z)<lake.rz*1.75)level=Math.max(level,lake.level);if(Math.abs(x-wetland.x)<wetland.rx*1.18&&Math.abs(z-wetland.z)<wetland.rz*1.18)level=Math.max(level,wetlandLevel(z));if(Math.abs(x-tarn.x)<tarn.rx*1.75&&Math.abs(z-tarn.z)<tarn.rz*1.75)level=Math.max(level,tarn.level);if(z>100&&z<5700&&Math.abs(x-tributaryX(z))<50)level=Math.max(level,tributaryLevel(z));return level}
+export function waterLevelAt(x,z){let level=SEA;const spring=springAt(x,z);if(spring&&spring.edge<1)level=spring.level;if(z>-3930&&z<4320&&Math.abs(x-riverX(z))<halfWidth(z)+25)level=Math.max(level,riverLevel(z));if(Math.abs(x-lake.x)<lake.rx*1.75&&Math.abs(z-lake.z)<lake.rz*1.75)level=Math.max(level,lake.level);if(Math.abs(x-wetland.x)<wetland.rx*1.18&&Math.abs(z-wetland.z)<wetland.rz*1.18)level=Math.max(level,wetlandLevel(z));if(Math.abs(x-tarn.x)<tarn.rx*1.75&&Math.abs(z-tarn.z)<tarn.rz*1.75)level=Math.max(level,tarn.level);if(z>100&&z<5700&&Math.abs(x-tributaryX(z))<50)level=Math.max(level,tributaryLevel(z));return level}
 // Bank materials need the watershed's reference level, not the draw footprint.
 // Fade only on dry uplands; the narrow physical water mask remains for collision.
 export function bankWaterLevelAt(x,z){
- let level=SEA;
+ let level=SEA;const spring=springAt(x,z);if(spring&&spring.edge<24)level=spring.level;
  const riverMask=smooth(-4250,-3970,z)*(1-smooth(4050,4500,z))*(1-smooth(180,720,Math.abs(x-riverX(z))-halfWidth(z)));
  level=Math.max(level,SEA+(riverLevel(z)-SEA)*riverMask);
  const tributaryMask=smooth(-100,350,z)*(1-smooth(5550,5950,z))*(1-smooth(110,440,Math.abs(x-tributaryX(z))-tributaryWidth(z)));

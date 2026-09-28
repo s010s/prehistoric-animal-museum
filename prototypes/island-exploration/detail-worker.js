@@ -1,3 +1,4 @@
+import {springAt,springOrigin} from './spring.js'
 import {hash,noise,terrainHeight,slopeAt,bankAt,riverX,halfWidth,riverLevel,waterLevelAt,biomeAt,woodland} from './field.js'
 import {trailWeight,trailX} from './habitat.js'
 const rand=(i,n)=>hash(i*1.71+n*14.19,n*7.38-i*.31)
@@ -12,7 +13,7 @@ self.onmessage=e=>{const {cx,cz,fine,habitat,rockWidth,fernHeight}=e.data;const 
  if(y>water+.35&&trailWeight(x,z)<.1&&s>.73&&(b>7&&b<200||woodland(x,z)>.25)&&rand(i,30)<.72)ferns.push({x,z,y:y-.06,scale:(.9+rand(i,31)**2*1.8)/fernHeight,yaw:rand(i,32)*6.28,tint:.72+rand(i,33)*.3});
  }
  for(let row=Math.floor((cz-160)/3);row<=Math.ceil((cz+160)/3);row++)for(let column=0;column<(fine?10:5);column++){
- const i=row*97+column,z=row*3+rand(i,61)*2,side=column%2?1:-1,x=riverX(z)+side*(halfWidth(z)-1+rand(i,62)**1.8*20);if(Math.hypot(x-cx,z-cz)>190)continue;
+ const i=row*97+column,z=row*3+rand(i,61)*2,side=column%2?1:-1,x=riverX(z)+side*(halfWidth(z)-1+rand(i,62)**1.8*20);if(z< -3890||Math.hypot(x-cx,z-cz)>190)continue;
  const y=terrainHeight(x,z),radius=.12+rand(i,63)**2*.65;rocks.push({x,z,y:y-radius*.18,scale:radius*2/rockWidth,yaw:rand(i,64)*6.28,sy:.55+rand(i,65)*.55,tint:.75+rand(i,66)*.55});
  if(column%3===0&&y>riverLevel(z)+.1)ferns.push({x:x+side*3,z,y:terrainHeight(x+side*3,z)-.1,scale:(.65+rand(i,67)*.8)/fernHeight,yaw:rand(i,68)*6.28,tint:.76+rand(i,69)*.25});
  }
@@ -47,11 +48,17 @@ self.onmessage=e=>{const {cx,cz,fine,habitat,rockWidth,fernHeight}=e.data;const 
  for(let gz=Math.floor((cz-radius)/spacing);gz<=Math.ceil((cz+radius)/spacing);gz++)for(let gx=Math.floor((cx-radius)/spacing);gx<=Math.ceil((cx+radius)/spacing);gx++){
  const i=gx*1973+gz*7919;if(!fine&&hash(gx,gz)>.44)continue;const x=(gx+hash(gx,gz+7))*spacing,z=(gz+hash(gz,gx+3))*spacing,y=terrainHeight(x,z),b=bankAt(x,z),eco=biomeAt(x,z),dune=x>8000&&z>0&&z<3600&&y>2.5&&y<26;
  if(y<waterLevelAt(x,z)+.12||y>950||hash(gx+71,gz-29)>(.24+.70*noise(x/13,z/18))||trailWeight(x,z)>.28||((b<4||b>200)&&eco.grass<.15&&eco.marsh<.1&&eco.heath<.15&&!dune&&forestAt(x,z)<.25))continue;
- grass.push({x,z,y,scale:habitat?(.52+rand(i,43)*.50)*(1+eco.grass*.28):(.6+rand(i,43)*1.2)*(1+eco.grass*1.7+eco.heath*.6),yaw:rand(i,44)*6.28,tint:.65+rand(i,45)*.55});
+ grass.push({x,z,y,scale:habitat?(.52+rand(i,43)*.50)*(1+eco.grass*.28):(.6+rand(i,43)*1.2)*(1+eco.grass*1.7+eco.heath*.6),sy:1+eco.grass*(.4+noise(x/9,z/13)*.55),sx:1+eco.grass*.24,sz:1+eco.grass*.24,yaw:rand(i,44)*6.28,tint:.65+rand(i,45)*.55});
  }
  for(let gz=Math.floor((cz-150)/8);gz<=Math.ceil((cz+150)/8);gz++)for(let gx=Math.floor((cx-150)/8);gx<=Math.ceil((cx+150)/8);gx++){
  const x=(gx+hash(gx,gz))*8,z=(gz+hash(gz,gx))*8,eco=biomeAt(x,z);if(eco.marsh<.3)continue;const y=terrainHeight(x,z),wl=waterLevelAt(x,z);if(y<wl-.5||y>wl+1.6||noise(x/35,z/28)<.38)continue;
  for(let j=0;j<(fine?9:5);j++){const i=gx*97+gz*113+j,rx=x+(rand(i,50)-.5)*6,rz=z+(rand(i,51)-.5)*6;reeds.push({x:rx,z:rz,y:terrainHeight(rx,rz)-.04,scale:.75+rand(i,52)*.9,yaw:rand(i,53)*6.28,tint:.7+rand(i,54)*.5})}
+ }
+ // Moist fern colonies and gravel at the spring; no plants in the pool.
+ if(Math.hypot(cx-springOrigin.x,cz-springOrigin.z)<200)for(let i=0;i<260;i++){
+  const x=springOrigin.x+(rand(i,710)-.5)*70,z=springOrigin.z-18+rand(i,711)*100,s=springAt(x,z);if(!s)continue;
+  const y=terrainHeight(x,z);if(s.edge>.6&&s.edge<8&&y>s.level+.08&&rand(i,712)<.65)ferns.push({x,z,y:y-.03,scale:(.25+rand(i,713)*.55)/fernHeight,yaw:rand(i,714)*6.28,tint:.65+rand(i,715)*.27});
+  if(s.edge<3&&s.edge>-.8)pebbles.push({x,z,y:y-.035,scale:.08+rand(i,716)*.27,sy:.45,yaw:rand(i,717)*6.28,tint:.6+rand(i,718)*.3});
  }
  self.postMessage({cx,cz,rocks,pebbles,ferns,grass,reeds,debris,litter})
 }

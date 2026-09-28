@@ -1,3 +1,4 @@
+import {springRuns,springAt} from './spring.js'
 import {makeOceanSpectrum,oceanSpectrumGLSL} from './ocean-spectrum.js';
 import {SUN_DIRECTION} from './lighting-config.js';
 import {makeExposureMeter} from './exposure-meter.js'
@@ -10,7 +11,7 @@ import {contactOcclusionGLSL} from './contact-occlusion.js'
 import {riverReach} from './hydrology.js'
 import {makeFlowField} from './flow-field.js'
 import {Reflector} from 'three/addons/objects/Reflector.js'
-import {SEA,springX,springLevel,riverX,halfWidth,riverLevel,lake,wetland,wetlandLevel,tarn,tributaryX,tributaryLevel,waterLevelAt,bankWaterLevelAt,terrainHeight} from './field.js'
+import {SEA,riverX,halfWidth,riverLevel,lake,wetland,wetlandLevel,tarn,tributaryX,tributaryLevel,waterLevelAt,bankWaterLevelAt,terrainHeight} from './field.js'
 export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>false){
  const shore=await shoreResources(),exposureMeter=makeExposureMeter(),spectrum=makeOceanSpectrum();
  const laceData=new Uint8Array(await(await fetch('./assets/surf-lace.bin')).arrayBuffer());if(laceData.length!==512*512*4)throw Error('Invalid surf lace');
@@ -75,14 +76,14 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  if(kind<.5&&wp.z>=-4000.&&wp.z<2800.){float row=(wp.z+4000.)/8.;vec2 a=texture2D(riverCoverage,vec2((floor(row)+.5)/851.,.5)).rg,b=texture2D(riverCoverage,vec2((floor(row)+1.5)/851.,.5)).rg;vec2 bounds=mix(a,b,fract(row));if(abs(wp.x-bounds.x)<bounds.y)discard;}
  // Wetland owns its footprint above the sea; never let the ocean show through it.
  if((kind<.5||kind>2.5&&wp.z>0.)&&wp.x>945.&&wp.x<6255.&&wp.z>3630.&&wp.z<7170.)discard;
- if(kind>2.5&&wp.z<0.&&abs(channel.x)>(.12+pow(clamp((wp.z+4022.)/48.,0.,1.),1.1)*2.1)*(.73+.20*noise(wp.xz*2.3)))discard;
+
  vec2 screen=gl_FragCoord.xy/resolution;float thick=sceneZ(screen)-vd;if(thick<=.015)discard;
- vec3 eye=normalize(cameraPosition-wp);float speed=length(flow);float tidal=kind<1.5?1.-riverInfluence(wp.xz):0.;float backwater=kind>2.5&&wp.z>0.?1.-smoothstep(4100.,4800.,wp.z):1.;float river=step(.3,speed)*(1.-tidal)*backwater;
+ vec3 eye=normalize(cameraPosition-wp);float speed=length(flow);float tidal=kind<1.5?1.-riverInfluence(wp.xz):0.;float backwater=kind>2.5&&wp.z>0.?1.-smoothstep(4100.,4800.,wp.z):1.;float springReach=step(2.5,kind)*(1.-step(-3890.,wp.z));float river=max(step(.3,speed)*(1.-tidal)*backwater,springReach);
  float depth=max(0.,wp.y-(viewToWorld*vec4(viewPoint(screen),1.)).y);
  float shoreWeight=kind<.5?shoreMask(wp.xz):0.;float shoreBed=shoreGround(wp.xz),shoreDepth=-.7-shoreBed,front=runupAt(wp.xz,time)-(shoreBed+.7);vec3 swash=vec3(1000.,1.,0.);if(shoreWeight>.001&&shoreDepth<.65)swash=shoreSwash(wp.xz,shoreBed,shoreGradient(wp.xz),time);float filmWeight=shoreWeight*(1.-smoothstep(.10,.65,shoreDepth));
  if(shoreWeight>.99&&shoreDepth<.10&&swash.y<=0.)discard;
- vec2 fuv=(wp.xz-flowOrigin)/flowSpan;float local=1.-smoothstep(.34,.49,max(abs(fuv.x-.5),abs(fuv.y-.5)));vec4 ff=texture2D(flowMap,clamp(fuv,0.,1.));
- vec2 velocity=mix(flow,(ff.rg-.5)*6.,local*river);float current=length(velocity);
+ vec2 fuv=(wp.xz-flowOrigin)/flowSpan;float local=1.-smoothstep(.34,.49,max(abs(fuv.x-.5),abs(fuv.y-.5)));local*=1.-springReach;vec4 ff=texture2D(flowMap,clamp(fuv,0.,1.));
+ vec2 velocity=mix(flow,(ff.rg-.5)*6.,local*river*step(-3890.,wp.z));float current=length(velocity);
  // Longitudinal travel time is integrated once in mesh coordinates. No reset/crossfade.
  vec2 direction=normalize(flow+vec2(.00001));vec2 across=vec2(direction.y,-direction.x);
  vec2 deformation=vec2(dot(velocity-flow,across),dot(velocity-flow,direction))*.45;
@@ -104,7 +105,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  float pulse=smoothstep(.38,.64,coastCrest)*smoothstep(.36,.68,noise(wp.xz*.27-vec2(.2,.1)*time));
  wind+=vec2(sin(dot(wp.xz,vec2(2.3,.8))-time*4.8),cos(dot(wp.xz,vec2(-1.1,3.2))-time*5.7))*.055*(1.-smoothstep(.25,1.2,max(length(dFdx(wp.xz)),length(dFdy(wp.xz)))));
  wind+=filteredGradient(wp.xz*.8-vec2(.9,.28)*time)*shoal*pulse*.045;
- float footprint=max(length(dFdx(wp.xz)),length(dFdy(wp.xz)));vec2 seaSlope=vec2(0.);if(exposedSea>.001)seaSlope=spectrumSlope(wp.xz,footprint)*exposedSea*coastAttenuation(wp.xz);vec2 slope=mix(wind*(1.-tidal*.85)-seaSlope,moving,river);vec3 surfaceNormal=normalize(cross(dFdx(wp),dFdy(wp)));surfaceNormal*=surfaceNormal.y<0.?-1.:1.;vec3 normal=normalize(mix(vec3(0.,1.,0.),surfaceNormal,river)+vec3(slope.x,0.,slope.y));
+ float footprint=max(length(dFdx(wp.xz)),length(dFdy(wp.xz)));vec2 seaSlope=vec2(0.);if(exposedSea>.001)seaSlope=spectrumSlope(wp.xz,footprint)*exposedSea*coastAttenuation(wp.xz);vec2 slope=mix(wind*(1.-tidal*.85)-seaSlope,moving,river);if(kind>2.5&&wp.z< -3890.)slope*=mix(.075,.55,smoothstep(.12,.9,speed));vec3 surfaceNormal=normalize(cross(dFdx(wp),dFdy(wp)));surfaceNormal*=surfaceNormal.y<0.?-1.:1.;vec3 normal=normalize(mix(vec3(0.,1.,0.),surfaceNormal,river)+vec3(slope.x,0.,slope.y));
  if(shoreWeight>.001){vec2 bedSlope=shoreGradient(wp.xz);float phase=shorePhase(wp.xz,shoreDepth,time);
  float shoalK=(1.-smoothstep(2.5,7.,shoreDepth))*smoothstep(-.4,1.5,shoreDepth);
  float crestDerivative=.90*max(0.,sin(phase))*cos(phase)*shoalK;
@@ -166,8 +167,8 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  float filaments=${habitat?'smoothstep(.53,.77,noise(adv*9.2))*smoothstep(.25,.62,noise(adv*3.8))':'smoothstep(.43,.72,noise(adv*3.8))'};
  float broken=smoothstep(.40,.70,noise(adv*.85+vec2(noise(adv/4.))*2.));
  float white=(foam*${habitat?'.34':'.65'}*filaments*mix(.2,1.,broken)+riffle*river*broken*${habitat?'.026':'.085'}+shoal*pulse*.22)*smoothstep(.03,.22,depth)*(1.-smoothstep(180.,750.,vd));
- float springRun=(1.-smoothstep(-3985.,-3972.,wp.z))*step(-4011.,wp.z)*step(2.5,speed);
- white=max(white,springRun*.24*filaments*broken*smoothstep(.005,.10,depth));
+ float springRun=(1.-smoothstep(-3935.,-3925.,wp.z))*step(-4015.,wp.z)*smoothstep(.65,.95,speed);
+ white=max(white,springRun*.09*filaments*broken*smoothstep(.005,.10,depth));
  float bead=smoothstep(-.01,.05,swash.x)*(1.-smoothstep(.12,.6,swash.x));
  float sheetTrail=smoothstep(-.01,.25,swash.x)*(1.-smoothstep(.3,2.2,swash.x));
  float edgeFoam=(bead*mix(1.1,.45,swash.z)+sheetTrail*mix(.4,.12,swash.z))*(1.-smoothstep(.0,.4,shoreDepth));
@@ -198,13 +199,13 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
 
  const p=[],v=[],rc=[],idx=[],segments=850,acrossSegments=24;let travel=0,previousX=riverX(-4000),previousZ=-4000
  for(let i=0;i<=segments;i++){const z=-4000+i*8,x=riverX(z),w=halfWidth(z)+25,y=riverLevel(z),dx=(riverX(z+1)-riverX(z-1))/2,len=Math.hypot(dx,1);travel+=Math.hypot(x-previousX,z-previousZ)/riverReach(z).speed;previousX=x;previousZ=z;
- for(let k=0;k<=acrossSegments;k++){const offset=w*(k/acrossSegments*2-1);rc.push(offset,travel);p.push(x+offset,y,z);v.push(dx/len*riverReach(z).speed,1/len*riverReach(z).speed);if(i<segments&&k<acrossSegments){const j=i*(acrossSegments+1)+k;idx.push(j,j+acrossSegments+1,j+1,j+1,j+acrossSegments+1,j+acrossSegments+2)}}}
+ for(let k=0;k<=acrossSegments;k++){const offset=w*(k/acrossSegments*2-1);rc.push(offset,travel);p.push(x+offset,y,z);v.push(dx/len*riverReach(z).speed,1/len*riverReach(z).speed);if(z>=-3920&&i<segments&&k<acrossSegments){const j=i*(acrossSegments+1)+k;idx.push(j,j+acrossSegments+1,j+1,j+1,j+acrossSegments+1,j+acrossSegments+2)}}}
  const river=new T.BufferGeometry();river.setAttribute('position',new T.Float32BufferAttribute(p,3));river.setAttribute('velocity',new T.Float32BufferAttribute(v,2));river.setAttribute('riverCoord',new T.Float32BufferAttribute(rc,2));river.setIndex(idx);add(river,[0,.8],1);mat.side=T.DoubleSide
- // A narrow spring run over the source bedrock, flowing into the wider basin.
- const sp=[],sv=[],sc=[],si=[];
- for(let i=0;i<=48;i++){const z=-4022+i,x=springX(z),y=springLevel(z)+.01,w=.12+Math.pow(i/48,1.1)*2.1;for(let k=0;k<=8;k++){const side=k/4-1,px=x+side*w;sp.push(px,y,z);sv.push(.35,2.8);sc.push(side*w,i/2.8);if(i<48&&k<8){const j=i*9+k;si.push(j,j+9,j+1,j+1,j+9,j+10)}}}
-
- const sg=new T.BufferGeometry();sg.setAttribute('position',new T.Float32BufferAttribute(sp,3));sg.setAttribute('velocity',new T.Float32BufferAttribute(sv,2));sg.setAttribute('riverCoord',new T.Float32BufferAttribute(sc,2));sg.setIndex(si);add(sg,[.5,2.8],3);
+ // Quiet spring pools and narrow curved overflow runs share the carved bed.
+ for(const run of springRuns){const sp=[],sv=[],sc=[],si=[];let travel=0;
+ for(let i=0;i<run.length;i++){const p=run[i],a=run[Math.max(0,i-1)],b=run[Math.min(run.length-1,i+1)],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz)||1;travel+=Math.hypot(p.x-a.x,p.z-a.z)/Math.max(.1,p.speed);
+ for(let k=0;k<=8;k++){const offset=(k/4-1)*(p.width+.65);sp.push(p.x+dz/len*offset,p.level,p.z-dx/len*offset);sv.push(dx/len*p.speed,dz/len*p.speed);sc.push(offset,travel);if(i<run.length-1&&k<8){const j=i*9+k;si.push(j,j+9,j+1,j+1,j+9,j+10)}}}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(sp,3));g.setAttribute('velocity',new T.Float32BufferAttribute(sv,2));g.setAttribute('riverCoord',new T.Float32BufferAttribute(sc,2));g.setIndex(si);add(g,[0,.2],3);}
  const pool=new T.PlaneGeometry(lake.rx*3.5,lake.rz*3.5);pool.rotateX(-Math.PI/2);pool.translate(lake.x,lake.level,lake.z);add(pool,[.1,.04])
  for(const body of [wetland,tarn]){const g=new T.PlaneGeometry(body.rx*(body===wetland?2.36:3.5),body.rz*(body===wetland?2.36:3.5),body===wetland?32:1,body===wetland?64:1);g.rotateX(-Math.PI/2);g.translate(body.x,body.level,body.z);if(body===wetland){const a=g.attributes.position;for(let i=0;i<a.count;i++)a.setY(i,wetlandLevel(a.getZ(i)))}add(g,[.04,.01])}
  const tp=[],tv=[],tc=[],ti=[];for(let i=0;i<=588;i++){const z=100+i*8,x=tributaryX(z),dx=(tributaryX(z+1)-tributaryX(z-1))/2;for(const side of [-1,1]){tc.push(side*50,z/.7);tp.push(x+side*50,tributaryLevel(z),z);tv.push(dx*.7,.7)}if(i<588){const j=i*2;ti.push(j,j+2,j+1,j+1,j+2,j+3)}}const tg=new T.BufferGeometry();tg.setAttribute('position',new T.Float32BufferAttribute(tp,3));tg.setAttribute('velocity',new T.Float32BufferAttribute(tv,2));tg.setAttribute('riverCoord',new T.Float32BufferAttribute(tc,2));tg.setIndex(ti);add(tg,[0,.7],3);
@@ -212,7 +213,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
 void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=contactAO(vUv);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}`});copyScene.add(new T.Mesh(new T.PlaneGeometry(2,2),copy))
  let spray=null,lastW=0,lastH=0,lastFine=null,reflectionMode=()=>{};
  return {setReflectionMode:fn=>reflectionMode=fn,setDebug:value=>u.debug.value=value,status:()=>({debug:u.debug.value,...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;field.update(camera);spectrum.update(renderer,time);
- const level=waterLevelAt(camera.position.x,camera.position.z);
+ const localSpring=springAt(camera.position.x,camera.position.z),level=localSpring?.level??waterLevelAt(camera.position.x,camera.position.z);
  { // Render the planar image for every visible frame; no 8/12 Hz stepping.
  u.reflectionY.value=level;reflector.position.y=level;reflector.updateMatrixWorld();const shadowUpdate=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;reflectionMode(true);try{reflector.onBeforeRender(renderer,scene,camera)}finally{reflectionMode(false);renderer.shadowMap.autoUpdate=shadowUpdate;}u.reflectionMatrix.value.copy(reflector.material.uniforms.textureMatrix.value).multiply(new T.Matrix4().copy(reflector.matrixWorld).invert());
  }
