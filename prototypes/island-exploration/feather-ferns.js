@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 // A small, fully geometric temperate fern. No billboard, texture, or alpha
 // sorting: paired pinnae follow five curved rachises in actual 3D space.
-export function createFeatherFernParts({ seed = 1, fronds = 5, pairs = 8 } = {}) {
+export function createFeatherFernParts({ seed = 1, fronds = 5, pairs = 8, leafletWidth = 1, spread = 1 } = {}) {
   fronds = Math.max(4, Math.min(6, Math.round(fronds)))
   pairs = Math.max(7, Math.min(18, Math.round(pairs)))
   let state = (seed | 0) || 1
@@ -29,7 +29,7 @@ export function createFeatherFernParts({ seed = 1, fronds = 5, pairs = 8 } = {})
     const angle = (2 * Math.PI * (f + (random() - .5) * .25)) / fronds
     const radial = point(Math.cos(angle), 0, Math.sin(angle))
     const lateral = point(-Math.sin(angle), 0, Math.cos(angle))
-    const reach = .40 + random() * .28
+    const reach = (.40 + random() * .28) * spread
     const rise = .70 + random() * .36
     const droop = .12 + random() * .14
     const startY = .025 + random() * .025
@@ -71,7 +71,7 @@ export function createFeatherFernParts({ seed = 1, fronds = 5, pairs = 8 } = {})
             .addScaledVector(lateral, along)
             .addScaledVector(radial, length * (.16 * u + .08 * u * u))
           center.y += stagger - length * .19 * u * u
-          const breadth = length * [ .03, .13, .09, .014 ][k]
+          const breadth = leafletWidth * length * [ .03, .13, .09, .014 ][k]
           return [center.clone().addScaledVector(radial, -breadth),
                   center.clone().addScaledVector(radial, breadth)]
         })

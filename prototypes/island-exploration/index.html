@@ -1,14 +1,16 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#243f3b"><title>一座海岛 · 史前天地探索</title></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#243f3b"><title>林海之间 · 史前天地</title></head><body>
 <canvas id="scene" aria-label="拖动画面环顾海岛"></canvas>
-<header><small>史前天地 · 海岛场景实验</small><h1 id="place">杉林溪谷</h1><p id="place-note">近岸岩石、浅滩与针叶林</p></header>
+<header><small>史前天地 · 林海之间</small><h1 id="place">杉林溪谷</h1><p id="place-note">近岸岩石、浅滩与针叶林</p></header>
 <div class="top-actions"><button id="quality">手机画质</button><button id="help" aria-label="操作说明">?</button></div>
 <button id="map-button" aria-label="打开海岛地图"><canvas id="minimap" width="180" height="180"></canvas><span>地图与地点</span></button>
+<div id="encounter-actions"><span id="discovery">沿溪探索 · 寻找林间的巨影</span><button id="observe" hidden>停下来观察 · 迷惑龙</button></div>
 <div id="status" aria-live="off">准备海岛…</div>
 <div id="loading" role="status"><span class="spinner"></span><strong>正在准备一座海岛</strong><span id="load-detail">塑造山脊、海湾和河谷…</span></div>
 <div class="travel"><button id="tour" aria-pressed="false">环岛导览</button><button id="cruise" aria-pressed="false">向前巡航</button><button id="speed">速度 · 漫游</button></div>
 <div id="joystick" aria-label="拖动摇杆移动" role="group"><span class="joystick-label">移动</span><div id="stick"></div></div>
 <div class="height-controls"><button id="up" aria-label="升高，按住持续上升">＋<span>升高</span></button><button id="down" aria-label="降低，按住持续下降">－<span>降低</span></button></div>
 <div id="hint">左下摇杆移动 · 拖动画面环顾 · 右下调整高度</div>
-<dialog id="map-dialog"><button class="close" aria-label="关闭地图">×</button><small>山海之间，十处风貌</small><h2>想去哪里？</h2><canvas id="large-map" width="500" height="500" aria-label="海岛地貌与十个探索地点"></canvas><div id="destinations"></div><p>点击地点直接抵达，也可以关掉地图自由飞过去。</p></dialog>
-<dialog id="help-dialog"><button class="close" aria-label="关闭操作说明">×</button><small>自由探索 · 场景原型</small><h2>先认识这座岛。</h2><p>手机：左下摇杆移动，拖动画面环顾，右下按住升高或降低。点「向前巡航」后，只需转向；随时再点停止。</p><p>电脑：WASD 移动，Q / E 降低和升高；拖动鼠标环顾。Shift 临时加速，空格停止巡航或导览。</p><p>「环岛导览」会连续经过河谷、草原、湿地、高原和海岸，任何手动移动或拖动都会退出导览。「地图与地点」可随时返回岛上。</p><p>这座固定海岛延续原史前天地的种子和西部溪谷，新增东部草原、蜿蜒支流、沼泽水乡、淤泥浅滩和北部高原湖。地形与植被位置固定，靠近不会重新随机生成。沿海可继续探索外海，外海没有新岛屿。</p><p>尚未加入动物。植被为现代视觉代理；水流与云为视觉近似。本版用于评审地貌、尺度和探索操作，尚非古生态复原。</p><p><a href="./THIRD_PARTY_NOTICES.txt">素材说明</a></p><p>island-r4.7 · 桌面浏览器的手机视口不能代表实际手机性能。</p></dialog>
+<dialog id="map-dialog"><button class="close" aria-label="关闭地图">×</button><small>一场相遇，十处风貌</small><h2>想去哪里？</h2><canvas id="large-map" width="500" height="500" aria-label="海岛地貌与探索地点"></canvas><div id="destinations"></div><p>点击地点直接抵达，也可以关掉地图自由飞过去。</p></dialog>
+<dialog id="help-dialog"><button class="close" aria-label="关闭操作说明">×</button><small>自由探索 · 场景原型</small><h2>先认识这座岛。</h2><p>手机：左下摇杆移动，拖动画面环顾，右下按住升高或降低。点「向前巡航」后，只需转向；随时再点停止。</p><p>电脑：WASD 移动，Q / E 降低和升高；拖动鼠标环顾。Shift 临时加速，空格停止巡航或导览。</p><p>「环岛导览」会连续经过河谷、草原、湿地、高原和海岸，任何手动移动或拖动都会退出导览。「地图与地点」可随时返回岛上。</p><p>这座固定海岛延续原史前天地的种子和西部溪谷，新增东部草原、蜿蜒支流、沼泽水乡、淤泥浅滩和北部高原湖。地形与植被位置固定，靠近不会重新随机生成。沿海可继续探索外海，外海没有新岛屿。</p><p>溪畔可以观察一只迷惑龙。动物沿用博物馆模型与静立动画；植被为现代视觉代理，海岛是艺术化场景，尚非特定年代的古生态复原。</p><p><a href="./THIRD_PARTY_NOTICES.txt">素材说明</a></p><p>island-r5 · 桌面浏览器的手机视口不能代表实际手机性能。</p></dialog>
+<dialog id="animal-dialog"><button class="close" aria-label="返回观察">×</button><small>溪畔观察 · 01</small><h2>迷惑龙</h2><p class="animal-latin">Apatosaurus · 侏罗纪晚期</p><p>先看它的四条腿。像柱子一样直立的腿，支撑着长长的颈部、身体和尾巴。</p><p>试着慢慢绕到侧面，让整条尾巴进入视野，再抬头看看颈部伸向哪里。</p><dl><div><dt>生活年代</dt><dd>约 1.52–1.45 亿年前</dd></div><div><dt>体长</dt><dd>约 21–24 米</dd></div><div><dt>食物</dt><dd>植物</dd></div></dl><p class="animal-note">这只模型按约 22 米体长呈现。静立动作用于观察外形，不代表对行为的完整复原。</p><p><a href="https://www.nhm.ac.uk/discover/dino-directory/apatosaurus.html" target="_blank" rel="noopener">了解迷惑龙 ↗</a> · <a href="./THIRD_PARTY_NOTICES.txt">模型来源</a></p></dialog>
 <script type="module" src="./bootstrap.js"></script></body></html>

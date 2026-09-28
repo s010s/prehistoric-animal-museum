@@ -21,8 +21,10 @@ vec3 swell(vec2 p){float fade=1.-smoothstep(900.,2400.,length(p-oceanCenter));
 vec2 oceanSlope(vec2 p,float footprint){
  vec2 slope=wavePacket(p,-.44,137.,.56,.57,1.2).yz+wavePacket(p,.82,83.,.37,.71,8.7).yz+wavePacket(p,.12,41.,.19,.95,19.1).yz;
  slope+=wavePacket(p,1.13,23.,.095,1.17,29.4).yz*(1.-smoothstep(2.,8.,footprint));
- slope+=wavePacket(p,-.61,9.7,.04,1.61,41.8).yz*(1.-smoothstep(.8,3.,footprint));
- slope+=wavePacket(p,.55,4.3,.016,2.14,53.2).yz*(1.-smoothstep(.35,1.4,footprint));
+ slope+=wavePacket(p,-.61,9.7,.13,1.61,41.8).yz*(1.-smoothstep(.8,3.,footprint));
+ slope+=wavePacket(p,.55,4.3,.06,2.14,53.2).yz*(1.-smoothstep(.35,1.4,footprint));
+ slope+=wavePacket(p,-.27,1.73,.034,3.65,73.7).yz*(1.-smoothstep(.12,.55,footprint));
+ slope+=wavePacket(p,1.34,.71,.012,5.8,97.3).yz*(1.-smoothstep(.05,.23,footprint));
  return slope*coastAttenuation(p);
 }`
 export function oceanGeometry(){
