@@ -1,7 +1,7 @@
 // Height-dependent cumulus erosion and optical depth studied against Tidewater's
 // current SkyProClouds.js (MIT repository). Noise remains generated locally.
 export const islandCloudGLSL=`
-uniform sampler3D cloudNoiseMap;
+uniform sampler3D cloudNoiseMap;uniform sampler2D cloudWeather;
 uniform vec2 cloudOrigin,cloudPhase;
 uniform float cloudCoverage,cloudThickness,cloudDataReady,cloudAppearanceWeight,weatherHaze,rainWetness;
 float cloudOvercast(){return smoothstep(.55,.9,cloudCoverage)*cloudAppearanceWeight;}
@@ -9,7 +9,7 @@ float cloudOvercast(){return smoothstep(.55,.9,cloudCoverage)*cloudAppearanceWei
 float cloudField(vec3 p){
  vec3 q=p-vec3(cloudPhase.x,0.,cloudPhase.y);q.xz+=cloudOrigin;
  float h=(p.y-4000.)/5200.;if(h<-.1||h>1.3)return 0.;
- float weather=clamp((texture(cloudNoiseMap,vec3(q.xz/29000.,.37)).r-.5)*1.5+.5,0.,1.);
+ float weather=texture2D(cloudWeather,q.xz/29000.).r;
  q.xz-=vec2(.23,.08)*max(0.,p.y-4000.);
  float edge=max(.095*exp2(-max(h,0.)),.0001);
  float required=(1.-smoothstep(0.,.13,h))*.54;
@@ -27,10 +27,10 @@ float cloudTransmission(vec3 p,vec3 sun){
  for(int i=0;i<20;i++)tau+=cloudField(p+sun*(t+(float(i)+.5)*ds))*ds*.007*cloudThickness;
  return mix(1.,exp(-tau),cloudAppearanceWeight);
 }
-vec3 traceCloudSky(vec3 p,vec3 d,vec3 base,vec3 ambient,vec3 solar,vec3 sun){
- if(d.y<=.035||cloudCoverage<=0.||cloudDataReady<.5)return base;
+vec4 traceCloudSky(vec3 p,vec3 d,vec3 base,vec3 ambient,vec3 solar,vec3 sun){
+ if(d.y<=.035||cloudCoverage<=0.||cloudDataReady<.5)return vec4(base,1.);
  float start=max(0.,(4000.-p.y)/d.y),end=min((9200.-p.y)/d.y,70000.);
- if(end<=start)return base;
+ if(end<=start)return vec4(base,1.);
  float ds=(end-start)/240.,transmission=1.;vec3 light=vec3(0.);
  for(int i=0;i<240;i++){
   float dist=start+(float(i)+fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715)))))*ds;vec3 q=p+d*dist;float den=cloudField(q);
@@ -48,6 +48,6 @@ vec3 traceCloudSky(vec3 p,vec3 d,vec3 base,vec3 ambient,vec3 solar,vec3 sun){
    if(transmission<.008)break;
   }
  }
- return mix(base,base*transmission+light,cloudAppearanceWeight*smoothstep(.035,.085,d.y));
+ float weight=cloudAppearanceWeight*smoothstep(.035,.085,d.y);return vec4(mix(base,base*transmission+light,weight),mix(1.,transmission,weight));
 }
 `;

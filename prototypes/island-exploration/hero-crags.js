@@ -58,11 +58,11 @@ export function createHeroCragLayout(improved=true){
  // Intertidal remnants and talus connect the cliff mass to the waterline.
  // They use the same fractured-rock mesh and buried underside as the upland crags.
  if(improved)for(let i=0;i<68;i++){
-  const z=-2860+i*24+(hash(i,401)-.5)*18,target=-4+hash(i,402)*9;
+  const z=-2860+i*24+(hash(i,401)-.5)*32,target=-4+hash(i,402)*9;
   let x=-2900,best=Infinity;
   for(let sx=-3270;sx<-2580;sx+=5){const score=Math.abs(terrainHeight(sx,z)-target);if(score<best){x=sx;best=score;}}
-  if(best>8||hash(i,403)<.22)continue;
-  const large=hash(i,404)>.70,h=large?18+hash(i,405)*20:3+hash(i,405)*9,w=h*(.9+hash(i,406)*.7);
+  if(best>8||hash(i,403)<.30||Math.sin(z/83.)>.62)continue;
+  const large=hash(i,404)>.82,h=large?12+hash(i,405)*12:2+hash(i,405)*8,w=h*(.8+hash(i,406)*.85);
   put(x,z,[w,h,w*(.75+hash(i,407)*.45)],[(hash(i,408)-.5)*.15,hash(i,409)*6.28,(hash(i,410)-.5)*.16],large?.18:.35,'intertidal-remnant');
  }
  return layout
@@ -77,26 +77,32 @@ export function createHeroCragMeshGeometry(improved=true){
 export async function makeHeroCrags(improved=true){
  const loader=new T.TextureLoader(),tx=await Promise.all(['albedo','normal','arm'].map(n=>loader.loadAsync(`./assets/cliff-${n}.webp`)))
  tx.forEach((t,i)=>{t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;if(i===0)t.colorSpace=T.SRGBColorSpace})
- const mat=new T.MeshStandardMaterial({map:tx[0],normalMap:tx[1],normalScale:new T.Vector2(.75,.75),roughnessMap:tx[2],aoMap:tx[2],aoMapIntensity:.65,roughness:.95,color:'#b8c0b6'})
+ const mat=new T.MeshStandardMaterial({map:tx[0],normalMap:tx[1],normalScale:new T.Vector2(.75,.75),roughnessMap:tx[2],aoMap:tx[2],aoMapIntensity:.65,roughness:.95,color:'#939d91'})
  // Darker seams / gentle upward moss: the source remains a real layered PBR set.
  mat.onBeforeCompile=s=>{
   s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 cragP,cragN;').replace('#include <begin_vertex>','#include <begin_vertex>\ncragP=(modelMatrix*vec4(position,1.)).xyz;cragN=normalize(mat3(modelMatrix)*normal);');
   s.fragmentShader=s.fragmentShader.replace('#include <common>',`#include <common>
   varying vec3 cragP,cragN;
   vec3 cragWeights(vec3 n){vec3 w=pow(abs(n),vec3(4.));return w/max(.001,w.x+w.y+w.z);}
-  vec3 cragTri(sampler2D tx,vec3 p,vec3 n){vec3 w=cragWeights(n);return texture2D(tx,p.zy).rgb*w.x+texture2D(tx,p.xz).rgb*w.y+texture2D(tx,p.xy).rgb*w.z;}`)
-  .replace('#include <map_fragment>',`diffuseColor.rgb*=cragTri(map,cragP/3.7,cragN);
+  float cragHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  float cragNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(cragHash(i),cragHash(i+vec2(1.,0.)),f.x),mix(cragHash(i+vec2(0.,1.)),cragHash(i+1.),f.x),f.y);}
+  vec3 cragSample(sampler2D tx,vec2 p,vec2 id,vec2 dx,vec2 dy,float isNormal){float a=cragHash(id+3.17)*6.2831853;mat2 r=mat2(cos(a),sin(a),-sin(a),cos(a));vec2 offset=vec2(cragHash(id+17.),cragHash(id-31.))*37.;vec3 c=textureGrad(tx,r*p+offset,r*dx,r*dy).rgb;if(isNormal>.5){c=c*2.-1.;c.xy=transpose(r)*c.xy;}return c;}
+  vec3 cragTile(sampler2D tx,vec2 p,float isNormal){vec2 dx=dFdx(p),dy=dFdy(p),skew=mat2(1.,0.,-.57735027,1.15470054)*(p*.65),id=floor(skew),f=fract(skew),a,b,c;vec3 w;
+  if(f.x+f.y<1.){a=id;b=id+vec2(1,0);c=id+vec2(0,1);w=vec3(1.-f.x-f.y,f.x,f.y);}else{a=id+1.;b=id+vec2(0,1);c=id+vec2(1,0);w=vec3(f.x+f.y-1.,1.-f.x,1.-f.y);}w=w*w;w/=dot(w,vec3(1.));return cragSample(tx,p,a,dx,dy,isNormal)*w.x+cragSample(tx,p,b,dx,dy,isNormal)*w.y+cragSample(tx,p,c,dx,dy,isNormal)*w.z;}
+  vec3 cragTri(sampler2D tx,vec3 p,vec3 n){vec3 w=cragWeights(n);return cragTile(tx,p.zy,0.)*w.x+cragTile(tx,p.xz,0.)*w.y+cragTile(tx,p.xy,0.)*w.z;}`)
+  .replace('#include <map_fragment>',`diffuseColor.rgb*=cragTri(map,cragP/6.1,cragN);
+  float mineral=cragNoise(cragP.xz/13.+cragP.y*.037);diffuseColor.rgb*=mix(vec3(.64,.70,.67),vec3(1.07,1.02,.91),mineral);
   float moss=smoothstep(.35,.90,cragN.y)*(.30+.10*sin(cragP.x*.62+cragP.z*.41));
   diffuseColor.rgb*=mix(vec3(1.),vec3(.50,.67,.37),moss);
   float tideWet=1.-smoothstep(.15,2.1,cragP.y);diffuseColor.rgb*=mix(vec3(1.),vec3(.38,.43,.38),tideWet);`)
-  .replace('#include <normal_fragment_maps>',`vec3 cw=cragWeights(cragN),cp=cragP/3.7;
-  vec3 ca=texture2D(normalMap,cp.zy).rgb*2.-1.,cb=texture2D(normalMap,cp.xz).rgb*2.-1.,cc=texture2D(normalMap,cp.xy).rgb*2.-1.;
+  .replace('#include <normal_fragment_maps>',`vec3 cw=cragWeights(cragN),cp=cragP/6.1;
+  vec3 ca=cragTile(normalMap,cp.zy,1.),cb=cragTile(normalMap,cp.xz,1.),cc=cragTile(normalMap,cp.xy,1.);
   vec3 cn=normalize(cragN+vec3(cb.x*cw.y+cc.x*cw.z,ca.y*cw.x+cc.y*cw.z,ca.x*cw.x+cb.y*cw.y)*.60);
   normal=normalize(mat3(viewMatrix)*cn);`)
-  .replace('#include <roughnessmap_fragment>','float roughnessFactor=mix(clamp(cragTri(roughnessMap,cragP/3.7,cragN).g*.95,.7,1.),.48,tideWet);')
-  .replace('#include <aomap_fragment>','reflectedLight.indirectDiffuse*=mix(1.,cragTri(aoMap,cragP/3.7,cragN).r,.65);');
+  .replace('#include <roughnessmap_fragment>','float roughnessFactor=mix(clamp(cragTri(roughnessMap,cragP/6.1,cragN).g*.95,.7,1.),.48,tideWet);')
+  .replace('#include <aomap_fragment>','reflectedLight.indirectDiffuse*=mix(1.,cragTri(aoMap,cragP/6.1,cragN).r,.65);');
  };
- mat.customProgramCacheKey=()=> 'triplanar-weathered-crags-r7';
+ mat.customProgramCacheKey=()=> 'stochastic-weathered-crags-r8';
  const group=new T.Group(),mesh=new T.Mesh(createHeroCragMeshGeometry(improved),mat);mesh.name='jointed-bedrock-and-talus';mesh.castShadow=true;mesh.receiveShadow=true;group.name='hero-crags';group.add(mesh);
  // Collision samples the very same weathered triangles, binned in world XZ.
  const grid=new Map(),p=mesh.geometry.attributes.position,ix=mesh.geometry.index.array;

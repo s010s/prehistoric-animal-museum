@@ -77,8 +77,8 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  vec2 screen=gl_FragCoord.xy/resolution;float thick=sceneZ(screen)-vd;if(thick<=.015)discard;
  vec3 eye=normalize(cameraPosition-wp);float speed=length(flow);float tidal=kind<1.5?1.-riverInfluence(wp.xz):0.;float backwater=kind>2.5&&wp.z>0.?1.-smoothstep(4100.,4800.,wp.z):1.;float river=step(.3,speed)*(1.-tidal)*backwater;
  float depth=max(0.,wp.y-(viewToWorld*vec4(viewPoint(screen),1.)).y);
- float shoreWeight=kind<.5?shoreMask(wp.xz):0.;float shoreBed=shoreGround(wp.xz),shoreDepth=-.7-shoreBed,front=runupAt(wp.xz,time)-(shoreBed+.7);
- if(shoreWeight>.99&&shoreBed>-.65&&front<-.025)discard;
+ float shoreWeight=kind<.5?shoreMask(wp.xz):0.;float shoreBed=shoreGround(wp.xz),shoreDepth=-.7-shoreBed,front=runupAt(wp.xz,time)-(shoreBed+.7);vec3 swash=vec3(1000.,1.,0.);if(shoreWeight>.001&&shoreDepth<.65)swash=shoreSwash(wp.xz,shoreBed,shoreGradient(wp.xz),time);float filmWeight=shoreWeight*(1.-smoothstep(.10,.65,shoreDepth));
+ if(shoreWeight>.99&&shoreDepth<.10&&swash.y<=0.)discard;
  vec2 fuv=(wp.xz-flowOrigin)/flowSpan;float local=1.-smoothstep(.34,.49,max(abs(fuv.x-.5),abs(fuv.y-.5)));vec4 ff=texture2D(flowMap,clamp(fuv,0.,1.));
  vec2 velocity=mix(flow,(ff.rg-.5)*6.,local*river);float current=length(velocity);
  // Longitudinal travel time is integrated once in mesh coordinates. No reset/crossfade.
@@ -104,12 +104,17 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  vec2 phaseWarp=cos(wp.z*.035+wp.x*.011)*vec2(.011,.035)*.38+gradNoise(wp.xz/18.)*(1.1/18.)+gradNoise(wp.xz/43.)*(1.7/43.);
  vec2 waveGradient=crestDerivative*(-bedSlope*4.2+phaseWarp);
  vec3 breakerN=normalize(normal+vec3(-waveGradient.x,0.,-waveGradient.y));
- normal=normalize(mix(breakerN,normalize(vec3(-bedSlope.x,1.,-bedSlope.y)),(1.-smoothstep(-.3,.45,shoreDepth))*.65));}
+ vec2 micro=gradNoise(wp.xz*5.7-vec2(time*.4))*mix(.015,.045,swash.z);
+ normal=normalize(mix(breakerN,normalize(vec3(-bedSlope.x+micro.x,1.,-bedSlope.y+micro.y)),filmWeight));}
 
  float fresnel=.02+.98*pow(1.-max(0.,dot(eye,normal)),5.);
  vec2 distort=normal.xz*.008*smoothstep(.02,1.8,thick);vec2 refrUv=clamp(screen+distort,vec2(.002),vec2(.998));if(sceneZ(refrUv)<vd)refrUv=screen;
- vec3 bottom=texture2D(opaque,refrUv).rgb;
+ refrUv=mix(refrUv,screen,filmWeight);vec3 bottom=texture2D(opaque,refrUv).rgb;
  float opticalPath=max(0.,thick)*length(cameraPosition-wp)/max(.1,vd);
+ // A centimetre-deep sheet is crossed along the refracted ray, not the long
+ // grazing camera ray. Preserve the sand instead of absorbing it into cyan.
+ if(filmWeight>.001){vec2 bedSlope=shoreGradient(wp.xz);vec3 bedNormal=normalize(vec3(-bedSlope.x,1.,-bedSlope.y));
+ float filmPath=swash.y/max(.15,-dot(refract(-eye,normal,1./1.333),bedNormal));opticalPath=mix(opticalPath,filmPath,filmWeight);}
  // Beer-Lambert extinction and in-scattered sun/sky, following Tidewater WaterMaterial.
  // Foam is on the surface; sediment and entrained bubbles brighten the volume beneath it.
  float surfPhase=shorePhase(wp.xz,shoreDepth,time);
@@ -156,7 +161,10 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  float white=(foam*${habitat?'.34':'.65'}*filaments*mix(.2,1.,broken)+riffle*river*broken*${habitat?'.026':'.085'}+shoal*pulse*.22)*smoothstep(.03,.22,depth)*(1.-smoothstep(180.,750.,vd));
  float springRun=(1.-smoothstep(-3985.,-3972.,wp.z))*step(-4011.,wp.z)*step(2.5,speed);
  white=max(white,springRun*(.18+.42*filaments)*smoothstep(.03,.18,depth));
- float shoreFoam=shoreWeight*(exp(-pow(front/.10,2.))*.72+pow(max(0.,sin(shorePhase(wp.xz,shoreDepth,time))),8.)*smoothstep(.15,.65,shoreDepth)*(1.-smoothstep(1.2,2.8,shoreDepth))*.62);
+ float bead=smoothstep(-.01,.05,swash.x)*(1.-smoothstep(.12,.6,swash.x));
+ float sheetTrail=smoothstep(-.01,.25,swash.x)*(1.-smoothstep(.3,2.2,swash.x));
+ float edgeFoam=(bead*mix(1.1,.45,swash.z)+sheetTrail*mix(.4,.12,swash.z))*(1.-smoothstep(.0,.4,shoreDepth));
+ float shoreFoam=shoreWeight*(edgeFoam+pow(max(0.,sin(shorePhase(wp.xz,shoreDepth,time))),8.)*smoothstep(.15,.65,shoreDepth)*(1.-smoothstep(1.2,2.8,shoreDepth))*.62);
  vec2 backwash=wp.xz+shoreGradient(wp.xz)*sin(time*.60)*8.;
  float foamPhase=shorePhase(wp.xz,shoreDepth,time);
  float trailing=smoothstep(-.3,.4,sin(foamPhase-.65))*(1.-smoothstep(.8,2.7,shoreDepth))*smoothstep(.06,.35,shoreDepth);
@@ -164,15 +172,16 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  float membranes=foamCells(backwash,foamSupply);
  shoreFoam=max(shoreFoam,shoreWeight*membranes*.95);
  float foamPatch=smoothstep(.19,.67,noise(backwash*.31+vec2(noise(backwash*.1))*1.7));
- shoreFoam*=mix(.22,1.,foamPatch)*(.68+.32*smoothstep(.24,.75,noise(wp.xz*4.7+time*.12)));white=max(white,shoreFoam);
+ shoreFoam*=smoothstep(.10,.82,foamPatch)*(.68+.32*smoothstep(.24,.75,noise(wp.xz*4.7+time*.12)));white=max(white,shoreFoam);
  // Foam is a rough diffuse bubble layer, with soft self-shadowing in the lace cavities.
  float foamRelief=mix(.83,1.,texture2D(surfLace,backwash/3.5).b);
  vec3 foamLight=(vec3(.32,.40,.48)+vec3(.59,.55,.46)*worldSun(wp)*(.25+.75*max(0.,dot(normal,sunDir))))*foamRelief;
  col=mix(col,foamLight,clamp(white,0.,1.));
- vec3 ray=normalize(wp-cameraPosition);float distanceToEye=length(wp-cameraPosition);float y0=max(cameraPosition.y,0.),y1=max(wp.y,0.),dy=y1-y0;float density=abs(dy)<.1?exp(-y0*.006):(exp(-y0*.006)-exp(-y1*.006))/(dy*.006);float mist=1.-exp(-distanceToEye*(.000055+.00016*density));col=mix(col,skyGradient(normalize(vec3(ray.x,max(.025,ray.y),ray.z))),mist);col=mix(col,seaDistance(ray),smoothstep(4500.,11000.,distanceToEye));
+ vec3 ray=normalize(wp-cameraPosition);float distanceToEye=length(wp-cameraPosition);float y0=max(cameraPosition.y,0.),y1=max(wp.y,0.),dy=y1-y0;float density=abs(dy)<.1?exp(-y0*.006):(exp(-y0*.006)-exp(-y1*.006))/(dy*.006);float mist=1.-exp(-distanceToEye*(.000055+.00016*density));col=mix(col,skyGradient(normalize(vec3(ray.x,max(.025,ray.y),ray.z))),mist);if(distanceToEye>4500.)col=mix(col,seaDistance(ray),smoothstep(4500.,11000.,distanceToEye));
  if(debug==1.)col=normal*.5+.5;if(debug==2.)col=mirror;if(debug==3.)col=vec3(thick*.15);if(debug==4.)col=vec3(white);if(debug==5.)col=body;
  float coastBlend=coastalTile>.5?1.-smoothstep(330.,384.,max(abs(wp.x-9160.),abs(wp.z-2330.))):1.;
- gl_FragColor=vec4(col,smoothstep(.015,max(.23,vd*.0007),thick)*coastBlend);
+ float filmAlpha=smoothstep(0.,max(fwidth(swash.y)*1.5,.004),swash.y);
+ gl_FragColor=vec4(col,mix(smoothstep(.015,max(.23,vd*.0007),thick),filmAlpha,filmWeight)*coastBlend);
  #include <tonemapping_fragment>
  #include <colorspace_fragment>
  }`})
@@ -193,7 +202,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  const copyScene=new T.Scene(),copyCamera=new T.OrthographicCamera(-1,1,1,-1,0,1),copy=new T.ShaderMaterial({uniforms:{aoEnabled:u.aoEnabled,map:{value:opaque.texture},sceneDepth:{value:opaque.depthTexture},inverseProjection:{value:camera.projectionMatrixInverse},screenSize:{value:resolution}},depthTest:false,depthWrite:false,vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',fragmentShader:`uniform sampler2D map,sceneDepth;uniform float aoEnabled;varying vec2 vUv;${contactOcclusionGLSL}
 void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=contactAO(vUv);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}`});copyScene.add(new T.Mesh(new T.PlaneGeometry(2,2),copy))
  let spray=null,lastW=0,lastH=0,lastFine=null,lastReflection=-1;const reflectionPosition=new T.Vector3(1e8,1e8,1e8),reflectionRotation=new T.Quaternion()
- return {status:()=>({...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine;lastReflection=-1}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;field.update(camera);spectrum.update(renderer,time);
+ return {setDebug:value=>u.debug.value=value,status:()=>({debug:u.debug.value,...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine;lastReflection=-1}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;field.update(camera);spectrum.update(renderer,time);
  const level=bankWaterLevelAt(camera.position.x,camera.position.z),reflectionClock=performance.now()/1000;
  if(lastReflection<0||reflectionClock-lastReflection>(fine?1/12:1/8)||reflectionPosition.distanceTo(camera.position)>2||reflectionRotation.angleTo(camera.quaternion)>.025||Math.abs(level-u.reflectionY.value)>1){
  u.reflectionY.value=level;reflector.position.y=level;reflector.updateMatrixWorld();const shadowUpdate=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;reflector.onBeforeRender(renderer,scene,camera);renderer.shadowMap.autoUpdate=shadowUpdate;u.reflectionMatrix.value.copy(reflector.material.uniforms.textureMatrix.value).multiply(new T.Matrix4().copy(reflector.matrixWorld).invert());lastReflection=reflectionClock;reflectionPosition.copy(camera.position);reflectionRotation.copy(camera.quaternion);

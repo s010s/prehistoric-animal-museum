@@ -1,7 +1,7 @@
 import {trailX} from './habitat.js';
 import {terrainHeight} from './field.js';
 // Review-only UI and evidence. This module is inert outside ?benchmark=1.
-export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, getState, setShadow, getShadow, setTime, syncPose }) {
+export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, getState, auditSky, setWaterDebug, setReviewDpr, setShadow, getShadow, setTime, syncPose }) {
   if (params.get('benchmark') !== '1') return null
   const ids = ['encounter','forest', 'estuary', 'bay', 'lagoon', 'summit', 'grassland', 'wetland', 'mudflat', 'heath', 'cliffs']
   const observations = {
@@ -22,7 +22,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   const panel = document.createElement('section')
   panel.id = 'benchmark'
   panel.setAttribute('aria-label', '世界验收')
-  panel.innerHTML = `<button id="benchmark-collapse" aria-expanded="true">收起验收</button><strong>世界验收 · 同一地点，同一时刻</strong><p id="benchmark-note"></p><div class="benchmark-actions"><button id="benchmark-look"></button><button id="benchmark-variant"></button><button id="benchmark-replay">横移往返 · 12 秒</button><button id="benchmark-walk">录制林间步行 · 12 秒</button><button id="benchmark-rock-close">近看岩岸</button><button id="benchmark-shore-close">近看岸浪</button><button id="benchmark-beach-eye">沙滩平视</button><button id="benchmark-shore">岸浪周期 · 42 秒</button><button id="benchmark-reset">复位到地点</button><button id="benchmark-save">记录当前画面</button><button id="benchmark-export">导出验收记录</button><button id="benchmark-suite">巡检全部 11 个地点</button></div><div id="benchmark-places"></div><details id="benchmark-image"><summary>最近原始画布截图</summary><label>选择验收截图<select id="benchmark-frame" aria-label="选择验收截图"></select></label><img id="benchmark-preview" alt="最近记录的原始 3D 画布" style="display:block;width:100%;height:auto" /></details><details id="benchmark-video-panel"><summary>最近移动录像</summary><video id="benchmark-video" controls style="width:100%"></video></details><output id="benchmark-status" aria-live="polite"></output><details id="benchmark-evidence"><summary>验收数据（不含截图）</summary><pre id="benchmark-json"></pre></details>`
+  panel.innerHTML = `<button id="benchmark-collapse" aria-expanded="true">收起验收</button><strong>世界验收 · 同一地点，同一时刻</strong><p id="benchmark-note"></p><div class="benchmark-actions"><button id="benchmark-look"></button><button id="benchmark-variant"></button><button id="benchmark-replay">横移往返 · 12 秒</button><button id="benchmark-walk">录制林间步行 · 12 秒</button><button id="benchmark-sky-orbit">录制天空环视 · 24 秒</button><button id="benchmark-dpr-matrix">像素比例切换 · 12 秒</button><label>水面分量<select id="benchmark-water" aria-label="水面分量"><option value="0">正常</option><option value="1">法线</option><option value="2">反射</option><option value="4">泡沫</option><option value="5">水体</option></select></label><button id="benchmark-sky-audit">校验云层条带</button><button id="benchmark-sky-high">高原仰视</button><button id="benchmark-rock-close">近看岩岸</button><button id="benchmark-shore-close">近看岸浪</button><button id="benchmark-beach-eye">沙滩平视</button><button id="benchmark-shore">岸浪周期 · 42 秒</button><button id="benchmark-reset">复位到地点</button><button id="benchmark-save">记录当前画面</button><button id="benchmark-export">导出验收记录</button><button id="benchmark-suite">巡检全部 11 个地点</button></div><div id="benchmark-places"></div><details id="benchmark-image"><summary>最近原始画布截图</summary><label>选择验收截图<select id="benchmark-frame" aria-label="选择验收截图"></select></label><img id="benchmark-preview" alt="最近记录的原始 3D 画布" style="display:block;width:100%;height:auto" /></details><details id="benchmark-video-panel"><summary>最近移动录像</summary><video id="benchmark-video" controls style="width:100%"></video></details><output id="benchmark-status" aria-live="polite"></output><details id="benchmark-evidence"><summary>验收数据（不含截图）</summary><pre id="benchmark-json"></pre></details>`
   document.body.append(panel)
   const $ = id => panel.querySelector('#' + id)
   $('benchmark-collapse').onclick=()=>{const compact=panel.classList.toggle('compact');$('benchmark-collapse').textContent=compact?'展开验收':'收起验收';$('benchmark-collapse').setAttribute('aria-expanded',String(!compact))};
@@ -60,14 +60,22 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     replay = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: performance.now() }
     $('benchmark-replay').textContent = '停止横移'
   }
+  function startRecording(){
+    try{const stream=canvas.captureStream(24),mimeType=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t)),chunks=[];
+      recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:6000000});recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=()=>{const blob=new Blob(chunks,{type:mimeType}),reader=new FileReader();reader.onload=()=>{$('benchmark-video').src=reader.result;$('benchmark-video').dataset.mime=mimeType;};reader.readAsDataURL(blob);stream.getTracks().forEach(t=>t.stop());};recorder.start();
+    }catch(e){capture('video-error',{message:String(e)});}
+  }
   $('benchmark-walk').onclick=()=>{
     stop();suite=null;reset('forest');tick=0;samples=[];interrupted=null;
     const z=-680,x=trailX(z);camera.position.set(x,terrainHeight(x,z)+1.75,z);camera.lookAt(camera.position.clone().set(trailX(z-18),terrainHeight(x,z)+2.2,z-18));
     replay={position:camera.position.clone(),quaternion:camera.quaternion.clone(),start:performance.now(),mode:'walk',ticks:720};
-    try{const stream=canvas.captureStream(24),mimeType=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t)),chunks=[];
-      recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:6000000});recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=()=>{const blob=new Blob(chunks,{type:mimeType}),reader=new FileReader();reader.onload=()=>{$('benchmark-video').src=reader.result;$('benchmark-video').dataset.mime=mimeType;};reader.readAsDataURL(blob);stream.getTracks().forEach(t=>t.stop());};recorder.start();
-    }catch(e){capture('video-error',{message:String(e)});}
+    startRecording();
   };
+  $('benchmark-sky-orbit').onclick=()=>{stop();suite=null;tick=0;samples=[];interrupted=null;setTime(60);replay={position:camera.position.clone(),quaternion:camera.quaternion.clone(),yaw:camera.rotation.y,start:performance.now(),mode:'sky',ticks:1440};startRecording();};
+  $('benchmark-dpr-matrix').onclick=()=>{stop();suite=null;tick=0;samples=[];interrupted=null;setTime(60);replay={position:camera.position.clone(),quaternion:camera.quaternion.clone(),start:performance.now(),mode:'dpr',ticks:719,previousDpr:getState().pixelRatio};};
+  $('benchmark-water').onchange=()=>setWaterDebug(Number($('benchmark-water').value));
+  $('benchmark-sky-audit').onclick=()=>{const result=auditSky();capture('sky-stripe-audit',{result});$('benchmark-note').textContent=JSON.stringify(result);};
+  $('benchmark-sky-high').onclick=()=>{stop();suite=null;reset('heath');camera.position.y=1643;camera.lookAt(camera.position.clone().add({x:0,y:400,z:1000}));syncPose?.();};
   $('benchmark-rock-close').onclick=()=>{stop();suite=null;reset('cliffs');camera.position.set(-2940,8,-2320);camera.lookAt(camera.position.clone().set(-2820,24,-2240));syncPose?.();};
   $('benchmark-beach-eye').onclick=()=>{stop();suite=null;reset('bay');camera.position.set(9120,terrainHeight(9120,2330)+1.7,2330);camera.lookAt(camera.position.clone().set(9164,.8,2338));syncPose?.();};
   $('benchmark-shore-close').onclick=()=>{stop();suite=null;reset('bay');camera.position.set(9151,1.85,2330);camera.lookAt(camera.position.clone().set(9147,-.5,2325));syncPose?.();};
@@ -84,7 +92,8 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     if (!replay) return
     if(recorder?.state==='recording')recorder.stop();
     if (replay) capture('replay-interrupted', { reason, completed: false, samples })
-    syncPose?.(); replay = null; interrupted = reason; $('benchmark-replay').textContent = '横移往返 · 12 秒'
+    if(replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
+          syncPose?.(); replay = null; interrupted = reason; $('benchmark-replay').textContent = '横移往返 · 12 秒'
   }
   updateLabel(); $('benchmark-note').textContent = observations[current] || observations.forest; setTime(60)
   return {
@@ -94,6 +103,8 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     destination(id) { panel.dataset.ready='false'; current = id; tick = 0; settled = 0; setTime(60); $('benchmark-note').textContent = observations[id] || ''; },
     beforeFrame() {
       if (!replay || replay.mode==='shore') return
+      if(replay.mode==='sky'){camera.position.copy(replay.position);camera.position.x+=80*Math.sin(tick/1440*Math.PI*2);camera.rotation.set(.28+.16*Math.sin(tick/1440*Math.PI*4),replay.yaw+tick/1440*Math.PI*2,0);return;}
+      if(replay.mode==='dpr'){if(tick%180===0)setReviewDpr([.73,1,1.6,2][Math.floor(tick/180)]);return;}
       if(replay.mode==='walk'){
         const z=-680-tick/720*26,x=trailX(z),y=terrainHeight(x,z)+1.75;camera.position.set(x,y,z);camera.lookAt(camera.position.clone().set(trailX(z-15),terrainHeight(trailX(z-15),z-15)+2.1,z-15));return;
       }
@@ -128,14 +139,16 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
       if (replay && (state.programErrors || state.vegetation.error || state.flow.error || performance.now() - replay.start > 120000)) cancel('resource error or replay timeout')
       if (replay) {
         samples.push({ tick, frameMs: raw, afterEvidenceReadback, cpu: { ...state.cpu }, pending: !jobsReady, shadow: state.shadow, position: state.position, drawCalls: state.drawCalls, triangles: state.triangles })
+        if(replay.mode==='dpr'&&tick%180===179){capture('sky-stripe-audit',{result:auditSky()});evidenceReadback=true;}
         if(jobsReady&&tick%180===0)capture('motion-frame',{image:canvas.toDataURL('image/png')});
         if (jobsReady) tick++
         if (tick > (replay.ticks??720)) {
           tick = replay.ticks??720
           const ordered = samples.map(s => s.frameMs).sort((a, b) => a - b)
           const clean=samples.filter(s=>!s.afterEvidenceReadback).map(s=>s.frameMs).sort((a,b)=>a-b);
-          capture(replay.mode==='shore'?'shore-cycle':replay.mode==='walk'?'trail-walk':'replay', { completed: true, renderingFrameMs:{p50:clean[Math.floor(clean.length*.5)],p95:clean[Math.floor(clean.length*.95)],max:clean.at(-1)},evidenceReadbackFrames:samples.filter(s=>s.afterEvidenceReadback).length, startPosition: replay.position.toArray(), endPosition: camera.position.toArray(), wallMs: performance.now() - replay.start, frameMs: { p50: ordered[Math.floor(ordered.length * .5)], p95: ordered[Math.floor(ordered.length * .95)], max: ordered.at(-1) }, samples })
+          capture(replay.mode==='shore'?'shore-cycle':replay.mode==='walk'?'trail-walk':replay.mode==='sky'?'sky-orbit':replay.mode==='dpr'?'dpr-matrix':'replay', { completed: true, renderingFrameMs:{p50:clean[Math.floor(clean.length*.5)],p95:clean[Math.floor(clean.length*.95)],max:clean.at(-1)},evidenceReadbackFrames:samples.filter(s=>s.afterEvidenceReadback).length, startPosition: replay.position.toArray(), endPosition: camera.position.toArray(), wallMs: performance.now() - replay.start, frameMs: { p50: ordered[Math.floor(ordered.length * .5)], p95: ordered[Math.floor(ordered.length * .95)], max: ordered.at(-1) }, samples })
           if(recorder?.state==='recording')recorder.stop();
+          if(replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
           syncPose?.(); replay = null; $('benchmark-replay').textContent = '横移往返 · 12 秒'
         }
       }
