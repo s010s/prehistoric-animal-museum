@@ -7,7 +7,7 @@ export function riverReach(z){
  for(const[c,w,a]of[[-2520,130,2.2],[-1750,150,2],[-1120,100,2.7],[-665,95,3],[-210,100,2.2],[650,140,2.4],[1480,180,2.8]])depth+=bell(z,c,w)*a
  for(const[c,w,a]of[[-2250,80,1.4],[-1370,70,1.25],[-875,65,1.3],[-420,68,1.6],[180,95,1.35],[970,100,1.35]])depth-=bell(z,c,w)*a
  depth=clamp(depth,1.05,6.2)
- const speed=clamp(2.1/depth,.32,2.2)
+ const speed=clamp(3.6/depth,.38,2.8)
  return {depth,speed,agitation:clamp((2.6-depth)/1.8,0,1)}
 }
 export function obstacleFlow(x,z,base,rocks){let ux=base[0],uz=base[1],foam=0;const speed=Math.hypot(...base),vx=base[0]/Math.max(.01,speed),vz=base[1]/Math.max(.01,speed)

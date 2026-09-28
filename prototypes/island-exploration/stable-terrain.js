@@ -14,7 +14,8 @@ export function buildStableTerrain(){
   const shore=waterLevelAt(cx,cz),inlandShore=shore>1&&lo<shore+2&&hi>shore-2;
   const walking=cz> -1664&&cz<384&&Math.abs(cx-trailX(cz))<48;
   const galleryRiver=cz> -1664&&cz<384&&Math.abs(cx-riverX(cz))<halfWidth(cz)+30;
-  steps[j*N+i]=walking?2:galleryRiver?4:inlandShore?4:(Math.abs(cx-9160)<420&&Math.abs(cz-2330)<420&&hi>-5&&lo<9)?2:(cz>-3200&&cz< -850&&cx> -2810&&cx< -2200)?4:channel||crag||(cz>-3200&&cz< -850&&cx> -2720&&cx< -2310)||(lo<5&&hi>-5)||hi>650?8:hi<-8?64:(hi-lo<10&&error<.5?32:16)
+  const source=cz>-4096&&cz<-3904&&Math.abs(cx-riverX(cz))<96;
+  steps[j*N+i]=source?1:walking?2:galleryRiver?4:inlandShore?4:(Math.abs(cx-9160)<420&&Math.abs(cz-2330)<420&&hi>-5&&lo<9)?2:(cz>-3200&&cz< -850&&cx> -2810&&cx< -2200)?4:channel||crag||(cz>-3200&&cz< -850&&cx> -2720&&cx< -2310)||(lo<5&&hi>-5)||hi>650?8:hi<-8?64:(hi-lo<10&&error<.5?32:16)
  }
  const at=(i,j)=>i<0||j<0||i>=N||j>=N?64:steps[j*N+i],chunks=[]
  for(let cz=-H;cz<H;cz+=CHUNK)for(let cx=-H;cx<H;cx+=CHUNK){

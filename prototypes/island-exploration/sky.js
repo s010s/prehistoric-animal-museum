@@ -4,7 +4,13 @@ import {islandCloudGLSL} from './island-clouds.js'
 // World-anchored cloud slab has thickness, wind and parallax; it is not an environment photograph.
 export const skyGLSL=`
 ${islandCloudGLSL}
-uniform sampler2D cloudPanorama;uniform float cloudPanoramaReady;
+uniform sampler2D cloudPanorama,cloudPrevious;uniform float cloudPanoramaReady,cloudBlend;
+uniform vec3 cloudPublishedOrigin,cloudPreviousOrigin;uniform vec2 cloudPublishedPhase,cloudPreviousPhase;
+vec4 reprojectCloud(sampler2D tx,vec3 d,vec3 origin,vec3 cachedOrigin,vec2 cachedPhase){
+ float distanceToCloud=max(1.,(6000.-origin.y)/max(.025,d.y));vec3 hit=origin+d*distanceToCloud;
+ hit.xz+=cachedPhase-cloudPhase;vec3 r=normalize(hit-cachedOrigin);
+ return texture2D(tx,vec2(atan(r.z,r.x)/6.2831853+.5,asin(clamp(r.y,0.,1.))/1.5707963));}
+
 uniform vec3 skySun;uniform float skyTime;
 vec3 skyGradient(vec3 d){
  float y=max(d.y,0.);vec3 c=mix(vec3(.50,.61,.66),vec3(.29,.43,.59),smoothstep(0.,.075,y));
@@ -15,7 +21,7 @@ vec3 skyGradient(vec3 d){
 vec3 skyRadiance(vec3 d,vec3 origin){
  vec3 c=skyGradient(d);float cloudTransmittance=1.;float mu=max(0.,dot(d,skySun));float angle=sqrt(max(0.,2.*(1.-mu)));
  float solar=(1.-smoothstep(.0038,.0052,angle))*10.+exp(-pow(angle/.022,2.))*.12;
- if(d.y>0.&&cloudPanoramaReady>.5){vec4 cloud=texture2D(cloudPanorama,vec2(atan(d.z,d.x)/6.2831853+.5,asin(clamp(d.y,0.,1.))/1.5707963));c=cloud.rgb;cloudTransmittance=cloud.a*smoothstep(.004,.04,cloud.a);}
+ if(d.y>0.&&cloudPanoramaReady>.5){vec4 cloud=mix(reprojectCloud(cloudPrevious,d,origin,cloudPreviousOrigin,cloudPreviousPhase),reprojectCloud(cloudPanorama,d,origin,cloudPublishedOrigin,cloudPublishedPhase),cloudBlend);c=cloud.rgb;cloudTransmittance=cloud.a*smoothstep(.004,.04,cloud.a);}
  return c+vec3(1.,.90,.72)*solar*cloudTransmittance;
 }
 vec3 seaDistance(vec3 ray){
@@ -36,8 +42,8 @@ export async function makeSky(sunDirection){
  const weatherData=new Uint8Array(await(await fetch('./assets/cloud-weather.bin')).arrayBuffer());if(weatherData.length!==1024**2)throw Error('Invalid cloud weather');
  const weather=new T.DataTexture(weatherData,1024,1024,T.RedFormat);weather.minFilter=weather.magFilter=T.LinearFilter;weather.wrapS=weather.wrapT=T.RepeatWrapping;weather.needsUpdate=true;
  const uniforms={cloudNoiseMap:{value:volume},skySun:{value:sunDirection},skyTime:{value:0},cloudWeather:{value:weather},cloudDensityMap:{value:weather},cloudOrigin:{value:new T.Vector2()},cloudPhase:{value:new T.Vector2()},cloudCoverage:{value:.49},cloudThickness:{value:1.7},cloudDataReady:{value:1},cloudAppearanceWeight:{value:1},weatherHaze:{value:0},rainWetness:{value:0}};
- const panoramas=[0,1].map(()=>new T.WebGLRenderTarget(3072,768,{type:T.HalfFloatType,depthBuffer:false}));for(const p of panoramas)p.texture.wrapS=T.RepeatWrapping;let panorama=panoramas[0],panoJob=null,published=null,completed=0;
- uniforms.cloudPanorama={value:panorama.texture};uniforms.cloudPanoramaReady={value:0};uniforms.cloudViewOrigin={value:new T.Vector3()};
+ const panoramas=[0,1,2].map(()=>new T.WebGLRenderTarget(3072,768,{type:T.HalfFloatType,depthBuffer:false}));for(const p of panoramas)p.texture.wrapS=T.RepeatWrapping;let panorama=panoramas[0],panoJob=null,published=null,completed=0,previousPanorama=panoramas[0],blendStart=-1e6;
+ uniforms.cloudPanorama={value:panorama.texture};uniforms.cloudPrevious={value:panorama.texture};uniforms.cloudBlend={value:1};uniforms.cloudPublishedOrigin={value:new T.Vector3()};uniforms.cloudPreviousOrigin={value:new T.Vector3()};uniforms.cloudPublishedPhase={value:new T.Vector2()};uniforms.cloudPreviousPhase={value:new T.Vector2()};uniforms.cloudPanoramaReady={value:0};uniforms.cloudViewOrigin={value:new T.Vector3()};
  const panoScene=new T.Scene(),panoCamera=new T.OrthographicCamera(-1,1,1,-1,0,1);
  panoScene.add(new T.Mesh(new T.PlaneGeometry(2,2),new T.ShaderMaterial({uniforms,depthTest:false,depthWrite:false,vertexShader:'varying vec2 uvSky;void main(){uvSky=uv;gl_Position=vec4(position.xy,0.,1.);}',fragmentShader:`varying vec2 uvSky;uniform vec3 cloudViewOrigin;${skyGLSL}void main(){float az=(uvSky.x-.5)*6.2831853,el=uvSky.y*1.5707963;vec3 d=vec3(cos(az)*cos(el),sin(el),sin(az)*cos(el));gl_FragColor=traceCloudSky(cloudViewOrigin,d,skyGradient(d),vec3(.12,.26,.40),vec3(1.,.90,.72),skySun);}`})));
  const shadowTarget=new T.WebGLRenderTarget(192,192,{depthBuffer:false});
@@ -49,8 +55,9 @@ export async function makeSky(sunDirection){
  })));
  let shadowTime=-1e6,panoTime=-1e6;const lastPanoPosition=new T.Vector3(1e8,1e8,1e8);
  const updateLighting=(renderer,t,camera)=>{
- const shadowDirty=Math.abs(t-shadowTime)>=2,panoDirty=Math.abs(t-panoTime)>=2||lastPanoPosition.distanceTo(camera.position)>16;
- if(!panoJob&&panoDirty)panoJob={index:0,time:t,position:camera.position.clone(),target:panoramas.find(p=>p!==panorama),phase:uniforms.cloudPhase.value.clone(),cut:lastPanoPosition.distanceTo(camera.position)>200};
+ uniforms.cloudBlend.value=T.MathUtils.smoothstep(t-blendStart,0,.45);
+ const shadowDirty=Math.abs(t-shadowTime)>=.2,panoDirty=Math.abs(t-panoTime)>=.65||lastPanoPosition.distanceTo(camera.position)>16;
+ if(!panoJob&&panoDirty)panoJob={index:0,time:t,position:camera.position.clone(),target:panoramas.find(p=>p!==panorama&&p!==previousPanorama),phase:uniforms.cloudPhase.value.clone(),cut:lastPanoPosition.distanceTo(camera.position)>200};
  if(!shadowDirty&&!panoJob)return;
  const target=renderer.getRenderTarget(),auto=renderer.autoClear;renderer.autoClear=true;
  if(panoJob){
@@ -59,7 +66,10 @@ export async function makeSky(sunDirection){
   // canvas DPR again, leaving stale rows at fractional/Retina pixel ratios.
   job.target.scissorTest=!job.cut;job.target.scissor.set(0,job.cut?0:job.index*24,3072,job.cut?768:24);
   renderer.setRenderTarget(job.target);renderer.render(panoScene,panoCamera);uniforms.cloudPhase.value.copy(phase);
-  if(job.cut||++job.index===32){published={position:job.position.clone(),phase:job.phase.clone(),cut:job.cut};completed++;panorama=job.target;uniforms.cloudPanorama.value=panorama.texture;uniforms.cloudPanoramaReady.value=1;panoTime=job.time;lastPanoPosition.copy(job.position);panoJob=null;}
+  if(job.cut||++job.index===32){published={position:job.position.clone(),phase:job.phase.clone(),cut:job.cut};completed++;previousPanorama=panorama;uniforms.cloudPrevious.value=previousPanorama.texture;uniforms.cloudPreviousOrigin.value.copy(uniforms.cloudPublishedOrigin.value);uniforms.cloudPreviousPhase.value.copy(uniforms.cloudPublishedPhase.value);
+ panorama=job.target;uniforms.cloudPublishedOrigin.value.copy(job.position);uniforms.cloudPublishedPhase.value.copy(job.phase);blendStart=t;uniforms.cloudBlend.value=0;
+ if(job.cut){previousPanorama=panorama;uniforms.cloudPrevious.value=panorama.texture;uniforms.cloudPreviousOrigin.value.copy(job.position);uniforms.cloudPreviousPhase.value.copy(job.phase);blendStart=t-1;uniforms.cloudBlend.value=1;}
+ uniforms.cloudPanorama.value=panorama.texture;uniforms.cloudPanoramaReady.value=1;panoTime=job.time;lastPanoPosition.copy(job.position);panoJob=null;}
  }
  if(shadowDirty){renderer.setRenderTarget(shadowTarget);renderer.render(shadowScene,shadowCamera);shadowTime=t;}
  renderer.setRenderTarget(target);renderer.autoClear=auto;
@@ -81,5 +91,5 @@ export async function makeSky(sunDirection){
    return {passed:different===0&&nonZeroChannels>0&&finiteChannels===a.length,nonZeroChannels,finiteChannels,comparedChannels:a.length,differentChannels:different,differentRows:rows.size,pixelRatio:renderer.getPixelRatio(),completed,lastRefresh:published.cut?'full':'striped',position:published.position.toArray(),phase:published.phase.toArray()};
   }finally{uniforms.cloudViewOrigin.value.copy(origin);uniforms.cloudPhase.value.copy(phase);renderer.setRenderTarget(target);renderer.autoClear=auto;reference.dispose();}
  };
- return {mesh,uniforms,updateLighting,audit,status:()=>({completed,pending:!!panoJob,stripe:panoJob?.index??null,lastRefresh:published?.cut?'full':'striped'}),update:t=>{uniforms.skyTime.value=t;uniforms.cloudPhase.value.set(t*5,t*1.7)}};
+ return {mesh,uniforms,updateLighting,audit,status:()=>({blend:uniforms.cloudBlend.value,continuousReprojection:true,completed,pending:!!panoJob,stripe:panoJob?.index??null,lastRefresh:published?.cut?'full':'striped'}),update:t=>{uniforms.skyTime.value=t;uniforms.cloudPhase.value.set(t*5,t*1.7)}};
 }

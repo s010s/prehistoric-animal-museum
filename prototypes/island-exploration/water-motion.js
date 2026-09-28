@@ -7,7 +7,7 @@ export const swellGLSL=`
 uniform float time,terrainSpan;uniform sampler2D coastDepth;uniform vec2 oceanCenter;
 float oceanHash(vec2 p){return fract(sin(dot(mod(p,4096.),vec2(127.1,311.7)))*43758.5453);}
 vec3 oceanNoise(vec2 p){vec2 i=floor(p),f=fract(p),u=f*f*(3.-2.*f),du=6.*f*(1.-f);float a=oceanHash(i),b=oceanHash(i+vec2(1,0)),c=oceanHash(i+vec2(0,1)),d=oceanHash(i+1.);return vec3(mix(mix(a,b,u.x),mix(c,d,u.x),u.y),du*vec2(mix(b-a,d-c,u.y),mix(c-a,d-b,u.x)));}
-float coastAttenuation(vec2 p){vec2 uv=p/terrainSpan+.5;float inside=step(0.,uv.x)*step(uv.x,1.)*step(0.,uv.y)*step(uv.y,1.);float depth=mix(40.,texture2D(coastDepth,clamp(uv,0.,1.)).r*40.,inside);return smoothstep(.3,8.,depth);}
+float coastAttenuation(vec2 p){vec2 uv=p/terrainSpan+.5;float inside=step(0.,uv.x)*step(uv.x,1.)*step(0.,uv.y)*step(uv.y,1.);float depth=mix(40.,texture2D(coastDepth,clamp(uv,0.,1.)).r*40.,inside);return smoothstep(.03,2.5,depth);}
 vec3 wavePacket(vec2 p,float angle,float wavelength,float amp,float speed,float seed){
  vec2 dir=vec2(cos(angle),sin(angle));float k=6.2831853/wavelength;
  vec3 warp=oceanNoise(p/128.+seed),env=oceanNoise(p/210.+seed+vec2(17.,31.));
@@ -39,7 +39,7 @@ export function makeRockSpray(rocks,uniforms){
  const hash=n=>{const x=Math.sin(n*127.1)*43758.5453;return x-Math.floor(x)};
  for(let i=0;i<rocks.length;i++){
   const r=rocks[i],reach=riverReach(r.z);if(r.strength<.25||reach.speed<.55)continue;
-  for(let j=0;j<24;j++){
+  for(let j=0;j<8;j++){
    const h=hash(i*19+j),angle=(h-.5)*4.8,bend=Math.atan2(riverX(r.z+1)-riverX(r.z-1),2),dx=Math.sin(angle-bend),dz=-Math.cos(angle-bend);
    p.push(r.x+dx*r.radius*1.03,riverLevel(r.z)+.06,r.z+dz*r.radius*1.03);
    seed.push(h,hash(i*71+j+1),hash(i*11+j+3),r.strength);
@@ -53,7 +53,7 @@ export function makeRockSpray(rocks,uniforms){
  float burst=.55+.45*sin(floor(cycle)*2.399+spraySeed.z*31.);vec3 pos=position+launch*t;pos.y-=4.9*t*t;
  vec4 v=modelViewMatrix*vec4(pos,1.);vd=-v.z;
  alpha=sin(fract(cycle)*3.14159)*spraySeed.w*burst*(1.-smoothstep(70.,230.,vd))*step(position.y-.025,pos.y);
- gl_Position=projectionMatrix*v;gl_PointSize=clamp((.09+spraySeed.z*.16)*resolution.y/max(1.,vd),1.,7.);}`,
+ gl_Position=projectionMatrix*v;gl_PointSize=clamp((.09+spraySeed.z*.16)*resolution.y/max(1.,vd),1.,3.);}`,
  fragmentShader:`#include <packing>
  uniform sampler2D sceneDepth;uniform float cameraNear,cameraFar;uniform vec2 resolution;varying float alpha,vd;
  void main(){float d=-perspectiveDepthToViewZ(texture2D(sceneDepth,gl_FragCoord.xy/resolution).x,cameraNear,cameraFar);if(d<vd)discard;float r=length(gl_PointCoord-.5)*2.;float a=(1.-smoothstep(.15,1.,r))*alpha;if(a<.015)discard;gl_FragColor=vec4(.80,.88,.87,a*.8);

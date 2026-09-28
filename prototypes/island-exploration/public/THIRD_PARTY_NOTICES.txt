@@ -47,6 +47,9 @@ shore.js and water.js: swash-front film thinning, horizontal foam bead/trail
 widths and analytic front coverage adapted from src/ocean/ShoreWaves.js and
 src/ocean/WaterMaterial.js at the fixed commit below. The local analytic cycle
 uses its own derivative to classify uprush/backwash.
+Dual-phase local flow advection follows src/ocean/SurfFoam.js (1.2-second
+overlapping phases); water absorption uses the refracted-depth path from
+src/ocean/WaterMaterial.js. The source creek and marsh confluence are locally authored.
 Water extinction / in-scattering and unresolved-variance GGX equations in water.js are adapted from
 src/ocean/WaterMaterial.js; this prototype uses analytic wave packets, not its FFT solver.
 ocean-spectrum.js: dispersion and JONSWAP envelope adapted from src/ocean/OceanFFT.js;

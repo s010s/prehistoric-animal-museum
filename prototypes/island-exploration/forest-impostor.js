@@ -12,7 +12,7 @@ export function configureForestImpostor(mesh,atlas,viewerPosition,forestRange,ne
   azimuth=mod((atan(toEye.x,toEye.z)-treeYaw)/.7853981634+24.,8.);elevation=clamp(atan(max(0.,toEye.y),length(toEye.xz))/.55,0.,2.);
   vec3 right=vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0]),up=vec3(viewMatrix[0][1],viewMatrix[1][1],viewMatrix[2][1]);
   airWorld=center+right*position.x*treeScale.x+up*(position.y-.5)*treeScale.y;
-  airWorld.x+=sin(treeTime*1.15+root.x*.031+root.z*.024)*max(0.,position.y)*treeScale.y*.008;
+  airWorld.x+=(sin(treeTime*.61+root.x*.031+root.z*.024)+.32*sin(treeTime*1.37+root.z*.071))*max(0.,position.y)*treeScale.y*.003;
   vec4 mvPosition=viewMatrix*vec4(airWorld,1.);gl_Position=projectionMatrix*mvPosition;`)
   .replace('#include <worldpos_vertex>','vec4 worldPosition=vec4(airWorld,1.);');
   s.fragmentShader=s.fragmentShader.replace('#include <common>',`#include <common>
@@ -23,9 +23,9 @@ export function configureForestImpostor(mesh,atlas,viewerPosition,forestRange,ne
   diffuseColor.rgb*=canopy.rgb/max(canopy.a,.001);diffuseColor.a*=canopy.a;
 
   float distant=1.-smoothstep(forestRange-1400.,forestRange,treeDistance);
-  float nearCoverage=nearIdentity<nearFraction?1.-step(70.,rootDistance):0.;float treeCoverage=distant*(1.-nearCoverage);if(treeCoverage<.001)discard;`)
-  .replace('#include <alphatest_fragment>','#include <alphatest_fragment>\nif(treeCoverage<.5)discard;')
-  .replace('#include <normal_fragment_maps>',`vec3 localNormal=normalize(canopyNormal/max(treeScale,vec3(.001)));float cy=cos(yaw),sy=sin(yaw);vec3 worldNormal=vec3(cy*localNormal.x+sy*localNormal.z,localNormal.y,-sy*localNormal.x+cy*localNormal.z);normal=normalize(mat3(viewMatrix)*worldNormal+normalize(vViewPosition)*.25);`);
- s.fragmentShader=s.fragmentShader.replace('#include <lights_fragment_end>','#include <lights_fragment_end>\nreflectedLight.directSpecular*=.15;reflectedLight.indirectSpecular*=.15;');
- };mesh.material.customProgramCacheKey=()=> 'relightable-matched-conifer-r6';
+  float nearCoverage=nearIdentity<nearFraction?1.-smoothstep(45.,90.,rootDistance):0.;float treeCoverage=distant*(1.-nearCoverage);if(treeCoverage<.001)discard;`)
+  .replace('#include <alphatest_fragment>','#include <alphatest_fragment>\nfloat transitionNoise=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));if(transitionNoise<nearCoverage||transitionNoise>distant)discard;')
+  .replace('#include <normal_fragment_maps>',`vec3 localNormal=normalize(canopyNormal/max(treeScale,vec3(.001)));float cy=cos(yaw),sy=sin(yaw);vec3 worldNormal=vec3(cy*localNormal.x+sy*localNormal.z,localNormal.y,-sy*localNormal.x+cy*localNormal.z);normal=normalize(mat3(viewMatrix)*worldNormal);`);
+ s.fragmentShader=s.fragmentShader.replace('#include <lights_fragment_end>','#include <lights_fragment_end>\nreflectedLight.directSpecular*=.025;reflectedLight.indirectSpecular*=.025;');
+ };mesh.material.customProgramCacheKey=()=> 'relightable-matched-conifer-r9';
 }

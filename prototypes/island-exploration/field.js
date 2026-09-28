@@ -11,6 +11,8 @@ export const hash=(x,z)=>original.hash(Math.floor(x*731),Math.floor(z*193),71)
 export const fbm=(x,z)=>noise(x,z)*.57+noise(x*2.03+17,z*2.03)*.28+noise(x*4.11,z*4.11-9)*.15
 export const riverX=z=>-1830+190*Math.sin(z/640)+72*Math.sin(z/230)-smooth(2400,4000,z)*1550
 export const riverLevel=z=>17.3*(1-smooth(-1550,2800,z))+190*(1-smooth(-3800,-1550,z))-.7
+export const springX=z=>riverX(z)+Math.sin((z+4022)*.19)*.6;
+export const springLevel=z=>riverLevel(z)+Math.max(0,-3980-z)*.26;
 export const headwaters={x:riverX(-3980),z:-3980,level:riverLevel(-3980)}
 export const hero=z=>smooth(-1450,-1050,z)*(1-smooth(0,400,z))
 export const halfWidth=z=>(15+24*Math.exp(-1*((z+3950)/65)**2)+8*noise(z/125,9)+1.8*noise(z/14,7)+smooth(1600,3500,z)*60+15*Math.exp(-1*((z+1800)/260)**2))*(1-.52*hero(z))
@@ -19,9 +21,9 @@ export const wetland={x:3600,z:5400,rx:2250,rz:1500,level:2.4}
 export const wetlandLevel=z=>2.4-3.1*smooth(6200,7200,z)
 export const tarn={x:1600,z:-5930,rx:330,rz:490,level:455}
 export const marshTrunk=z=>3500+240*Math.sin(z/810)+90*noise(z/260,41)
-export const tributaryX=z=>{const old=6300+360*Math.sin(z/730)+110*Math.sin(z/210);return old+(marshTrunk(z)+300-old)*smooth(4000,5550,z)}
+export const tributaryX=z=>{const old=6300+360*Math.sin(z/730)+110*Math.sin(z/210);return old+(marshTrunk(z)+300-old)*smooth(4000,5550,z)+(95*Math.sin(z/175)+45*Math.sin(z/83))*smooth(3700,4200,z)*(1-smooth(4900,5500,z))}
 export const tributaryWidth=z=>17+14*noise(z/290,27)+7*noise(z/93,51)
-export const tributaryLevel=z=>2.4+82*(1-smooth(500,4800,z))
+export const tributaryLevel=z=>2.4+82*(1-smooth(500,3630,z))
 export function biomeAt(x,z){
  const grass=(1-smooth(.65,1.2,Math.hypot((x-5700)/2700,(z-1900)/2900)))*(1-smooth(4800,5650,z))
  const marsh=1-smooth(.78,1.13,Math.hypot((x-wetland.x)/wetland.rx,(z-wetland.z)/wetland.rz))
@@ -104,9 +106,10 @@ function terrainBase(x,z){
  // Eastern rain-shadow prairie: broad rolling folds, a continuous tributary and wet lowlands.
  const eco=biomeAt(x,z),dryFloor=95+95*fbm(x/1500,z/1600)+37*noise(x/420,z/530)+17*noise((x+noise(x/290,z/330)*80)/130,z/190)+5*noise(x/47,z/63)
  h=h*(1-eco.grass)+Math.min(h,dryFloor)*eco.grass
- const tw=tributaryWidth(z),tx=tributaryX(z),tb=Math.abs(x-tx)-tw,tm=smooth(100,500,z)*(1-smooth(5400,5750,z))*(1-smooth(90,380,tb)),tl=tributaryLevel(z)
+ const tw=tributaryWidth(z)+smooth(4000,4700,z)*85,tx=tributaryX(z),tb=Math.abs(x-tx)-tw,tm=smooth(100,500,z)*(1-smooth(5400,5750,z))*(1-smooth(90,380,tb)),tl=tributaryLevel(z)
  const deposit=clamp(.5+Math.sign(x-tx)*(tributaryX(z+70)+tributaryX(z-70)-2*tx)/35+(noise(z/220,33)-.5)*.5)
- const tf=tl-2.1+smooth(-tw,0,tb)*2.2+Math.max(0,tb)*(.028+.16*(1-deposit)**2)+Math.pow(Math.max(0,tb-30-deposit*90),1.3)*.11
+ const deltaDepth=2.1*(1-smooth(4550,5000,z));
+ const tf=tl-deltaDepth+smooth(-tw,0,tb)*(deltaDepth+.1)+Math.max(0,tb)*(.028+.16*(1-deposit)**2)+Math.pow(Math.max(0,tb-30-deposit*90),1.3)*.11
  h=h*(1-tm)+Math.min(h,tf)*tm
  // A connected backwater complex, with muddy islands, reed shelves and sinuous channels.
  // Broad connected shallow depressions, peat hummocks and one drainage trunk.
@@ -130,6 +133,7 @@ function terrainBase(x,z){
   const margin=1-smooth(12,110,bank),floor=(bank<0?bed:level+.12+Math.max(0,bank)*.24)+Math.max(0,-3980-z)*.26;
   h=mixHeight(h,Math.min(h,floor),source*margin);
  }
+ if(z>-4025&&z<-3972){const t=clamp((z+4022)/48),width=.12+t**1.1*2.1,offset=Math.abs(x-springX(z)),groove=1-smooth(width*.65,width+1.7,offset);h=mixHeight(h,Math.min(h,springLevel(z)-.16+.12*(offset/Math.max(.3,width))**2),groove*smooth(-4025,-4020,z));}
  return h
 }
 // A dry, level observation clearing; the same surface is used by terrain, plants and collision.
