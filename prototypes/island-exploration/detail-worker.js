@@ -3,7 +3,7 @@ import {hash,noise,terrainHeight,slopeAt,bankAt,riverX,halfWidth,riverLevel,wate
 import {trailWeight,trailX} from './habitat.js'
 const rand=(i,n)=>hash(i*1.71+n*14.19,n*7.38-i*.31)
 // Coordinates and identities belong to fixed world cells; moving the window never reseeds plants.
-self.onmessage=e=>{const workerStart=performance.now();const {cx,cz,fine,habitat,rockWidth,fernHeight}=e.data;const rocks=[],pebbles=[],ferns=[],grass=[],reeds=[],debris=[],litter=[];
+self.onmessage=e=>{const workerStart=performance.now();const {requestId,cx,cz,fine,habitat,rockWidth,fernHeight}=e.data;const rocks=[],pebbles=[],ferns=[],grass=[],reeds=[],debris=[],litter=[];
  const forestCache=new Map(),forestAt=(x,z)=>{const gx=Math.floor(x/8),gz=Math.floor(z/8),key=gx+","+gz;if(!forestCache.has(key))forestCache.set(key,woodland(gx*8,gz*8));return forestCache.get(key)};
  for(let gz=Math.floor((cz-185)/10);gz<=Math.ceil((cz+185)/10);gz++)for(let gx=Math.floor((cx-185)/10);gx<=Math.ceil((cx+185)/10);gx++){
  const i=gx*1973+gz*7919;if(!fine&&hash(gx,gz)>.60)continue;
@@ -60,6 +60,6 @@ self.onmessage=e=>{const workerStart=performance.now();const {cx,cz,fine,habitat
   const y=terrainHeight(x,z);if(s.edge>.6&&s.edge<8&&y>s.level+.08&&rand(i,712)<.65)ferns.push({x,z,y:y-.03,scale:(.25+rand(i,713)*.55)/fernHeight,yaw:rand(i,714)*6.28,tint:.65+rand(i,715)*.27});
   if(s.edge<3&&s.edge>-.8)pebbles.push({x,z,y:y-.035,scale:.08+rand(i,716)*.27,sy:.45,yaw:rand(i,717)*6.28,tint:.6+rand(i,718)*.3});
  }
- self.postMessage({cx,cz,rocks,pebbles,ferns,grass,reeds,debris,litter,workerMs:performance.now()-workerStart})
+ self.postMessage({requestId,fine,cx,cz,rocks,pebbles,ferns,grass,reeds,debris,litter,workerMs:performance.now()-workerStart})
 }
 self.postMessage({ready:true});
