@@ -16,6 +16,15 @@ content, contributions, and Brand Assets follow the separate scopes in
   Distributed under the [ISC License](LICENSES/Lucide-ISC.txt); portions
   derived from Feather are retained under the MIT License in the same file.
 
+## Underwater caustic mechanism
+
+- **ScottieFox/caustic-volume** — Copyright (c) 2026 Scottie. The shared
+  refracted photon-grid area Jacobian and depth-slice lookup reference commit
+  `d87351bff19831aa9d11c0679605fad6797b133f`. The integrated renderer and
+  adaptations follow this project's AGPL-3.0-only license; the referenced MIT
+  notice is retained in [LICENSES/ScottieFox-caustic-volume-MIT.txt](LICENSES/ScottieFox-caustic-volume-MIT.txt).
+  Source: [ScottieFox/caustic-volume](https://github.com/ScottieFox/caustic-volume/tree/d87351bff19831aa9d11c0679605fad6797b133f).
+
 ## Bundled fonts
 
 - **ZCOOL KuaiLe** — Copyright 2018 The ZCOOL KuaiLe Project Authors.

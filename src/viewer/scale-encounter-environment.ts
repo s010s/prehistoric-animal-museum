@@ -1,3 +1,4 @@
+import { createOceanRefractedRuntime } from '../scale-encounter/environments/ocean/refracted/runtime.mjs'
 import { applyAuthoredGroundMaterial } from './scale-encounter-authored-ground'
 import { createLivingAtmosphere, type LivingAtmosphere } from './scale-encounter-living-atmosphere'
 import { createRiverWater } from './scale-encounter-river-water'
@@ -34,6 +35,7 @@ import {
   UnsignedByteType,
   Vector2,
   Vector3,
+  type Scene,
   type Material,
   type FogExp2,
   type Object3DEventMap,
@@ -154,6 +156,7 @@ export interface ScaleEncounterEnvironment {
   readonly skyDome: Mesh
   readonly toneMappingExposure: number | null
   readonly variant: ScaleEncounterEnvironmentVariant
+  readonly renderScene?: (scene: Scene, camera: PerspectiveCamera) => void
   readonly disposeCandidate?: () => void
   readonly updateCandidate?: (
     elapsedSeconds: number,
@@ -2955,6 +2958,7 @@ function createIntegratedOceanEnvironment(
   variant: Exclude<ScaleEncounterSceneCandidateVariant, 'off' | 'E'>,
   legacyVariant: ScaleEncounterEnvironmentVariant,
   renderer?: WebGLRenderer,
+  animalBounds?: Box3,
 ): ScaleEncounterEnvironment {
   const candidate = createOceanEnvironmentCandidate({
     // The old generic water panorama was authored for the legacy scene and
@@ -2969,7 +2973,10 @@ function createIntegratedOceanEnvironment(
     variant,
   })
   const backdrop = oceanCandidateBackdrop(candidate)
-  const environmentPmrem = renderer
+  const refracted = renderer && variant === 'D'
+    ? createOceanRefractedRuntime(renderer, candidate, animalBounds?.getCenter(new Vector3()))
+    : null
+  const environmentPmrem = renderer && renderer.extensions.has('EXT_color_buffer_float')
     ? createOceanEnvironmentPmrem(
         renderer,
         variant === 'D' ? candidate.radianceTexture : null,
@@ -2999,7 +3006,8 @@ function createIntegratedOceanEnvironment(
     cameraCentredSkyDome: true,
     childContactCue: null,
     distanceFogColour: null,
-    environmentIntensity: variant === 'D' ? 0.72 : 0.64,
+    ...(refracted ? { renderScene: (scene, camera) => refracted.render(scene, camera) } : {}),
+    environmentIntensity: refracted ? 0.15 : variant === 'D' ? 0.72 : 0.64,
     environmentMap: environmentPmrem?.texture ?? null,
     fog: candidate.getFog(),
     ownsLighting: true,
@@ -3011,12 +3019,14 @@ function createIntegratedOceanEnvironment(
     toneMappingExposure: 1.18,
     variant: legacyVariant,
     disposeCandidate: () => {
+      refracted?.dispose()
       candidate.dispose()
       environmentPmrem?.dispose()
     },
     updateCandidate: (elapsedSeconds, reducedMotion, camera) => {
       if (!(camera instanceof PerspectiveCamera)) return
-      candidate.update(reducedMotion ? 0 : elapsedSeconds, camera)
+      if (refracted) refracted.update(elapsedSeconds, reducedMotion, camera)
+      else candidate.update(reducedMotion ? 0 : elapsedSeconds, camera)
     },
   }
 }
@@ -3195,6 +3205,7 @@ function createScaleEncounterEnvironmentBase(
       sceneCandidateVariant,
       variant,
       options.renderer,
+      options.animalBounds,
     )
   }
   if (
