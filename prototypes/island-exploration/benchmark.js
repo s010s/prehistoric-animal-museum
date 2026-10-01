@@ -15,7 +15,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     wetland: '看芦苇根部、泥洲和浅水。水线与接触是否稳定。',
     cliffs: '看岩体体积与投影。慢横移，检查影边跳格、离地或覆盖丢失。',
   }
-  let recorder=null;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
+  let recorder=null, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false, videoPending=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
   const records = [], errors = []; let interrupted = null, pendingCapture = false, evidenceReadback = false
   addEventListener('error', e => errors.push(e.message))
   addEventListener('unhandledrejection', e => errors.push(String(e.reason)))
@@ -61,9 +61,11 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     $('benchmark-replay').textContent = '停止横移'
   }
   function startRecording(){
+    if(evidenceMode==='timing')return;
+    videoPending=true;$('benchmark-video').removeAttribute('src');
     try{const stream=canvas.captureStream(24),mimeType=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t)),chunks=[];
-      recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:6000000});recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=()=>{const blob=new Blob(chunks,{type:mimeType}),reader=new FileReader();reader.onload=()=>{$('benchmark-video').src=reader.result;$('benchmark-video').dataset.mime=mimeType;};reader.readAsDataURL(blob);stream.getTracks().forEach(t=>t.stop());};recorder.start();
-    }catch(e){capture('video-error',{message:String(e)});}
+      recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:6000000});recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=()=>{const blob=new Blob(chunks,{type:mimeType}),reader=new FileReader();reader.onload=()=>{$('benchmark-video').src=reader.result;$('benchmark-video').dataset.mime=mimeType;videoPending=false;};reader.readAsDataURL(blob);stream.getTracks().forEach(t=>t.stop());};recorder.start();
+    }catch(e){videoPending=false;capture('video-error',{message:String(e)});}
   }
   $('benchmark-walk').onclick=()=>{
     stop();suite=null;reset('forest');tick=0;samples=[];interrupted=null;
@@ -100,13 +102,30 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   function cancel(reason) {
     if (!replay) return
     if(recorder?.state==='recording')recorder.stop();
-    if (replay) capture('replay-interrupted', { reason, completed: false, samples })
+    if (replay && evidenceMode!=='timing') capture('replay-interrupted', { reason, completed: false, samples })
     if(replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
           syncPose?.(); replay = null; interrupted = reason; $('benchmark-replay').textContent = '横移往返 · 12 秒'
   }
   updateLabel(); $('benchmark-note').textContent = observations[current] || observations.forest; setTime(60)
   return {
     get active() { return Boolean(replay) },
+    get diagnosticComplete() { return diagnosticComplete },
+    get videoPending() { return videoPending },
+    get visualRecords() { return records },
+    prepareDiagnostic(route) {
+      evidenceMode='timing';diagnosticRepeat=false;diagnosticComplete=false;cancel('next measurement');
+      if(route==='forest')reset('forest');
+      else if(route==='spring')$('benchmark-spring-eye').onclick();
+      else if(route==='west')$('benchmark-rock-close').onclick();
+      else $('benchmark-beach-eye').onclick();
+    },
+    startDiagnostic(route,{capture:video=false,repeat=false}={}) {
+      evidenceMode=video?'video':'timing';diagnosticRepeat=repeat;diagnosticComplete=false;if(video){records.length=0;$('benchmark-frame').innerHTML='';}
+      if(route==='forest')$('benchmark-replay').onclick();
+      else if(route==='beach')$('benchmark-shore').onclick();
+      else $('benchmark-continuity').onclick();
+      if(video&&!recorder?.state?.includes('recording'))startRecording();
+    },
     get time() { return 60 + tick / 60 },
     cancel,
     destination(id) { panel.dataset.ready='false'; current = id; tick = 0; settled = 0; setTime(60); $('benchmark-note').textContent = observations[id] || ''; },
@@ -147,17 +166,19 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
       if (pendingCapture) { capture('still', { ready, image: canvas.toDataURL('image/png') }); pendingCapture = false }
       panel.dataset.ready = String(ready)
       panel.dataset.snapshot = JSON.stringify({ ...state, tick, time: this.time, ready })
-      if (replay && (state.programErrors || state.vegetation.error || state.flow.error || performance.now() - replay.start > 120000)) cancel('resource error or replay timeout')
+      if (replay && (state.programErrors || state.vegetation.error || state.flow.error || performance.now() - replay.start > (params.get('diagnostics')==='1'?600000:120000))) cancel('resource error or replay timeout')
       if (replay) {
-        samples.push({ tick, frameMs: raw, afterEvidenceReadback, clearance:state.clearance,exposure:state.exposure,skyCache:state.skyCache,cpu: { ...state.cpu }, pending: !jobsReady, shadow: state.shadow, position: state.position, drawCalls: state.drawCalls, triangles: state.triangles })
+        if(evidenceMode!=='timing')samples.push({ tick, frameMs: raw, afterEvidenceReadback, clearance:state.clearance,exposure:state.exposure,skyCache:state.skyCache,cpu: { ...state.cpu }, pending: !jobsReady, shadow: state.shadow, position: state.position, drawCalls: state.drawCalls, triangles: state.triangles })
         if(replay.mode==='dpr'&&tick%180===179){capture('sky-stripe-audit',{result:auditSky()});evidenceReadback=true;}
-        if(jobsReady&&tick%180===0)capture('motion-frame',{image:canvas.toDataURL('image/png')});
+        if(evidenceMode!=='timing'&&jobsReady&&tick%180===0)capture('motion-frame',{image:canvas.toDataURL('image/png')});
         if (jobsReady) tick++
         if (tick > (replay.ticks??720)) {
+          if(diagnosticRepeat){tick=0;setTime(60);samples=[];return;}
+          diagnosticComplete=true;
           tick = replay.ticks??720
           const ordered = samples.map(s => s.frameMs).sort((a, b) => a - b)
           const clean=samples.filter(s=>!s.afterEvidenceReadback).map(s=>s.frameMs).sort((a,b)=>a-b);
-          capture(replay.mode==='shore'?'shore-cycle':replay.mode==='walk'?'trail-walk':replay.mode==='sky'?'sky-orbit':replay.mode==='dpr'?'dpr-matrix':replay.mode==='continuity'?'continuity':'replay', { completed: true, renderingFrameMs:{p50:clean[Math.floor(clean.length*.5)],p95:clean[Math.floor(clean.length*.95)],max:clean.at(-1)},evidenceReadbackFrames:samples.filter(s=>s.afterEvidenceReadback).length, startPosition: replay.position.toArray(), endPosition: camera.position.toArray(), wallMs: performance.now() - replay.start, frameMs: { p50: ordered[Math.floor(ordered.length * .5)], p95: ordered[Math.floor(ordered.length * .95)], max: ordered.at(-1) }, samples })
+          if(evidenceMode!=='timing')capture(replay.mode==='shore'?'shore-cycle':replay.mode==='walk'?'trail-walk':replay.mode==='sky'?'sky-orbit':replay.mode==='dpr'?'dpr-matrix':replay.mode==='continuity'?'continuity':'replay', { completed: true, renderingFrameMs:{p50:clean[Math.floor(clean.length*.5)],p95:clean[Math.floor(clean.length*.95)],max:clean.at(-1)},evidenceReadbackFrames:samples.filter(s=>s.afterEvidenceReadback).length, startPosition: replay.position.toArray(), endPosition: camera.position.toArray(), wallMs: performance.now() - replay.start, frameMs: { p50: ordered[Math.floor(ordered.length * .5)], p95: ordered[Math.floor(ordered.length * .95)], max: ordered.at(-1) }, samples })
           if(recorder?.state==='recording')recorder.stop();
           if(replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
           syncPose?.(); replay = null; $('benchmark-replay').textContent = '横移往返 · 12 秒'

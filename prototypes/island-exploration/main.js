@@ -11,23 +11,25 @@ import {makeShadowFocus} from './shadow-focus.js'
 import {makeEncounter} from './encounter.js'
 import {makeTerrainLight} from './terrain-light.js'
 import {makeBenchmark} from './benchmark.js'
+import {makeDiagnostics} from './diagnostics.js'
 const $=s=>document.querySelector(s),params=new URLSearchParams(location.search)
 const habitat=params.get('look')!=='baseline';
 const benchmarkMode=params.get('benchmark')==='1';let benchmark=null,stableShadow=params.get('shadow')!=='baseline';
 let fine=params.has('quality')?params.get('quality')==='high':innerWidth>=900,cruise=false,touring=false,tourT=0,speedIndex=1,yaw=0,pitch=0,elapsed=0,last=0,frames=[],frame=0
 const speeds=[5,35,150],speedNames=['近看','漫游','远行']
 const renderer=new T.WebGLRenderer({canvas:$('#scene'),antialias:habitat,powerPreference:'high-performance'});renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=habitat?1.35:.92;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.info.autoReset=false
+const diagnostics=makeDiagnostics(renderer,params);
 const scene=new T.Scene();scene.background=new T.Color('#c8dce2');const camera=new T.PerspectiveCamera(62,innerWidth/innerHeight,.3,45000);camera.rotation.order='YXZ'
 const sunDirection=new T.Vector3(...SUN_DIRECTION).normalize();
 const shadowFocus=makeShadowFocus(sunDirection);
 const sun=new T.DirectionalLight('#fff1d9',2.35);sun.castShadow=true;sun.shadow.mapSize.set(512,512);Object.assign(sun.shadow.camera,{left:-140,right:140,top:140,bottom:-140,near:1,far:1200});sun.shadow.bias=-.00015;sun.shadow.normalBias=.08;scene.add(sun,sun.target);scene.add(new T.HemisphereLight('#d7e9f4','#45533e',habitat?.65:.85))
-const sky=await makeSky(sunDirection);sky.updateLighting(renderer,0,camera);const skyScene=new T.Scene();skyScene.add(sky.mesh);const pmrem=new T.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(skyScene,.03,.3,45000).texture;scene.environmentIntensity=habitat?.42:.42;pmrem.dispose();scene.add(sky.mesh);scene.background=null;
+const sky=await makeSky(sunDirection);sky.updateLighting(renderer,0,camera);const skyScene=new T.Scene();skyScene.add(sky.mesh);const pmrem=new T.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(skyScene,.03,.3,45000).texture;scene.environmentIntensity=habitat?.42:.42;pmrem.dispose();scene.add(sky.mesh);diagnostics?.labelGroup(sky.mesh,'sky');scene.background=null;
 Object.assign(sky.uniforms,await makeTerrainLight(habitat));
 const air=makeAtmosphere(sky.uniforms);
-const landscape=makeLandscape(await groundMaterial(),o=>air.apply(o),()=>fine);scene.add(landscape.group);air.apply(landscape.group)
-const water=await makeWater(renderer,camera,riverRocks,sky.uniforms,()=>fine)
+const landscape=makeLandscape(await groundMaterial(),o=>air.apply(o),()=>fine,diagnostics);scene.add(landscape.group);air.apply(landscape.group)
+const water=await makeWater(renderer,camera,riverRocks,sky.uniforms,()=>fine,diagnostics)
 $('#load-detail').textContent='铺开森林、岩岸和潮汐河谷…'
-const props=await makeProps(renderer,o=>air.apply(o),()=>fine);scene.add(props.group);air.apply(props.group);water.setReflectionMode(props.reflectionMode);const cliffs=await makeCliffs(habitat);scene.add(cliffs);air.apply(cliffs)
+const props=await makeProps(renderer,o=>air.apply(o),()=>fine,diagnostics);scene.add(props.group);air.apply(props.group);water.setReflectionMode(props.reflectionMode);const cliffs=await makeCliffs(habitat);scene.add(cliffs);diagnostics?.labelGroup(cliffs,'cliffs');air.apply(cliffs)
 const navigationHeight=(x,z)=>Math.max(surfaceHeight(x,z),landscape.heightAt(x,z),cliffs.userData.heightAt(x,z));
 const animal=await makeEncounter(scene,o=>air.apply(o),()=>{stop();keys.clear()});
 const mapBase=document.createElement('canvas');mapBase.width=mapBase.height=400;const baseCtx=mapBase.getContext('2d'),pixels=baseCtx.createImageData(400,400),seaDepth=new Uint8Array(400*400)
@@ -60,9 +62,12 @@ let perfStage={propsMs:0,renderMs:0},longFrames=0;
 function reviewState(){return {build:__WORLD_BUILD__,variant:stableShadow?'stable':'baseline',look:habitat?'habitat':'baseline',position:camera.position.toArray(),quaternion:camera.quaternion.toArray(),fov:camera.fov,drawSize:[renderer.domElement.width,renderer.domElement.height],viewport:[innerWidth,innerHeight],pixelRatio:renderer.getPixelRatio(),quality:fine?'high':'mobile',adaptive:!benchmarkMode,clearance:camera.position.y-navigationHeight(camera.position.x,camera.position.z),exposure:renderer.toneMappingExposure,sunDirection:sunDirection.toArray(),weather:Object.fromEntries(['cloudCoverage','cloudThickness','weatherHaze','rainWetness','cloudPhase','skyTime'].map(k=>[k,sky.uniforms[k].value.toArray?.()??sky.uniforms[k].value])),worldTime:elapsed,skyCache:sky.status(),encounter:animal.status(),vegetation:props.status(),flow:water.status(),terrain:landscape.status(),shadow:shadowFocus.snapshot(sun),cpu:{...perfStage},drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,programErrors:renderer.info.programs?.filter(p=>p.diagnostics?.runnable===false).length??0}}
 benchmark=makeBenchmark({params,camera,canvas:renderer.domElement,landmarks,go,stop,getState:reviewState,auditSky:()=>sky.audit(renderer),setWaterDebug:value=>water.setDebug(value),setReviewDpr:value=>{params.set('reviewDpr',String(value));quality()},syncPose:()=>{yaw=camera.rotation.y;pitch=camera.rotation.x},getShadow:()=>stableShadow,setShadow:value=>{stableShadow=value;params.set('shadow',value?'stable':'baseline');history.replaceState(null,'',`?${params}`)},setTime:value=>elapsed=value});
 
+diagnostics?.attach({benchmark,getState:reviewState,resources:()=>[...sky.resources(),...water.resources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])],scene,landscape,props,camera});
 const previousPosition=new T.Vector3();
 let lost=false;renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();lost=true;benchmark?.cancel('WebGL context lost');$('#loading').classList.remove('done');$('#load-detail').textContent='图形资源中断，请刷新重试。'})
-function render(t){requestAnimationFrame(render);if(lost||document.hidden){last=t;return}const raw=last?t-last:16;const dt=Math.min(.05,raw/1000);last=t;elapsed=benchmark?benchmark.time:elapsed+dt;frames.push(raw);if(raw>50)longFrames++;if(frames.length>120)frames.shift()
+function render(t){requestAnimationFrame(render);if(lost||document.hidden){last=t;diagnostics?.event('frame-skipped',{hidden:document.hidden,lost});return}const raw=last?t-last:16;const dt=Math.min(.05,raw/1000);last=t;elapsed=benchmark?benchmark.time:elapsed+dt;frames.push(raw);if(raw>50)longFrames++;if(frames.length>120)frames.shift()
+ const frameStart=diagnostics?performance.now():0;renderer.info.reset();diagnostics?.beginFrame(t,raw,elapsed);
+ const navStart=diagnostics?performance.now():0;
  previousPosition.copy(camera.position);
  if(benchmark?.active){benchmark.beforeFrame()}
  else if(touring){tourT=Math.min(1,tourT+dt/320);const p=safeRoute.getPoint(tourT),target=tourT<.986?safeRoute.getPoint(tourT+.014):tourGaze.getPoint(1);p.y=Math.max(p.y,navigationHeight(p.x,p.z)+90);target.y=Math.max(target.y-35,p.y-120);camera.position.copy(p);orient(target);pitch=T.MathUtils.clamp(pitch,-.45,.25);camera.rotation.set(pitch,yaw,0);if(tourT>=1)stop()}
@@ -73,8 +78,15 @@ function render(t){requestAnimationFrame(render);if(lost||document.hidden){last=
  camera.position.y=Math.max(floor+1.75,Math.min(camera.position.y,2100))
  if(!benchmark?.active&&animal.constrain(camera.position,previousPosition))stop();
  camera.position.y=Math.max(camera.position.y,navigationHeight(camera.position.x,camera.position.z)+1.75);
- shadowFocus.apply(sun,camera,terrainHeight,stableShadow)
- animal.update(elapsed,camera);sky.update(elapsed);sky.updateLighting(renderer,elapsed,camera);const ps=performance.now();props.update(camera,elapsed);landscape.update(camera);perfStage.propsMs=performance.now()-ps;renderer.info.reset();const rs=performance.now();params.has('dry')?renderer.render(scene,camera):water.render(scene,camera,elapsed);perfStage.renderMs=performance.now()-rs;benchmark?.afterFrame(raw,reviewState())
+ diagnostics?.cpu('navigationCollision',performance.now()-navStart);
+ const shadowStart=diagnostics?performance.now():0;shadowFocus.apply(sun,camera,terrainHeight,stableShadow);diagnostics?.cpu('shadowFocus',performance.now()-shadowStart)
+ const animalStart=diagnostics?performance.now():0;animal.update(elapsed,camera);diagnostics?.cpu('animals',performance.now()-animalStart);
+ const skyStart=diagnostics?performance.now():0;sky.update(elapsed);sky.updateLighting(renderer,elapsed,camera,diagnostics);diagnostics?.cpu('skyInclusive',performance.now()-skyStart);
+ const ps=performance.now();props.update(camera,elapsed);perfStage.propsMs=performance.now()-ps;diagnostics?.cpu('propsUpdate',perfStage.propsMs);
+ const terrainStart=diagnostics?performance.now():0;landscape.update(camera);diagnostics?.cpu('terrainManagement',performance.now()-terrainStart);
+ const rs=performance.now();params.has('dry')?renderer.render(scene,camera):water.render(scene,camera,elapsed);perfStage.renderMs=performance.now()-rs;diagnostics?.cpu('renderSubmissionInclusive',perfStage.renderMs);
+ diagnostics?.endGpuFrame();const reviewStart=diagnostics?performance.now():0;benchmark?.afterFrame(raw,reviewState());diagnostics?.cpu('reviewUIInclusive',performance.now()-reviewStart);
  if(frame++%30===0){let nearest=landmarks[0],dist=Infinity;for(const l of landmarks){const d=Math.hypot(l.p[0]-camera.position.x,l.p[2]-camera.position.z);if(d<dist){nearest=l;dist=d}}$('#place').textContent=dist>6500?'外海':nearest.name;$('#place-note').textContent=touring?'沿海岸、河谷和山脊连续飞行':dist>6500?'打开地图，随时返回海岛':nearest.note;const avg=frames.reduce((a,b)=>a+b,0)/frames.length;$('#status').textContent=`海拔 ${Math.round(camera.position.y)} m · ${Math.round(1000/avg)} fps${touring?' · 导览中':''}`;const ordered=[...frames].sort((a,b)=>a-b);const metrics={waterTime:elapsed,frameMs:{p50:ordered[Math.floor(ordered.length*.5)],p95:ordered[Math.floor(ordered.length*.95)],max:ordered.at(-1)},longFrames,cpu:perfStage,drawSize:[renderer.domElement.width,renderer.domElement.height],version:'island-r5',position:camera.position.toArray(),ground:terrainHeight(camera.position.x,camera.position.z),touring,tourT,cruise,speed:speeds[speedIndex],quality:fine?'high':'mobile',pixelRatio:renderer.getPixelRatio(),viewport:[innerWidth,innerHeight],fps:1000/avg,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,objects:props.counts,terrain:landscape.status()};$('#status').dataset.metrics=JSON.stringify(metrics);map($('#minimap'));if(!benchmarkMode&&frames.length===120&&frame>240&&frame%240===1&&ordered[Math.floor(ordered.length*.95)]>25&&avg>20&&renderScale>.7){renderScale=Math.max(.7,renderScale-.1);quality();frames=[]}}
+ diagnostics?.endFrame(performance.now()-frameStart);
 }
 requestAnimationFrame(render)

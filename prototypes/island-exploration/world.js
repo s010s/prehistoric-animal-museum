@@ -126,13 +126,14 @@ export async function groundMaterial(){
 }
 
 function geometry(r){const g=new T.BufferGeometry();g.setIndex(new T.BufferAttribute(r.indices,1));g.setAttribute('position',new T.BufferAttribute(r.p,3));g.setAttribute('normal',new T.BufferAttribute(r.n,3));g.setAttribute('surfaceBlend',new T.BufferAttribute(r.w,3));g.setAttribute('landShade',new T.BufferAttribute(r.shade,1));g.setAttribute('waterHeight',new T.BufferAttribute(r.water,1));g.setAttribute('coastalInfluence',new T.BufferAttribute(r.coast,1));g.computeBoundingSphere();return g}
-export function makeLandscape(material,apply,getFine=()=>false){
+export function makeLandscape(material,apply,getFine=()=>false,diagnostics){
  const group=new T.Group(),collision=new Map();let readyResolve,pending=true,triangles=0,vertices=0
+ diagnostics?.labelGroup(group,'terrain');
  const ready=new Promise(resolve=>readyResolve=resolve)
  const worker=new Worker(new URL('./stable-terrain.js',import.meta.url),{type:'module'})
  worker.onmessage=({data})=>{
   if(data.ready){worker.postMessage({build:true});return}
-  const {chunks}=data
+  const consumeStart=performance.now();const {chunks}=data
   for(const r of chunks){
    // Index the exact rendered triangles, including stitched boundaries.
    const bins=new Map();for(let t=0;t<r.indices.length;t+=3){const a=r.indices[t]*3,b=r.indices[t+1]*3,c=r.indices[t+2]*3;
@@ -140,7 +141,7 @@ export function makeLandscape(material,apply,getFine=()=>false){
     for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){const key=x+','+z;if(!bins.has(key))bins.set(key,[]);bins.get(key).push(t);}}
    for(const[key,list]of bins)collision.set(key,{p:r.p,ix:r.indices,list:new Uint32Array(list)});
    const mesh=new T.Mesh(geometry(r),material);mesh.receiveShadow=true;apply?.(mesh);group.add(mesh);triangles+=r.indices.length/3;vertices+=r.p.length/3}
-  pending=false;worker.terminate();readyResolve()
+  pending=false;worker.terminate();readyResolve();diagnostics?.event('workerConsume',{worker:'terrain',cpuMs:performance.now()-consumeStart})
  }
  // Three.js performs separate frustum culling for the main, reflection and shadow
  // cameras. Geometry and materials never change with distance or quality.

@@ -28,7 +28,7 @@ for(const [j,center]of [-1370,-875,-470,180,970,-2250].entries())for(let k=0;k<1
  const z=center+(rand(j*13+k,122)-.5)*48,x=riverX(z)+(k%2?1:-1)*halfWidth(z)*(.12+rand(j*13+k,123)*.56);
  riverRocks.push({x,z,radius:1.35+rand(j*13+k,124)*2.0,strength:.75+rand(j*13+k,125)*.25})
 }
-export async function makeProps(renderer,apply,getFine=()=>false){
+export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  const stage=name=>{document.body.dataset.loadingStage=name};stage("scanned-props");
  const viewerPosition={value:new T.Vector3()},grassFade=grassRange;
  const group=new T.Group(),loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder),scan=await loader.loadAsync('./assets/scanned-props.glb'),rock=templateParts(scan.scene.getObjectByName('rock_07')),fern=createFeatherFernParts({seed:17,pairs:habitat?11:16,fronds:habitat?6:5,leafletWidth:habitat?2.3:1,spread:habitat?1.65:1})
@@ -81,7 +81,7 @@ export async function makeProps(renderer,apply,getFine=()=>false){
  if(habitat)bakeCanopyLighting(all,templates);
  stage('pine-atlas');const pineMap=await new T.TextureLoader().loadAsync('./assets/pine-b-atlas.webp');pineMap.colorSpace=T.SRGBColorSpace;pineMap.anisotropy=8;
  // Camera-facing crowns keep full silhouettes in the distant forest. Close trees get geometry.
- const forest=new T.Group();group.add(forest);const chunks=new Map();
+ const forest=new T.Group();diagnostics?.labelGroup(forest,'forestAtlas');group.add(forest);const chunks=new Map();
  for(let i=all.length-1;i>=0;i--)if(Math.hypot(all[i].x-encounter.x,all[i].z-encounter.z)<29)all.splice(i,1);
  for(const [key,items]of buckets)buckets.set(key,items.filter(p=>Math.hypot(p.x-encounter.x,p.z-encounter.z)>=29));
  for(const p of all){const key=`${Math.floor(p.x/512)},${Math.floor(p.z/512)}`;if(!chunks.has(key))chunks.set(key,[]);chunks.get(key).push(p)}
@@ -103,7 +103,7 @@ export async function makeProps(renderer,apply,getFine=()=>false){
  };mesh.material.customProgramCacheKey=()=> `continuous-tree-r5-${habitat}`;
  if(habitat){mesh.material.alphaTest=.44;configureForestImpostor(mesh,far,viewerPosition,forestRange,nearFraction);}
  }
- const nearTrees=new T.Group(),details=new T.Group();group.add(nearTrees,details);nearTrees.userData.instancePool=new Map();details.userData.instancePool=new Map();let lastX=1e8,lastZ=1e8,lastFine=null,detailX=1e8,detailZ=1e8,detailFine=null,detailPending=false,counts={riverBoulders:riverRocks.length,trees:treeCount,nearTrees:0,rocks:0,ferns:0,grass:0}
+ const nearTrees=new T.Group(),details=new T.Group();group.add(nearTrees,details);diagnostics?.labelGroup(nearTrees,'nearTrees');diagnostics?.labelGroup(details,'detailOther');diagnostics?.labelGroup(group,'propsOther');nearTrees.userData.instancePool=new Map();details.userData.instancePool=new Map();let lastX=1e8,lastZ=1e8,lastFine=null,detailX=1e8,detailZ=1e8,detailFine=null,detailPending=false,counts={riverBoulders:riverRocks.length,trees:treeCount,nearTrees:0,rocks:0,ferns:0,grass:0}
  const dummy=new T.Object3D()
  // Ground blades share one mesh and are restricted to the nearby banks, not the whole island.
  const grassG=new T.BufferGeometry(),gp=[],gc=[],gi=[]
@@ -162,16 +162,19 @@ export async function makeProps(renderer,apply,getFine=()=>false){
  const marshPart={geometry:marshG,material:new T.MeshStandardMaterial({color:'#82905d',emissive:'#1b230d',emissiveIntensity:.25,roughness:.95,side:T.DoubleSide})},reedChunks=new Map();
  for(let z=3900;z<6900;z+=22)for(let x=1300;x<5900;x+=22){const px=x+(hash(x,z)-.5)*18,pz=z+(hash(z,x)-.5)*18;if(biomeAt(px,pz).marsh<.9||noise(px/90,pz/110)<.39)continue;const y=terrainHeight(px,pz),wl=waterLevelAt(px,pz);if(y<wl-.35||y>wl+1.35)continue;const key=`${Math.floor(px/512)},${Math.floor(pz/512)}`;if(!reedChunks.has(key))reedChunks.set(key,[]);reedChunks.get(key).push({x:px,z:pz,y:y-.08,scale:.7+hash(px,pz)*.6,yaw:hash(pz,px)*6.28,tint:.7+hash(px+1,pz)*.45})}
  for(const items of reedChunks.values())instances(group,marshPart,items,false);
+ diagnostics?.labelGeometry(grassG,'grass');for(const part of fern.parts)diagnostics?.labelGeometry(part.geometry,'ferns');
  stage('detail-worker');const detailWorker=new Worker(new URL('./detail-worker.js',import.meta.url),{type:'module'});
  let currentCamera;
  detailWorker.onerror=e=>{console.error('Island detail worker:',e.message);counts.detailError=e.message;detailPending=false};
  detailWorker.onmessage=e=>{
+ const consumeStart=performance.now();
  if(e.data.ready){detailPending=false;detailX=detailZ=1e8;return}
  const {cx,cz,rocks,pebbles,ferns,grass,reeds,debris=[],litter=[]}=e.data;const camera=currentCamera,fine=getFine();
  for(const list of [rocks,ferns,grass,reeds]){for(const p of list)p.viewDistanceSquared=(p.x-camera.position.x)**2+(p.y-camera.position.y)**2+(p.z-camera.position.z)**2;list.sort((a,b)=>a.viewDistanceSquared-b.viewDistanceSquared);}reeds.length=Math.min(reeds.length,fine?3000:1400);
  rocks.length=Math.min(rocks.length,fine?1500:380);ferns.length=Math.min(ferns.length,fine?650:120);grass.length=Math.min(grass.length,habitat?(fine?60000:15000):(fine?8000:2200));
- clear(details);instances(details,litterPart,litter,false);instances(details,debrisPart,debris,false);for(const p of rock.parts)instances(details,p,rocks);instances(details,pebblePart,pebbles,false);for(const p of fern.parts)instances(details,p,ferns,false);if(habitat)instances(details,grassPart,grass,false);else for(let i=0;i<meadowVariants.length;i++){const variant=meadowVariants[i],items=grass.filter(p=>Math.floor(hash(p.x,p.z)*3)===i).map(p=>({...p,scale:p.scale*.4/variant.height}));for(const part of variant.parts)instances(details,part,items,false)}for(const part of wetGrass.parts)instances(details,part,reeds.map(p=>({...p,scale:p.scale*1.25/wetGrass.height})),false);
- counts.litter=litter.length;counts.rocks=rocks.length+pebbles.length;counts.ferns=ferns.length;counts.grass=grass.length;counts.reeds=reeds.length;apply?.(details);detailPending=false;
+ const instanceStart=performance.now();clear(details);instances(details,litterPart,litter,false);instances(details,debrisPart,debris,false);for(const p of rock.parts)instances(details,p,rocks);instances(details,pebblePart,pebbles,false);for(const p of fern.parts)instances(details,p,ferns,false);if(habitat)instances(details,grassPart,grass,false);else for(let i=0;i<meadowVariants.length;i++){const variant=meadowVariants[i],items=grass.filter(p=>Math.floor(hash(p.x,p.z)*3)===i).map(p=>({...p,scale:p.scale*.4/variant.height}));for(const part of variant.parts)instances(details,part,items,false)}for(const part of wetGrass.parts)instances(details,part,reeds.map(p=>({...p,scale:p.scale*1.25/wetGrass.height})),false);
+ diagnostics?.event('instanceWrites',{cpuMs:performance.now()-instanceStart,source:'detail-worker'});
+ counts.litter=litter.length;counts.rocks=rocks.length+pebbles.length;counts.ferns=ferns.length;counts.grass=grass.length;counts.reeds=reeds.length;apply?.(details);detailPending=false;diagnostics?.event('workerConsume',{worker:'detail',cpuMs:performance.now()-consumeStart,workerMs:e.data.workerMs??null,grass:grass.length});
  };
  for(const part of templates.flatMap(t=>t.parts)){part.material.userData.treeWind=true;part.material.userData.treeViewer=viewerPosition;part.material.onBeforeCompile=s=>{s.uniforms.viewerPosition=viewerPosition;if(habitat){s.uniforms.treeTime=treeTime;s.uniforms.leafMotion={value:part.material.alphaTest>0?1:0};s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nuniform float treeTime,leafMotion;'+treeWindGLSL).replace('#include <begin_vertex>','#include <begin_vertex>\nvec3 treeRoot=(modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;transformed+=treeWindOffset(position,treeRoot,leafMotion);');}if(habitat&&part.material.alphaTest>0)s.fragmentShader=s.fragmentShader.replace('#include <normal_fragment_maps>','normal=normalize(vNormal);');if(habitat&&part.material.alphaTest>0)s.fragmentShader=s.fragmentShader.replace('#include <lights_fragment_end>','#include <lights_fragment_end>\nreflectedLight.directSpecular*=.025;reflectedLight.indirectSpecular*=.025;');if(habitat)s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nuniform vec3 viewerPosition;varying float rootDistance;').replace('#include <begin_vertex>','#include <begin_vertex>\nrootDistance=distance(viewerPosition,(modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz);');if(habitat)s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 viewerPosition;varying float rootDistance;');s.fragmentShader=s.fragmentShader.replace('#include <alphatest_fragment>',`#include <alphatest_fragment>
  float nearCoverage=1.-smoothstep(${habitat?'80.,112.,rootDistance':'70.,95.,length(airWorld-cameraPosition)'});float transitionNoise=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));if(transitionNoise>=nearCoverage)discard;`)};if(habitat&&!(part.material.alphaTest>0)){const compile=part.material.onBeforeCompile;part.material.onBeforeCompile=s=>{compile(s);s.fragmentShader=s.fragmentShader.replace('if(transitionNoise>=nearCoverage)discard;','if(rootDistance>112.)discard;');};}part.material.customProgramCacheKey=()=> `near-canopy-r10-${habitat}`}

@@ -24,9 +24,9 @@ export function makeOceanSpectrum(){
  const uniforms={waveTime:{value:0},waveSpan:{value:256},modes:{value:bands[0].modes},phases:{value:bands[0].phases}};
  const material=new T.ShaderMaterial({uniforms,depthTest:false,depthWrite:false,vertexShader:'varying vec2 waveUV;void main(){waveUV=uv;gl_Position=vec4(position.xy,0.,1.);}',fragmentShader:`varying vec2 waveUV;uniform float waveTime,waveSpan,phases[32];uniform vec4 modes[32];void main(){vec2 p=waveUV*waveSpan,slope=vec2(0.);float height=0.;for(int i=0;i<32;i++){vec4 m=modes[i];float phase=dot(p,m.xy)-waveTime*m.w+phases[i];slope+=m.xy*m.z*cos(phase);height+=m.z*sin(phase);}gl_FragColor=vec4(slope,height,1.);}`});
  const scene=new T.Scene(),camera=new T.OrthographicCamera(-1,1,1,-1,0,1);scene.add(new T.Mesh(new T.PlaneGeometry(2,2),material));let lastTime=NaN;
- return {uniforms:{oceanBand0:{value:targets[0].texture},oceanBand1:{value:targets[1].texture}},update(renderer,time){
+ return {uniforms:{oceanBand0:{value:targets[0].texture},oceanBand1:{value:targets[1].texture}},resources:()=>targets.map((t,i)=>['oceanSpectrum'+i,t]),update(renderer,time,diagnostics){
   if(time===lastTime)return;lastTime=time;const target=renderer.getRenderTarget(),auto=renderer.autoClear;renderer.autoClear=true;uniforms.waveTime.value=time;
-  for(let i=0;i<2;i++){uniforms.waveSpan.value=bands[i].span;uniforms.modes.value=bands[i].modes;uniforms.phases.value=bands[i].phases;renderer.setRenderTarget(targets[i]);renderer.render(scene,camera);}
+  for(let i=0;i<2;i++){uniforms.waveSpan.value=bands[i].span;uniforms.modes.value=bands[i].modes;uniforms.phases.value=bands[i].phases;renderer.setRenderTarget(targets[i]);if(diagnostics)diagnostics.pass('oceanSpectrum'+i,()=>renderer.render(scene,camera));else renderer.render(scene,camera);}
   renderer.setRenderTarget(target);renderer.autoClear=auto;
  }};
 }
