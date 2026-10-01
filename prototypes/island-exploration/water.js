@@ -12,7 +12,7 @@ import {riverReach} from './hydrology.js'
 import {makeFlowField} from './flow-field.js'
 import {Reflector} from 'three/addons/objects/Reflector.js'
 import {SEA,riverX,halfWidth,riverLevel,lake,wetland,wetlandLevel,tarn,tributaryX,tributaryLevel,waterLevelAt,bankWaterLevelAt,terrainHeight} from './field.js'
-export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>false,diagnostics){
+export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>false,diagnostics,shadowReady=()=>true){
  const shore=await shoreResources(),exposureMeter=makeExposureMeter(),spectrum=makeOceanSpectrum();
  const laceData=new Uint8Array(await(await fetch('./assets/surf-lace.bin')).arrayBuffer());if(laceData.length!==512*512*4)throw Error('Invalid surf lace');
  const surfLace=new T.DataTexture(laceData,512,512,T.RGBAFormat);surfLace.wrapS=surfLace.wrapT=T.RepeatWrapping;surfLace.minFilter=T.LinearMipmapLinearFilter;surfLace.magFilter=T.LinearFilter;surfLace.generateMipmaps=true;surfLace.anisotropy=8;surfLace.needsUpdate=true;
@@ -214,10 +214,13 @@ void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=co
  let spray=null,lastW=0,lastH=0,lastFine=null,reflectionMode=()=>{};
  const pass=(name,fn)=>diagnostics?diagnostics.pass(name,fn):fn();
  return {auditMaterials:()=>({copy,water:mat,spray:spray?.material}),resources:()=>[['opaque',opaque],['reflection',reflector.getRenderTarget()],...spectrum.resources()],setReflectionMode:fn=>reflectionMode=fn,setDebug:value=>u.debug.value=value,status:()=>({debug:u.debug.value,...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;field.update(camera);spectrum.update(renderer,time,diagnostics);
+ // A reflection must not sample a shadow texture before its first allocation.
+ const renderOpaque=()=>{renderer.setRenderTarget(opaque);pass('mainInclusiveShadow',()=>{renderer.clear();renderer.render(scene,camera)})},primeShadow=!shadowReady();
+ if(primeShadow){renderOpaque();diagnostics?.event('shadow-bootstrap',{reordered:true})}
  const localSpring=springAt(camera.position.x,camera.position.z),level=localSpring?.level??waterLevelAt(camera.position.x,camera.position.z);
  { // Render the planar image for every visible frame; no 8/12 Hz stepping.
  u.reflectionY.value=level;reflector.position.y=level;reflector.updateMatrixWorld();const shadowUpdate=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;reflectionMode(true);try{pass('planarReflection',()=>reflector.onBeforeRender(renderer,scene,camera))}finally{reflectionMode(false);renderer.shadowMap.autoUpdate=shadowUpdate;}u.reflectionMatrix.value.copy(reflector.material.uniforms.textureMatrix.value).multiply(new T.Matrix4().copy(reflector.matrixWorld).invert());
  }
- renderer.setRenderTarget(opaque);pass('mainInclusiveShadow',()=>{renderer.clear();renderer.render(scene,camera)});if(habitat)exposureMeter.update(renderer,opaque,camera);renderer.setRenderTarget(null);pass('aoOutputComposite',()=>renderer.render(copyScene,copyCamera));renderer.autoClear=false;pass('water',()=>renderer.render(waterScene,camera));renderer.autoClear=true;
+ if(!primeShadow)renderOpaque();if(habitat)exposureMeter.update(renderer,opaque,camera);renderer.setRenderTarget(null);pass('aoOutputComposite',()=>renderer.render(copyScene,copyCamera));renderer.autoClear=false;pass('water',()=>renderer.render(waterScene,camera));renderer.autoClear=true;
  }}
 }
