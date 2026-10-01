@@ -151,7 +151,7 @@ export function makeDiagnostics(renderer, params) {
   addEventListener('visibilitychange',()=>event('visibility',{hidden:document.hidden}))
   addEventListener('resize',()=>event('resize',{width:innerWidth,height:innerHeight}))
   renderer.domElement.addEventListener('webglcontextlost',()=>{event('context-lost');if(activeQuery)finishQuery();for(const p of pending){if(p.record)gpuRows.push({frameId:p.frameId,scope:p.scope,ms:null,status:'context-lost'});gl.deleteQuery(p.query)}pending=[];phase='error';status.textContent='上下文丢失，采集失败'})
-  return {labelGroup:(object,label)=>groupLabels.set(object,label),labelGeometry:(geometry,label)=>geometryLabels.set(geometry,label),event,pass,cpu(name,ms){if(current)current.cpu[name]=(current.cpu[name]??0)+ms},attach(value){context=value},beginFrame(t,raw,time){
+  return {get collecting(){return Boolean(job)},labelGroup:(object,label)=>groupLabels.set(object,label),labelGeometry:(geometry,label)=>geometryLabels.set(geometry,label),event,pass,cpu(name,ms){if(current)current.cpu[name]=(current.cpu[name]??0)+ms},attach(value){context=value},beginFrame(t,raw,time){
     frameId++;poll();current=null
     if(phase==='warmup'&&performance.now()-stageStart>=job.warmup*1000){
       const state=context.getState();if(performance.now()-stageStart>180000){phase='error';status.textContent='预热资源超时';panel.dataset.error='warmup timeout';return}if(!state.vegetation.pending&&!state.terrain.pending&&!state.flow.pending){

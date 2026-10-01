@@ -208,5 +208,5 @@ export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  }
  // The 512 px mirror uses the same tree identities through their relightable atlas.
  // Keep full branch geometry in the main view and shadow pass.
- return {group,update:refresh,setInstanceSort(value){if(value==='all'||value==='radix')instanceSort=value;},reflectionMode(active){nearTrees.visible=!active;nearFraction.value=active?0:habitat?(getFine()?1:.35):0;},counts,status:()=>({pending:detailPending,error:counts.detailError??null,time:plantTime.value,instanceSort,sortScratchBytes:detailSorter.scratchBytes(),detailAudit,counts:{...counts}})}
+ return {auditResources:()=>far.targets?.map((rt,i)=>[i?'treeNormalAtlas':'treeColorAtlas',rt])??[],group,update:refresh,setInstanceSort(value){if(value==='all'||value==='radix')instanceSort=value;},reflectionMode(active){nearTrees.visible=!active;nearFraction.value=active?0:habitat?(getFine()?1:.35):0;},counts,status:()=>({pending:detailPending,error:counts.detailError??null,time:plantTime.value,instanceSort,sortScratchBytes:detailSorter.scratchBytes(),detailAudit,counts:{...counts}})}
 }

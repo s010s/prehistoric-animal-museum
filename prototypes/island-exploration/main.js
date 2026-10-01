@@ -62,7 +62,7 @@ let perfStage={propsMs:0,renderMs:0},longFrames=0;
 function reviewState(){return {build:__WORLD_BUILD__,variant:stableShadow?'stable':'baseline',look:habitat?'habitat':'baseline',position:camera.position.toArray(),quaternion:camera.quaternion.toArray(),fov:camera.fov,drawSize:[renderer.domElement.width,renderer.domElement.height],viewport:[innerWidth,innerHeight],pixelRatio:renderer.getPixelRatio(),quality:fine?'high':'mobile',adaptive:!benchmarkMode,clearance:camera.position.y-navigationHeight(camera.position.x,camera.position.z),exposure:renderer.toneMappingExposure,sunDirection:sunDirection.toArray(),weather:Object.fromEntries(['cloudCoverage','cloudThickness','weatherHaze','rainWetness','cloudPhase','skyTime'].map(k=>[k,sky.uniforms[k].value.toArray?.()??sky.uniforms[k].value])),worldTime:elapsed,skyCache:sky.status(),encounter:animal.status(),vegetation:props.status(),flow:water.status(),terrain:landscape.status(),shadow:shadowFocus.snapshot(sun),cpu:{...perfStage},drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,programErrors:renderer.info.programs?.filter(p=>p.diagnostics?.runnable===false).length??0}}
 benchmark=makeBenchmark({params,camera,canvas:renderer.domElement,landmarks,go,stop,getState:reviewState,auditSky:()=>sky.audit(renderer),setWaterDebug:value=>water.setDebug(value),setReviewDpr:value=>{params.set('reviewDpr',String(value));quality()},syncPose:()=>{yaw=camera.rotation.y;pitch=camera.rotation.x},getShadow:()=>stableShadow,setShadow:value=>{stableShadow=value;params.set('shadow',value?'stable':'baseline');history.replaceState(null,'',`?${params}`)},setTime:value=>elapsed=value});
 
-diagnostics?.attach({benchmark,getState:reviewState,resources:()=>[...sky.resources(),...water.resources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])],scene,landscape,props,camera});
+diagnostics?.attach({benchmark,getState:reviewState,resources:()=>[...sky.resources(),...water.resources(),...props.auditResources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])],scene,landscape,props,camera});
 const previousPosition=new T.Vector3();
 let lost=false;renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();lost=true;benchmark?.cancel('WebGL context lost');$('#loading').classList.remove('done');$('#load-detail').textContent='图形资源中断，请刷新重试。'})
 function render(t){requestAnimationFrame(render);if(lost||document.hidden){last=t;diagnostics?.event('frame-skipped',{hidden:document.hidden,lost});return}const raw=last?t-last:16;const dt=Math.min(.05,raw/1000);last=t;elapsed=benchmark?benchmark.time:elapsed+dt;frames.push(raw);if(raw>50)longFrames++;if(frames.length>120)frames.shift()
@@ -90,3 +90,15 @@ function render(t){requestAnimationFrame(render);if(lost||document.hidden){last=
  diagnostics?.endFrame(performance.now()-frameStart);
 }
 requestAnimationFrame(render)
+
+// A separate, explicitly enabled contract audit; never included in route timing.
+if(diagnostics&&params.get('contractAudit')==='1'){
+ const panel=document.createElement('section');panel.id='e09';panel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:80;background:#14252ef0;color:white;padding:10px;font:12px sans-serif';panel.innerHTML='<button id="e09-audit">合成契约审计</button><output id="e09-status">等待审计</output><pre id="e09-result" style="max-height:90px;max-width:440px;overflow:auto"></pre>';document.body.append(panel)
+ const button=panel.querySelector('button');button.onclick=async()=>{
+  if(benchmark.active||diagnostics.collecting){panel.querySelector('output').textContent='请先停止路线计时';return}
+  button.disabled=true
+  try {const {auditComposition}=await import('./contract-audit.js');if(benchmark.active||diagnostics.collecting){panel.querySelector('output').textContent='请先停止路线计时';return}const report=auditComposition(renderer,{scene,materials:water.auditMaterials(),resources:()=>[...sky.resources(),...water.resources(),...props.auditResources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])]});panel.dataset.report=JSON.stringify(report);panel.dataset.passed=String(report.passed);panel.querySelector('output').textContent=report.passed?'审计完成':'审计失败';panel.querySelector('pre').textContent=JSON.stringify({preexistingGlErrors:report.preexistingGlErrors,probeGlErrors:report.probeGlErrors,checks:report.checks,probes:report.probes},null,2)}
+  catch(error){panel.dataset.passed='false';panel.dataset.report=JSON.stringify({passed:false,error:String(error)});panel.querySelector('output').textContent='审计失败'}
+  finally {button.disabled=false}
+ }
+}
