@@ -1791,7 +1791,7 @@ export class ViewerController {
       this.renderer.domElement.dataset.transitioning = 'false'
       this.renderer.domElement.dataset.transitionPhase = 'idle'
       this.updateCameraLighting()
-      this.renderer.render(this.scene, this.camera)
+      this.renderMainScene()
     } else {
       this.applyPresentationSettings(staged)
       this.reset()
@@ -1800,7 +1800,7 @@ export class ViewerController {
       this.controls.autoRotate = false
       this.renderer.domElement.dataset.autoRotate = 'false'
       this.updateCameraLighting()
-      this.renderer.render(this.scene, this.camera)
+      this.renderMainScene()
       this.confirmInitialFrame(staged.animalId)
       this.renderer.domElement.dataset.transitioning = 'false'
       this.renderer.domElement.dataset.transitionPhase = 'idle'
@@ -1879,7 +1879,7 @@ export class ViewerController {
     this.scene.environmentIntensity =
       encounter.environment?.environmentIntensity ?? 1
     this.renderer.domElement.dataset.scaleEncounterEnvironment = variant
-    this.renderer.render(this.scene, this.camera)
+    this.renderMainScene()
   }
 
   setScaleEncounterSceneCandidateVariant(
@@ -1996,7 +1996,7 @@ export class ViewerController {
     this.scene.environmentIntensity = replacement?.environmentIntensity ?? 1
     previous?.root.removeFromParent()
     disposeScaleEncounterEnvironment(previous)
-    this.renderer.render(this.scene, this.camera)
+    this.renderMainScene()
   }
 
   setScaleEncounterForestProps(forestProps: Group | null): void {
@@ -2368,18 +2368,18 @@ export class ViewerController {
       )
       this.publishScaleEncounterSnapshot()
       this.updateCameraLighting()
-      this.renderer.render(this.scene, this.camera)
+      this.renderMainScene()
       return true
     } catch (cause) {
       mammothAnimalGrade?.restore()
+      boostFlow?.dispose()
+      environment?.root.removeFromParent()
+      disposeScaleEncounterEnvironment(environment)
       oceanAvatarGrade?.restore()
       oceanAnimalGrade?.restore()
-      boostFlow?.dispose()
       if (avatar) {
         disposeScaleEncounterAvatar(avatar, this.renderer)
       }
-      environment?.root.removeFromParent()
-      disposeScaleEncounterEnvironment(environment)
       this.scaleEncounter = null
       this.scaleEncounterSunLight.visible = false
       this.scaleEncounterSkyFillLight.visible = false
@@ -3516,12 +3516,12 @@ export class ViewerController {
     encounter.transition?.resolve()
     encounter.transition = null
     encounter.mammothAnimalGrade?.restore()
-    encounter.oceanAvatarGrade?.restore()
-    encounter.oceanAnimalGrade?.restore()
     encounter.boostFlow?.dispose()
     encounter.animalPresence?.dispose()
     encounter.environment?.root.removeFromParent()
     disposeScaleEncounterEnvironment(encounter.environment)
+    encounter.oceanAvatarGrade?.restore()
+    encounter.oceanAnimalGrade?.restore()
     disposeScaleEncounterAvatar(encounter.avatar, this.renderer)
     const current = this.current
     this.scaleEncounter = null
@@ -3593,7 +3593,7 @@ export class ViewerController {
     delete this.renderer.domElement.dataset.scaleEncounterView
     this.emitScaleEncounterSnapshot()
     this.updateCameraLighting()
-    this.renderer.render(this.scene, this.camera)
+    this.renderMainScene()
     if (captureDisposalEvidence) {
       this.renderer.domElement.dataset.scaleEncounterLastDisposal =
         JSON.stringify({
@@ -3725,7 +3725,7 @@ export class ViewerController {
       return null
     }
     current.modelRoot.updateMatrixWorld(true)
-    this.renderer.render(this.scene, this.camera)
+    this.renderMainScene()
     return this.renderer.domElement.toDataURL('image/png')
   }
 
@@ -5755,9 +5755,15 @@ export class ViewerController {
         this.controls.update()
       }
       this.updateCameraLighting()
-      this.renderer.render(this.scene, this.camera)
+      this.renderMainScene()
       this.publishScaleEncounterPerformanceDiagnostics(time)
     })
+  }
+
+  private renderMainScene(): void {
+    const render = this.scaleEncounter?.environment?.renderScene
+    if (render) render(this.scene, this.camera)
+    else this.renderer.render(this.scene, this.camera)
   }
 
   private publishScaleEncounterPerformanceDiagnostics(now: number): void {
