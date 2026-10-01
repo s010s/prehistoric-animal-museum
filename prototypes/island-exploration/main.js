@@ -20,6 +20,27 @@ const speeds=[5,35,150],speedNames=['近看','漫游','远行']
 const renderer=new T.WebGLRenderer({canvas:$('#scene'),antialias:habitat,powerPreference:'high-performance'});renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=habitat?1.35:.92;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.info.autoReset=false
 const diagnostics=makeDiagnostics(renderer,params);
 const scene=new T.Scene();scene.background=new T.Color('#c8dce2');const camera=new T.PerspectiveCamera(62,innerWidth/innerHeight,.3,45000);camera.rotation.order='YXZ'
+let lost=false,recoveryUrl=null,poseReady=false;
+const contextRecovery=!(benchmarkMode&&params.get('contextRecovery')==='legacy');
+if(contextRecovery){
+ renderer.domElement.addEventListener('webglcontextlost',e=>{
+  e.preventDefault();if(lost)return;lost=true;
+  const url=new URL(location.href);
+  if(poseReady){
+   url.searchParams.set('pose',[...camera.position.toArray(),camera.rotation.y,camera.rotation.x].join(','));
+   url.searchParams.set('quality',fine?'high':'mobile');
+  }
+  recoveryUrl=url.href;
+  benchmark?.cancel('WebGL context lost');
+  if(poseReady){stop();keys.clear();joy.x=joy.y=0;alt.up=alt.down=false;look=null;}
+  document.body.dataset.ready='false';
+  $('#loading').classList.remove('done');$('#loading').setAttribute('aria-hidden','false');
+  $('#load-detail').textContent='图形资源正在恢复…';
+ });
+ // Cached render targets have lost their contents. Re-enter through startup
+ // so tree atlases, sky history, water and the environment are rebuilt together.
+ renderer.domElement.addEventListener('webglcontextrestored',()=>{if(lost&&recoveryUrl)location.replace(recoveryUrl);});
+}
 const sunDirection=new T.Vector3(...SUN_DIRECTION).normalize();
 const shadowFocus=makeShadowFocus(sunDirection);
 const sun=new T.DirectionalLight('#fff1d9',2.35);sun.castShadow=true;sun.shadow.mapSize.set(512,512);Object.assign(sun.shadow.camera,{left:-140,right:140,top:140,bottom:-140,near:1,far:1200});sun.shadow.bias=-.00015;sun.shadow.normalBias=.08;scene.add(sun,sun.target);scene.add(new T.HemisphereLight('#d7e9f4','#45533e',habitat?.65:.85))
@@ -57,14 +78,14 @@ renderer.domElement.addEventListener('pointerup',()=>look=null);renderer.domElem
 const stick=$('#joystick');function moveStick(e){const r=stick.getBoundingClientRect(),x=(e.clientX-r.left-r.width/2)/(r.width*.36),y=(e.clientY-r.top-r.height/2)/(r.height*.36),len=Math.max(1,Math.hypot(x,y));joy.x=x/len;joy.y=y/len;$('#stick').style.transform=`translate(${joy.x*r.width*.30}px,${joy.y*r.height*.30}px)`}
 stick.onpointerdown=e=>{manual();stick.setPointerCapture(e.pointerId);moveStick(e)};stick.onpointermove=e=>{if(stick.hasPointerCapture(e.pointerId))moveStick(e)};stick.onpointerup=stick.onpointercancel=()=>{joy.x=joy.y=0;$('#stick').style.transform=''}
 for(const id of ['up','down']){const b=$('#'+id);b.onpointerdown=e=>{manual();alt[id]=true;b.setPointerCapture(e.pointerId)};b.onpointerup=b.onpointercancel=()=>alt[id]=false;b.onclick=()=>{manual();camera.position.y+=id==='up'?4:-4}}
-const initialPose=params.get('pose');quality();go(params.get('place')??'encounter');if(initialPose){const p=initialPose.split(',').map(Number);if(p.length===5&&p.every(Number.isFinite)){camera.position.set(p[0],p[1],p[2]);yaw=p[3];pitch=p[4];camera.rotation.set(pitch,yaw,0)}};elapsed=benchmarkMode?60:0;props.update(camera,elapsed);landscape.update(camera);$('#load-detail').textContent='准备阳光、海面与远景…';await landscape.ready;await renderer.compileAsync(scene,camera);$('#loading').classList.add('done');$('#loading').setAttribute('aria-hidden','true');document.body.dataset.ready='true'
+const initialPose=params.get('pose');quality();go(params.get('place')??'encounter');if(initialPose){const p=initialPose.split(',').map(Number);if(p.length===5&&p.every(Number.isFinite)){camera.position.set(p[0],p[1],p[2]);yaw=p[3];pitch=p[4];camera.rotation.set(pitch,yaw,0)}};poseReady=true;elapsed=benchmarkMode?60:0;props.update(camera,elapsed);landscape.update(camera);$('#load-detail').textContent='准备阳光、海面与远景…';await landscape.ready;await renderer.compileAsync(scene,camera);$('#loading').classList.add('done');$('#loading').setAttribute('aria-hidden','true');document.body.dataset.ready='true'
 let perfStage={propsMs:0,renderMs:0},longFrames=0;
 function reviewState(){return {build:__WORLD_BUILD__,variant:stableShadow?'stable':'baseline',shadowBootstrap,look:habitat?'habitat':'baseline',position:camera.position.toArray(),quaternion:camera.quaternion.toArray(),fov:camera.fov,drawSize:[renderer.domElement.width,renderer.domElement.height],viewport:[innerWidth,innerHeight],pixelRatio:renderer.getPixelRatio(),quality:fine?'high':'mobile',adaptive:!benchmarkMode,clearance:camera.position.y-navigationHeight(camera.position.x,camera.position.z),exposure:renderer.toneMappingExposure,sunDirection:sunDirection.toArray(),weather:Object.fromEntries(['cloudCoverage','cloudThickness','weatherHaze','rainWetness','cloudPhase','skyTime'].map(k=>[k,sky.uniforms[k].value.toArray?.()??sky.uniforms[k].value])),worldTime:elapsed,skyCache:sky.status(),encounter:animal.status(),vegetation:props.status(),flow:water.status(),terrain:landscape.status(),shadow:shadowFocus.snapshot(sun),cpu:{...perfStage},drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,programErrors:renderer.info.programs?.filter(p=>p.diagnostics?.runnable===false).length??0}}
 benchmark=makeBenchmark({params,camera,canvas:renderer.domElement,landmarks,go,stop,getState:reviewState,auditSky:()=>sky.audit(renderer),setWaterDebug:value=>water.setDebug(value),setReviewDpr:value=>{params.set('reviewDpr',String(value));quality()},syncPose:()=>{yaw=camera.rotation.y;pitch=camera.rotation.x},getShadow:()=>stableShadow,setShadow:value=>{stableShadow=value;params.set('shadow',value?'stable':'baseline');history.replaceState(null,'',`?${params}`)},setTime:value=>elapsed=value});
 
 diagnostics?.attach({benchmark,getState:reviewState,resources:()=>[...sky.resources(),...water.resources(),...props.auditResources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])],scene,landscape,props,camera});
 const previousPosition=new T.Vector3();
-let lost=false;renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();lost=true;benchmark?.cancel('WebGL context lost');$('#loading').classList.remove('done');$('#load-detail').textContent='图形资源中断，请刷新重试。'})
+if(!contextRecovery)renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();lost=true;benchmark?.cancel('WebGL context lost');$('#loading').classList.remove('done');$('#load-detail').textContent='图形资源中断，请刷新重试。'})
 function render(t){requestAnimationFrame(render);if(lost||document.hidden){last=t;diagnostics?.event('frame-skipped',{hidden:document.hidden,lost});return}const raw=last?t-last:16;const dt=Math.min(.05,raw/1000);last=t;elapsed=benchmark?benchmark.time:elapsed+dt;frames.push(raw);if(raw>50)longFrames++;if(frames.length>120)frames.shift()
  const frameStart=diagnostics?performance.now():0;renderer.info.reset();diagnostics?.beginFrame(t,raw,elapsed);
  const navStart=diagnostics?performance.now():0;
