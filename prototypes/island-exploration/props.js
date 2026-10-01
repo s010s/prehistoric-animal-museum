@@ -106,6 +106,7 @@ export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  if(habitat){mesh.material.alphaTest=.44;configureForestImpostor(mesh,far,viewerPosition,forestRange,nearFraction);}
  }
  const nearTrees=new T.Group(),details=new T.Group();group.add(nearTrees,details);diagnostics?.labelGroup(nearTrees,'nearTrees');diagnostics?.labelGroup(details,'detailOther');diagnostics?.labelGroup(group,'propsOther');nearTrees.userData.instancePool=new Map();details.userData.instancePool=new Map();let lastX=1e8,lastZ=1e8,lastFine=null,detailX=1e8,detailZ=1e8,detailFine=null,detailPending=false,counts={riverBoulders:riverRocks.length,trees:treeCount,nearTrees:0,rocks:0,ferns:0,grass:0}
+ const reflectionDetail=propsParams.get('benchmark')==='1'&&propsParams.get('reflectionDetail')==='full'?'full':'trim',reflectionSaved=new Map();
  const dummy=new T.Object3D()
  // Ground blades share one mesh and are restricted to the nearby banks, not the whole island.
  const grassG=new T.BufferGeometry(),gp=[],gc=[],gi=[]
@@ -164,6 +165,7 @@ export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  const marshPart={geometry:marshG,material:new T.MeshStandardMaterial({color:'#82905d',emissive:'#1b230d',emissiveIntensity:.25,roughness:.95,side:T.DoubleSide})},reedChunks=new Map();
  for(let z=3900;z<6900;z+=22)for(let x=1300;x<5900;x+=22){const px=x+(hash(x,z)-.5)*18,pz=z+(hash(z,x)-.5)*18;if(biomeAt(px,pz).marsh<.9||noise(px/90,pz/110)<.39)continue;const y=terrainHeight(px,pz),wl=waterLevelAt(px,pz);if(y<wl-.35||y>wl+1.35)continue;const key=`${Math.floor(px/512)},${Math.floor(pz/512)}`;if(!reedChunks.has(key))reedChunks.set(key,[]);reedChunks.get(key).push({x:px,z:pz,y:y-.08,scale:.7+hash(px,pz)*.6,yaw:hash(pz,px)*6.28,tint:.7+hash(px+1,pz)*.45})}
  for(const items of reedChunks.values())instances(group,marshPart,items,false);
+ const reflectionFineGeometry=new Set([grassG,...fern.parts.map(part=>part.geometry)]);
  diagnostics?.labelGeometry(grassG,'grass');for(const part of fern.parts)diagnostics?.labelGeometry(part.geometry,'ferns');
  stage('detail-worker');const detailWorker=new Worker(new URL('./detail-worker.js',import.meta.url),{type:'module'});
  const detailSorter=createDistanceSorter();
@@ -206,7 +208,10 @@ export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  details.visible=altitude<200;
  if(!detailPending&&altitude<200&&(dx!==detailX||dz!==detailZ||fine!==detailFine)){detailX=dx;detailZ=dz;detailFine=fine;detailPending=true;detailWorker.postMessage({cx:dx,cz:dz,fine,habitat,rockWidth:rock.width,fernHeight:fern.height})}
  }
+ // Fine-plant omission is limited to the measured creek/source corridor.
+ // Coastal negative controls keep their original reflection detail.
+ function inReflectionDetailRegion(){const p=currentCamera?.position;return Boolean(p&&p.z>-4352&&p.z<512&&Math.abs(p.x-riverX(p.z))<halfWidth(p.z)+160);}
  // The 512 px mirror uses the same tree identities through their relightable atlas.
  // Keep full branch geometry in the main view and shadow pass.
- return {auditResources:()=>far.targets?.map((rt,i)=>[i?'treeNormalAtlas':'treeColorAtlas',rt])??[],group,update:refresh,setInstanceSort(value){if(value==='all'||value==='radix')instanceSort=value;},reflectionMode(active){nearTrees.visible=!active;nearFraction.value=active?0:habitat?(getFine()?1:.35):0;},counts,status:()=>({pending:detailPending,error:counts.detailError??null,time:plantTime.value,instanceSort,sortScratchBytes:detailSorter.scratchBytes(),detailAudit,counts:{...counts}})}
+ return {auditResources:()=>far.targets?.map((rt,i)=>[i?'treeNormalAtlas':'treeColorAtlas',rt])??[],group,update:refresh,setInstanceSort(value){if(value==='all'||value==='radix')instanceSort=value;},reflectionMode(active){nearTrees.visible=!active;nearFraction.value=active?0:habitat?(getFine()?1:.35):0;if(active&&reflectionDetail==='trim'&&inReflectionDetailRegion()){for(const mesh of details.children)if(reflectionFineGeometry.has(mesh.geometry)&&!reflectionSaved.has(mesh)){reflectionSaved.set(mesh,mesh.visible);mesh.visible=false;}}else if(!active){for(const [mesh,visible]of reflectionSaved)mesh.visible=visible;reflectionSaved.clear();}},counts,status:()=>({pending:detailPending,error:counts.detailError??null,time:plantTime.value,reflectionDetail,reflectionBudget:reflectionDetail==='trim'&&inReflectionDetailRegion()?'trim':'full',reflectionHidden:reflectionSaved.size,instanceSort,sortScratchBytes:detailSorter.scratchBytes(),detailAudit,counts:{...counts}})}
 }
