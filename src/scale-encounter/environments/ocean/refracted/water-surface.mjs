@@ -120,24 +120,32 @@ export function solarPixelIntegral(rd, meanSlope, covariance, samples, { rayDx =
     return sum;
 }
 export function createPhysicalWaterSurface(field, radianceTexture) {
-    const day = Object.fromEntries(Object.entries({ horizon: '#bbcdd5', skyLow: '#a9bfcd', skyMid: '#8bacc2', skyUpper: '#678fab', skyZenith: '#48789b' }).map(([k, v]) => [k, new THREE.Color(v).toArray()])), unresolved = unresolvedSlopeBasis(field.waveUniforms.uWaveFootprint.value), radius = FIELD.sunAngularDiameterDegrees * Math.PI / 360;
+    // A bright cyan daytime hemisphere keeps the transmitted Snell window
+    // readable under the near cloud bank. The old dark zenith palette formed
+    // a gray ceiling at upward comparison angles, independent of atlas/depth.
+    // This is broad sky radiance, not an extra sun or a screen-space patch.
+    const day = Object.fromEntries(Object.entries({ horizon: '#bddfeb', skyLow: '#b7ddea', skyMid: '#aed9eb', skyUpper: '#a5d4e8', skyZenith: '#98cde6' }).map(([k, v]) => [k, new THREE.Color(v).toArray()])), unresolved = unresolvedSlopeBasis(field.waveUniforms.uWaveFootprint.value), radius = FIELD.sunAngularDiameterDegrees * Math.PI / 360;
     const solarSamples = makeSolarDiscQuadrature(MEDIUM.sunDirection, radius), sunDiscGain = { value: 1 };
     const uniforms = { ...field.uniforms, uInverseProjection: { value: new THREE.Matrix4() }, uCameraWorld: { value: new THREE.Matrix4() }, uWaterLut: { value: radianceTexture }, uAirSunDirection: { value: new THREE.Vector3(...MEDIUM.sunDirection) }, uAirSunColor: { value: new THREE.Vector3(...MEDIUM.sunIrradiance) }, uAirSunRadius: { value: radius }, uSlopeSamples: { value: angularSlopeSamples(16).map(q => new THREE.Vector2(...q)) }, uSlopeBasis: { value: new THREE.Matrix2().fromArray(unresolved.basis) }, uSlopeCovariance: { value: new THREE.Vector3(...unresolved.covariance) }, uSolarDirections: { value: solarSamples.map(s => new THREE.Vector3(...s.direction)) }, uSolarSolidAngles: { value: solarSamples.map(s => s.solidAngle) }, uSunDiscGain: sunDiscGain };
     for (const [u, k] of [['uSkyHorizon', 'horizon'], ['uSkyLow', 'skyLow'], ['uSkyMid', 'skyMid'], ['uSkyUpper', 'skyUpper'], ['uSkyZenith', 'skyZenith']])
         uniforms[u] = { value: new THREE.Vector3(...day[k]) };
+    if (import.meta.env.MODE === 'review') uniforms.uReviewSurfaceDebug = { value: 0 };
     const material = new THREE.ShaderMaterial({ uniforms, side: THREE.DoubleSide, depthWrite: true, depthTest: true, toneMapped: false, vertexShader: `varying vec2 vScreenUv;
  void main(){vScreenUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}`, fragmentShader: `precision highp float;
  varying vec2 vScreenUv;uniform mat4 uInverseProjection,uCameraWorld,projectionMatrix;uniform sampler2D uWaterLut;
  uniform vec3 uAirSunDirection,uAirSunColor,uSkyHorizon,uSkyLow,uSkyMid,uSkyUpper,uSkyZenith,uSlopeCovariance;
  ${CLOUD_BANK_GLSL}
+ ${import.meta.env.MODE === 'review' ? 'uniform int uReviewSurfaceDebug;' : ''}
  uniform mat2 uSlopeBasis;uniform vec2 uSlopeSamples[16];uniform float uAirSunRadius,uSunDiscGain;
  uniform vec3 uSolarDirections[${solarSamples.length}];uniform float uSolarSolidAngles[${solarSamples.length}];
  ${WAVE_GLSL}
  vec2 envUv(vec3 d){return vec2(atan(d.z,d.x)*.15915494309189535+.5,asin(clamp(d.y,-1.,1.))*.3183098861837907+.5);}
  float fresnel(float ci){float st=1.333*sqrt(max(0.,1.-ci*ci));if(st>=1.)return 1.;float ct=sqrt(max(0.,1.-st*st));float rs=(1.333*ci-ct)/(1.333*ci+ct),rp=(ci-1.333*ct)/(ci+1.333*ct);return .5*(rs*rs+rp*rp);}
- // Preserve v4's wide sky and halo exactly; the small solar disc is integrated separately.
+ // Broad daytime sky and halo; the finite solar disc is integrated separately.
  vec3 outsideSky(vec3 d){float y=max(0.,d.y);vec3 sky=mix(uSkyHorizon,uSkyLow,smoothstep(0.,.055,y));sky=mix(sky,uSkyMid,smoothstep(.02,.18,y));sky=mix(sky,uSkyUpper,smoothstep(.10,.36,y));sky=mix(sky,uSkyZenith,smoothstep(.27,.75,y));float c=dot(d,uAirSunDirection),halo=pow(max(c,0.),512.)*.2;return sky+uAirSunColor*halo;}
- vec3 surfaceRadiance(vec3 rd,vec2 slope,vec2 surfaceXZ){vec3 n=normalize(vec3(-slope.x,1.,-slope.y));float F=fresnel(clamp(dot(rd,n),0.,1.));vec3 transmitted=refract(rd,-n,1.333),reflected=reflect(rd,-n);vec3 reflectedWater=texture2D(uWaterLut,envUv(reflected)).rgb*cloudWaterRadianceScale(surfaceXZ);vec3 airRadiance=dot(transmitted,transmitted)<.1?vec3(0.):outsideSky(normalize(transmitted))*cloudSkyRadianceScale(surfaceXZ);return mix(airRadiance,reflectedWater,F);}
+ vec3 surfaceRadiance(vec3 rd,vec2 slope,vec2 surfaceXZ){vec3 n=normalize(vec3(-slope.x,1.,-slope.y));float F=fresnel(clamp(dot(rd,n),0.,1.));vec3 transmitted=refract(rd,-n,1.333),reflected=reflect(rd,-n);vec3 reflectedWater=texture2D(uWaterLut,envUv(reflected)).rgb*cloudWaterRadianceScale(surfaceXZ);vec3 airRadiance=dot(transmitted,transmitted)<.1?vec3(0.):outsideSky(normalize(transmitted))*cloudSkyRadianceScale(surfaceXZ);
+ ${import.meta.env.MODE === 'review' ? `if(uReviewSurfaceDebug==1)return airRadiance*(1.-F);if(uReviewSurfaceDebug==2)return reflectedWater*F;if(uReviewSurfaceDebug==3)return vec3(F);if(uReviewSurfaceDebug==4)return vec3(cloudSkyRadianceScale(surfaceXZ));if(uReviewSurfaceDebug==5)return dot(transmitted,transmitted)<.1?vec3(0.):outsideSky(normalize(transmitted));` : ''}
+ return mix(airRadiance,reflectedWater,F);}
  // Continuous Gaussian-slope solar integral, with no inverse-Snell derivatives.
  float pointSun(vec3 rd,vec2 slope,vec3 C){
   float det=C.x*C.z-C.y*C.y;
@@ -203,6 +211,7 @@ export function createPhysicalWaterSurface(field, radianceTexture) {
  float nearSurface=1.-smoothstep(35.,160.,t);if(nearSurface==0.){gl_FragColor=vec4(texture2D(uWaterLut,envUv(rd)).rgb,1.);return;}
  vec3 radiance=vec3(0.);
  for(int i=0;i<16;i++){radiance+=surfaceRadiance(rd,slope+slopeBasis*uSlopeSamples[i],vWaterWorld.xz)*(1./16.);}
+ ${import.meta.env.MODE === 'review' ? 'if(uReviewSurfaceDebug==0)' : ''}
  radiance+=uAirSunColor*(28.*uSunDiscGain*continuousSun(rd,slope,covariance)*cloudSolarTransmission(vWaterWorld.xz));
  // Match the same deep-water boundary radiance at grazing distance; the
  // resolved interface fades continuously into its distant ocean continuation.
@@ -213,5 +222,5 @@ export function createPhysicalWaterSurface(field, radianceTexture) {
     mesh.name = 'shared-wave-refracting-water-surface-v12';
     mesh.frustumCulled = false;
     mesh.renderOrder = -5;
-    return { mesh, uniforms, sunDiscGain, diagnostics: { cloudBank: CLOUD_BANK, localReflectionApproximation: true, unresolvedSlopeCovariance: unresolved.covariance, angularSamples: 16, solarDiscSamples: solarSamples.length, solarDiscEffectiveSolidAngle: solarDiscEffectiveSolidAngle(radius), solarDiscQuadratureWeightSum: solarSamples.reduce((s, x) => s + x.solidAngle, 0), solarIntegration: 'Continuous Gaussian slope PDF transformed from finite smooth solar disc by exact Snell direction-to-slope Jacobian', pixelFootprint: 'Finite 2x2 square-pixel Gauss quadrature of smooth view ray and resolved slope; exact variance 1/12', pixelSamples: 4, singularMappingFix: 'Exponent-domain Gaussian PDF times Snell Jacobian; no derivative of inverse Snell slope', radianceConvention: 'Retains v4 slope-averaged radiance; no added eta squared factor or solar gain change', approximations: ['Gaussian unresolved slope distribution', 'Local linear world-space pixel footprint with 2x2 Gauss quadrature', '16-point finite solar-disc quadrature', 'Wide sky/Fresnel uses 16 real-time slope samples', 'No microfacet visibility/masking', 'Flat limit uses derivative-filtered direct solar image'], externalSky: 'PR27 linear noon palette, shared current sun' }, dispose() { g.dispose(); material.dispose(); } };
+    return { mesh, uniforms, sunDiscGain, diagnostics: { cloudBank: CLOUD_BANK, localReflectionApproximation: true, unresolvedSlopeCovariance: unresolved.covariance, angularSamples: 16, solarDiscSamples: solarSamples.length, solarDiscEffectiveSolidAngle: solarDiscEffectiveSolidAngle(radius), solarDiscQuadratureWeightSum: solarSamples.reduce((s, x) => s + x.solidAngle, 0), solarIntegration: 'Continuous Gaussian slope PDF transformed from finite smooth solar disc by exact Snell direction-to-slope Jacobian', pixelFootprint: 'Finite 2x2 square-pixel Gauss quadrature of smooth view ray and resolved slope; exact variance 1/12', pixelSamples: 4, singularMappingFix: 'Exponent-domain Gaussian PDF times Snell Jacobian; no derivative of inverse Snell slope', radianceConvention: 'Retains v4 slope-averaged radiance; no added eta squared factor or solar gain change', approximations: ['Gaussian unresolved slope distribution', 'Local linear world-space pixel footprint with 2x2 Gauss quadrature', '16-point finite solar-disc quadrature', 'Wide sky/Fresnel uses 16 real-time slope samples', 'No microfacet visibility/masking', 'Flat limit uses derivative-filtered direct solar image'], externalSky: 'Bright cyan noon hemisphere, shared current sun' }, dispose() { g.dispose(); material.dispose(); } };
 }

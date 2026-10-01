@@ -46,6 +46,15 @@ transmission remains .10 under the near bank while broad sky transmission is
 .60, keeping the upward hemisphere readable. These are art-directed runtime
 adaptations, not a claim of full physical cloud transport.
 
+The transmitted daytime sky uses a bright cyan upper hemisphere. A legacy
+dark zenith palette produced the user-identified gray patch at the upper-right
+of upward Retina views; this is distinct from the atlas DPR defect. Sky fill
+changes the broad air radiance while preserving the solar/cloud boundary and
+the Fresnel mixture. Review-only surface modes isolate air, reflected water,
+Fresnel weight, cloud sky scale and unshadowed sky for matching-camera checks.
+These modes are absent from the production water shader. Human acceptance of
+the corrected appearance remains pending.
+
 Software follows the project AGPL-3.0-only license. The ray-bundle area Jacobian
 and depth-slice lookup reference ScottieFox/caustic-volume at commit
 `d87351bff19831aa9d11c0679605fad6797b133f`:

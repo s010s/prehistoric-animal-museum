@@ -155,6 +155,7 @@ export function createOceanRefractedRuntime(renderer, candidate, origin = new TH
             volumeUniforms.uCameraWorld.value.copy(camera.matrixWorld);
             volumeUniforms.uEye.value.copy(camera.position);
             volumeUniforms.uDebug.value = import.meta.env.MODE === 'review' ? Number(renderer.domElement.dataset.oceanReviewDebug ?? 0) : 0;
+            if (import.meta.env.MODE === 'review') water.uniforms.uReviewSurfaceDebug.value = Number(renderer.domElement.dataset.oceanReviewSurfaceDebug ?? 0);
             const prior = { target: renderer.getRenderTarget(), tone: renderer.toneMapping };
             try {
                 renderer.toneMapping = THREE.NoToneMapping;
