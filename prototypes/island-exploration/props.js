@@ -3,6 +3,7 @@ import {createDistanceSorter} from './distance-sort.js'
 import {bakeCanopyLighting} from './canopy-light.js'
 import * as T from 'three'
 import {trailWeight} from './habitat.js'
+import {springAt} from './spring.js'
 import {ginkgoTemplate} from './ginkgo.js'
 import {coniferTemplate} from './conifers.js'
 import {bakeTreeAtlas} from './tree-atlas.js'
@@ -75,6 +76,9 @@ export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  for(let i=0;i<1000;i++){const z=-1500+rand(i,83)*1900,side=i%2?1:-1,x=riverX(z)+side*(halfWidth(z)+7+rand(i,84)*95),y=terrainHeight(x,z);if(slopeAt(x,z)<.7||noise(x/17,z/21)<.38)continue;const key=`${Math.floor(x/128)},${Math.floor(z/128)}`,p={x,z,y:y-.12,scale:5+rand(i,85)*10,yaw:rand(i,86)*6.28,tint:.65+rand(i,87)*.23,sx:.9,sz:1,id:treeCount++};if(Math.hypot(p.x-encounter.x,p.z-encounter.z)<48+p.scale*.28)continue;all.push(p);if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(p)}
  // Coherent stands, individual age and species tint; reused exactly by near and far LODs.
  for(let i=all.length-1;i>=0;i--)if(trailWeight(all[i].x,all[i].z)>.12){const p=all[i];all.splice(i,1);const key=`${Math.floor(p.x/128)},${Math.floor(p.z/128)}`;buckets.set(key,buckets.get(key).filter(t=>t!==p));}
+ // The side spring keeps a narrow, irregular opening through both forest LODs.
+ // Remove overhanging crowns before baking the shared canopy lighting.
+ if(habitat)for(let i=all.length-1;i>=0;i--){const p=all[i],s=springAt(p.x,p.z);if(!s?.forest||s.edge>=5+p.scale*.2)continue;all.splice(i,1);const key=`${Math.floor(p.x/128)},${Math.floor(p.z/128)}`;buckets.set(key,buckets.get(key).filter(t=>t!==p));}
  for(const p of all){const sp=hash(Math.floor(p.x/31),Math.floor(p.z/37));p.species=sp<.34?0:sp<.59?1:sp<.88?2:3;
  const stand=noise(p.x/210,p.z/260),age=hash(p.x+19,p.z-41),light=.78+age*.34;
  const cool=[.74,.86,.94],warm=[1.18,1.02,.74],t=smooth(.28,.73,stand)*.8+(p.species?.13:0);

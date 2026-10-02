@@ -1,4 +1,4 @@
-import {springAt,springOrigin} from './spring.js'
+import {springAt,springOrigin,forestSpring} from './spring.js'
 import {hash,noise,terrainHeight,slopeAt,bankAt,riverX,halfWidth,riverLevel,waterLevelAt,biomeAt,woodland} from './field.js'
 import {trailWeight,trailX} from './habitat.js'
 const rand=(i,n)=>hash(i*1.71+n*14.19,n*7.38-i*.31)
@@ -48,7 +48,9 @@ self.onmessage=e=>{const workerStart=performance.now();const {requestId,cx,cz,fi
  for(let gz=Math.floor((cz-radius)/spacing);gz<=Math.ceil((cz+radius)/spacing);gz++)for(let gx=Math.floor((cx-radius)/spacing);gx<=Math.ceil((cx+radius)/spacing);gx++){
  const i=gx*1973+gz*7919;if(!fine&&hash(gx,gz)>.44)continue;const x=(gx+hash(gx,gz+7))*spacing,z=(gz+hash(gz,gx+3))*spacing,y=terrainHeight(x,z),b=bankAt(x,z),eco=biomeAt(x,z),dune=x>8000&&z>0&&z<3600&&y>2.5&&y<26;
  if(y<waterLevelAt(x,z)+.12||y>950||hash(gx+71,gz-29)>(.24+.70*noise(x/13,z/18))||trailWeight(x,z)>.28||((b<4||b>200)&&eco.grass<.15&&eco.marsh<.1&&eco.heath<.15&&!dune&&forestAt(x,z)<.25))continue;
- grass.push({x,z,y,scale:habitat?(.52+rand(i,43)*.50)*(1+eco.grass*.28):(.6+rand(i,43)*1.2)*(1+eco.grass*1.7+eco.heath*.6),sy:1+eco.grass*(.4+noise(x/9,z/13)*.55),sx:1+eco.grass*.24,sz:1+eco.grass*.24,yaw:rand(i,44)*6.28,tint:.65+rand(i,45)*.55});
+ const springPatch=habitat?1-Math.min(1,((x-forestSpring.x-22)/85)**2+((z-forestSpring.z-23)/75)**2):0;
+ if(springPatch>0&&(slopeAt(x,z)<.83||hash(gx+127,gz-63)<springPatch*(.25+.25*(1-noise(x/5,z/7)))))continue;
+ grass.push({x,z,y,scale:(habitat?(.52+rand(i,43)*.50)*(1+eco.grass*.28):(.6+rand(i,43)*1.2)*(1+eco.grass*1.7+eco.heath*.6))*(1-springPatch*(.55+rand(i,719)*.12)),sy:1+eco.grass*(.4+noise(x/9,z/13)*.55),sx:1+eco.grass*.24,sz:1+eco.grass*.24,yaw:rand(i,44)*6.28,tint:.65+rand(i,45)*.55});
  }
  for(let gz=Math.floor((cz-150)/8);gz<=Math.ceil((cz+150)/8);gz++)for(let gx=Math.floor((cx-150)/8);gx<=Math.ceil((cx+150)/8);gx++){
  const x=(gx+hash(gx,gz))*8,z=(gz+hash(gz,gx))*8,eco=biomeAt(x,z);if(eco.marsh<.3)continue;const y=terrainHeight(x,z),wl=waterLevelAt(x,z);if(y<wl-.5||y>wl+1.6||noise(x/35,z/28)<.38)continue;
@@ -59,6 +61,12 @@ self.onmessage=e=>{const workerStart=performance.now();const {requestId,cx,cz,fi
   const x=springOrigin.x+(rand(i,710)-.5)*70,z=springOrigin.z-18+rand(i,711)*100,s=springAt(x,z);if(!s)continue;
   const y=terrainHeight(x,z);if(s.edge>.6&&s.edge<8&&y>s.level+.08&&rand(i,712)<.65)ferns.push({x,z,y:y-.03,scale:(.25+rand(i,713)*.55)/fernHeight,yaw:rand(i,714)*6.28,tint:.65+rand(i,715)*.27});
   if(s.edge<3&&s.edge>-.8)pebbles.push({x,z,y:y-.035,scale:.08+rand(i,716)*.27,sy:.45,yaw:rand(i,717)*6.28,tint:.6+rand(i,718)*.3});
+ }
+ // Short colonies occupy moist ledges beside the side spring, not its pools.
+ if(habitat&&Math.hypot(cx-forestSpring.x,cz-forestSpring.z)<200)for(let i=0;i<520;i++){
+  const x=forestSpring.x-14+rand(i,720)*70,z=forestSpring.z-10+rand(i,721)*72,s=springAt(x,z);if(!s?.forest||s.edge<.65||s.edge>7||noise(x/5,z/6)<.32)continue;
+  const y=terrainHeight(x,z);if(y<=s.level+.12||slopeAt(x,z)<.8)continue;
+  ferns.push({x,z,y:y-.025,scale:(.24+rand(i,722)**2*.58)/fernHeight,yaw:rand(i,723)*6.28,tint:.8+rand(i,724)*.28});
  }
  self.postMessage({requestId,fine,cx,cz,rocks,pebbles,ferns,grass,reeds,debris,litter,workerMs:performance.now()-workerStart})
 }
