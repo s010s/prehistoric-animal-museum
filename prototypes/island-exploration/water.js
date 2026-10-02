@@ -6,6 +6,7 @@ import {terrainLightGLSL} from './terrain-light.js'
 import {swellGLSL,oceanGeometry,makeRockSpray} from './water-motion.js'
 import * as T from 'three'
 import {shoreResources,shoreGLSL,shoreTime,SHORE,ESTUARY_SHORE} from './shore.js'
+import {makeShoreWetMemory} from './shore-wet-memory.js'
 import {skyGLSL} from './sky.js'
 import {contactOcclusionGLSL} from './contact-occlusion.js'
 import {riverReach} from './hydrology.js'
@@ -14,6 +15,9 @@ import {Reflector} from 'three/addons/objects/Reflector.js'
 import {SEA,riverX,halfWidth,riverLevel,lake,wetland,wetlandLevel,tarn,tributaryX,tributaryLevel,waterLevelAt,bankWaterLevelAt,terrainHeight} from './field.js'
 export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>false,diagnostics,shadowReady=()=>true){
  const shore=await shoreResources(),exposureMeter=makeExposureMeter(),spectrum=makeOceanSpectrum();
+ const wetMemory=new URLSearchParams(location.search).get('benchmark')==='1'&&new URLSearchParams(location.search).get('wetMemory')==='legacy'?null:makeShoreWetMemory(shore);
+ const disposeWetOnExit=event=>{if(!event.persisted){wetMemory?.dispose();removeEventListener('pagehide',disposeWetOnExit)}};
+ addEventListener('pagehide',disposeWetOnExit);
  const laceData=new Uint8Array(await(await fetch('./assets/surf-lace.bin')).arrayBuffer());if(laceData.length!==512*512*4)throw Error('Invalid surf lace');
  const surfLace=new T.DataTexture(laceData,512,512,T.RGBAFormat);surfLace.wrapS=surfLace.wrapT=T.RepeatWrapping;surfLace.minFilter=T.LinearMipmapLinearFilter;surfLace.magFilter=T.LinearFilter;surfLace.generateMipmaps=true;surfLace.anisotropy=8;surfLace.needsUpdate=true;
  const habitat=new URLSearchParams(location.search).get('look')!=='baseline';
@@ -229,7 +233,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
 void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=contactAO(vUv);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}`});copyScene.add(new T.Mesh(new T.PlaneGeometry(2,2),copy))
  let spray=null,lastW=0,lastH=0,lastFine=null,reflectionMode=()=>{};
  const pass=(name,fn)=>diagnostics?diagnostics.pass(name,fn):fn();
- return {auditMaterials:()=>({copy,water:mat,spray:spray?.material}),resources:()=>[['opaque',opaque],['reflection',reflector.getRenderTarget()],...spectrum.resources()],setReflectionMode:fn=>reflectionMode=fn,setDebug:value=>u.debug.value=value,status:()=>({debug:u.debug.value,...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;field.update(camera);spectrum.update(renderer,time,diagnostics);
+ return {disposeShoreWetMemory:()=>wetMemory?.dispose(),auditMaterials:()=>({copy,water:mat,spray:spray?.material}),resources:()=>[['opaque',opaque],['reflection',reflector.getRenderTarget()],...spectrum.resources(),...(wetMemory?.resources()??[])],setReflectionMode:fn=>reflectionMode=fn,setDebug:value=>u.debug.value=value,status:()=>({debug:u.debug.value,wetMemory:wetMemory?.status()??null,...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;wetMemory?.update(renderer,time,diagnostics);field.update(camera);spectrum.update(renderer,time,diagnostics);
  // A reflection must not sample a shadow texture before its first allocation.
  const renderOpaque=()=>{renderer.setRenderTarget(opaque);pass('mainInclusiveShadow',()=>{renderer.clear();renderer.render(scene,camera)})},primeShadow=!shadowReady();
  if(primeShadow){renderOpaque();diagnostics?.event('shadow-bootstrap',{reordered:true})}

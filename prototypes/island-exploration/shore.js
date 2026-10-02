@@ -3,11 +3,11 @@ export const SHORE={x:9160,z:2330,size:768,res:385};
 export const ESTUARY_SHORE={x:-3200,z:3600,size:1536,res:385};
 export const shoreTime={value:0};
 let resources;
-export function shoreResources(){return resources??=(async()=>{const data=await (await fetch('./assets/coast-height-r9.bin')).arrayBuffer(),tx=new T.DataTexture(new Float32Array(data),SHORE.res*2,SHORE.res,T.RedFormat,T.FloatType);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;return {shoreHeight:{value:tx},shoreTime}})()}
+export function shoreResources(){return resources??=(async()=>{const data=await (await fetch('./assets/coast-height-r9.bin')).arrayBuffer(),tx=new T.DataTexture(new Float32Array(data),SHORE.res*2,SHORE.res,T.RedFormat,T.FloatType);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;return {shoreHeight:{value:tx},shoreTime,shoreWetMemory:{value:null},shoreMemoryEnabled:{value:0}}})()}
 // A local authored shore cell. Height, run-up, foam and sand wetting all evaluate
 // this same field. It is an analytic wave cycle, not Tidewater's fluid solver.
 export const shoreGLSL=`
- uniform sampler2D shoreHeight;uniform float shoreTime;
+ uniform sampler2D shoreHeight;uniform float shoreTime;uniform sampler2D shoreWetMemory;uniform float shoreMemoryEnabled;
  vec3 shoreCell(vec2 p){return p.x<0.?vec3(-3200.,3600.,1536.):vec3(9160.,2330.,768.);}
  float shoreDistance(vec2 p){vec3 cell=shoreCell(p);return max(abs(p.x-cell.x),abs(p.y-cell.y))/(cell.z*.5);}
  float shoreMask(vec2 p){return 1.-smoothstep(.86,.977,shoreDistance(p));}
@@ -25,7 +25,7 @@ export const shoreGLSL=`
   float raw=.035*(.7+.3*shoreNoise(p*.9));float film=min(raw,max(0.,front)*mix(.08,.025,retreat));
   return vec3(front,film,retreat);
  }
- float shoreWet(vec2 p){float mask=shoreMask(p);if(mask<.001)return 0.;float h=shoreGround(p)+.7,r=runupAt(p,shoreTime);float fresh=1.-smoothstep(r-.1,r+.15,h);float residue=(1.-smoothstep(.45,.85,h))*(.6+.22*sin(shoreTime*.12+p.y*.01));return shoreMask(p)*max(fresh,residue);}
+ float shoreWet(vec2 p){float mask=shoreMask(p);if(mask<.001)return 0.;if(shoreMemoryEnabled>.5&&p.x>0.){vec2 uv=(p-vec2(9160.,2330.))/768.+.5;vec2 wet=texture2D(shoreWetMemory,clamp(uv,0.,1.)).rg;return mask*(wet.r+wet.g);}float h=shoreGround(p)+.7,r=runupAt(p,shoreTime);float fresh=1.-smoothstep(r-.1,r+.15,h);float residue=(1.-smoothstep(.45,.85,h))*(.6+.22*sin(shoreTime*.12+p.y*.01));return shoreMask(p)*max(fresh,residue);}
  vec2 shoreSurface(vec2 p){float mask=shoreMask(p);if(mask<.001)return vec2(-.7,0.);float ground=shoreGround(p),depth=-.7-ground;vec2 slope=shoreGradient(p);float slopeLen=length(slope);float beach=1.-smoothstep(.19,.36,slopeLen);mask*=beach;
  float phase=shorePhase(p,depth,shoreTime);
  float shoal=(1.-smoothstep(2.5,7.,depth))*smoothstep(-.4,1.5,depth);
