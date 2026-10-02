@@ -129,7 +129,10 @@ export function createPhysicalWaterSurface(field, radianceTexture) {
     const uniforms = { ...field.uniforms, uInverseProjection: { value: new THREE.Matrix4() }, uCameraWorld: { value: new THREE.Matrix4() }, uWaterLut: { value: radianceTexture }, uAirSunDirection: { value: new THREE.Vector3(...MEDIUM.sunDirection) }, uAirSunColor: { value: new THREE.Vector3(...MEDIUM.sunIrradiance) }, uAirSunRadius: { value: radius }, uSlopeSamples: { value: angularSlopeSamples(16).map(q => new THREE.Vector2(...q)) }, uSlopeBasis: { value: new THREE.Matrix2().fromArray(unresolved.basis) }, uSlopeCovariance: { value: new THREE.Vector3(...unresolved.covariance) }, uSolarDirections: { value: solarSamples.map(s => new THREE.Vector3(...s.direction)) }, uSolarSolidAngles: { value: solarSamples.map(s => s.solidAngle) }, uSunDiscGain: sunDiscGain };
     for (const [u, k] of [['uSkyHorizon', 'horizon'], ['uSkyLow', 'skyLow'], ['uSkyMid', 'skyMid'], ['uSkyUpper', 'skyUpper'], ['uSkyZenith', 'skyZenith']])
         uniforms[u] = { value: new THREE.Vector3(...day[k]) };
-    if (import.meta.env.MODE === 'review') uniforms.uReviewSurfaceDebug = { value: 0 };
+    if (import.meta.env.MODE === 'review') {
+        uniforms.uReviewSurfaceDebug = { value: 0 };
+        uniforms.uReviewSkyChroma = { value: 0 };
+    }
     uniforms.uSurfaceFadeNear = { value: 35 };
     uniforms.uSurfaceFadeFar = { value: 160 };
     const material = new THREE.ShaderMaterial({ uniforms, side: THREE.DoubleSide, depthWrite: true, depthTest: true, toneMapped: false, vertexShader: `varying vec2 vScreenUv;
@@ -137,14 +140,21 @@ export function createPhysicalWaterSurface(field, radianceTexture) {
  varying vec2 vScreenUv;uniform mat4 uInverseProjection,uCameraWorld,projectionMatrix;uniform sampler2D uWaterLut;
  uniform vec3 uAirSunDirection,uAirSunColor,uSkyHorizon,uSkyLow,uSkyMid,uSkyUpper,uSkyZenith,uSlopeCovariance;
  ${CLOUD_BANK_GLSL}
- ${import.meta.env.MODE === 'review' ? 'uniform int uReviewSurfaceDebug;' : ''}
+ ${import.meta.env.MODE === 'review' ? 'uniform int uReviewSurfaceDebug;uniform float uReviewSkyChroma;' : ''}
  uniform mat2 uSlopeBasis;uniform vec2 uSlopeSamples[16];uniform float uAirSunRadius,uSunDiscGain,uSurfaceFadeNear,uSurfaceFadeFar;
  uniform vec3 uSolarDirections[${solarSamples.length}];uniform float uSolarSolidAngles[${solarSamples.length}];
  ${WAVE_GLSL}
  vec2 envUv(vec3 d){return vec2(atan(d.z,d.x)*.15915494309189535+.5,asin(clamp(d.y,-1.,1.))*.3183098861837907+.5);}
  float fresnel(float ci){float st=1.333*sqrt(max(0.,1.-ci*ci));if(st>=1.)return 1.;float ct=sqrt(max(0.,1.-st*st));float rs=(1.333*ci-ct)/(1.333*ci+ct),rp=(ci-1.333*ct)/(ci+1.333*ct);return .5*(rs*rs+rp*rp);}
  // Broad daytime sky and halo; the finite solar disc is integrated separately.
- vec3 outsideSky(vec3 d){float y=max(0.,d.y);vec3 sky=mix(uSkyHorizon,uSkyLow,smoothstep(0.,.055,y));sky=mix(sky,uSkyMid,smoothstep(.02,.18,y));sky=mix(sky,uSkyUpper,smoothstep(.10,.36,y));sky=mix(sky,uSkyZenith,smoothstep(.27,.75,y));float c=dot(d,uAirSunDirection),halo=pow(max(c,0.),512.)*.2;return sky+uAirSunColor*halo;}
+ vec3 outsideSky(vec3 d){float y=max(0.,d.y);vec3 sky=mix(uSkyHorizon,uSkyLow,smoothstep(0.,.055,y));sky=mix(sky,uSkyMid,smoothstep(.02,.18,y));sky=mix(sky,uSkyUpper,smoothstep(.10,.36,y));sky=mix(sky,uSkyZenith,smoothstep(.27,.75,y));
+ ${import.meta.env.MODE === 'review' ? `// Isolate broad transmitted-sky colour at fixed linear luminance. This is
+ // a review-only art calibration probe; the sun/halo, Fresnel, reflection,
+ // cloud, caustic field, medium and unflagged default are unchanged.
+ vec3 lumaWeights=vec3(.2126,.7152,.0722),blueSky=vec3(.05,.40,.72);
+ vec3 equalLumaBlue=blueSky*(dot(sky,lumaWeights)/dot(blueSky,lumaWeights));
+ sky=mix(sky,equalLumaBlue,clamp(uReviewSkyChroma,0.,1.));` : ''}
+ float c=dot(d,uAirSunDirection),halo=pow(max(c,0.),512.)*.2;return sky+uAirSunColor*halo;}
  vec3 surfaceRadiance(vec3 rd,vec2 slope,vec2 surfaceXZ){vec3 n=normalize(vec3(-slope.x,1.,-slope.y));float F=fresnel(clamp(dot(rd,n),0.,1.));vec3 transmitted=refract(rd,-n,1.333),reflected=reflect(rd,-n);vec3 reflectedWater=texture2D(uWaterLut,envUv(reflected)).rgb*cloudWaterRadianceScale(surfaceXZ);vec3 airRadiance=dot(transmitted,transmitted)<.1?vec3(0.):outsideSky(normalize(transmitted))*cloudSkyRadianceScale(surfaceXZ);
  ${import.meta.env.MODE === 'review' ? `if(uReviewSurfaceDebug==1)return airRadiance*(1.-F);if(uReviewSurfaceDebug==2)return reflectedWater*F;if(uReviewSurfaceDebug==3)return vec3(F);if(uReviewSurfaceDebug==4)return vec3(cloudSkyRadianceScale(surfaceXZ));if(uReviewSurfaceDebug==5)return dot(transmitted,transmitted)<.1?vec3(0.):outsideSky(normalize(transmitted));` : ''}
  return mix(airRadiance,reflectedWater,F);}

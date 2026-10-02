@@ -160,6 +160,8 @@ export function createOceanRefractedRuntime(renderer, candidate, origin = new TH
                 const validSurface = [[35, 160], [80, 240]].some(([near, far]) => near === surfaceNear && far === surfaceFar);
                 water.uniforms.uSurfaceFadeNear.value = validSurface ? surfaceNear : 35;
                 water.uniforms.uSurfaceFadeFar.value = validSurface ? surfaceFar : 160;
+                const skyChroma = Number(flags.oceanReviewSkyChroma);
+                water.uniforms.uReviewSkyChroma.value = Number.isFinite(skyChroma) ? Math.min(1, Math.max(0, skyChroma)) : 0;
                 for (const [key, attribute, fallback] of [['uCloudBankEnabled', 'oceanReviewCloudEnabled', 1], ['uWaveScale', 'oceanReviewWaveScale', 1], ['uWaveFootprint', 'oceanReviewWaveFootprint', WAVE_FOOTPRINT]]) {
                     const requested = Number(flags[attribute]);
                     const value = Number.isFinite(requested) ? requested : fallback;
@@ -219,7 +221,7 @@ export function createOceanRefractedRuntime(renderer, candidate, origin = new TH
                     diagnostics.sceneRenderState = { viewport: Array.from(gl.getParameter(gl.VIEWPORT)), scissor: Array.from(gl.getParameter(gl.SCISSOR_BOX)), scissorTest: gl.isEnabled(gl.SCISSOR_TEST), targetSize: [target.width, target.height], dpr: renderer.getPixelRatio(), cameraPosition: camera.position.toArray(), cameraQuaternion: camera.quaternion.toArray(), cloudOrigin: origin.toArray(), fov: camera.fov, near: camera.near, far: camera.far };
                     diagnostics.atlasRenderStates = field.diagnostics.tileRenderStates;
                     diagnostics.reviewField = { lightBounds: field.diagnostics.lightBounds, photonDomain: field.diagnostics.fixedSourceDomain, photonSpacingMetres: field.diagnostics.photonSpacingMetres, receiverTexelMetres: field.diagnostics.receiverTexelMetres, slopes: field.diagnostics.filteredSlopeBound, sliceDepths: field.diagnostics.sliceDepths, seaLevel: field.uniforms.uCausticSeaLevel.value, sunDirection: MEDIUM.sunDirection, refractedDirection: field.meanRefractedDirection.toArray(), fog: scene.fog?.type ?? null, exposure: renderer.toneMappingExposure, cloudBank: water.diagnostics.cloudBank, medium: MEDIUM, actorLighting: ACTOR_LIGHTING, waveComponents: WAVE_COMPONENTS };
-                    diagnostics.reviewOptics = { maxPathMetres: volumeUniforms.uMaxPathMetres.value, surfaceFadeMetres: [water.uniforms.uSurfaceFadeNear.value, water.uniforms.uSurfaceFadeFar.value] };
+                    diagnostics.reviewOptics = { maxPathMetres: volumeUniforms.uMaxPathMetres.value, surfaceFadeMetres: [water.uniforms.uSurfaceFadeNear.value, water.uniforms.uSurfaceFadeFar.value], skyChroma: water.uniforms.uReviewSkyChroma.value };
                 }
                 renderer.setRenderTarget(composite);
                 renderer.render(screen, screenCamera);
