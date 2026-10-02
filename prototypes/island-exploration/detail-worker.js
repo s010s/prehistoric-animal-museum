@@ -1,3 +1,4 @@
+import {makeGrassRenderPacket} from './grass-render-packet.js'
 import {springAt,springOrigin,forestSpring} from './spring.js'
 import {hash,noise,terrainHeight,slopeAt,bankAt,riverX,halfWidth,riverLevel,waterLevelAt,biomeAt,woodland} from './field.js'
 import {trailWeight,trailX} from './habitat.js'
@@ -68,6 +69,7 @@ self.onmessage=e=>{const workerStart=performance.now();const {requestId,cx,cz,fi
   const y=terrainHeight(x,z);if(y<=s.level+.12||slopeAt(x,z)<.8)continue;
   ferns.push({x,z,y:y-.025,scale:(.24+rand(i,722)**2*.58)/fernHeight,yaw:rand(i,723)*6.28,tint:.8+rand(i,724)*.28});
  }
- self.postMessage({requestId,fine,cx,cz,rocks,pebbles,ferns,grass,reeds,debris,litter,workerMs:performance.now()-workerStart})
+ const grassPacket=habitat?makeGrassRenderPacket(grass):null,transfer=grassPacket?[grassPacket.raw.buffer,grassPacket.matrices.buffer,grassPacket.colors.buffer]:[];
+ self.postMessage({requestId,fine,cx,cz,rocks,pebbles,ferns,grass:grassPacket?null:grass,grassPacket,reeds,debris,litter,workerMs:performance.now()-workerStart},transfer)
 }
 self.postMessage({ready:true});
