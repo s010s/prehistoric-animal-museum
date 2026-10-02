@@ -7,9 +7,17 @@ export function makeShadowFocus(direction) {
   const vertical = new Vector3(0, Math.abs(direction.y) > .999 ? 0 : 1, Math.abs(direction.y) > .999 ? 1 : 0)
   const right = new Vector3().crossVectors(direction, vertical).normalize()
   const up = new Vector3().crossVectors(right, direction).normalize()
+  const basisDirection = direction.clone()
   const focus = new Vector3()
   return {
     apply(light, camera, heightAt, stable) {
+      if (!basisDirection.equals(direction) || !light.shadow.camera.up.equals(vertical)) {
+        vertical.set(0, Math.abs(direction.y) > .999 ? 0 : 1, Math.abs(direction.y) > .999 ? 1 : 0)
+        right.crossVectors(direction, vertical).normalize()
+        up.crossVectors(right, direction).normalize()
+        basisDirection.copy(direction)
+        light.shadow.camera.up.copy(vertical)
+      }
       if (stable) {
         focus.set(camera.position.x, Math.max(0, heightAt(camera.position.x, camera.position.z)), camera.position.z)
         const c = light.shadow.camera
