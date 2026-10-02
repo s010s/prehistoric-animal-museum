@@ -143,10 +143,24 @@ export function makeLandscape(material,apply,getFine=()=>false,diagnostics){
     for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){const key=x+','+z;if(!bins.has(key))bins.set(key,[]);bins.get(key).push(t);}}
    for(const[key,list]of bins)collision.set(key,{p:r.p,ix:r.indices,list:new Uint32Array(list)});
    const mesh=new T.Mesh(geometry(r),material);mesh.receiveShadow=true;apply?.(mesh);group.add(mesh);triangles+=r.indices.length/3;vertices+=r.p.length/3}
+  // Refine only dense collision buckets; keep their exact original triangle ownership.
+  for(const cell of collision.values())if(cell.list.length>1024){
+   const bins=new Map(),{p,ix}=cell;
+   for(const t of cell.list){
+    const a=ix[t]*3,b=ix[t+1]*3,c=ix[t+2]*3;
+    const minX=Math.min(p[a],p[b],p[c]),maxX=Math.max(p[a],p[b],p[c]),minZ=Math.min(p[a+2],p[b+2],p[c+2]),maxZ=Math.max(p[a+2],p[b+2],p[c+2]);
+    // Cover the existing barycentric epsilon just outside triangle bounds.
+    const padX=(maxX-minX)*4e-6+1e-5,padZ=(maxZ-minZ)*4e-6+1e-5;
+    for(let z=Math.floor((minZ-padZ)/8);z<=Math.floor((maxZ+padZ)/8);z++)for(let x=Math.floor((minX-padX)/8);x<=Math.floor((maxX+padX)/8);x++){
+     const key=x+','+z;if(!bins.has(key))bins.set(key,[]);bins.get(key).push(t);
+    }
+   }
+   cell.secondary=new Map(Array.from(bins,([key,list])=>[key,new Uint32Array(list)]));
+  }
   pending=false;worker.terminate();readyResolve();diagnostics?.event('workerConsume',{worker:'terrain',cpuMs:performance.now()-consumeStart})
  }
  // Three.js performs separate frustum culling for the main, reflection and shadow
  // cameras. Geometry and materials never change with distance or quality.
- const heightAt=(x,z)=>{const cell=collision.get(Math.floor(x/64)+','+Math.floor(z/64));if(!cell)return terrainHeight(x,z);const {p,ix,list}=cell;let h=-Infinity;for(const t of list){const a=ix[t]*3,b=ix[t+1]*3,c=ix[t+2]*3,ax=p[a],az=p[a+2],bx=p[b],bz=p[b+2],cx=p[c],cz=p[c+2],den=(bz-cz)*(ax-cx)+(cx-bx)*(az-cz);if(Math.abs(den)<1e-8)continue;const u=((bz-cz)*(x-cx)+(cx-bx)*(z-cz))/den,v=((cz-az)*(x-cx)+(ax-cx)*(z-cz))/den;if(u>=-1e-6&&v>=-1e-6&&u+v<=1.000001)h=Math.max(h,u*p[a+1]+v*p[b+1]+(1-u-v)*p[c+1]);}return Number.isFinite(h)?h:terrainHeight(x,z)};
+ const heightAt=(x,z)=>{const cell=collision.get(Math.floor(x/64)+','+Math.floor(z/64));if(!cell)return terrainHeight(x,z);const {p,ix}=cell,list=cell.secondary?.get(Math.floor(x/8)+','+Math.floor(z/8))??cell.list;let h=-Infinity;for(const t of list){const a=ix[t]*3,b=ix[t+1]*3,c=ix[t+2]*3,ax=p[a],az=p[a+2],bx=p[b],bz=p[b+2],cx=p[c],cz=p[c+2],den=(bz-cz)*(ax-cx)+(cx-bx)*(az-cz);if(Math.abs(den)<1e-8)continue;const u=((bz-cz)*(x-cx)+(cx-bx)*(z-cz))/den,v=((cz-az)*(x-cx)+(ax-cx)*(z-cz))/den;if(u>=-1e-6&&v>=-1e-6&&u+v<=1.000001)h=Math.max(h,u*p[a+1]+v*p[b+1]+(1-u-v)*p[c+1]);}return Number.isFinite(h)?h:terrainHeight(x,z)};
  return {group,ready,heightAt,update(){},status:()=>({pending,revision:pending?0:1,mode:'fixed-geography',chunks:group.children.length,triangles,vertices,joined:true,riverDetailMetres:8})}
 }
