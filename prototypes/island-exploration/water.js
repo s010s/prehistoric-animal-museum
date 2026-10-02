@@ -1,6 +1,5 @@
 import {springRuns,springAt,forestSpringRun} from './spring.js'
 import {makeOceanSpectrum,oceanSpectrumGLSL} from './ocean-spectrum.js';
-import {SUN_DIRECTION} from './lighting-config.js';
 import {makeExposureMeter} from './exposure-meter.js'
 import {terrainLightGLSL} from './terrain-light.js'
 import {swellGLSL,oceanGeometry,makeRockSpray} from './water-motion.js'
@@ -36,7 +35,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  float riverInfluence(vec2 p){vec4 r=riverSample(p.y);return smoothstep(-4070.,-3995.,p.y)*(1.-smoothstep(1700.,2800.,p.y))*(1.-smoothstep(r.y-12.,r.y+75.,abs(p.x-r.x)));}
  `;
  const coverage=new T.DataTexture(coverageData,851,1,T.RGBAFormat,T.FloatType);coverage.minFilter=coverage.magFilter=T.NearestFilter;coverage.needsUpdate=true;
- const waterScene=new T.Scene(),u={...spectrum.uniforms,surfLace:{value:surfLace},...shore,riverCoverage:{value:coverage},coastDepth:{value:coastDepth},terrainSpan:{value:20480},oceanCenter:{value:new T.Vector2()},...skyUniforms,aoEnabled:{value:getFine()?1:0},opaque:{value:opaque.texture},sceneDepth:{value:opaque.depthTexture},reflection:{value:reflector.getRenderTarget().texture},reflectionMatrix:{value:new T.Matrix4()},debug:{value:({normal:1,reflection:2,depth:3,foam:4,body:5}[new URLSearchParams(location.search).get('water')]??0)},reflectionY:{value:0},time:{value:0},resolution:{value:resolution},cameraNear:{value:camera.near},cameraFar:{value:camera.far},sunDir:{value:new T.Vector3(...SUN_DIRECTION).normalize()},rippleMap:{value:rippleMap},viewToWorld:{value:camera.matrixWorld},inverseProjection:{value:camera.projectionMatrixInverse},screenSize:{value:resolution},flowMap:{value:field.texture},flowOrigin:{value:field.origin},flowSpan:{value:field.span}}
+ const waterScene=new T.Scene(),u={...spectrum.uniforms,surfLace:{value:surfLace},...shore,riverCoverage:{value:coverage},coastDepth:{value:coastDepth},terrainSpan:{value:20480},oceanCenter:{value:new T.Vector2()},...skyUniforms,aoEnabled:{value:getFine()?1:0},opaque:{value:opaque.texture},sceneDepth:{value:opaque.depthTexture},reflection:{value:reflector.getRenderTarget().texture},reflectionMatrix:{value:new T.Matrix4()},debug:{value:({normal:1,reflection:2,depth:3,foam:4,body:5}[new URLSearchParams(location.search).get('water')]??0)},reflectionY:{value:0},time:{value:0},resolution:{value:resolution},cameraNear:{value:camera.near},cameraFar:{value:camera.far},sunDir:skyUniforms.skySun,rippleMap:{value:rippleMap},viewToWorld:{value:camera.matrixWorld},inverseProjection:{value:camera.projectionMatrixInverse},screenSize:{value:resolution},flowMap:{value:field.texture},flowOrigin:{value:field.origin},flowSpan:{value:field.span}}
  const mat=new T.ShaderMaterial({uniforms:u,depthTest:false,depthWrite:false,transparent:true,
  vertexShader:`${swellGLSL}
  ${oceanSpectrumGLSL}
