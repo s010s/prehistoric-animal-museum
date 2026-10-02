@@ -9,7 +9,11 @@ export function makeAtmosphere(uniforms){
 // cliff-foot shade. A broad feather avoids a visible pool of fill light.
 vec2 springOffset=(airWorld.xz-vec2(-2051.53,-680.))/vec2(115.,145.);
 float springFill=1.-smoothstep(.35,1.,length(springOffset));
-reflectedLight.indirectDiffuse*=1.+.9*springFill*terrainLightEnabled*(1.-sunVisibility);reflectedLight.directDiffuse*=sunVisibility;reflectedLight.directSpecular*=sunVisibility;`);s.fragmentShader=s.fragmentShader.replace('#include <shadowmap_pars_fragment>',T.ShaderChunk.shadowmap_pars_fragment.replaceAll('shadowCoord.xyz /= shadowCoord.w;', 'shadowCoord.xyz /= shadowCoord.w; shadowIntensity *= 1.-smoothstep(.32,.49,max(abs(shadowCoord.x-.5),abs(shadowCoord.y-.5)));'));
+// Open the river clearing's sky diffuse without flattening its direct shadows.
+vec2 clearingOffset=(airWorld.xz-vec2(-1969.27,-560.))/vec2(75.,90.);
+float clearingFill=1.-smoothstep(.25,1.,length(clearingOffset));
+float shadeFill=max(.9*springFill*(1.-sunVisibility),.65*clearingFill);
+reflectedLight.indirectDiffuse*=1.+shadeFill*terrainLightEnabled;reflectedLight.directDiffuse*=sunVisibility;reflectedLight.directSpecular*=sunVisibility;`);s.fragmentShader=s.fragmentShader.replace('#include <shadowmap_pars_fragment>',T.ShaderChunk.shadowmap_pars_fragment.replaceAll('shadowCoord.xyz /= shadowCoord.w;', 'shadowCoord.xyz /= shadowCoord.w; shadowIntensity *= 1.-smoothstep(.32,.49,max(abs(shadowCoord.x-.5),abs(shadowCoord.y-.5)));'));
  s.vertexShader=s.vertexShader.replace('void main()','varying vec3 airWorld;\nvoid main()').replace('#include <project_vertex>',`vec4 airP=vec4(transformed,1.);
 #ifdef USE_INSTANCING
  airP=instanceMatrix*airP;
