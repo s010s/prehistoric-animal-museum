@@ -2,6 +2,7 @@ import { preparePterosaurMotion } from './pterosaur-motion'
 import {ExperienceWarmup} from './experience-warmup'
 import { createExperienceGpuTimer, type ExperienceGpuTimer } from './experience-gpu-timer'
 import { stopAfterAnimationFrame } from './deferred-loop-stop'
+import { ViewerPageLifecycle } from './page-lifecycle'
 import { rendererStateLease, type ExternalExperience, type ExperienceLease } from './external-experience'
 import { createEncounterMotionFootprint } from './scale-encounter-motion-footprint'
 import { clearsAnimalGroundFootprint, projectOutsideAnimalGroundFootprint } from './scale-encounter-ground-footprint'
@@ -1334,10 +1335,11 @@ export class ViewerController {
     if (wasReduced && !this.reducedMotion) {
       this.resumeRotationAt = 0
     }
-    this.updateAutoRotation(performance.now())
+    this.updateAutoRotation(this.pageLifecycle.now())
   }
   private readonly handleContextLost = (event: Event) => {
     event.preventDefault()
+    this.contextAvailable = false
     if (this.externalExperience) {
       this.externalExperience.contextLost()
       this.stopLoop()
@@ -1355,19 +1357,22 @@ export class ViewerController {
     this.controls.autoRotate = false
   }
   private readonly handleControlEnd = () => {
-    this.resumeRotationAt = performance.now() + 4_000
+    this.resumeRotationAt = this.pageLifecycle.now() + 4_000
   }
 
   private loopRunning = false
+  private contextAvailable = true
+  private readonly pageLifecycle: ViewerPageLifecycle
   private externalExperience: ExternalExperience | null = null
   private externalRelease: (() => void) | null = null
   private externalWarmup:ExperienceWarmup|null=null
   private externalGpuTimer: ExperienceGpuTimer | null = null
   private readonly handleContextRestored = () => {
+    this.contextAvailable = true
     this.renderer.domElement.removeAttribute('aria-hidden')
     this.externalWarmup?.restart()
     this.externalExperience?.contextRestored()
-    this.lastFrameTime = performance.now()
+    this.lastFrameTime = this.pageLifecycle.now()
     this.startLoop()
   }
 
@@ -1406,7 +1411,7 @@ export class ViewerController {
         this.controls.enabled = controlsEnabled
         this.controls.autoRotate = autoRotate
         delete this.renderer.domElement.dataset.experience
-        this.lastFrameTime = performance.now()
+        this.lastFrameTime = this.pageLifecycle.now()
         const width = Math.max(this.container.clientWidth, 1), height = Math.max(this.container.clientHeight, 1)
         this.renderer.setSize(width, height, false)
         this.camera.aspect = width / height; this.camera.updateProjectionMatrix()
@@ -1429,7 +1434,7 @@ export class ViewerController {
       },
       invalidate: () => {
         if (!released && !this.destroyed && !this.loopRunning) {
-          this.lastFrameTime = performance.now()
+          this.lastFrameTime = this.pageLifecycle.now()
           this.startLoop()
         }
       },
@@ -1571,6 +1576,10 @@ export class ViewerController {
     this.controls.addEventListener('end', this.handleControlEnd)
     this.updateCameraLighting()
 
+    this.pageLifecycle = new ViewerPageLifecycle(document, {
+      pause: () => this.stopLoop(),
+      resume: () => this.startLoop(),
+    })
     this.reducedMotionQuery.addEventListener('change', this.handleReducedMotionChange)
     this.resizeObserver = new ResizeObserver(() => {
       this.resize()
@@ -1777,7 +1786,7 @@ export class ViewerController {
         duration: this.reducedMotion ? 80 : 560,
         incoming: staged,
         outgoing: previous,
-        startedAt: performance.now(),
+        startedAt: this.pageLifecycle.now(),
       }
       this.setTransitionOpacity(1)
       this.renderer.domElement.dataset.transitioning = 'true'
@@ -1796,7 +1805,7 @@ export class ViewerController {
       this.applyPresentationSettings(staged)
       this.reset()
       this.initialPoseHoldUntil =
-        performance.now() + INITIAL_STILL_CROSSFADE_MS
+        this.pageLifecycle.now() + INITIAL_STILL_CROSSFADE_MS
       this.controls.autoRotate = false
       this.renderer.domElement.dataset.autoRotate = 'false'
       this.updateCameraLighting()
@@ -1870,7 +1879,7 @@ export class ViewerController {
       )
       updateScaleEncounterEnvironment(
         encounter.environment,
-        performance.now() / 1_000,
+        this.pageLifecycle.now() / 1_000,
         this.reducedMotion,
         this.camera,
       )
@@ -1985,7 +1994,7 @@ export class ViewerController {
       )
       updateScaleEncounterEnvironment(
         replacement,
-        performance.now() / 1_000,
+        this.pageLifecycle.now() / 1_000,
         this.reducedMotion,
         this.camera,
       )
@@ -2323,7 +2332,7 @@ export class ViewerController {
       this.applyScaleEncounterOverviewPose()
       updateScaleEncounterEnvironment(
         environment,
-        performance.now() / 1_000,
+        this.pageLifecycle.now() / 1_000,
         this.reducedMotion,
         this.camera,
       )
@@ -2651,7 +2660,7 @@ export class ViewerController {
       ...(orbitReturn ? { orbitReturn } : {}),
       promise: deferred.promise,
       resolve: deferred.resolve,
-      startedAt: performance.now(),
+      startedAt: this.pageLifecycle.now(),
       targetView,
     }
     this.controls.target.copy(encounter.placement.target)
@@ -2728,7 +2737,7 @@ export class ViewerController {
       ],
       promise: deferred.promise,
       resolve: deferred.resolve,
-      startedAt: performance.now(),
+      startedAt: this.pageLifecycle.now(),
       targetPerspective,
       targetView: 'pov',
     }
@@ -3645,7 +3654,7 @@ export class ViewerController {
     resetStagedModelPose(current)
     this.fitCurrentModel()
     this.resumeRotationAt = this.reducedMotion ? Number.POSITIVE_INFINITY : 0
-    this.updateAutoRotation(performance.now())
+    this.updateAutoRotation(this.pageLifecycle.now())
   }
 
   /**
@@ -3679,7 +3688,7 @@ export class ViewerController {
       this.resumeRotationAt = this.reducedMotion
         ? Number.POSITIVE_INFINITY
         : 0
-      this.updateAutoRotation(performance.now())
+      this.updateAutoRotation(this.pageLifecycle.now())
       this.renderer.domElement.dataset.animationPaused = 'false'
       return true
     }
@@ -3758,7 +3767,7 @@ export class ViewerController {
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.externalExperience.pixelRatio))
       this.renderer.setSize(width, height, false)
       this.externalExperience.resize(width, height)
-      this.lastFrameTime = performance.now()
+      this.lastFrameTime = this.pageLifecycle.now()
       this.startLoop()
       return
     }
@@ -3867,10 +3876,11 @@ export class ViewerController {
     if (this.destroyed) {
       return
     }
+    this.destroyed = true
+    this.pageLifecycle.dispose()
+    this.stopLoop()
     this.externalRelease?.()
     this.endScaleEncounter()
-    this.destroyed = true
-    this.stopLoop()
     if (this.compositionFitFrame !== null) {
       window.cancelAnimationFrame(this.compositionFitFrame)
       this.compositionFitFrame = null
@@ -5598,9 +5608,18 @@ export class ViewerController {
   }
 
   private startLoop(): void {
-    if (this.loopRunning || this.destroyed) return
+    if (this.loopRunning || this.destroyed || !this.contextAvailable || this.pageLifecycle.paused) return
+    this.lastFrameTime = this.pageLifecycle.now()
     this.loopRunning = true
-    this.renderer.setAnimationLoop((time) => {
+    this.renderer.setAnimationLoop((frameTime) => {
+      if (this.destroyed || !this.contextAvailable || this.pageLifecycle.paused) {
+        stopAfterAnimationFrame(
+          () => this.destroyed || !this.contextAvailable || this.pageLifecycle.paused,
+          () => this.stopLoop(),
+        )
+        return
+      }
+      const time = this.pageLifecycle.now(frameTime)
       const rawDeltaSeconds = Math.max((time - this.lastFrameTime) / 1_000, 0)
       const deltaSeconds = Math.min(rawDeltaSeconds, 0.1)
       this.lastFrameTime = time
@@ -5761,6 +5780,7 @@ export class ViewerController {
   }
 
   private renderMainScene(): void {
+    if (this.destroyed || !this.contextAvailable || this.pageLifecycle.paused) return
     const render = this.scaleEncounter?.environment?.renderScene
     if (render) render(this.scene, this.camera)
     else this.renderer.render(this.scene, this.camera)

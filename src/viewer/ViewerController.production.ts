@@ -1,4 +1,6 @@
 import { preparePterosaurMotion } from './pterosaur-motion'
+import { stopAfterAnimationFrame } from './deferred-loop-stop'
+import { ViewerPageLifecycle } from './page-lifecycle'
 import {
   ACESFilmicToneMapping,
   AnimationMixer,
@@ -486,10 +488,11 @@ export class ViewerController {
     if (wasReduced && !this.reducedMotion) {
       this.resumeRotationAt = 0
     }
-    this.updateAutoRotation(performance.now())
+    this.updateAutoRotation(this.pageLifecycle.now())
   }
   private readonly handleContextLost = (event: Event) => {
     event.preventDefault()
+    this.contextAvailable = false
     this.options.onFailure?.({
       kind: 'context-lost',
       message: 'WebGL 绘图环境暂时不可用。',
@@ -502,11 +505,14 @@ export class ViewerController {
     this.controls.autoRotate = false
   }
   private readonly handleControlEnd = () => {
-    this.resumeRotationAt = performance.now() + 4_000
+    this.resumeRotationAt = this.pageLifecycle.now() + 4_000
   }
 
   private current: StagedViewerModel | null = null
   private destroyed = false
+  private loopRunning = false
+  private contextAvailable = true
+  private readonly pageLifecycle: ViewerPageLifecycle
   private reducedMotion = this.reducedMotionQuery.matches
   private resumeRotationAt = 0
   private initialPoseHoldUntil = 0
@@ -577,6 +583,10 @@ export class ViewerController {
     this.controls.addEventListener('end', this.handleControlEnd)
     this.updateCameraLighting()
 
+    this.pageLifecycle = new ViewerPageLifecycle(document, {
+      pause: () => this.stopLoop(),
+      resume: () => this.startLoop(),
+    })
     this.reducedMotionQuery.addEventListener('change', this.handleReducedMotionChange)
     this.resizeObserver = new ResizeObserver(() => {
       this.resize()
@@ -775,7 +785,7 @@ export class ViewerController {
         duration: this.reducedMotion ? 80 : 560,
         incoming: staged,
         outgoing: previous,
-        startedAt: performance.now(),
+        startedAt: this.pageLifecycle.now(),
       }
       this.setTransitionOpacity(1)
       this.renderer.domElement.dataset.transitioning = 'true'
@@ -789,16 +799,16 @@ export class ViewerController {
       this.renderer.domElement.dataset.transitioning = 'false'
       this.renderer.domElement.dataset.transitionPhase = 'idle'
       this.updateCameraLighting()
-      this.renderer.render(this.scene, this.camera)
+      this.renderMainScene()
     } else {
       this.applyPresentationSettings(staged)
       this.reset()
       this.initialPoseHoldUntil =
-        performance.now() + INITIAL_STILL_CROSSFADE_MS
+        this.pageLifecycle.now() + INITIAL_STILL_CROSSFADE_MS
       this.controls.autoRotate = false
       this.renderer.domElement.dataset.autoRotate = 'false'
       this.updateCameraLighting()
-      this.renderer.render(this.scene, this.camera)
+      this.renderMainScene()
       this.confirmInitialFrame(staged.animalId)
       this.renderer.domElement.dataset.transitioning = 'false'
       this.renderer.domElement.dataset.transitionPhase = 'idle'
@@ -836,7 +846,7 @@ export class ViewerController {
     resetStagedModelPose(current)
     this.fitCurrentModel()
     this.resumeRotationAt = this.reducedMotion ? Number.POSITIVE_INFINITY : 0
-    this.updateAutoRotation(performance.now())
+    this.updateAutoRotation(this.pageLifecycle.now())
   }
 
   /**
@@ -867,7 +877,7 @@ export class ViewerController {
       this.resumeRotationAt = this.reducedMotion
         ? Number.POSITIVE_INFINITY
         : 0
-      this.updateAutoRotation(performance.now())
+      this.updateAutoRotation(this.pageLifecycle.now())
       this.renderer.domElement.dataset.animationPaused = 'false'
       return true
     }
@@ -907,7 +917,7 @@ export class ViewerController {
       return null
     }
     current.modelRoot.updateMatrixWorld(true)
-    this.renderer.render(this.scene, this.camera)
+    this.renderMainScene()
     return this.renderer.domElement.toDataURL('image/png')
   }
 
@@ -944,6 +954,7 @@ export class ViewerController {
       return
     }
     this.destroyed = true
+    this.pageLifecycle.dispose()
     this.stopLoop()
     if (this.compositionFitFrame !== null) {
       window.cancelAnimationFrame(this.compositionFitFrame)
@@ -1241,7 +1252,18 @@ export class ViewerController {
   }
 
   private startLoop(): void {
-    this.renderer.setAnimationLoop((time) => {
+    if (this.loopRunning || this.destroyed || !this.contextAvailable || this.pageLifecycle.paused) return
+    this.lastFrameTime = this.pageLifecycle.now()
+    this.loopRunning = true
+    this.renderer.setAnimationLoop((frameTime) => {
+      if (this.destroyed || !this.contextAvailable || this.pageLifecycle.paused) {
+        stopAfterAnimationFrame(
+          () => this.destroyed || !this.contextAvailable || this.pageLifecycle.paused,
+          () => this.stopLoop(),
+        )
+        return
+      }
+      const time = this.pageLifecycle.now(frameTime)
       const deltaSeconds = Math.min(Math.max((time - this.lastFrameTime) / 1_000, 0), 0.1)
       this.lastFrameTime = time
       if (import.meta.env.MODE === 'review') {
@@ -1315,11 +1337,17 @@ export class ViewerController {
       this.updateTransition(time)
       this.controls.update()
       this.updateCameraLighting()
-      this.renderer.render(this.scene, this.camera)
+      this.renderMainScene()
     })
   }
 
+  private renderMainScene(): void {
+    if (this.destroyed || !this.contextAvailable || this.pageLifecycle.paused) return
+    this.renderer.render(this.scene, this.camera)
+  }
+
   private stopLoop(): void {
+    this.loopRunning = false
     this.renderer.setAnimationLoop(null)
   }
 }
