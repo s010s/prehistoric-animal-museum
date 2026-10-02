@@ -8,8 +8,9 @@ export function surfaceSample(x,z){
  const tributary=(1-smooth(55,150,tb))*smooth(100,500,z)*(1-smooth(4100,4800,z))
  const sedimentHeight=1.3+2.1*noise(x/150,z/185),shore=(1-smooth(r+.15,r+sedimentHeight,h))*main,ts=(1-smooth(tributaryLevel(z)+.1,tributaryLevel(z)+sedimentHeight,h))*tributary
  const spring=springAt(x,z);
- const springSediment=spring?(1-smooth(.5,4.8,spring.edge))*.94:0;
+ const springSediment=spring?(spring.forest?(1-smooth(.15,1.65,spring.edge+(noise(x/1.7,z/2.3)-.5)*.3))*(.65+.2*noise(x/3,z/4)):(1-smooth(.5,4.8,spring.edge))*.94):0;
+ const seepWet=spring?.forest?(1-smooth(0,1.75,spring.edge))*(1-smooth(spring.level+.08,spring.level+1.25,h)):0;
  const sand=(1-rock)*Math.max(springSediment,1-smooth(2,13,h),shore,ts)
  const shade=.96+.04*noise(x/70,z/70)
- return [h,dx/len,4/len,dz/len,rock,sand,1-rock-sand,shade,bankWaterLevelAt(x,z),coastalInfluenceAt(x,z)].map(Math.fround)
+ return [h,dx/len,4/len,dz/len,rock,sand,1-rock-sand,shade,bankWaterLevelAt(x,z),coastalInfluenceAt(x,z),seepWet].map(Math.fround)
 }

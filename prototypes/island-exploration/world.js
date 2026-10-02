@@ -19,13 +19,13 @@ export async function groundMaterial(){
  const m=new T.MeshStandardMaterial({roughness:1});m.onBeforeCompile=s=>{
  Object.assign(s.uniforms,shore,{canopyLighting,habitatCover:{value:cover},groundGrassRange:grassRange});
  s.uniforms.groundAlbedo={value:albedo};s.uniforms.groundLinear={value:linear};s.uniforms.groundDebug={value:debugGround?1:0}
- s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float landShade;attribute float coastalInfluence;varying float localCoast;attribute float waterHeight;varying float localWater;varying float bakedShade;attribute vec3 surfaceBlend;varying vec3 landP,landN,landW;').replace('#include <begin_vertex>','#include <begin_vertex>\nlocalWater=waterHeight;localCoast=coastalInfluence;landP=(modelMatrix*vec4(position,1.)).xyz;landN=normalize(transpose(mat3(viewMatrix))*normalMatrix*normal);landW=surfaceBlend;bakedShade=landShade;')
+ s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float landShade;attribute float coastalInfluence;varying float localCoast;attribute float waterHeight;varying float localWater;attribute float seepWet;varying float localSeep;varying float bakedShade;attribute vec3 surfaceBlend;varying vec3 landP,landN,landW;').replace('#include <begin_vertex>','#include <begin_vertex>\nlocalSeep=seepWet;localWater=waterHeight;localCoast=coastalInfluence;landP=(modelMatrix*vec4(position,1.)).xyz;landN=normalize(transpose(mat3(viewMatrix))*normalMatrix*normal);landW=surfaceBlend;bakedShade=landShade;')
  s.fragmentShader=s.fragmentShader.replace('#include <common>',`#include <common>
  ${surfaceToneGLSL}
  ${habitatGLSL}
  uniform sampler2D habitatCover,canopyLighting;uniform vec2 groundGrassRange;
  ${shoreGLSL}
- uniform float groundDebug;varying float localCoast,localWater;varying float bakedShade;varying vec3 landP,landN,landW;precision highp sampler2DArray;uniform sampler2DArray groundAlbedo,groundLinear;
+ uniform float groundDebug;varying float localCoast,localWater,localSeep;varying float bakedShade;varying vec3 landP,landN,landW;precision highp sampler2DArray;uniform sampler2DArray groundAlbedo,groundLinear;
  float hn(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
  float nn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hn(i),hn(i+vec2(1,0)),f.x),mix(hn(i+vec2(0,1)),hn(i+1.),f.x),f.y);}
  // Triangular stochastic sampling: stable offsets AND rotations, shared weights.
@@ -98,6 +98,8 @@ export async function groundMaterial(){
  ground=mix(ground,ground*vec3(.38,.49,.35),springZone*(.40+.35*seepVein));
  ground=mix(ground,sand*macro,coastCover);
  ground=mix(ground,mix(grass*mix(vec3(.71,.77,.52),vec3(.92,.87,.63),nn(p/23.)),mud,wet)*macro,marsh*(1.-w.x));
+ float dampSeep=clamp(localSeep,0.,1.)*(.82+.18*nn(p/1.8));
+ ground*=mix(vec3(1.),vec3(.71,.78,.73),dampSeep);
  float recentWater=shoreWet(p);ground*=mix(1.,.55,recentWater);
  ground*=mix(.63,1.,smoothstep(localWater+.05,localWater+1.5,landP.y));diffuseColor.rgb*=ground*bakedShade;`)
  s.fragmentShader=s.fragmentShader.replace('#include <lights_fragment_end>','#include <lights_fragment_end>\nreflectedLight.directSpecular*=mix(1.,.025,w.z*(1.-wet));reflectedLight.indirectSpecular*=mix(1.,.025,w.z*(1.-wet));reflectedLight.indirectDiffuse*=mix(1.,.69,canopy.g);reflectedLight.directDiffuse*=mix(1.,mix(.28,1.,canopy.r),smoothstep(65.,100.,viewDistance));');
@@ -105,7 +107,7 @@ export async function groundMaterial(){
  if(w.y>.01)arm=mix(arm,tile(groundLinear,3.,p/2.8),w.y);
  if(w.z>.01)arm=mix(arm,mix(tile(groundLinear,7.,p/2.6),tile(groundLinear,5.,p/2.3),litter),w.z);
  if(coastCover>.01||path>.01)arm=mix(arm,tile(groundLinear,9.,p/3.2),max(coastCover,path));
- float roughnessFactor=mix(mix(clamp(arm.g,.66,.98),.62,wet),.27,recentWater);diffuseColor.rgb*=mix(.78,1.,arm.r);`);
+ float roughnessFactor=mix(mix(clamp(arm.g,.66,.98),.62,wet),.27,recentWater);roughnessFactor=mix(roughnessFactor,.32,dampSeep);diffuseColor.rgb*=mix(.78,1.,arm.r);`);
  s.fragmentShader=s.fragmentShader.replace('#include <normal_fragment_maps>',`float detailWeight=1.-smoothstep(100.,520.,length(vViewPosition));
  float swardWeight=grassHabitat*(1.-forestFloor)*(1.-path)*w.z*clumpResolved;
  float swardHeight=(tussock-.5)*.38*swardWeight;
@@ -125,7 +127,7 @@ export async function groundMaterial(){
  };return m
 }
 
-function geometry(r){const g=new T.BufferGeometry();g.setIndex(new T.BufferAttribute(r.indices,1));g.setAttribute('position',new T.BufferAttribute(r.p,3));g.setAttribute('normal',new T.BufferAttribute(r.n,3));g.setAttribute('surfaceBlend',new T.BufferAttribute(r.w,3));g.setAttribute('landShade',new T.BufferAttribute(r.shade,1));g.setAttribute('waterHeight',new T.BufferAttribute(r.water,1));g.setAttribute('coastalInfluence',new T.BufferAttribute(r.coast,1));g.computeBoundingSphere();return g}
+function geometry(r){const g=new T.BufferGeometry();g.setIndex(new T.BufferAttribute(r.indices,1));g.setAttribute('position',new T.BufferAttribute(r.p,3));g.setAttribute('normal',new T.BufferAttribute(r.n,3));g.setAttribute('surfaceBlend',new T.BufferAttribute(r.w,3));g.setAttribute('landShade',new T.BufferAttribute(r.shade,1));g.setAttribute('waterHeight',new T.BufferAttribute(r.water,1));g.setAttribute('coastalInfluence',new T.BufferAttribute(r.coast,1));g.setAttribute('seepWet',new T.BufferAttribute(r.seepWet??new Float32Array(r.p.length/3),1));g.computeBoundingSphere();return g}
 export function makeLandscape(material,apply,getFine=()=>false,diagnostics){
  const group=new T.Group(),collision=new Map();let readyResolve,pending=true,triangles=0,vertices=0
  diagnostics?.labelGroup(group,'terrain');

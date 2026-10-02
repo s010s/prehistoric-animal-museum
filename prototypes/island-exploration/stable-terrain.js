@@ -21,8 +21,8 @@ export function buildStableTerrain(){
  }
  const at=(i,j)=>i<0||j<0||i>=N||j>=N?64:steps[j*N+i],chunks=[]
  for(let cz=-H;cz<H;cz+=CHUNK)for(let cx=-H;cx<H;cx+=CHUNK){
-  const p=[],n=[],w=[],shade=[],water=[],coast=[],indices=[],ids=new Map()
-  function vertex(x,z){const key=`${x},${z}`;if(ids.has(key))return ids.get(key);const id=p.length/3,s=surfaceSample(x,z);ids.set(key,id);p.push(x,s[0],z);n.push(...s.slice(1,4));w.push(...s.slice(4,7));shade.push(s[7]);water.push(s[8]);coast.push(s[9]);return id}
+  const p=[],n=[],w=[],shade=[],water=[],coast=[],seepWet=[],indices=[],ids=new Map()
+  function vertex(x,z){const key=`${x},${z}`;if(ids.has(key))return ids.get(key);const id=p.length/3,s=surfaceSample(x,z);ids.set(key,id);p.push(x,s[0],z);n.push(...s.slice(1,4));w.push(...s.slice(4,7));shade.push(s[7]);water.push(s[8]);coast.push(s[9]);seepWet.push(s[10]);return id}
   for(let z=cz;z<cz+CHUNK;z+=ROOT)for(let x=cx;x<cx+CHUNK;x+=ROOT){const i=(x+H)/ROOT,j=(z+H)/ROOT,s=at(i,j)
    for(let dz=0;dz<ROOT;dz+=s)for(let dx=0;dx<ROOT;dx+=s){
     const ax=x+dx,az=z+dz,edges=[[ax,az,0,s,dx===0?Math.min(s,at(i-1,j)):s],[ax,az+s,s,0,dz+s===ROOT?Math.min(s,at(i,j+1)):s],[ax+s,az+s,0,-s,dx+s===ROOT?Math.min(s,at(i+1,j)):s],[ax+s,az,-s,0,dz===0?Math.min(s,at(i,j-1)):s]],ring=[]
@@ -30,8 +30,8 @@ export function buildStableTerrain(){
     if(ring.length===4)indices.push(ring[0],ring[1],ring[3],ring[1],ring[2],ring[3]);else{const mid=vertex(ax+s/2,az+s/2);for(let k=0;k<ring.length;k++)indices.push(mid,ring[k],ring[(k+1)%ring.length])}
    }
   }
-  chunks.push({cx,cz,p:new Float32Array(p),n:new Float32Array(n),w:new Float32Array(w),shade:new Float32Array(shade),water:new Float32Array(water),coast:new Float32Array(coast),indices:new Uint32Array(indices)})
+  chunks.push({cx,cz,p:new Float32Array(p),n:new Float32Array(n),w:new Float32Array(w),shade:new Float32Array(shade),water:new Float32Array(water),coast:new Float32Array(coast),seepWet:new Float32Array(seepWet),indices:new Uint32Array(indices)})
  }
  return chunks
 }
-if(typeof self!=='undefined'&&typeof document==='undefined'){self.onmessage=()=>{const chunks=buildStableTerrain();self.postMessage({chunks},chunks.flatMap(r=>[r.p.buffer,r.n.buffer,r.w.buffer,r.shade.buffer,r.water.buffer,r.coast.buffer,r.indices.buffer]))};self.postMessage({ready:true})}
+if(typeof self!=='undefined'&&typeof document==='undefined'){self.onmessage=()=>{const chunks=buildStableTerrain();self.postMessage({chunks},chunks.flatMap(r=>[r.p.buffer,r.n.buffer,r.w.buffer,r.shade.buffer,r.water.buffer,r.coast.buffer,r.seepWet.buffer,r.indices.buffer]))};self.postMessage({ready:true})}
