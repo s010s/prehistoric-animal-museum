@@ -130,13 +130,15 @@ export function createPhysicalWaterSurface(field, radianceTexture) {
     for (const [u, k] of [['uSkyHorizon', 'horizon'], ['uSkyLow', 'skyLow'], ['uSkyMid', 'skyMid'], ['uSkyUpper', 'skyUpper'], ['uSkyZenith', 'skyZenith']])
         uniforms[u] = { value: new THREE.Vector3(...day[k]) };
     if (import.meta.env.MODE === 'review') uniforms.uReviewSurfaceDebug = { value: 0 };
+    uniforms.uSurfaceFadeNear = { value: 35 };
+    uniforms.uSurfaceFadeFar = { value: 160 };
     const material = new THREE.ShaderMaterial({ uniforms, side: THREE.DoubleSide, depthWrite: true, depthTest: true, toneMapped: false, vertexShader: `varying vec2 vScreenUv;
  void main(){vScreenUv=position.xy*.5+.5;gl_Position=vec4(position.xy,0.,1.);}`, fragmentShader: `precision highp float;
  varying vec2 vScreenUv;uniform mat4 uInverseProjection,uCameraWorld,projectionMatrix;uniform sampler2D uWaterLut;
  uniform vec3 uAirSunDirection,uAirSunColor,uSkyHorizon,uSkyLow,uSkyMid,uSkyUpper,uSkyZenith,uSlopeCovariance;
  ${CLOUD_BANK_GLSL}
  ${import.meta.env.MODE === 'review' ? 'uniform int uReviewSurfaceDebug;' : ''}
- uniform mat2 uSlopeBasis;uniform vec2 uSlopeSamples[16];uniform float uAirSunRadius,uSunDiscGain;
+ uniform mat2 uSlopeBasis;uniform vec2 uSlopeSamples[16];uniform float uAirSunRadius,uSunDiscGain,uSurfaceFadeNear,uSurfaceFadeFar;
  uniform vec3 uSolarDirections[${solarSamples.length}];uniform float uSolarSolidAngles[${solarSamples.length}];
  ${WAVE_GLSL}
  vec2 envUv(vec3 d){return vec2(atan(d.z,d.x)*.15915494309189535+.5,asin(clamp(d.y,-1.,1.))*.3183098861837907+.5);}
@@ -191,7 +193,7 @@ export function createPhysicalWaterSurface(field, radianceTexture) {
  void main(){
  vec3 rd=rayDirection();if(abs(rd.y)<1.e-6)discard;
  float t=(uSeaLevel-cameraPosition.y)/rd.y;if(t<=0.)discard;
- if(t>=160.){gl_FragDepth=.999998;gl_FragColor=vec4(texture2D(uWaterLut,envUv(rd)).rgb,1.);return;}
+ if(t>=uSurfaceFadeFar){gl_FragDepth=.999998;gl_FragColor=vec4(texture2D(uWaterLut,envUv(rd)).rgb,1.);return;}
  float delta=${WAVE_MAX_AMPLITUDE.toFixed(8)}*abs(uWaveScale/rd.y);
  float low=max(.001,t-delta),high=t+delta;
  // Infinite shared wave surface, solved in world coordinates. It writes real
@@ -208,7 +210,7 @@ export function createPhysicalWaterSurface(field, radianceTexture) {
  float a=sqrt(max(covariance.x,1.e-14)),b=covariance.y/a,c=sqrt(max(covariance.z-b*b,1.e-14));
  mat2 slopeBasis=mat2(a,b,0.,c);
  vec4 clip=projectionMatrix*viewMatrix*vec4(vWaterWorld,1.);gl_FragDepth=min(.999998,clip.z/clip.w*.5+.5);
- float nearSurface=1.-smoothstep(35.,160.,t);if(nearSurface==0.){gl_FragColor=vec4(texture2D(uWaterLut,envUv(rd)).rgb,1.);return;}
+ float nearSurface=1.-smoothstep(uSurfaceFadeNear,uSurfaceFadeFar,t);if(nearSurface==0.){gl_FragColor=vec4(texture2D(uWaterLut,envUv(rd)).rgb,1.);return;}
  vec3 radiance=vec3(0.);
  for(int i=0;i<16;i++){radiance+=surfaceRadiance(rd,slope+slopeBasis*uSlopeSamples[i],vWaterWorld.xz)*(1./16.);}
  ${import.meta.env.MODE === 'review' ? 'if(uReviewSurfaceDebug==0)' : ''}

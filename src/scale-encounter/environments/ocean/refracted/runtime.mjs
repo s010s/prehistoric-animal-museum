@@ -45,11 +45,11 @@ export function createOceanRefractedRuntime(renderer, candidate, origin = new TH
     composite.texture.colorSpace = THREE.LinearSRGBColorSpace;
     const maxMediumPixels = 2_000_000;
     let qualityScale = 1;
-    const volumeUniforms = { ...field.uniforms, uSceneColor: { value: target.texture }, uSceneDepth: { value: target.depthTexture }, uInverseProjection: { value: new THREE.Matrix4() }, uCameraWorld: { value: new THREE.Matrix4() }, uEye: { value: new THREE.Vector3() }, uSteps: { value: 96 }, uDebug: { value: 0 }, uReviewAtlas: { value: field.texture ?? candidate.radianceTexture } };
+    const volumeUniforms = { ...field.uniforms, uSceneColor: { value: target.texture }, uSceneDepth: { value: target.depthTexture }, uInverseProjection: { value: new THREE.Matrix4() }, uCameraWorld: { value: new THREE.Matrix4() }, uEye: { value: new THREE.Vector3() }, uSteps: { value: 96 }, uMaxPathMetres: { value: 72 }, uDebug: { value: 0 }, uReviewAtlas: { value: field.texture ?? candidate.radianceTexture } };
     function volumeMaterial() {
-        return new THREE.ShaderMaterial({ uniforms: volumeUniforms, toneMapped: false, depthTest: false, depthWrite: false, vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}', fragmentShader: `precision highp float;varying vec2 vUv;uniform sampler2D uSceneColor,uSceneDepth,uReviewAtlas;uniform mat4 uInverseProjection,uCameraWorld;uniform vec3 uEye;uniform float uSteps;uniform int uDebug;${field.samplerGLSL}
+        return new THREE.ShaderMaterial({ uniforms: volumeUniforms, toneMapped: false, depthTest: false, depthWrite: false, vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}', fragmentShader: `precision highp float;varying vec2 vUv;uniform sampler2D uSceneColor,uSceneDepth,uReviewAtlas;uniform mat4 uInverseProjection,uCameraWorld;uniform vec3 uEye;uniform float uSteps,uMaxPathMetres;uniform int uDebug;${field.samplerGLSL}
  vec3 unproject(float depth){vec4 p=uInverseProjection*vec4(vUv*2.-1.,depth*2.-1.,1.);return (uCameraWorld*vec4(p.xyz/p.w,1.)).xyz;}
- void main(){float depth=texture2D(uSceneDepth,vUv).x;vec3 ray=normalize(unproject(.9999)-uEye);float path=min(depth<.999999?length(unproject(depth)-uEye):72.,72.);
+ void main(){float depth=texture2D(uSceneDepth,vUv).x;vec3 ray=normalize(unproject(.9999)-uEye);float path=min(depth<.999999?length(unproject(depth)-uEye):uMaxPathMetres,uMaxPathMetres);
  // Clip the path to water, including views above the wave surface. Scene depth
  // stops scattering at subjects; an opaque animal never receives light behind it.
  float start=0.;if(uEye.y>uCausticSeaLevel){if(ray.y>=0.)path=0.;else start=min(path,(uCausticSeaLevel-uEye.y)/ray.y);}else if(ray.y>0.)path=min(path,max(0.,(uCausticSeaLevel-uEye.y)/ray.y));
@@ -152,6 +152,14 @@ export function createOceanRefractedRuntime(renderer, candidate, origin = new TH
             const requestedWave = import.meta.env.MODE === 'review' || import.meta.env.MODE === 'e2e' ? Number(renderer.domElement.dataset.oceanReviewWaveTime) : NaN;
             if (import.meta.env.MODE === 'review') {
                 const flags = renderer.domElement.dataset;
+                // Paired remote-opening studies: no density, lighting or camera
+                // change. Production and the unflagged review retain72 metres.
+                const requestedPath = Number(flags.oceanReviewMaxPathMetres);
+                volumeUniforms.uMaxPathMetres.value = [72, 96, 120].includes(requestedPath) ? requestedPath : 72;
+                const surfaceNear = Number(flags.oceanReviewSurfaceNearMetres), surfaceFar = Number(flags.oceanReviewSurfaceFarMetres);
+                const validSurface = [[35, 160], [80, 240]].some(([near, far]) => near === surfaceNear && far === surfaceFar);
+                water.uniforms.uSurfaceFadeNear.value = validSurface ? surfaceNear : 35;
+                water.uniforms.uSurfaceFadeFar.value = validSurface ? surfaceFar : 160;
                 for (const [key, attribute, fallback] of [['uCloudBankEnabled', 'oceanReviewCloudEnabled', 1], ['uWaveScale', 'oceanReviewWaveScale', 1], ['uWaveFootprint', 'oceanReviewWaveFootprint', WAVE_FOOTPRINT]]) {
                     const requested = Number(flags[attribute]);
                     const value = Number.isFinite(requested) ? requested : fallback;
@@ -211,6 +219,7 @@ export function createOceanRefractedRuntime(renderer, candidate, origin = new TH
                     diagnostics.sceneRenderState = { viewport: Array.from(gl.getParameter(gl.VIEWPORT)), scissor: Array.from(gl.getParameter(gl.SCISSOR_BOX)), scissorTest: gl.isEnabled(gl.SCISSOR_TEST), targetSize: [target.width, target.height], dpr: renderer.getPixelRatio(), cameraPosition: camera.position.toArray(), cameraQuaternion: camera.quaternion.toArray(), cloudOrigin: origin.toArray(), fov: camera.fov, near: camera.near, far: camera.far };
                     diagnostics.atlasRenderStates = field.diagnostics.tileRenderStates;
                     diagnostics.reviewField = { lightBounds: field.diagnostics.lightBounds, photonDomain: field.diagnostics.fixedSourceDomain, photonSpacingMetres: field.diagnostics.photonSpacingMetres, receiverTexelMetres: field.diagnostics.receiverTexelMetres, slopes: field.diagnostics.filteredSlopeBound, sliceDepths: field.diagnostics.sliceDepths, seaLevel: field.uniforms.uCausticSeaLevel.value, sunDirection: MEDIUM.sunDirection, refractedDirection: field.meanRefractedDirection.toArray(), fog: scene.fog?.type ?? null, exposure: renderer.toneMappingExposure, cloudBank: water.diagnostics.cloudBank, medium: MEDIUM, actorLighting: ACTOR_LIGHTING, waveComponents: WAVE_COMPONENTS };
+                    diagnostics.reviewOptics = { maxPathMetres: volumeUniforms.uMaxPathMetres.value, surfaceFadeMetres: [water.uniforms.uSurfaceFadeNear.value, water.uniforms.uSurfaceFadeFar.value] };
                 }
                 renderer.setRenderTarget(composite);
                 renderer.render(screen, screenCamera);

@@ -15,9 +15,12 @@ a finite square mesh. Grazing rays continue into a smooth mean water surface.
 The medium uses actual scene depth, Beer attenuation and bounded midpoint
 quadrature; it cannot add sunlight behind an opaque visible animal.
 
-Real-time budgets differ from the offline film: 96 photon grid, 128 tiles,
-20 depth layers, four solar samples, 0.135 m shared base wave footprint, 16 broad sky
-slope samples, 96 medium steps. The RGBA32F atlas occupies 5,408,000 bytes.
+Real-time budgets differ from the offline film: a 128 photon grid, 160 pixels per
+depth tile, 20 depth layers, four solar samples, a 0.25 m shared wave footprint,
+16 broad sky slope samples and 96 medium steps. The RGBA32F atlas occupies
+8,398,080 bytes. Scene color/depth and the linear medium composite share a
+resolution capped at 2,000,000 pixels; a final native-resolution pass applies
+tone mapping and the output color transform once.
 Interface normals additionally filter the same spectrum to each screen pixel;
 unresolved slope variance is integrated into the sky and solar samples.
 The field and surface share the same quantized 12 Hz wave time. Reduced motion
@@ -28,9 +31,12 @@ bitwise reproducibility claim.
 Missing float rendering, blending or filtering selects analytic mean underwater
 illumination, retaining the distant opening and diffuse subject readability.
 Sustained slow frame intervals first select the economy tier (64 medium steps
-and a 0.75 render scale), then analytic illumination with 48 medium steps if
-intervals remain slow. No full-screen blur or temporal shutter accumulation is
-used. The capability tier and optional nonblocking GPU timings are visible in
+and a 0.75 quality scale), then a lower refracted tier (48 steps and a 0.5 quality
+scale). Both keep the shared photon field. Further sustained slow intervals
+select analytic illumination. Quality scale multiplies the pixel-cap scale
+for both the scene and medium, including Retina displays. No full-screen blur
+or temporal shutter accumulation is used. The capability tier and optional
+nonblocking GPU timings are visible in
 `canvas.dataset.oceanRefracted`. These are diagnostics, not analytics.
 
 Approximations: single scattering; scalar irradiance and mean direction for
@@ -43,8 +49,12 @@ The free comparison camera travels farther and looks more steeply upward than
 fixed film shots. Clear-water coefficients are sigmaT=[.009,.0036,.0024] and
 sigmaS=[.0008,.0011,.0014] per metre, shared by light and medium. Cloud solar
 transmission remains .10 under the near bank while broad sky transmission is
-.60, keeping the upward hemisphere readable. These are art-directed runtime
-adaptations, not a claim of full physical cloud transport.
+.45. Local reflected-water radiance scales from 1.30 under the bank to 1.83
+at the opening. The actor's broad diffuse calibration has gain 1.45 and a .65
+side/lower fraction. Each directional light retains its original color and
+intensity before multiplication by the shared irradiance, so disabled exhibit
+and camera lights remain zero. These are art-directed runtime adaptations,
+not a claim of full physical cloud transport or final visual acceptance.
 
 The transmitted daytime sky uses a bright cyan upper hemisphere. A legacy
 dark zenith palette produced the user-identified gray patch at the upper-right
@@ -52,8 +62,12 @@ of upward Retina views; this is distinct from the atlas DPR defect. Sky fill
 changes the broad air radiance while preserving the solar/cloud boundary and
 the Fresnel mixture. Review-only surface modes isolate air, reflected water,
 Fresnel weight, cloud sky scale and unshadowed sky for matching-camera checks.
-These modes are absent from the production water shader. Human acceptance of
-the corrected appearance remains pending.
+These modes are absent from the production water shader. Review-only paired
+studies can choose a 72/96/120 m medium path cap and surface-fade ranges of
+35–160 or 80–240 m. Unflagged and production values remain 72 m and 35–160 m.
+The distant-opening path hypothesis has mathematical support but still needs
+pixel evidence with actual opaque depth and natural camera changes. Human
+acceptance of the corrected appearance remains pending.
 
 Software follows the project AGPL-3.0-only license. The ray-bundle area Jacobian
 and depth-slice lookup reference ScottieFox/caustic-volume at commit

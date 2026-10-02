@@ -3,9 +3,18 @@ import { expect, test, type Page } from '@playwright/test'
 import { requireHardwareWebGl } from './support/webgl-hardware'
 
 const output = '.handoff/ocean-v12'
-async function openOcean(page: Page, id = 'mosasaurus') {
+async function openOcean(page: Page, id = 'mosasaurus', freezePoseForAtlas = false) {
   await page.goto(`/zh-CN/?animal=${id}`)
   await expect(page.locator('#museum-experience')).toHaveAttribute('data-ready-animal-id', id, { timeout: 60_000 })
+  if (freezePoseForAtlas) {
+    // Freeze before environment construction: animated model bounds determine
+    // its origin. Comparing DPR while those bounds differ is not the same field.
+    const frozen = await page.locator('.viewer-canvas').evaluate(c => {
+      c.dataset.reviewAnimationTime = '3'
+      return (c as HTMLCanvasElement & { __museumReviewSetAnimationTime?: (time: number) => boolean }).__museumReviewSetAnimationTime?.(3)
+    })
+    expect(frozen).toBe(true)
+  }
   await page.getByRole('button', { name: /^打开和.+比一比/ }).click()
   const boy = page.getByRole('radio', { name: /男孩/ })
   await Promise.any([boy.waitFor({ state: 'visible', timeout: 15_000 }),
@@ -226,11 +235,12 @@ test('sustained main-thread load triggers a visible, usable economy then analyti
 
 test('Retina atlas uses texture pixels and preserves each depth layer across DPR1/2', async ({ browser }) => {
   const means: number[][][] = []
+  const origins: number[][] = []
   for (const dpr of [1, 2]) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: dpr, locale: 'zh-CN' })
     const page = await context.newPage()
     const errors = watchErrors(page)
-    await openOcean(page, 'plesiosaurus')
+    await openOcean(page, 'plesiosaurus', true)
     const canvas = page.locator('.viewer-canvas')
     await canvas.evaluate(c => {
       c.dataset.oceanReviewHoldQuality = 'true'
@@ -242,6 +252,7 @@ test('Retina atlas uses texture pixels and preserves each depth layer across DPR
     const d = JSON.parse((await canvas.getAttribute('data-ocean-refracted'))!) as {
       atlasRenderStates: { expected: number[]; viewport: number[]; scissor: number[] }[]
       atlasTiles: { layer: number; mean: number[]; nonzeroFraction: number; nonfinite: number }[]
+      sceneRenderState: { cloudOrigin: number[] }
     }
     for (const state of d.atlasRenderStates) {
       expect(state.viewport).toEqual(state.expected)
@@ -252,12 +263,14 @@ test('Retina atlas uses texture pixels and preserves each depth layer across DPR
       expect(tile.nonfinite).toBe(0)
     }
     means.push(d.atlasTiles.map(t => t.mean))
+    origins.push(d.sceneRenderState.cloudOrigin)
     await writeFile(`${output}/retina-dpr-${dpr}.json`, JSON.stringify(d, null, 2))
     expect(errors).toEqual([])
     await context.close()
   }
   // GPU floating-point rasterization is not bitwise deterministic. A 1% mean
   // tolerance still decisively rejects missing/misplaced Retina depth layers.
+  expect(origins[1]).toEqual(origins[0])
   means[0].forEach((rgb, layer) => rgb.forEach((v, channel) => {
     expect(Math.abs(means[1][layer][channel] - v)).toBeLessThan(.01 * Math.max(1, v))
   }))
