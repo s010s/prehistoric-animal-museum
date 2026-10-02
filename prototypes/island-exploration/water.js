@@ -1,4 +1,4 @@
-import {springRuns,springAt} from './spring.js'
+import {springRuns,springAt,forestSpringRun} from './spring.js'
 import {makeOceanSpectrum,oceanSpectrumGLSL} from './ocean-spectrum.js';
 import {SUN_DIRECTION} from './lighting-config.js';
 import {makeExposureMeter} from './exposure-meter.js'
@@ -78,7 +78,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  if((kind<.5||kind>2.5&&wp.z>0.)&&wp.x>945.&&wp.x<6255.&&wp.z>3630.&&wp.z<7170.)discard;
 
  vec2 screen=gl_FragCoord.xy/resolution;float thick=sceneZ(screen)-vd;if(thick<=.015)discard;
- vec3 eye=normalize(cameraPosition-wp);float speed=length(flow);float tidal=kind<1.5?1.-riverInfluence(wp.xz):0.;float backwater=kind>2.5&&wp.z>0.?1.-smoothstep(4100.,4800.,wp.z):1.;float springReach=step(2.5,kind)*(1.-step(-3890.,wp.z));float river=max(step(.3,speed)*(1.-tidal)*backwater,springReach);
+ vec3 eye=normalize(cameraPosition-wp);float speed=length(flow);float tidal=kind<1.5?1.-riverInfluence(wp.xz):0.;float backwater=kind>2.5&&wp.z>0.?1.-smoothstep(4100.,4800.,wp.z):1.;float springReach=max(step(2.5,kind)*(1.-step(-3890.,wp.z)),step(3.1,kind));float river=max(step(.3,speed)*(1.-tidal)*backwater,springReach);
  float depth=max(0.,wp.y-(viewToWorld*vec4(viewPoint(screen),1.)).y);
  float shoreWeight=kind<.5?shoreMask(wp.xz):0.;float shoreBed=shoreGround(wp.xz),shoreDepth=-.7-shoreBed,front=runupAt(wp.xz,time)-(shoreBed+.7);vec3 swash=vec3(1000.,1.,0.);if(shoreWeight>.001&&shoreDepth<.65)swash=shoreSwash(wp.xz,shoreBed,shoreGradient(wp.xz),time);float filmWeight=shoreWeight*(1.-smoothstep(.10,.65,shoreDepth));
  if(shoreWeight>.99&&shoreDepth<.10&&swash.y<=0.)discard;
@@ -105,7 +105,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  float pulse=smoothstep(.38,.64,coastCrest)*smoothstep(.36,.68,noise(wp.xz*.27-vec2(.2,.1)*time));
  wind+=vec2(sin(dot(wp.xz,vec2(2.3,.8))-time*4.8),cos(dot(wp.xz,vec2(-1.1,3.2))-time*5.7))*.055*(1.-smoothstep(.25,1.2,max(length(dFdx(wp.xz)),length(dFdy(wp.xz)))));
  wind+=filteredGradient(wp.xz*.8-vec2(.9,.28)*time)*shoal*pulse*.045;
- float footprint=max(length(dFdx(wp.xz)),length(dFdy(wp.xz)));vec2 seaSlope=vec2(0.);if(exposedSea>.001)seaSlope=spectrumSlope(wp.xz,footprint)*exposedSea*coastAttenuation(wp.xz);vec2 slope=mix(wind*(1.-tidal*.85)-seaSlope,moving,river);if(kind>2.5&&wp.z< -3890.)slope*=mix(.075,.55,smoothstep(.12,.9,speed));vec3 surfaceNormal=normalize(cross(dFdx(wp),dFdy(wp)));surfaceNormal*=surfaceNormal.y<0.?-1.:1.;vec3 normal=normalize(mix(vec3(0.,1.,0.),surfaceNormal,river)+vec3(slope.x,0.,slope.y));
+ float footprint=max(length(dFdx(wp.xz)),length(dFdy(wp.xz)));vec2 seaSlope=vec2(0.);if(exposedSea>.001)seaSlope=spectrumSlope(wp.xz,footprint)*exposedSea*coastAttenuation(wp.xz);vec2 slope=mix(wind*(1.-tidal*.85)-seaSlope,moving,river);if(springReach>.5)slope*=mix(.075,.55,smoothstep(.12,.9,speed));vec3 surfaceNormal=normalize(cross(dFdx(wp),dFdy(wp)));surfaceNormal*=surfaceNormal.y<0.?-1.:1.;vec3 normal=normalize(mix(vec3(0.,1.,0.),surfaceNormal,river)+vec3(slope.x,0.,slope.y));
  if(shoreWeight>.001){vec2 bedSlope=shoreGradient(wp.xz);float phase=shorePhase(wp.xz,shoreDepth,time);
  float shoalK=(1.-smoothstep(2.5,7.,shoreDepth))*smoothstep(-.4,1.5,shoreDepth);
  float crestDerivative=.90*max(0.,sin(phase))*cos(phase)*shoalK;
@@ -205,7 +205,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  for(const run of springRuns){const sp=[],sv=[],sc=[],si=[];let travel=0;
  for(let i=0;i<run.length;i++){const p=run[i],a=run[Math.max(0,i-1)],b=run[Math.min(run.length-1,i+1)],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz)||1;travel+=Math.hypot(p.x-a.x,p.z-a.z)/Math.max(.1,p.speed);
  for(let k=0;k<=8;k++){const offset=(k/4-1)*(p.width+.65);sp.push(p.x+dz/len*offset,p.level,p.z-dx/len*offset);sv.push(dx/len*p.speed,dz/len*p.speed);sc.push(offset,travel);if(i<run.length-1&&k<8){const j=i*9+k;si.push(j,j+9,j+1,j+1,j+9,j+10)}}}
- const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(sp,3));g.setAttribute('velocity',new T.Float32BufferAttribute(sv,2));g.setAttribute('riverCoord',new T.Float32BufferAttribute(sc,2));g.setIndex(si);add(g,[0,.2],3);}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(sp,3));g.setAttribute('velocity',new T.Float32BufferAttribute(sv,2));g.setAttribute('riverCoord',new T.Float32BufferAttribute(sc,2));g.setIndex(si);add(g,[0,.2],run===forestSpringRun?3.25:3);}
  const pool=new T.PlaneGeometry(lake.rx*3.5,lake.rz*3.5);pool.rotateX(-Math.PI/2);pool.translate(lake.x,lake.level,lake.z);add(pool,[.1,.04])
  for(const body of [wetland,tarn]){const g=new T.PlaneGeometry(body.rx*(body===wetland?2.36:3.5),body.rz*(body===wetland?2.36:3.5),body===wetland?32:1,body===wetland?64:1);g.rotateX(-Math.PI/2);g.translate(body.x,body.level,body.z);if(body===wetland){const a=g.attributes.position;for(let i=0;i<a.count;i++)a.setY(i,wetlandLevel(a.getZ(i)))}add(g,[.04,.01])}
  const tp=[],tv=[],tc=[],ti=[];for(let i=0;i<=588;i++){const z=100+i*8,x=tributaryX(z),dx=(tributaryX(z+1)-tributaryX(z-1))/2;for(const side of [-1,1]){tc.push(side*50,z/.7);tp.push(x+side*50,tributaryLevel(z),z);tv.push(dx*.7,.7)}if(i<588){const j=i*2;ti.push(j,j+2,j+1,j+1,j+2,j+3)}}const tg=new T.BufferGeometry();tg.setAttribute('position',new T.Float32BufferAttribute(tp,3));tg.setAttribute('velocity',new T.Float32BufferAttribute(tv,2));tg.setAttribute('riverCoord',new T.Float32BufferAttribute(tc,2));tg.setIndex(ti);add(tg,[0,.7],3);

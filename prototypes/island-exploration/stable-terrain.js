@@ -1,11 +1,12 @@
 import {trailX} from './habitat.js'
+import {forestSpring} from './spring.js'
 import {SIZE,terrainHeight,riverX,halfWidth,tributaryX,waterLevelAt} from './field.js'
 import {surfaceSample} from './surface-sample.js'
 const ROOT=64,CHUNK=2048,N=SIZE/ROOT
 // The tessellation belongs to the island, never to a moving camera. Flat sea
 // retains a coarse grid; channels, shorelines and crags get fixed fine cells.
 export function buildStableTerrain(){
- const steps=new Uint8Array(N*N),H=SIZE/2
+ const steps=new Float32Array(N*N),H=SIZE/2
  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
   const x=i*ROOT-H,z=j*ROOT-H,cx=x+32,cz=z+32,h=terrainHeight(cx,cz),corners=[terrainHeight(x,z),terrainHeight(x+64,z),terrainHeight(x,z+64),terrainHeight(x+64,z+64)],lo=Math.min(h,...corners),hi=Math.max(h,...corners)
   const channel=(cz>-4096&&cz<4416&&Math.abs(cx-riverX(cz))<halfWidth(cz)+128)||(cz>0&&cz<5824&&Math.abs(cx-tributaryX(cz))<146)
@@ -14,8 +15,9 @@ export function buildStableTerrain(){
   const shore=waterLevelAt(cx,cz),inlandShore=shore>1&&lo<shore+2&&hi>shore-2;
   const walking=cz> -1664&&cz<384&&Math.abs(cx-trailX(cz))<48;
   const galleryRiver=cz> -1664&&cz<384&&Math.abs(cx-riverX(cz))<halfWidth(cz)+30;
-  const source=cz>-4096&&cz<-3904&&Math.abs(cx-riverX(cz))<96;
-  steps[j*N+i]=source?1:crag?4:walking?2:galleryRiver?4:inlandShore?4:(Math.abs(cx-9160)<420&&Math.abs(cz-2330)<420&&hi>-5&&lo<9)?2:(cz>-3200&&cz< -850&&cx> -2810&&cx< -2200)?4:channel||crag||(cz>-3200&&cz< -850&&cx> -2720&&cx< -2310)||(lo<5&&hi>-5)||hi>650?8:hi<-8?64:(hi-lo<10&&error<.5?32:16)
+  const forestSource=cz>-768&&cz<-640&&cx>forestSpring.x-32&&cx<forestSpring.x+64;
+  const source=(cz>-4096&&cz<-3904&&Math.abs(cx-riverX(cz))<96)||(cz>-768&&cz<-640&&cx>forestSpring.x-32&&cx<forestSpring.x+64);
+  steps[j*N+i]=forestSource?.5:source?1:crag?4:walking?2:galleryRiver?4:inlandShore?4:(Math.abs(cx-9160)<420&&Math.abs(cz-2330)<420&&hi>-5&&lo<9)?2:(cz>-3200&&cz< -850&&cx> -2810&&cx< -2200)?4:channel||crag||(cz>-3200&&cz< -850&&cx> -2720&&cx< -2310)||(lo<5&&hi>-5)||hi>650?8:hi<-8?64:(hi-lo<10&&error<.5?32:16)
  }
  const at=(i,j)=>i<0||j<0||i>=N||j>=N?64:steps[j*N+i],chunks=[]
  for(let cz=-H;cz<H;cz+=CHUNK)for(let cx=-H;cx<H;cx+=CHUNK){
