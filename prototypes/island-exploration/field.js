@@ -1,4 +1,4 @@
-import {springAt,springTerrain} from './spring.js'
+import {springAt,springTerrain,forestSpring} from './spring.js'
 // Original flight-world seed and coastal-valley primitives, composed into an authored island.
 import {createWorldSampler,WORLD} from '../../src/flight-experience/world.ts'
 import {riverReach} from './hydrology.js'
@@ -176,5 +176,6 @@ export const landmarks=[
  {id:'wetland',name:'沼泽水乡',note:'浅水支汊、芦苇泥洲与湿地草甸',p:[3345,7,5200],t:[3449,2.5,5320]},
  {id:'mudflat',name:'淤泥浅滩',note:'泥岸水洼与退向大海的低地',p:[2635,7,6200],t:[2680,2.1,6380]},
  {id:'heath',name:'北部高原',note:'山间草甸、岩脊和冰斗状小湖',p:[1900,565,-5500],t:[1600,456,-6200]},
- {id:'cliffs',name:'西岸岩岬',note:'原史前天地的岩岸地形',p:[-3100,140,-2100],t:[-2460,70,-2500]}
+ {id:'cliffs',name:'西岸岩岬',note:'原史前天地的岩岸地形',p:[-3100,140,-2100],t:[-2460,70,-2500]},
+ {id:'spring',name:'岩壁清泉',note:'沿浅池和跌水，走向溪畔的巨影',p:[forestSpring.x+18,24.8,forestSpring.z+17],t:[forestSpring.x+7,21.5,forestSpring.z+11]}
 ]
