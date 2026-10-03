@@ -15,12 +15,12 @@ import {SEA,riverX,halfWidth,riverLevel,lake,wetland,wetlandLevel,tarn,tributary
 export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>false,diagnostics,shadowReady=()=>true){
  const shore=await shoreResources(),exposureMeter=makeExposureMeter(),spectrum=makeOceanSpectrum();
  const wetMemory=new URLSearchParams(location.search).get('benchmark')==='1'&&new URLSearchParams(location.search).get('wetMemory')==='legacy'?null:makeShoreWetMemory(shore);
- const disposeWetOnExit=event=>{if(!event.persisted){wetMemory?.dispose();removeEventListener('pagehide',disposeWetOnExit)}};
- addEventListener('pagehide',disposeWetOnExit);
+ const disposeWetOnExit=event=>{if(!event.persisted){wetMemory?.dispose();disposeLinearComposite();output?.dispose();removeEventListener('pagehide',disposeWetOnExit)}};
  const laceData=new Uint8Array(await(await fetch('./assets/surf-lace.bin')).arrayBuffer());if(laceData.length!==512*512*4)throw Error('Invalid surf lace');
  const surfLace=new T.DataTexture(laceData,512,512,T.RGBAFormat);surfLace.wrapS=surfLace.wrapT=T.RepeatWrapping;surfLace.minFilter=T.LinearMipmapLinearFilter;surfLace.magFilter=T.LinearFilter;surfLace.generateMipmaps=true;surfLace.anisotropy=8;surfLace.needsUpdate=true;
  const habitat=new URLSearchParams(location.search).get('look')!=='baseline';
  const currentReflectionShadow=!(new URLSearchParams(location.search).get('benchmark')==='1'&&['reflectionShadow','shadowBootstrap'].some(key=>new URLSearchParams(location.search).get(key)==='legacy'));
+ const linearComposite=!(new URLSearchParams(location.search).get('benchmark')==='1'&&new URLSearchParams(location.search).get('linearComposite')==='legacy');
  let ripplePending=true,rippleError=null;
  const field=makeFlowField(rocks,diagnostics),rippleMap=new T.TextureLoader().load("./assets/river-ripples.png",()=>ripplePending=false,undefined,()=>{ripplePending=false;rippleError="river-ripples.png failed to load"});rippleMap.wrapS=rippleMap.wrapT=T.RepeatWrapping;rippleMap.anisotropy=8
  const resolution=new T.Vector2(),opaque=new T.WebGLRenderTarget(1,1,{samples:0,type:T.HalfFloatType,depthTexture:new T.DepthTexture(1,1,T.UnsignedIntType)})
@@ -42,8 +42,8 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  ${oceanSpectrumGLSL}
  ${riverFieldGLSL}
  ${shoreGLSL}
- attribute float springHalfWidth;varying float cascadeHalfWidth;attribute float springDistance;varying float cascadeDistance;attribute vec2 springEnergy;varying vec2 cascadeEnergy;attribute float waterKind;varying float kind;attribute vec2 velocity;attribute vec2 riverCoord;varying vec2 channel;varying vec3 wp;varying float vd,seaMask,coastalTile;varying vec2 flow;
- void main(){cascadeHalfWidth=springHalfWidth;cascadeDistance=springDistance;cascadeEnergy=springEnergy;wp=position;flow=velocity;channel=riverCoord;coastalTile=step(3.5,waterKind);kind=coastalTile>.5?0.:waterKind;seaMask=1.-step(.5,kind);
+ attribute float springBedDepth;varying float cascadeBedDepth;attribute float springHalfWidth;varying float cascadeHalfWidth;attribute float springDistance;varying float cascadeDistance;attribute vec2 springEnergy;varying vec2 cascadeEnergy;attribute float waterKind;varying float kind;attribute vec2 velocity;attribute vec2 riverCoord;varying vec2 channel;varying vec3 wp;varying float vd,seaMask,coastalTile;varying vec2 flow;
+ void main(){cascadeBedDepth=springBedDepth;cascadeHalfWidth=springHalfWidth;cascadeDistance=springDistance;cascadeEnergy=springEnergy;wp=position;flow=velocity;channel=riverCoord;coastalTile=step(3.5,waterKind);kind=coastalTile>.5?0.:waterKind;seaMask=1.-step(.5,kind);
  if(kind<.5){if(coastalTile<.5)wp.xz+=oceanCenter;wp.y+=max(0.,mainRiverLevel(wp.z)+.7)*riverDomain(wp.xz);}
  if(kind<1.5){vec4 r=riverSample(wp.z);float dx=(riverSample(wp.z+4.).x-riverSample(wp.z-4.).x)/8.;flow=normalize(vec2(dx,1.))*r.b;channel=vec2(wp.x-r.x,r.a);}
  float tidal=kind<1.5?1.-riverInfluence(wp.xz):0.;
@@ -53,7 +53,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  fragmentShader:`
  #include <common>
  #include <packing>
- varying float cascadeHalfWidth;varying float cascadeDistance;varying vec2 cascadeEnergy;varying float kind;${riverFieldGLSL}uniform sampler2D opaque,sceneDepth,reflection;uniform mat4 reflectionMatrix,viewToWorld;uniform vec2 resolution;uniform float cameraNear,cameraFar,reflectionY,debug;uniform vec3 sunDir;uniform sampler2D surfLace,rippleMap,flowMap;uniform vec2 flowOrigin;uniform float flowSpan;varying vec3 wp;varying float vd,seaMask,coastalTile;varying vec2 flow;varying vec2 channel;
+ varying float cascadeBedDepth;varying float cascadeHalfWidth;varying float cascadeDistance;varying vec2 cascadeEnergy;varying float kind;${riverFieldGLSL}uniform sampler2D opaque,sceneDepth,reflection;uniform mat4 reflectionMatrix,viewToWorld;uniform vec2 resolution;uniform float cameraNear,cameraFar,reflectionY,debug;uniform vec3 sunDir;uniform sampler2D surfLace,rippleMap,flowMap;uniform vec2 flowOrigin;uniform float flowSpan;varying vec3 wp;varying float vd,seaMask,coastalTile;varying vec2 flow;varying vec2 channel;
  ${swellGLSL}
  ${oceanSpectrumGLSL}
  ${shoreGLSL}
@@ -123,6 +123,11 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  vec2 distort=normal.xz*.008*smoothstep(.02,1.8,thick);vec2 refrUv=clamp(screen+distort,vec2(.002),vec2(.998));if(sceneZ(refrUv)<vd)refrUv=screen;
  refrUv=mix(refrUv,screen,filmWeight);vec3 bottom=texture2D(opaque,refrUv).rgb;
  vec3 transmittedRay=refract(-eye,normal,1./1.333);float opticalPath=depth/max(.15,-transmittedRay.y);
+ // A falling sheet has thickness along its rock face. Vertical background
+ // height can be above the water pixel and is not a valid depth on this face.
+ float fall=kind>3.1?cascadeEnergy.x:0.;
+ float sheetDepth=cascadeBedDepth*max(.12,surfaceNormal.y);
+ if(fall>.001){depth=max(depth,sheetDepth*fall);opticalPath=mix(opticalPath,sheetDepth/max(.15,-dot(transmittedRay,surfaceNormal)),fall);}
  // A centimetre-deep sheet is crossed along the refracted ray, not the long
  // grazing camera ray. Preserve the sand instead of absorbing it into cyan.
  if(filmWeight>.001){vec2 bedSlope=shoreGradient(wp.xz);vec3 bedNormal=normalize(vec3(-bedSlope.x,1.,-bedSlope.y));
@@ -132,6 +137,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  float surfPhase=shorePhase(wp.xz,shoreDepth,time);
  float aeration=shoreWeight*smoothstep(.12,.8,shoreDepth)*(1.-smoothstep(2.,5.,shoreDepth))
    *smoothstep(-.5,.65,sin(surfPhase-.55))*(.3+.7*noise(wp.xz*.43-time*.08));
+ aeration=max(aeration,fall*(.24+.46*noise(adv*2.3)));
  vec3 sigA=mix(vec3(.42,.075,.035),vec3(.20,.085,.065),river);
  vec3 sigS=mix(vec3(.012,.018,.024),vec3(.024,.029,.020),river)+aeration*vec3(.12,.15,.13);
  vec3 sigT=sigA+sigS,transmission=exp(-sigT*opticalPath);
@@ -177,8 +183,11 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  if(kind>3.1){vec2 seepC=vec2(channel.x,cascadeDistance);
  float supply=cascadeEnergy.x*.62+cascadeEnergy.y*.13;
  vec2 seep0=seepC-vec2(0.,speed*1.2*(phase0-.5)),seep1=seepC-vec2(0.,speed*1.2*(phase1-.5));
- float seepFoam=mix(foamCells(seep1*2.8,supply),foamCells(seep0*2.8,supply),flowWeight)*(.55+.2*cascadeEnergy.x);
- white=max(white,seepFoam*smoothstep(.015,.14,depth)*(1.-smoothstep(120.,350.,vd)));}
+ float curtain=smoothstep(.38,.76,noise(vec2(channel.x*6.3,cascadeDistance*.32)))*(.55+.45*noise(vec2(channel.x*4.7,cascadeDistance*.65-time*1.8)));
+ float poolLace=mix(foamCells(seep1*2.8,supply),foamCells(seep0*2.8,supply),flowWeight)*.55;
+ float seepFoam=mix(poolLace,.14+.62*curtain,cascadeEnergy.x);
+ float bubbleDepth=mix(smoothstep(.015,.14,depth),smoothstep(.006,.06,depth),cascadeEnergy.x);
+ white=max(white,seepFoam*bubbleDepth*(1.-smoothstep(120.,350.,vd)));}
  float bead=smoothstep(-.01,.05,swash.x)*(1.-smoothstep(.12,.6,swash.x));
  float sheetTrail=smoothstep(-.01,.25,swash.x)*(1.-smoothstep(.3,2.2,swash.x));
  float edgeFoam=(bead*mix(1.1,.45,swash.z)+sheetTrail*mix(.4,.12,swash.z))*(1.-smoothstep(.0,.4,shoreDepth));
@@ -211,7 +220,7 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  #include <tonemapping_fragment>
  #include <colorspace_fragment>
  }`})
- mat.defaultAttributeValues.springHalfWidth=[0];mat.defaultAttributeValues.springEnergy=[0,0];mat.defaultAttributeValues.springDistance=[0];
+ mat.defaultAttributeValues.springBedDepth=[0];mat.defaultAttributeValues.springHalfWidth=[0];mat.defaultAttributeValues.springEnergy=[0,0];mat.defaultAttributeValues.springDistance=[0];
  function add(g,flow,kind=2){g.setAttribute('waterKind',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count).fill(kind),1));if(!g.attributes.velocity)g.setAttribute('velocity',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2).map((_,i)=>flow[i%2]),2));if(!g.attributes.riverCoord)g.setAttribute('riverCoord',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));const m=new T.Mesh(g,mat);m.frustumCulled=false;waterScene.add(m);return m}
  add(oceanGeometry(),[.11,.06],0)
  for(const cell of [SHORE,ESTUARY_SHORE]){const coastal=new T.PlaneGeometry(cell.size,cell.size,384,384);coastal.rotateX(-Math.PI/2);coastal.translate(cell.x,SEA,cell.z);const coastalMesh=add(coastal,[.11,.06],4);coastalMesh.renderOrder=1;coastalMesh.frustumCulled=true;coastal.computeBoundingSphere();coastal.boundingSphere.radius+=3;}
@@ -221,20 +230,28 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  for(let k=0;k<=acrossSegments;k++){const offset=w*(k/acrossSegments*2-1);rc.push(offset,travel);p.push(x+offset,y,z);v.push(dx/len*riverReach(z).speed,1/len*riverReach(z).speed);if(z>=-3920&&i<segments&&k<acrossSegments){const j=i*(acrossSegments+1)+k;idx.push(j,j+acrossSegments+1,j+1,j+1,j+acrossSegments+1,j+acrossSegments+2)}}}
  const river=new T.BufferGeometry();river.setAttribute('position',new T.Float32BufferAttribute(p,3));river.setAttribute('velocity',new T.Float32BufferAttribute(v,2));river.setAttribute('riverCoord',new T.Float32BufferAttribute(rc,2));river.setIndex(idx);add(river,[0,.8],1);mat.side=T.DoubleSide
  // Quiet spring pools and narrow curved overflow runs share the carved bed.
- for(const run of springRuns){const sp=[],sv=[],sc=[],si=[],se=run===forestSpringRun?[]:null,sd=se?[]:null,sw=se?[]:null;let travel=0,impact=0,arc=0;
- for(let i=0;i<run.length;i++){const p=run[i],a=run[Math.max(0,i-1)],b=run[Math.min(run.length-1,i+1)],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz)||1;const distance=Math.hypot(p.x-a.x,p.z-a.z);travel+=distance/Math.max(.1,p.speed);arc+=Math.hypot(distance,p.level-a.level);
+ for(const run of springRuns){const sp=[],sv=[],sc=[],si=[],se=run===forestSpringRun?[]:null,sd=se?[]:null,sw=se?[]:null,sb=se?[]:null;let travel=0,impact=0,arc=0;
+ for(let i=0;i<run.length;i++){const p=run[i],a=run[Math.max(0,i-1)],b=run[Math.min(run.length-1,i+1)],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz)||1;const distance=Math.hypot(p.x-a.x,p.z-a.z);const surfaceArc=Math.hypot(distance,p.level-a.level);travel+=(se?surfaceArc:distance)/Math.max(.1,p.speed);arc+=surfaceArc;
  const grade=Math.max(0,Math.min(1,((a.level-b.level)/len-.18)/.65)),drop=grade*grade*(3-2*grade);impact=Math.max(drop,impact*Math.exp(-distance/2.3));
- for(let k=0;k<=8;k++){const offset=(k/4-1)*(p.width+.65);sp.push(p.x+dz/len*offset,p.level,p.z-dx/len*offset);sv.push(dx/len*p.speed,dz/len*p.speed);sc.push(offset,travel);if(se){se.push(drop,impact*(1-drop));sd.push(arc);sw.push(p.width);}if(i<run.length-1&&k<8){const j=i*9+k;si.push(j,j+9,j+1,j+1,j+9,j+10)}}}
- const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(sp,3));g.setAttribute('velocity',new T.Float32BufferAttribute(sv,2));g.setAttribute('riverCoord',new T.Float32BufferAttribute(sc,2));g.setIndex(si);if(se){g.setAttribute('springHalfWidth',new T.Float32BufferAttribute(sw,1));g.setAttribute('springEnergy',new T.Float32BufferAttribute(se,2));g.setAttribute('springDistance',new T.Float32BufferAttribute(sd,1));}add(g,[0,.2],run===forestSpringRun?3.25:3);}
+ for(let k=0;k<=8;k++){const offset=(k/4-1)*(p.width+.65);sp.push(p.x+dz/len*offset,p.level,p.z-dx/len*offset);sv.push(dx/len*p.speed,dz/len*p.speed);sc.push(offset,travel);if(se){se.push(drop,impact*(1-drop));sd.push(arc);sw.push(p.width);sb.push(p.depth);}if(i<run.length-1&&k<8){const j=i*9+k;si.push(j,j+9,j+1,j+1,j+9,j+10)}}}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(sp,3));g.setAttribute('velocity',new T.Float32BufferAttribute(sv,2));g.setAttribute('riverCoord',new T.Float32BufferAttribute(sc,2));g.setIndex(si);if(se){g.setAttribute('springBedDepth',new T.Float32BufferAttribute(sb,1));g.setAttribute('springHalfWidth',new T.Float32BufferAttribute(sw,1));g.setAttribute('springEnergy',new T.Float32BufferAttribute(se,2));g.setAttribute('springDistance',new T.Float32BufferAttribute(sd,1));}add(g,[0,.2],run===forestSpringRun?3.25:3);}
  const pool=new T.PlaneGeometry(lake.rx*3.5,lake.rz*3.5);pool.rotateX(-Math.PI/2);pool.translate(lake.x,lake.level,lake.z);add(pool,[.1,.04])
  for(const body of [wetland,tarn]){const g=new T.PlaneGeometry(body.rx*(body===wetland?2.36:3.5),body.rz*(body===wetland?2.36:3.5),body===wetland?32:1,body===wetland?64:1);g.rotateX(-Math.PI/2);g.translate(body.x,body.level,body.z);if(body===wetland){const a=g.attributes.position;for(let i=0;i<a.count;i++)a.setY(i,wetlandLevel(a.getZ(i)))}add(g,[.04,.01])}
  const tp=[],tv=[],tc=[],ti=[];for(let i=0;i<=588;i++){const z=100+i*8,x=tributaryX(z),dx=(tributaryX(z+1)-tributaryX(z-1))/2;for(const side of [-1,1]){tc.push(side*50,z/.7);tp.push(x+side*50,tributaryLevel(z),z);tv.push(dx*.7,.7)}if(i<588){const j=i*2;ti.push(j,j+2,j+1,j+1,j+2,j+3)}}const tg=new T.BufferGeometry();tg.setAttribute('position',new T.Float32BufferAttribute(tp,3));tg.setAttribute('velocity',new T.Float32BufferAttribute(tv,2));tg.setAttribute('riverCoord',new T.Float32BufferAttribute(tc,2));tg.setIndex(ti);add(tg,[0,.7],3);
  const copyScene=new T.Scene(),copyCamera=new T.OrthographicCamera(-1,1,1,-1,0,1),copy=new T.ShaderMaterial({uniforms:{aoEnabled:u.aoEnabled,map:{value:opaque.texture},sceneDepth:{value:opaque.depthTexture},inverseProjection:{value:camera.projectionMatrixInverse},screenSize:{value:resolution}},depthTest:false,depthWrite:false,vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',fragmentShader:`uniform sampler2D map,sceneDepth;uniform float aoEnabled;varying vec2 vUv;${contactOcclusionGLSL}
 void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=contactAO(vUv);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}`});copyScene.add(new T.Mesh(new T.PlaneGeometry(2,2),copy))
+ // Water reads opaque/depth while blending into a separate linear HDR image.
+ // Only the final fullscreen output applies exposure and display conversion.
+ let composite=linearComposite?new T.WebGLRenderTarget(1,1,{type:T.HalfFloatType,depthBuffer:false,samples:0}):null,outputScene=new T.Scene(),output=composite?new T.ShaderMaterial({uniforms:{map:{value:composite.texture}},depthTest:false,depthWrite:false,vertexShader:copy.vertexShader,fragmentShader:'uniform sampler2D map;varying vec2 vUv;void main(){gl_FragColor=texture2D(map,vUv);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}'}):null;
+ if(output)outputScene.add(new T.Mesh(copyScene.children[0].geometry,output));
+ let compositeDisposed=false;
+ function restoreLinearComposite(){if(!linearComposite||!compositeDisposed)return;composite=new T.WebGLRenderTarget(Math.max(1,lastW),Math.max(1,lastH),{type:T.HalfFloatType,depthBuffer:false,samples:0});output.uniforms.map.value=composite.texture;compositeDisposed=false;diagnostics?.event('composition-reallocated',{width:lastW,height:lastH});}
+ addEventListener('pagehide',disposeWetOnExit);
+ function disposeLinearComposite(){if(compositeDisposed)return;compositeDisposed=true;composite?.dispose()}
  let spray=null,lastW=0,lastH=0,lastFine=null,reflectionMode=()=>{};
  const shadowSun=skyUniforms.skySun.value.clone();
  const pass=(name,fn)=>diagnostics?diagnostics.pass(name,fn):fn();
- return {disposeShoreWetMemory:()=>wetMemory?.dispose(),auditMaterials:()=>({copy,water:mat,spray:spray?.material}),resources:()=>[['opaque',opaque],['reflection',reflector.getRenderTarget()],...spectrum.resources(),...(wetMemory?.resources()??[])],setReflectionMode:fn=>reflectionMode=fn,setDebug:value=>u.debug.value=value,status:()=>({debug:u.debug.value,wetMemory:wetMemory?.status()??null,...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;wetMemory?.update(renderer,time,diagnostics);field.update(camera);spectrum.update(renderer,time,diagnostics);
+ return {disposeLinearComposite,disposeShoreWetMemory:()=>wetMemory?.dispose(),auditMaterials:()=>({copy,water:mat,spray:spray?.material,output}),resources:()=>[['opaque',opaque],['reflection',reflector.getRenderTarget()],...(composite&&!compositeDisposed?[['linearComposite',composite]]:[]),...spectrum.resources(),...(wetMemory?.resources()??[])],setReflectionMode:fn=>reflectionMode=fn,setDebug:value=>u.debug.value=value,status:()=>({composition:{mode:linearComposite?'linear-hdr':'legacy-display',width:composite?.width??0,height:composite?.height??0,disposed:compositeDisposed,outputDraws:linearComposite?1:0,order:['opaque-current-shadow','reflection','linear-ao-copy','linear-water-spray','display-output']},debug:u.debug.value,wetMemory:wetMemory?.status()??null,...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){restoreLinearComposite();if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);composite?.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;wetMemory?.update(renderer,time,diagnostics);field.update(camera);spectrum.update(renderer,time,diagnostics);
  // Reflections use the current main shadow coverage, including camera cuts.
  const sunChanged=!shadowSun.equals(skyUniforms.skySun.value),shadowMissing=!shadowReady();
  const renderOpaque=()=>{renderer.setRenderTarget(opaque);pass('mainInclusiveShadow',()=>{renderer.clear();renderer.render(scene,camera)});shadowSun.copy(skyUniforms.skySun.value)},primeShadow=currentReflectionShadow||shadowMissing||sunChanged;
@@ -243,6 +260,7 @@ void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=co
  { // Render the planar image for every visible frame; no 8/12 Hz stepping.
  u.reflectionY.value=level;reflector.position.y=level;reflector.updateMatrixWorld();const shadowUpdate=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;reflectionMode(true);try{pass('planarReflection',()=>reflector.onBeforeRender(renderer,scene,camera))}finally{reflectionMode(false);renderer.shadowMap.autoUpdate=shadowUpdate;}u.reflectionMatrix.value.copy(reflector.material.uniforms.textureMatrix.value).multiply(new T.Matrix4().copy(reflector.matrixWorld).invert());
  }
- if(!primeShadow)renderOpaque();if(habitat)exposureMeter.update(renderer,opaque,camera);renderer.setRenderTarget(null);pass('aoOutputComposite',()=>renderer.render(copyScene,copyCamera));renderer.autoClear=false;pass('water',()=>renderer.render(waterScene,camera));renderer.autoClear=true;
+ if(!primeShadow)renderOpaque();if(habitat)exposureMeter.update(renderer,opaque,camera);renderer.setRenderTarget(composite);pass('aoOutputComposite',()=>renderer.render(copyScene,copyCamera));renderer.autoClear=false;pass('water',()=>renderer.render(waterScene,camera));renderer.autoClear=true;
+ if(composite){renderer.setRenderTarget(null);pass('displayOutput',()=>renderer.render(outputScene,copyCamera))}
  }}
 }

@@ -7,7 +7,7 @@ const stateOf=r=>({target:r.getRenderTarget()?.uuid??null,viewport:r.getViewport
 export function auditComposition(renderer,{resources,materials,scene}) {
   const gl=renderer.getContext(),before=stateOf(renderer),oldTarget=renderer.getRenderTarget(),oldFace=renderer.getActiveCubeFace(),oldMip=renderer.getActiveMipmapLevel()
   const oldInfo={geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,programs:renderer.info.programs.length}
-  const report={schema:'island-composition-contract-v1',createdAt:new Date().toISOString(),before,resourceCountsBefore:oldInfo,context:gl.getContextAttributes(),drawingBufferColorSpace:gl.drawingBufferColorSpace,threeRevision:T.REVISION,gpuPassMs:null,scope:'synchronous neutral GPU readback; not a performance sample',checks:{},probes:{}}
+  const report={schema:'island-composition-contract-v2',createdAt:new Date().toISOString(),before,resourceCountsBefore:oldInfo,context:gl.getContextAttributes(),drawingBufferColorSpace:gl.drawingBufferColorSpace,threeRevision:T.REVISION,gpuPassMs:null,scope:'synchronous neutral GPU readback; not a performance sample',checks:{},probes:{}}
   const targets=resources();report.targets=targets.map(([name,rt])=>({name,uuid:rt.uuid,width:rt.width,height:rt.height,samplesRequested:rt.samples,samplesCap:renderer.capabilities.maxSamples,depthBuffer:rt.depthBuffer,stencilBuffer:rt.stencilBuffer,texture:textureInfo(rt.texture),depthTexture:textureInfo(rt.depthTexture)}))
   const textures=new Map();const take=(tx,owner)=>{if(tx?.isTexture){const row=textures.get(tx.uuid)??{...textureInfo(tx),owners:[]};if(!row.owners.includes(owner))row.owners.push(owner);textures.set(tx.uuid,row)}}
   take(scene.environment,'scene.environment');take(scene.background,'scene.background')
@@ -32,16 +32,23 @@ export function auditComposition(renderer,{resources,materials,scene}) {
     const screen=()=>{renderer.setRenderTarget(null);renderer.setViewport(0,0,before.drawSize[0]/before.pixelRatio,before.drawSize[1]/before.pixelRatio);renderer.setScissorTest(false)}
     screen();renderer.render(neutral,camera);const reference=display();checkpoint('reference')
     // Use the real copy shader and uniforms. AO is excluded to isolate the output boundary.
-    const copy=dispose(new T.ShaderMaterial({vertexShader:materials.copy.vertexShader,fragmentShader:materials.copy.fragmentShader,uniforms:{...materials.copy.uniforms,map:{value:linear.texture},aoEnabled:{value:0}},depthTest:materials.copy.depthTest,depthWrite:materials.copy.depthWrite,toneMapped:materials.copy.toneMapped})),quadGeometry=dispose(new T.PlaneGeometry(2,2)),copyScene=new T.Scene();copyScene.add(new T.Mesh(quadGeometry,copy));renderer.render(copyScene,camera);const actual=display();checkpoint('copy')
-    report.probes.output={referenceNeutralMesh:reference,actualCopy:actual,linearInput:levels,exposure:before.exposure,aoEnabled:0}
+    const composite=dispose(new T.WebGLRenderTarget(32,8,{type:T.HalfFloatType,depthBuffer:false,minFilter:T.NearestFilter,magFilter:T.NearestFilter}));
+    const copy=dispose(new T.ShaderMaterial({vertexShader:materials.copy.vertexShader,fragmentShader:materials.copy.fragmentShader,uniforms:{...materials.copy.uniforms,map:{value:linear.texture},aoEnabled:{value:0}},depthTest:materials.copy.depthTest,depthWrite:materials.copy.depthWrite,toneMapped:materials.copy.toneMapped})),quadGeometry=dispose(new T.PlaneGeometry(2,2)),copyScene=new T.Scene();copyScene.add(new T.Mesh(quadGeometry,copy));
+    const output=dispose(new T.ShaderMaterial({vertexShader:materials.output.vertexShader,fragmentShader:materials.output.fragmentShader,uniforms:{map:{value:composite.texture}},depthTest:false,depthWrite:false,toneMapped:materials.output.toneMapped})),outputScene=new T.Scene();outputScene.add(new T.Mesh(quadGeometry,output));
+    renderer.setRenderTarget(composite);renderer.render(copyScene,camera);screen();renderer.render(outputScene,camera);const actual=display();checkpoint('copy-and-output')
+    report.probes.output={referenceNeutralMesh:reference,actualCopyAndOutput:actual,linearInput:levels,exposure:before.exposure,aoEnabled:0}
     report.checks.copyMatchesNeutral=actual.every((p,i)=>p.slice(0,3).every((v,c)=>Math.abs(v-reference[i][c])<=1))
     const source=materials.water.fragmentShader,tailStart=source.indexOf('#include <tonemapping_fragment>'),tail=source.slice(tailStart)
     if(tailStart<0||!tail.includes('#include <colorspace_fragment>'))throw Error('Water output boundary unavailable')
     // This isolates the actual water output tail and blend flags, not its full physical shader.
     const waterBoundary=dispose(new T.ShaderMaterial({vertexShader:'void main(){gl_Position=vec4(position.xy,0.,1.);}',fragmentShader:'uniform vec4 neutralColor;void main(){gl_FragColor=neutralColor;\n'+tail,uniforms:{neutralColor:{value:new T.Vector4(4,4,4,.5)}},transparent:materials.water.transparent,blending:materials.water.blending,premultipliedAlpha:materials.water.premultipliedAlpha,toneMapped:materials.water.toneMapped,depthTest:false,depthWrite:false})),blendScene=new T.Scene();blendScene.add(new T.Mesh(quadGeometry,waterBoundary))
-    renderer.render(neutral,camera);renderer.autoClear=false;renderer.render(blendScene,camera);const blended=display(),predicted=reference.map(p=>p.slice(0,3).map((v,c)=>(v+reference[3][c])/2))
-    report.probes.waterBoundaryProxy={foregroundLinear:[4,4,4],alpha:.5,backgroundLinear:levels,rgba:blended,predictedFromDisplayedEndpoints:predicted,scope:'actual output tail and blend flags; excludes water physics, occlusion, refraction and spray'}
-    report.checks.displaySpaceBlend=blended.every((p,i)=>p.slice(0,3).every((v,c)=>Math.abs(v-predicted[i][c])<=2))
+    renderer.setRenderTarget(composite);renderer.render(copyScene,camera);renderer.autoClear=false;renderer.render(blendScene,camera);renderer.readRenderTargetPixels(composite,0,0,32,8,half);
+    const mixedLinear=levels.map((_,i)=>Array.from(half.slice((4*32+i*8+4)*4,(4*32+i*8+4)*4+4),T.DataUtils.fromHalfFloat));
+    report.checks.linearAlphaBlend=mixedLinear.every((p,i)=>p.slice(0,3).every(v=>Math.abs(v-(2+levels[i]*.5))<.005));
+    screen();renderer.autoClear=true;renderer.render(outputScene,camera);const blended=display();
+    const expectedScene=new T.Scene();for(let i=0;i<levels.length;i++){const m=dispose(new T.MeshBasicMaterial({color:new T.Color().setRGB(2+levels[i]*.5,2+levels[i]*.5,2+levels[i]*.5),depthTest:false,depthWrite:false})),mesh=new T.Mesh(geometry,m);mesh.position.x=-.75+i*.5;expectedScene.add(mesh);}renderer.render(expectedScene,camera);const expected=display();
+    report.probes.waterBoundaryProxy={foregroundLinear:[4,4,4],alpha:.5,backgroundLinear:levels,mixedLinear,rgba:blended,expectedAfterOneOutput:expected,scope:'actual water output tail, blend flags and final output; excludes physical water/occlusion/spray'}
+    report.checks.blendThenOneOutput=blended.every((p,i)=>p.slice(0,3).every((v,c)=>Math.abs(v-expected[i][c])<=1))
     report.checks.noShaderErrors=(renderer.info.programs?.filter(p=>p.diagnostics?.runnable===false).length??0)===0
     checkpoint('blend');report.checks.readbackNoGlError=Object.values(report.probeGlErrors).every(es=>es.length===0)
   } catch(error) {report.error=String(error);report.checks.probeSucceeded=false}
