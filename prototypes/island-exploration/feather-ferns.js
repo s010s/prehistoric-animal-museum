@@ -26,19 +26,19 @@ export function createFeatherFernParts({ seed = 1, fronds = 5, pairs = 8, leafle
   }
 
   for (let f = 0; f < fronds; f++) {
-    const angle = (2 * Math.PI * (f + (random() - .5) * .25)) / fronds
+    const angle = (2 * Math.PI * (f + (random() - .5) * .62)) / fronds
     const radial = point(Math.cos(angle), 0, Math.sin(angle))
     const lateral = point(-Math.sin(angle), 0, Math.cos(angle))
-    const reach = (.40 + random() * .28) * spread
-    const rise = .70 + random() * .36
-    const droop = .12 + random() * .14
+    const reach = (.44 + random() * .23) * spread
+    const rise = .50 + random() * .22
+    const droop = .18 + random() * .12
     const startY = .025 + random() * .025
     const hue = (random() - .5) * .17
     const frondColor = green.clone().lerp(pale, Math.max(0, hue + .18))
     function rachis(t) {
       const radius = reach * (.18 * t + .82 * Math.sin(t * Math.PI / 2))
-      const y = startY + rise * (1.52 * t - .55 * t * t) - droop * t * t * t
-      const bend = .055 * Math.sin(Math.PI * t * 1.3 + angle * 2)
+      const y = startY + rise * Math.sin(t * Math.PI * .72) - droop * t * t * t
+      const bend = .09 * Math.sin(Math.PI * t * 1.3 + angle * 2) * t
       return point(radial.x * radius + lateral.x * bend, y,
                    radial.z * radius + lateral.z * bend)
     }
@@ -62,20 +62,20 @@ export function createFeatherFernParts({ seed = 1, fronds = 5, pairs = 8, leafle
       const t = .13 + j * (.78 / (pairs - 1))
       const base = rachis(t)
       const taper = Math.pow(Math.sin(Math.PI * (j + 1) / (pairs + 1)), .73)
-      const length = (.18 + random() * .08) * taper * (1 - .18 * t)
+      const length = (.15 + random() * .075) * taper * (1 - .18 * t)
       for (const side of [-1, 1]) {
         const stagger = (random() - .5) * .022
-        const stations = [0, .32, .69, 1].map((u, k) => {
+        const stations = [0, .23, .49, .76, 1].map((u, k) => {
           const along = side * length * u
           const center = base.clone()
             .addScaledVector(lateral, along)
             .addScaledVector(radial, length * (.16 * u + .08 * u * u))
-          center.y += stagger - length * .19 * u * u
-          const breadth = leafletWidth * length * [ .03, .13, .09, .014 ][k]
+          center.y += stagger + length * (.10 * Math.sin(u*Math.PI) - .20 * u*u)
+          const breadth = leafletWidth * length * [ .025, .105, .094, .061, .002 ][k]
           return [center.clone().addScaledVector(radial, -breadth),
                   center.clone().addScaledVector(radial, breadth)]
         })
-        for (let s = 0; s < 3; s++) {
+        for (let s = 0; s < 4; s++) {
           const [a, b] = stations[s], [d, c] = stations[s + 1]
           const shade = (f * 7 + j * 3 + s) % 5 / 5
           const inner = dark.clone().lerp(frondColor, .68 + shade * .15)
@@ -88,6 +88,7 @@ export function createFeatherFernParts({ seed = 1, fronds = 5, pairs = 8, leafle
   }
 
   const geometry = new THREE.BufferGeometry()
+  geometry.name = 'feather-fern'
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
   geometry.computeVertexNormals()
@@ -99,6 +100,7 @@ export function createFeatherFernParts({ seed = 1, fronds = 5, pairs = 8, leafle
     roughness: .97,
     metalness: 0,
     side: THREE.DoubleSide,
+    envMapIntensity: .48,
   })
   return {
     parts: [{ geometry, material }],

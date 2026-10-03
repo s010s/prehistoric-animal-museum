@@ -1,3 +1,4 @@
+import {regionPathField} from './sample-region.js'
 import {canopyLighting} from './canopy-light.js'
 import * as T from 'three'
 import {habitatGLSL} from './habitat.js'
@@ -7,6 +8,7 @@ import {SIZE,landmarks,smooth,terrainHeight} from './field.js'
 export * from './field.js'
 export async function groundMaterial(){
  const shore=await shoreResources();
+ const pathField=regionPathField(),pathDistance=new T.DataTexture(pathField.data,pathField.size,pathField.size,T.RedFormat,T.FloatType);pathDistance.name='region-trail-distance';pathDistance.minFilter=pathDistance.magFilter=T.LinearFilter;pathDistance.needsUpdate=true;
  const coverData=new Uint8Array(await(await fetch('./assets/terrain-cover.bin')).arrayBuffer());if(coverData.length!==512*512*4)throw Error('Invalid habitat coverage');
  const cover=new T.DataTexture(coverData,512,512,T.RGBAFormat);cover.minFilter=cover.magFilter=T.LinearFilter;cover.needsUpdate=true;
  const loader=new T.TextureLoader(),textures=await Promise.all(['cliff','ganges_river_pebbles','rocky_terrain_02','leafy_grass','sandy_gravel_02'].flatMap(n=>['albedo','normal','arm'].map(c=>loader.loadAsync(`./assets/${n}-${c}.webp`))))
@@ -17,7 +19,7 @@ export async function groundMaterial(){
  const albedo=textureArray([0,3,6,9,12],true),linear=textureArray([1,2,4,5,7,8,10,11,13,14],false);textures.forEach(t=>t.dispose());
  const debugGround=new URLSearchParams(location.search).has('ground');
  const m=new T.MeshStandardMaterial({roughness:1});m.onBeforeCompile=s=>{
- Object.assign(s.uniforms,shore,{canopyLighting,habitatCover:{value:cover},groundGrassRange:grassRange});
+ Object.assign(s.uniforms,shore,{regionTrailDistance:{value:pathDistance},canopyLighting,habitatCover:{value:cover},groundGrassRange:grassRange});
  s.uniforms.groundAlbedo={value:albedo};s.uniforms.groundLinear={value:linear};s.uniforms.groundDebug={value:debugGround?1:0}
  s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float landShade;attribute float coastalInfluence;varying float localCoast;attribute float waterHeight;varying float localWater;attribute float seepWet;varying float localSeep;varying float bakedShade;attribute vec3 surfaceBlend;varying vec3 landP,landN,landW;').replace('#include <begin_vertex>','#include <begin_vertex>\nlocalSeep=seepWet;localWater=waterHeight;localCoast=coastalInfluence;landP=(modelMatrix*vec4(position,1.)).xyz;landN=normalize(transpose(mat3(viewMatrix))*normalMatrix*normal);landW=surfaceBlend;bakedShade=landShade;')
  s.fragmentShader=s.fragmentShader.replace('#include <common>',`#include <common>

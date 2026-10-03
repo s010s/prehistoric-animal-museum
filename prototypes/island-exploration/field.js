@@ -1,4 +1,5 @@
-import {springAt,springTerrain,forestSpring} from './spring.js'
+import {springAt,springTerrain,forestSpring,springOrigin} from './spring.js'
+import {sculptRegion} from './sample-region.js'
 // Original flight-world seed and coastal-valley primitives, composed into an authored island.
 import {createWorldSampler,WORLD} from '../../src/flight-experience/world.ts'
 import {riverReach} from './hydrology.js'
@@ -134,12 +135,18 @@ function terrainBase(x,z){
   h=mixHeight(h,Math.min(h,floor),source*margin);
  }
 
- return springTerrain(x,z,h)
+ return springTerrain(x,z,sculptRegion(x,z,h,riverX,riverLevel,halfWidth,noise))
 }
 // A dry, level observation clearing; the same surface is used by terrain, plants and collision.
 export const encounter={x:riverX(-560)+halfWidth(-560)+44,z:-560};
 encounter.y=terrainBase(encounter.x,encounter.z);
-export function terrainHeight(x,z){const d=Math.hypot(x-encounter.x,z-encounter.z);return mixHeight(encounter.y,terrainBase(x,z),smooth(18,40,d))}
+export const companion={x:-1949,z:-605};companion.y=terrainBase(companion.x,companion.z);
+export function terrainHeight(x,z){let h=terrainBase(x,z);
+ // A shallow gravel riffle keeps the two walking banks connected. Only the bed
+ // is raised here; river centreline, banks and water elevation are unchanged.
+ const ford=(1-smooth(8,18,Math.abs(z+675)))*(1-smooth(halfWidth(z)+2,halfWidth(z)+9,Math.abs(x-riverX(z))));
+ if(ford>0)h=mixHeight(h,Math.max(h,riverLevel(z)-.12+.055*Math.sin(x*1.3+z*.7)),ford);
+ for(const [site,inner,outer]of [[encounter,18,40],[companion,8,18]]){const d=Math.hypot(x-site.x,z-site.z);h=mixHeight(site.y,h,smooth(inner,outer,d));}return h}
 export function meshHeight(x,z,step=STEP){const gx=Math.floor(x/step)*step,gz=Math.floor(z/step)*step,u=(x-gx)/step,v=(z-gz)/step,a=terrainHeight(gx,gz),b=terrainHeight(gx+step,gz),c=terrainHeight(gx,gz+step),d=terrainHeight(gx+step,gz+step);return u+v<=1?a+u*(b-a)+v*(c-a):d+(1-u)*(c-d)+(1-v)*(b-d)}
 export function slopeAt(x,z){return 1/Math.hypot((terrainHeight(x+2,z)-terrainHeight(x-2,z))/4,1,(terrainHeight(x,z+2)-terrainHeight(x,z-2))/4)}
 export function waterLevelAt(x,z){let level=SEA;const spring=springAt(x,z);if(spring&&spring.edge<1)level=spring.level;if(z>-3930&&z<4320&&Math.abs(x-riverX(z))<halfWidth(z)+25)level=Math.max(level,riverLevel(z));if(Math.abs(x-lake.x)<lake.rx*1.75&&Math.abs(z-lake.z)<lake.rz*1.75)level=Math.max(level,lake.level);if(Math.abs(x-wetland.x)<wetland.rx*1.18&&Math.abs(z-wetland.z)<wetland.rz*1.18)level=Math.max(level,wetlandLevel(z));if(Math.abs(x-tarn.x)<tarn.rx*1.75&&Math.abs(z-tarn.z)<tarn.rz*1.75)level=Math.max(level,tarn.level);if(z>100&&z<5700&&Math.abs(x-tributaryX(z))<50)level=Math.max(level,tributaryLevel(z));return level}
@@ -177,5 +184,6 @@ export const landmarks=[
  {id:'mudflat',name:'淤泥浅滩',note:'泥岸水洼与退向大海的低地',p:[2635,7,6200],t:[2680,2.1,6380]},
  {id:'heath',name:'北部高原',note:'山间草甸、岩脊和冰斗状小湖',p:[1900,565,-5500],t:[1600,456,-6200]},
  {id:'cliffs',name:'西岸岩岬',note:'原史前天地的岩岸地形',p:[-3100,140,-2100],t:[-2460,70,-2500]},
- {id:'spring',name:'岩壁清泉',note:'沿浅池和跌水，走向溪畔的巨影',p:[forestSpring.x+18,24.8,forestSpring.z+17],t:[forestSpring.x+7,21.5,forestSpring.z+11]}
+ {id:'side-spring',name:'岩壁清泉',note:'沿浅池、短跌水和林间小径，走向动物空地',p:[forestSpring.x+14,29.0,forestSpring.z+15],t:[forestSpring.x+5,28.0,forestSpring.z+8]},
+ {id:'north-source',name:'北部泉源',note:'独立的北部泉池，距小侧泉约 3.3 公里',p:[springOrigin.x+10,211.8,springOrigin.z+10],t:[springOrigin.x,209.6,springOrigin.z-5]}
 ]

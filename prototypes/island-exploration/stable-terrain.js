@@ -1,3 +1,4 @@
+import {regionWeight,regionPathDistance} from './sample-region.js'
 import {trailX} from './habitat.js'
 import {forestSpring} from './spring.js'
 import {SIZE,terrainHeight,riverX,halfWidth,tributaryX,waterLevelAt} from './field.js'
@@ -17,7 +18,8 @@ export function buildStableTerrain(){
   const galleryRiver=cz> -1664&&cz<384&&Math.abs(cx-riverX(cz))<halfWidth(cz)+30;
   const forestSource=cz>-768&&cz<-640&&cx>forestSpring.x-32&&cx<forestSpring.x+64;
   const source=(cz>-4096&&cz<-3904&&Math.abs(cx-riverX(cz))<96)||(cz>-768&&cz<-640&&cx>forestSpring.x-32&&cx<forestSpring.x+64);
-  steps[j*N+i]=forestSource?.5:source?1:crag?4:walking?2:galleryRiver?4:inlandShore?4:(Math.abs(cx-9160)<420&&Math.abs(cz-2330)<420&&hi>-5&&lo<9)?2:(cz>-3200&&cz< -850&&cx> -2810&&cx< -2200)?4:channel||crag||(cz>-3200&&cz< -850&&cx> -2720&&cx< -2310)||(lo<5&&hi>-5)||hi>650?8:hi<-8?64:(hi-lo<10&&error<.5?32:16)
+  const regionWalking=regionWeight(cx,cz)>0&&regionPathDistance(cx,cz)<48;
+  steps[j*N+i]=forestSource?.5:regionWalking?1:source?1:crag?4:walking?2:galleryRiver?4:inlandShore?4:(Math.abs(cx-9160)<420&&Math.abs(cz-2330)<420&&hi>-5&&lo<9)?2:(cz>-3200&&cz< -850&&cx> -2810&&cx< -2200)?4:channel||crag||(cz>-3200&&cz< -850&&cx> -2720&&cx< -2310)||(lo<5&&hi>-5)||hi>650?8:hi<-8?64:(hi-lo<10&&error<.5?32:16)
  }
  const at=(i,j)=>i<0||j<0||i>=N||j>=N?64:steps[j*N+i],chunks=[]
  for(let cz=-H;cz<H;cz+=CHUNK)for(let cx=-H;cx<H;cx+=CHUNK){

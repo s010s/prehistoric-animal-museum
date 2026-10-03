@@ -1,3 +1,4 @@
+import {regionWeight,regionOpening} from './sample-region.js'
 import {grassRecord} from './grass-render-packet.js'
 import {treeWindGLSL} from './tree-wind.js'
 import {createDistanceSorter} from './distance-sort.js'
@@ -41,10 +42,10 @@ for(const [j,center]of [-1370,-875,-470,180,970,-2250].entries())for(let k=0;k<1
  const z=center+(rand(j*13+k,122)-.5)*48,x=riverX(z)+(k%2?1:-1)*halfWidth(z)*(.12+rand(j*13+k,123)*.56);
  riverRocks.push({x,z,radius:1.35+rand(j*13+k,124)*2.0,strength:.75+rand(j*13+k,125)*.25})
 }
-export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
+export async function makeProps(renderer,apply,getFine=()=>false,diagnostics,rootHeight=terrainHeight){
  const stage=name=>{document.body.dataset.loadingStage=name};stage("scanned-props");
  const viewerPosition={value:new T.Vector3()},grassFade=grassRange;
- const group=new T.Group(),loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder),scan=await loader.loadAsync('./assets/scanned-props.glb'),rock=templateParts(scan.scene.getObjectByName('rock_07')),fern=createFeatherFernParts({seed:17,pairs:habitat?11:16,fronds:habitat?6:5,leafletWidth:habitat?2.3:1,spread:habitat?1.65:1})
+ const group=new T.Group(),loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder),scan=await loader.loadAsync('./assets/scanned-props.glb'),rock=templateParts(scan.scene.getObjectByName('rock_07')),fern=createFeatherFernParts({seed:17,pairs:habitat?10:16,fronds:5,leafletWidth:habitat?1.05:1,spread:habitat?1.08:1})
  stage('stone-texture');const stoneMap=await new T.TextureLoader().loadAsync('./assets/cliff-albedo.webp');stoneMap.colorSpace=T.SRGBColorSpace;stoneMap.anisotropy=8;for(const part of rock.parts){part.material.map=stoneMap;part.material.vertexColors=false;part.material.color.set('#a3ac9c');part.material.roughness=.95;part.material.metalness=0;part.material.normalScale?.set(.65,.65)}
  // The same permanent obstacles drive both visible rocks and the water field.
  const riverStoneChunks=new Map();
@@ -61,7 +62,7 @@ export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  for(let iz=-465;iz<425;iz++)for(let ix=-215;ix<520;ix++){
  const i=(iz+465)*735+ix+215,x=(ix+hash(ix,iz))*spacing,z=(iz+hash(iz,ix+11))*spacing,density=woodland(x,z)
  if(rand(i,3)>density*.94)continue;const y=terrainHeight(x,z);if(y<3)continue
- const h=12+rand(i,4)**.85*24+noise(x/140,z/170)*5,p={x,z,y:y-.25,scale:h,yaw:rand(i,5)*6.28,tint:.69+rand(i,6)*.30,sx:.78+rand(i,7)*.4,sz:.85+rand(i,8)*.3,id:treeCount};if(Math.hypot(p.x-encounter.x,p.z-encounter.z)<48+p.scale*.28)continue;all.push(p);const key=`${Math.floor(x/128)},${Math.floor(z/128)}`;if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(p);treeCount++
+ const h=(12+rand(i,4)**.85*24+noise(x/140,z/170)*5)*(1-regionWeight(x,z)*(.14+.12*hash(x+41,z))),p={x,z,y:y-.25,scale:h,yaw:rand(i,5)*6.28,tint:.69+rand(i,6)*.30,sx:.78+rand(i,7)*.4,sz:.85+rand(i,8)*.3,id:treeCount};if(Math.hypot(p.x-encounter.x,p.z-encounter.z)<48+p.scale*.28)continue;all.push(p);const key=`${Math.floor(x/128)},${Math.floor(z/128)}`;if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(p);treeCount++
  }
  // Mixed-age groups grow inside established woodland. Clearings stay open;
  // a second crown is offset from its parent cell instead of tightening a grid.
@@ -94,6 +95,12 @@ export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  const cool=[.74,.86,.94],warm=[1.18,1.02,.74],t=smooth(.28,.73,stand)*.8+(p.species?.13:0);
  const speciesTint=[[.86,.92,.92],[1.04,.94,.75],[1.18,1.02,.72],[.79,.86,.85]][p.species];p.color=cool.map((v,k)=>(v+(warm[k]-v)*t)*light*(.94+p.tint*.12)*speciesTint[k]);if(age>.94)p.color=[1.24,.98,.69].map(v=>v*light);}
 
+ // The authored openings apply before both canopy bake and near/far buckets.
+ if(habitat)for(let i=all.length-1;i>=0;i--){const p=all[i],weight=regionWeight(p.x,p.z);
+  const remove=regionOpening(p.x,p.z,p.scale*.24)||(weight>.5&&hash(p.x+771,p.z-331)<.16);
+  if(remove){all.splice(i,1);const key=`${Math.floor(p.x/128)},${Math.floor(p.z/128)}`;buckets.set(key,buckets.get(key).filter(t=>t!==p));}
+  else if(weight>0)p.y=rootHeight(p.x,p.z)-.045;
+ }
  if(habitat)bakeCanopyLighting(all,templates);
  stage('pine-atlas');const pineMap=await new T.TextureLoader().loadAsync('./assets/pine-b-atlas.webp');pineMap.colorSpace=T.SRGBColorSpace;pineMap.anisotropy=8;
  // Camera-facing crowns keep full silhouettes in the distant forest. Close trees get geometry.
@@ -128,7 +135,7 @@ export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  // Coverage handover follows Tidewater's GrassField, with shared terrain pigment.
  const bladeSide=[],bladeHeight=[];
  for(let k=0;k<12;k++){
- const angle=k*2.39996,radius=.04+rand(k,12)*.21,bx=Math.cos(angle)*radius,bz=Math.sin(angle)*radius,h=.28+rand(k,20)*.64,w=.010+rand(k,19)*.012,base=gp.length/3;
+ const angle=k*2.39996,radius=.04+rand(k,12)*.21,bx=Math.cos(angle)*radius,bz=Math.sin(angle)*radius,h=.22+rand(k,20)*.46,w=.009+rand(k,19)*.012,base=gp.length/3;
  for(let j=0;j<=3;j++){const t=j/3,bend=t*t*h*(.27+rand(k,14)*.56),half=w*(1-Math.pow(t,1.6)),cx=bx+Math.cos(angle)*bend,cz=bz+Math.sin(angle)*bend,y=h*t;
  for(const side of [-1,1]){const sx=Math.sin(angle)*half*side,sz=-Math.cos(angle)*half*side;gp.push(cx+sx,y,cz+sz);bladeSide.push(sx,0,sz);bladeHeight.push(t);gc.push(.16+t*.12,.25+t*.15,.07+t*.055)}
  if(j<3){const i=base+j*2;gi.push(i,i+2,i+1);if(j<2)gi.push(i+1,i+2,i+3)}}}
@@ -136,8 +143,8 @@ export async function makeProps(renderer,apply,getFine=()=>false,diagnostics){
  const normals=grassG.getAttribute('normal');for(let i=0;i<normals.count;i++){const n=new T.Vector3(normals.getX(i)*.45,Math.abs(normals.getY(i))+.8,normals.getZ(i)*.45).normalize();normals.setXYZ(i,n.x,n.y,n.z)}
  const grassPart={geometry:grassG,material:new T.MeshStandardMaterial({vertexColors:true,roughness:.96,side:T.DoubleSide})};
  const pebbleG=new T.IcosahedronGeometry(1,0),pebblePart={geometry:pebbleG,material:rock.parts[0].material}
- const debrisG=new T.CylinderGeometry(.018,.04,1,5,1);debrisG.rotateZ(Math.PI/2);debrisG.translate(0,.04,0);
- const debrisPart={geometry:debrisG,material:new T.MeshStandardMaterial({color:'#625544',roughness:1})};
+ const debrisG=new T.CylinderGeometry(.004,.010,1,7,1);debrisG.rotateZ(Math.PI/2);debrisG.translate(0,.010,0);
+ const debrisPart={geometry:debrisG,material:new T.MeshStandardMaterial({color:'#927553',roughness:1})};
  const litterG=new T.BufferGeometry(),lp=[0,.025,0],li=[];
  for(let i=0;i<9;i++){const a=-1.1+i/8*2.2;lp.push(Math.sin(a)*.62,.015+Math.cos(a*3)*.04,Math.cos(a));if(i<8)li.push(0,i+1,i+2);}
  litterG.setAttribute('position',new T.Float32BufferAttribute(lp,3));litterG.setIndex(li);litterG.computeVertexNormals();

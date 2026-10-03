@@ -30,6 +30,13 @@ Licensed under Creative Commons Attribution 4.0 International.
 https://creativecommons.org/licenses/by/4.0/
 Adapted from the museum's normalized and animated model; displayed at 22 metres.
 
+Triceratops dinosaur by wojciechmiedziocha
+https://sketchfab.com/3d-models/triceratops-dinosaur-87527079bad44917ab1b98a456b46c7e
+Licensed under Creative Commons Attribution 4.0 International.
+https://creativecommons.org/licenses/by/4.0/
+Adapted from the museum's normalized model and project-authored stationary Idle
+animation; displayed at 8.5 metres. Runtime skin is treated as nonmetallic.
+
 fir-a-spatial-near-lite.glb: mesh simplification of the credited fir model,
 retaining UVs, leaf clusters and textures; generated with glTF-Transform.
 
