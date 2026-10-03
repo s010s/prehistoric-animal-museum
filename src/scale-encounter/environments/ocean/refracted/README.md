@@ -5,6 +5,17 @@ absolute wave time for the visible surface, photon atlas, subject BRDF and
 single-scattering medium. The cloud bank opens behind the comparison animal;
 its local reflected-water brightness is an explicit art approximation.
 
+The atlas integrates each finite source triangle over its intersecting receiver
+pixels. Point-sampling an area Jacobian could assign a subpixel folded bundle's
+high density to a whole pixel, exceeding that bundle's total flux. Conservative
+bounding quads and an analytic triangle/pixel area integral now partition its
+energy. Actual overlapping bundles still produce caustics. Source-cell mean
+Fresnel transfer, extinction path and source cloud transmission are explicit
+piecewise-constant approximations; collapsed bundles use a line/point limit.
+The same wave nodes and Snell/Fresnel directions are precomputed once per field
+update and reused at every depth. No temporal shutter samples or artistic
+irradiance clamp are involved.
+
 Atlas tiles use RenderTarget-owned viewport/scissor rectangles in texture
 pixels; Three.js renderer-level setters multiply logical pixels by DPR even
 when an RTT is bound. Default-framebuffer rectangles are never changed during
@@ -18,7 +29,11 @@ quadrature; it cannot add sunlight behind an opaque visible animal.
 Real-time budgets are bounded: a 128 photon grid, 160 pixels per
 depth tile, 20 depth layers, four solar samples, a 0.25 m shared wave footprint,
 16 broad sky slope samples and 96 medium steps. The RGBA32F atlas occupies
-8,398,080 bytes. Scene color/depth and the linear medium composite share a
+8,398,080 bytes. Shared wave-node and four-direction textures add 1,310,720 bytes
+at the default 128 grid, for 9,708,800 bytes of field textures. The immutable
+source-bundle geometry occupies about 0.74 MiB. All node/direction targets,
+materials and geometry are released with the field, including adaptive fallback.
+Scene color/depth and the linear medium composite share a
 resolution capped at 2,000,000 pixels; a final native-resolution pass applies
 tone mapping and the output color transform once.
 Interface normals additionally filter the same spectrum to each screen pixel;
@@ -42,8 +57,9 @@ nonblocking GPU timings are visible in
 Approximations: single scattering; scalar irradiance and mean direction for
 phase/BRDF; no animal-cast volume shadows; broad downwelling diffuse fill; local
 water LUT reflection rather than traced reflections; coarse real-time atlas and
-bounded line integration. Sharp caustic-volume peaks may persist at some angles
-and times. Low-end quality is a distinct analytic fallback.
+bounded line integration. Genuine focused overlaps remain; source-cell transfer,
+finite depth sampling and unreviewed angles/times still limit the reconstruction.
+Low-end quality is a distinct analytic fallback.
 
 Clear-water coefficients are sigmaT=[.009,.0036,.0024] and
 sigmaS=[.0008,.0011,.0014] per metre, shared by light and medium. Cloud solar

@@ -23,7 +23,8 @@ SOFTWARE.
 */
 /**
  * Shared real-time refracted irradiance with RGBA32F accumulation.
- * Requires float blending and float linear filtering. No visual-parameter changes.
+ * Requires float blending and float linear filtering. Receiver pixels integrate
+ * finite photon bundles rather than point-sampling a singular area Jacobian.
  * Water-surface refracted irradiance atlas v2, WebGL2 / Three.js.
  * Reconstruct in a mean-ray-sheared light coordinate system; use one stationary
  * source mesh for every depth and a finite solar-disk / receiver-pixel quadrature.
@@ -171,66 +172,160 @@ vec3 sampleField(vec3 p) {
   return max(mix(base,field,spatial*deepFade),vec3(0.0));
 }
 `;
-const VERTEX_SHADER = `
+const NODE_VERTEX_SHADER = `
 precision highp float;
 in vec3 position;
+void main(){gl_Position=vec4(position.xy,0.0,1.0);}`;
+const NODE_FRAGMENT_SHADER = `
+precision highp float;
 ${WAVE_GLSL}
+uniform vec4 uPhotonDomain;
+uniform float uPhotonResolution;
+out vec4 outColor;
+void main(){
+  vec2 source=(gl_FragCoord.xy-0.5)/(uPhotonResolution-1.0);
+  outColor=vec4(waveHeightSlope(mix(uPhotonDomain.xy,uPhotonDomain.zw,source)),1.0);
+}`;
+const DIRECTION_FRAGMENT_SHADER = `
+precision highp float;
+precision highp int;
+uniform sampler2D uPhotonNodes;
+uniform vec2 uNodeOrigin;
+uniform vec3 uAirSunDirection;
+uniform float uWaterIor;
+out vec4 outColor;
+void main(){
+  vec3 h=texelFetch(uPhotonNodes,ivec2(gl_FragCoord.xy-uNodeOrigin),0).rgb;
+  vec3 N=normalize(vec3(-h.y,1.0,-h.z));
+  vec3 D=refract(-uAirSunDirection,N,1.0/uWaterIor);
+  float ci=clamp(dot(uAirSunDirection,N),0.0,1.0);
+  float ct=sqrt(max(0.0,1.0-(1.0-ci*ci)/(uWaterIor*uWaterIor)));
+  float rs=(uWaterIor*ci-ct)/max(uWaterIor*ci+ct,1e-7);
+  float rp=(ci-uWaterIor*ct)/max(ci+uWaterIor*ct,1e-7);
+  float weight=ci/max(N.y,1e-5)*(1.0-0.5*(rs*rs+rp*rp))/max(-D.y,1e-5);
+  outColor=vec4(D,weight);
+}`;
+const VERTEX_SHADER = `
+precision highp float;
+precision highp int;
+${CLOUD_BANK_GLSL}
+in vec3 position;
+in vec2 aSourceA,aSourceB,aSourceC;
+uniform sampler2D uPhotonNodes;
+uniform sampler2D uPhotonDirections;
+uniform float uPhotonResolution;
+uniform float uSunSampleIndex;
+uniform float uSeaLevel;
 uniform vec4 uPhotonDomain;
 uniform vec4 uFieldBounds;
 uniform vec3 uFieldMeanDirection;
 uniform vec2 uReceiverJitter;
 uniform float uReceiverResolution;
-uniform vec3 uAirSunDirection;
-uniform float uWaterIor;
 uniform float uSliceY;
-out vec2 vSourceXZ;
-out vec2 vReceiverXZ;
-out float vPerpendicularWeight;
-out float vLightDistance;
-float fresnelWater(float c) {
-  c=clamp(c,0.0,1.0);
-  float ct=sqrt(max(0.0,1.0-(1.0-c*c)/(uWaterIor*uWaterIor)));
-  float rs=(uWaterIor*c-ct)/max(uWaterIor*c+ct,1e-7);
-  float rp=(c-uWaterIor*ct)/max(c+uWaterIor*ct,1e-7);
-  return 0.5*(rs*rs+rp*rp);
-}
-void main() {
-  vec2 xz=mix(uPhotonDomain.xy,uPhotonDomain.zw,position.xz);
-  vec3 h=waveHeightSlope(xz);
+uniform vec3 uFieldSigmaT;
+uniform vec3 uFieldSunIrradiance;
+uniform float uSourceFluxPerPixel;
+flat out vec2 vPixelA,vPixelB,vPixelC;
+flat out vec3 vBundleIrradiance;
+vec2 traceNode(vec2 source,out float weight,out float path) {
+  vec2 xz=mix(uPhotonDomain.xy,uPhotonDomain.zw,source);
+  ivec2 node=ivec2(round(source*(uPhotonResolution-1.0)));
+  vec3 h=texelFetch(uPhotonNodes,node,0).rgb;
+  vec4 ray=texelFetch(uPhotonDirections,node+ivec2(int(uSunSampleIndex*uPhotonResolution),0),0);
   vec3 P=vec3(xz.x,h.x,xz.y);
-  vec3 N=normalize(vec3(-h.y,1.0,-h.z));
-  vec3 D=refract(-uAirSunDirection,N,1.0/uWaterIor);
+  vec3 D=ray.xyz;
   float distance=(uSliceY-P.y)/min(D.y,-1e-5);
   vec3 Q=P+D*max(distance,0.0);
-  float ci=dot(uAirSunDirection,N);
-  float valid=(distance>=0.0 && D.y<0.0 && ci>0.0)?1.0:0.0;
-  vPerpendicularWeight=valid*max(ci,0.0)/max(N.y,1e-5)*(1.0-fresnelWater(ci))/max(-D.y,1e-5);
-  vLightDistance=max(distance,0.0);
+  weight=(distance>=0.0 && D.y<0.0)?ray.a:0.0;
+  path=max(distance,0.0);
   float sliceDepth=uSeaLevel-uSliceY;
   vec2 lightXZ=Q.xz-uFieldMeanDirection.xz*sliceDepth/max(-uFieldMeanDirection.y,0.001);
-  vSourceXZ=P.xz; vReceiverXZ=lightXZ;
   vec2 uv=(lightXZ-uFieldBounds.xy)/(uFieldBounds.zw-uFieldBounds.xy);
-  uv+=uReceiverJitter/uReceiverResolution;
-  gl_Position=vec4(uv*2.0-1.0,0.0,1.0);
+  return uv*uReceiverResolution+uReceiverJitter;
+}
+void main() {
+  vec3 weights,paths;
+  vPixelA=traceNode(aSourceA,weights.x,paths.x);
+  vPixelB=traceNode(aSourceB,weights.y,paths.y);
+  vPixelC=traceNode(aSourceC,weights.z,paths.z);
+  vec2 source=mix(uPhotonDomain.xy,uPhotonDomain.zw,(aSourceA+aSourceB+aSourceC)/3.0);
+  // One mean transfer for this finite source bundle, shared by its receiver
+  // pixels. This is a piecewise-constant source-cell approximation; pixel area
+  // integration then partitions its finite energy exactly, including folds.
+  float weight=dot(weights,vec3(1.0/3.0)),path=dot(paths,vec3(1.0/3.0));
+  vBundleIrradiance=uFieldSunIrradiance*uSourceFluxPerPixel*weight*exp(-uFieldSigmaT*path)*cloudSolarTransmission(source);
+  // Rasterize every pixel that can intersect this finite bundle, including
+  // triangles smaller than a pixel and either winding of a caustic fold.
+  vec2 lo=min(vPixelA,min(vPixelB,vPixelC))-0.5;
+  vec2 hi=max(vPixelA,max(vPixelB,vPixelC))+0.5;
+  vec2 pixel=mix(lo,hi,position.xy);
+  gl_Position=vec4(pixel/uReceiverResolution*2.0-1.0,0.0,1.0);
 }`;
 const FRAGMENT_SHADER = `
 precision highp float;
-${CLOUD_BANK_GLSL}
-in vec2 vSourceXZ;
-in vec2 vReceiverXZ;
-in float vPerpendicularWeight;
-in float vLightDistance;
-uniform vec3 uFieldSigmaT;
-uniform vec3 uFieldSunIrradiance;
+precision highp int;
+flat in vec2 vPixelA,vPixelB,vPixelC;
+flat in vec3 vBundleIrradiance;
+uniform vec2 uReceiverOrigin;
 out vec4 outColor;
+float cross2(vec2 a,vec2 b){return a.x*b.y-a.y*b.x;}
+float edgeArea(vec2 a,vec2 b){
+  float dx=b.x-a.x;
+  if(abs(dx)<1e-7)return 0.0;
+  float lo=max(0.0,min(a.x,b.x)),hi=min(1.0,max(a.x,b.x));
+  if(hi<=lo)return 0.0;
+  float y0=mix(a.y,b.y,(lo-a.x)/dx),y1=mix(a.y,b.y,(hi-a.x)/dx);
+  float low=min(y0,y1),high=max(y0,y1),average;
+  // Exact integral of a clamped linear edge, with stable crossing formulas.
+  if(high<=0.0)average=0.0;
+  else if(low>=1.0)average=1.0;
+  else if(low>=0.0&&high<=1.0)average=(low+high)*0.5;
+  else if(high<=1.0)average=0.5*high*high/(high-low);
+  else if(low>=0.0)average=1.0-0.5*(1.0-low)*(1.0-low)/(high-low);
+  else average=(high-0.5)/(high-low);
+  return sign(dx)*(hi-lo)*average;
+}
 void main() {
-  vec2 a=dFdx(vSourceXZ),b=dFdy(vSourceXZ),c=dFdx(vReceiverXZ),d=dFdy(vReceiverXZ);
-  float oldArea=abs(a.x*b.y-a.y*b.x),newArea=abs(c.x*d.y-c.y*d.x);
-  float jacobian=oldArea/max(newArea,1e-18);
-  vec3 energy=uFieldSunIrradiance*jacobian*vPerpendicularWeight*exp(-uFieldSigmaT*vLightDistance)*cloudSolarTransmission(vSourceXZ);
+  vec2 centre=gl_FragCoord.xy-uReceiverOrigin;
+  vec2 a=vPixelA-centre,b=vPixelB-centre,c=vPixelC-centre;
+  float determinant=cross2(b-a,c-a),fraction;
+  if(abs(determinant)<1e-7){
+    // A collapsed bundle tends to a line (or a point). Integrate its length
+    // through the pixel, with mean source transfer at this singular limit.
+    vec2 p=a,q=b;if(dot(c-a,c-a)>dot(q-p,q-p))q=c;
+    if(dot(c-b,c-b)>dot(q-p,q-p)){p=b;q=c;}
+    vec2 delta=q-p;float start=0.0,end=1.0;
+    for(int axis=0;axis<2;axis++){
+      if(abs(delta[axis])<1e-7){if(p[axis]<-0.5||p[axis]>=0.5)discard;}
+      else{float t0=(-0.5-p[axis])/delta[axis],t1=(0.5-p[axis])/delta[axis];
+        start=max(start,min(t0,t1));end=min(end,max(t0,t1));}
+    }
+    fraction=max(end-start,0.0);
+    if(dot(delta,delta)<1e-14){
+      // Half-open cell convention assigns a point to exactly one pixel.
+      if(any(lessThan(a,vec2(-0.5)))||any(greaterThanEqual(a,vec2(0.5))))discard;
+      fraction=1.0;
+    }
+  }else{
+    vec2 ab=b-a,bc=c-b,ca=a-c;
+    vec3 edgeCentre=sign(determinant)*vec3(cross2(ab,-a),cross2(bc,-b),cross2(ca,-c));
+    vec3 radius=0.5*vec3(abs(ab.x)+abs(ab.y),abs(bc.x)+abs(bc.y),abs(ca.x)+abs(ca.y));
+    if(any(lessThan(edgeCentre+radius,vec3(0.0))))discard;
+    if(all(greaterThanEqual(edgeCentre-radius,vec3(0.0))))fraction=2.0/abs(determinant);
+    else{
+      // Green's theorem integrates triangle/pixel area directly, without
+      // polygon arrays, iterative clipping or singular Jacobian point samples.
+      float area=edgeArea(a+0.5,b+0.5)+edgeArea(b+0.5,c+0.5)+edgeArea(c+0.5,a+0.5);
+      if(abs(area)<1e-12)discard;
+      fraction=min(2.0*abs(area/determinant),1.0);
+    }
+  }
+  if(fraction<=0.0)discard;
+  // This pixel receives its intersection fraction of the finite source flux.
+  // A subpixel fold cannot donate more than the whole bundle to one pixel.
+  vec3 energy=vBundleIrradiance*fraction;
   if(any(isnan(energy))||any(isinf(energy))) discard;
-  // Half-float overflow guard only, not the upstream artistic contrast/clamp.
-  outColor=vec4(min(energy,vec3(60000.0)),0.0);
+  outColor=vec4(energy,0.0);
 }`;
 export function createRefractedCausticField(THREE, renderer, input = {}) {
     const options = {
@@ -296,13 +391,37 @@ export function createRefractedCausticField(THREE, renderer, input = {}) {
     const photonDomainForDepth = () => sourceDomain;
     const waveUniforms = createWaveUniforms({ meanY: options.meanY, waveScale: options.waveScale, footprint: options.waveFootprint });
     const columns = Math.ceil(Math.sqrt(options.layers)), rows = Math.ceil(options.layers / columns), padding = 1, stride = options.sliceResolution + 2 * padding;
-    const width = columns * stride, height = rows * stride;
-    if (Math.max(width, height) > renderer.capabilities.maxTextureSize)
+    const width = columns * stride, height = rows * stride, n = options.photonResolution;
+    if (Math.max(width, height, n * sunSamples.length) > renderer.capabilities.maxTextureSize)
         throw new Error('Caustic atlas exceeds MAX_TEXTURE_SIZE');
     const target = new THREE.WebGLRenderTarget(width, height, { type: THREE.FloatType, format: THREE.RGBAFormat,
         minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
     target.texture.name = 'refracted-irradiance-atlas';
     target.texture.colorSpace = THREE.NoColorSpace;
+    // Evaluate the unchanged shared wave once at each source node. The finite
+    // bundle raster reuses these nodes for every depth and solar direction.
+    const nodeTarget = new THREE.WebGLRenderTarget(n, n, { type: THREE.FloatType, format: THREE.RGBAFormat,
+        minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
+    nodeTarget.texture.name = 'refracted-photon-wave-nodes';
+    nodeTarget.texture.colorSpace = THREE.NoColorSpace;
+    const nodeGeometry = new THREE.PlaneGeometry(2, 2);
+    const nodeMaterial = new THREE.RawShaderMaterial({ glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false,
+        blending: THREE.NoBlending, uniforms: { ...waveUniforms, uPhotonDomain: { value: new THREE.Vector4(...sourceDomain) }, uPhotonResolution: { value: n } },
+        vertexShader: NODE_VERTEX_SHADER, fragmentShader: NODE_FRAGMENT_SHADER });
+    const nodeScene = new THREE.Scene(), nodeMesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
+    nodeMesh.frustumCulled = false;
+    nodeScene.add(nodeMesh);
+    const directionTarget = new THREE.WebGLRenderTarget(n * sunSamples.length, n, { type: THREE.FloatType, format: THREE.RGBAFormat,
+        minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
+    directionTarget.texture.name = 'refracted-photon-directions';
+    directionTarget.texture.colorSpace = THREE.NoColorSpace;
+    const directionMaterial = new THREE.RawShaderMaterial({ glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false,
+        blending: THREE.NoBlending, uniforms: { uPhotonNodes: { value: nodeTarget.texture }, uNodeOrigin: { value: new THREE.Vector2() },
+            uAirSunDirection: { value: new THREE.Vector3() }, uWaterIor: { value: options.ior } },
+        vertexShader: NODE_VERTEX_SHADER, fragmentShader: DIRECTION_FRAGMENT_SHADER });
+    const directionScene = new THREE.Scene(), directionMesh = new THREE.Mesh(nodeGeometry, directionMaterial);
+    directionMesh.frustumCulled = false;
+    directionScene.add(directionMesh);
     const flat = flatSunDiskIrradiance(0, options);
     const cloudBankEnabled = { value: 1 }, cloudOrigin = { value: new THREE.Vector2() };
     const uniforms = { ...waveUniforms, uCloudBankEnabled: cloudBankEnabled, uCloudOrigin: cloudOrigin,
@@ -316,28 +435,32 @@ export function createRefractedCausticField(THREE, renderer, input = {}) {
         uCausticMeanDirection: { value: new THREE.Vector3(...D) },
     };
     const materialUniforms = { ...waveUniforms, uCloudBankEnabled: cloudBankEnabled, uCloudOrigin: cloudOrigin,
+        uPhotonNodes: { value: nodeTarget.texture }, uPhotonDirections: { value: directionTarget.texture }, uPhotonResolution: { value: n }, uSunSampleIndex: { value: 0 },
         uPhotonDomain: { value: new THREE.Vector4(...sourceDomain) }, uFieldBounds: { value: new THREE.Vector4(...lightBounds) },
         uFieldMeanDirection: { value: new THREE.Vector3(...D) }, uReceiverJitter: { value: new THREE.Vector2() }, uReceiverResolution: { value: options.sliceResolution },
-        uAirSunDirection: { value: new THREE.Vector3(...options.sunDirection) }, uWaterIor: { value: options.ior }, uSliceY: { value: options.meanY },
+        uReceiverOrigin: { value: new THREE.Vector2() },
+        uSourceFluxPerPixel: { value: (sourceDomain[2] - sourceDomain[0]) * (sourceDomain[3] - sourceDomain[1]) / (2 * (n - 1) ** 2)
+            / ((lightBounds[2] - lightBounds[0]) * (lightBounds[3] - lightBounds[1]) / options.sliceResolution ** 2) },
+        uSliceY: { value: options.meanY },
         uFieldSigmaT: { value: new THREE.Vector3(...options.sigmaT) }, uFieldSunIrradiance: { value: new THREE.Vector3(...options.sunIrradiance) },
     };
-    const n = options.photonResolution, positions = new Float32Array(n * n * 3), indices = new Uint32Array((n - 1) * (n - 1) * 6);
-    for (let j = 0; j < n; j++)
-        for (let i = 0; i < n; i++) {
-            const k = (j * n + i) * 3;
-            positions[k] = i / (n - 1);
-            positions[k + 2] = j / (n - 1);
-        }
+    const bundles = 2 * (n - 1) ** 2, sourceA = new Float32Array(bundles * 2), sourceB = new Float32Array(bundles * 2), sourceC = new Float32Array(bundles * 2);
     let at = 0;
     for (let j = 0; j < n - 1; j++)
         for (let i = 0; i < n - 1; i++) {
-            const a = j * n + i, b = a + 1, c = a + n, d = c + 1;
-            indices.set([a, b, c, b, d, c], at);
-            at += 6;
+            const x = i / (n - 1), z = j / (n - 1), right = (i + 1) / (n - 1), top = (j + 1) / (n - 1);
+            sourceA.set([x, z, right, z], at);
+            sourceB.set([right, z, right, top], at);
+            sourceC.set([x, top, x, top], at);
+            at += 4;
         }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+    const geometry = new THREE.InstancedBufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0]), 3));
+    geometry.setIndex([0, 1, 2, 2, 1, 3]);
+    geometry.setAttribute('aSourceA', new THREE.InstancedBufferAttribute(sourceA, 2));
+    geometry.setAttribute('aSourceB', new THREE.InstancedBufferAttribute(sourceB, 2));
+    geometry.setAttribute('aSourceC', new THREE.InstancedBufferAttribute(sourceC, 2));
+    geometry.instanceCount = bundles;
     const material = new THREE.RawShaderMaterial({ glslVersion: THREE.GLSL3, uniforms: materialUniforms,
         vertexShader: VERTEX_SHADER, fragmentShader: FRAGMENT_SHADER, side: THREE.DoubleSide, depthTest: false, depthWrite: false,
         transparent: true, forceSinglePass: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
@@ -348,14 +471,16 @@ export function createRefractedCausticField(THREE, renderer, input = {}) {
     scene.add(mesh);
     const camera = new THREE.Camera();
     const diagnostics = { referenceCommit: CAUSTIC_REFERENCE_COMMIT, threeRevision: THREE.REVISION, options,
-        cloudBank: CLOUD_BANK, cloudControl: 'Actual photon sourceXZ solar attenuation; far continuation uses mean-ray entry. Explicit broad world-space artistic cloud bank.', revision: 'ray-aligned-atlas-v12-cloud-bank', accumulationFormat: 'RGBA32F', atlasSize: [width, height], atlasBytes: width * height * 16, trianglesPerUpdate: 2 * (n - 1) * (n - 1) * options.layers * sunSamples.length,
+        cloudBank: CLOUD_BANK, cloudControl: 'Actual photon sourceXZ solar attenuation; far continuation uses mean-ray entry. Explicit broad world-space artistic cloud bank.', revision: 'ray-aligned-atlas-v12-finite-bundles', accumulationFormat: 'RGBA32F', atlasSize: [width, height], atlasBytes: width * height * 16,
+        photonNodesBytes: n * n * 16, photonDirectionsBytes: n * n * 16 * sunSamples.length, sourceGeometryBytes: sourceA.byteLength + sourceB.byteLength + sourceC.byteLength + 60,
+        photonBundlesPerUpdate: bundles * options.layers * sunSamples.length, trianglesPerUpdate: 2 * bundles * options.layers * sunSamples.length,
         lightBounds, fixedSourceDomain: sourceDomain, sunDiskSamples: sunSamples,
-        reconstruction: 'mean-ray-sheared trilinear, fixed source nodes, finite solar-disk plus explicit receiver-pixel quadrature',
+        reconstruction: 'mean-ray-sheared trilinear, fixed source nodes, finite solar disk, triangle/pixel intersection integral',
         receiverTexelMetres: [(lightBounds[2] - lightBounds[0]) / options.sliceResolution, (lightBounds[3] - lightBounds[1]) / options.sliceResolution],
         photonSpacingMetres: [(sourceDomain[2] - sourceDomain[0]) / (n - 1), (sourceDomain[3] - sourceDomain[1]) / (n - 1)],
         sliceDepths, photonSourceDomains: sliceDepths.map(photonDomainForDepth), filteredSlopeBound: slopeBound, maximumSlopeDeflection: deviation,
         meanRefractedDirection: D, flatSurfaceIrradiance: flat, lastTime: null, updates: 0,
-        approximations: ['finite uniform solar-disk quadrature', 'coupled angular and receiver-pixel quadrature', 'mean direction for phase/BRDF', 'finite photon-grid rasterization', 'no actor light-path occlusion', 'far-field flat-water continuation', 'half-float overflow guard at 60000 per contribution'] };
+        approximations: ['finite uniform solar-disk quadrature', 'retained coupled solar/receiver offsets', 'mean direction for phase/BRDF', 'piecewise-linear photon bundles and mean source-cell transfer', 'line/point integral for collapsed bundles', 'no actor light-path occlusion', 'far-field flat-water continuation'] };
     let disposed = false;
     function update(time) {
         if (disposed)
@@ -368,6 +493,15 @@ export function createRefractedCausticField(THREE, renderer, input = {}) {
         try {
             renderer.xr.enabled = false;
             renderer.autoClear = false;
+            renderer.setRenderTarget(nodeTarget);
+            renderer.render(nodeScene, camera);
+            for (let i = 0; i < sunSamples.length; i++) {
+                directionTarget.viewport.set(i * n, 0, n, n);
+                directionMaterial.uniforms.uNodeOrigin.value.set(i * n, 0);
+                directionMaterial.uniforms.uAirSunDirection.value.set(...sunSamples[i].direction);
+                renderer.setRenderTarget(directionTarget);
+                renderer.render(directionScene, camera);
+            }
             // RenderTarget rectangles are texture pixels. Renderer setters use
             // logical pixels and multiply DPR even while an RTT is bound.
             target.viewport.set(0, 0, width, height);
@@ -385,6 +519,7 @@ export function createRefractedCausticField(THREE, renderer, input = {}) {
                 materialUniforms.uPhotonDomain.value.set(...sourceDomain);
                 materialUniforms.uSliceY.value = options.meanY - depth;
                 const x = (l % columns) * stride + padding, y = Math.floor(l / columns) * stride + padding;
+                materialUniforms.uReceiverOrigin.value.set(x, y);
                 target.viewport.set(x, y, options.sliceResolution, options.sliceResolution);
                 target.scissor.set(x, y, options.sliceResolution, options.sliceResolution);
                 renderer.setRenderTarget(target);
@@ -392,8 +527,9 @@ export function createRefractedCausticField(THREE, renderer, input = {}) {
                     const gl = renderer.getContext();
                     diagnostics.tileRenderStates.push({ layer: l, expected: [x, y, options.sliceResolution, options.sliceResolution], viewport: Array.from(gl.getParameter(gl.VIEWPORT)), scissor: Array.from(gl.getParameter(gl.SCISSOR_BOX)), scissorTest: gl.isEnabled(gl.SCISSOR_TEST), targetSize: [width, height], dpr: renderer.getPixelRatio() });
                 }
-                for (const sample of sunSamples) {
-                    materialUniforms.uAirSunDirection.value.set(...sample.direction);
+                for (let i = 0; i < sunSamples.length; i++) {
+                    const sample = sunSamples[i];
+                    materialUniforms.uSunSampleIndex.value = i;
                     materialUniforms.uReceiverJitter.value.set(...sample.receiverOffset);
                     materialUniforms.uFieldSunIrradiance.value.set(...options.sunIrradiance.map(E => E * sample.weight));
                     renderer.render(scene, camera);
@@ -476,7 +612,7 @@ export function createRefractedCausticField(THREE, renderer, input = {}) {
             expectedFlat, relativeFlatError: mean.map((v, i) => (v - expectedFlat[i]) / expectedFlat[i]), waveScale: waveUniforms.uWaveScale.value };
     }
     function dispose() { if (disposed)
-        return; disposed = true; target.dispose(); geometry.dispose(); material.dispose(); }
+        return; disposed = true; target.dispose(); nodeTarget.dispose(); directionTarget.dispose(); geometry.dispose(); material.dispose(); nodeGeometry.dispose(); nodeMaterial.dispose(); directionMaterial.dispose(); }
     return { update, texture: target.texture, target, renderTarget: target, readSliceStatistics, samplerGLSL: CAUSTIC_SAMPLER_GLSL, uniforms, waveUniforms,
         meanRefractedDirection: new THREE.Vector3(...D), options, diagnostics, dispose };
 }
