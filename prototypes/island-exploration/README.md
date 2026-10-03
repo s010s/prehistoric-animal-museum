@@ -17,7 +17,7 @@ Open `http://127.0.0.1:4383`. The build output is ignored local review material.
 
 The 20.48 km world extends the museum's fixed coastal-valley sampler (seed 193706) into one authored island. The terrain field defines the coastline, watershed, main river, tributary, wetlands, lakes, prairie, uplands and western crags. Terrain and vegetation stay anchored to world coordinates while the camera moves. A 22-metre Apatosaurus stands in the riverside clearing; an 8.5-metre Triceratops occupies the adjacent woodland opening. Their scales come from measured model bounds and their existing idle animations stay rooted to the visible terrain.
 
-Use the on-screen joystick and height controls on a phone. On desktop, use WASD to move, Q/E to change height, drag to look around and Shift to accelerate. Enable 地面步行 for a 1.65 m/s pace at eye height. The map lists the island's destinations; the guided tour crosses its major biomes.
+Use the on-screen joystick and height controls on a phone. On desktop, use WASD to move, Q/E to change height, drag to look around and Shift to accelerate. Enable 地面步行 for a 1.65 m/s pace with eyes 1.75 m above the visible ground. Walking stops before water deeper than 0.65 m; a map destination in deep water switches to flight. The map lists the island's destinations; the guided tour crosses its major biomes.
 
 The height field and waterways are authored visual approximations rather than a geomorphology or hydrology simulation. Water shading, wakes and foam are visual effects rather than a fluid solver. Vegetation models are modern visual proxies, not authenticated prehistoric flora. Desktop emulation does not establish real-phone GPU performance.
 
@@ -52,7 +52,7 @@ The shore height atlas covers the east bay and estuary using their own sampled t
 
 ### Side-spring desktop sample
 
-The side spring at z≈−720 and northern source at z≈−4023 have separate destination IDs, `side-spring` and `north-source`. The default entry is the side spring. `sample-region.js` owns the local terrain envelope, shared path mask and versioned `side-spring-loop` route. The continuous 431.04 m loop approaches the upper pool, short fall, woodland and both animals, rounds the Apatosaurus clearing and returns over the shallow ford. It takes 225 wall seconds after initial warmup. It advances through pending worker updates and records those frames. Legacy diagnostic replays retain their fixed tick clock.
+The side spring at z≈−720 and northern source at z≈−4023 have separate destination IDs, `side-spring` and `north-source`. The default entry is the side spring. `sample-region.js` owns the local terrain envelope, shared path mask and versioned `side-spring-loop` route. The continuous 457.29 m loop approaches the upper pool, short fall, woodland and both animals, rounds the Apatosaurus clearing, crosses the shallow ford twice and returns around the plunge pool to its shallow upper lip. It follows visible ground and takes 225 wall seconds after initial warmup. It advances through pending worker updates and records those frames. Legacy diagnostic replays retain their fixed tick clock.
 
 Use `gpuScope=none` for this review. It creates no GPU timer-query sample. Timing and video are separate runs; frame evidence includes route identity, version, world/wall time, position, pending state and source/assets hashes. Automatic benchmark routes bypass ordinary animal collision, so ordinary WASD/joystick navigation must also be checked. The measurement UI and still checks do not establish visual quality.
 

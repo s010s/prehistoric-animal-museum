@@ -119,6 +119,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   updateLabel(); $('benchmark-note').textContent = observations[current] || observations.forest; setTime(60)
   const api={
     get active() { return Boolean(replay) },
+    get groundRouteActive() { return replay?.mode==='region' },
     get diagnosticComplete() { return diagnosticComplete },
     get videoPending() { return videoPending },
     get visualRecords() { return records },
