@@ -1,6 +1,7 @@
 import {
   Group,
   Mesh,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   SphereGeometry,
 } from 'three'
@@ -10,6 +11,41 @@ import {
 } from '../src/scale-encounter/environments/ocean/ocean-subject-grade'
 
 describe('ocean subject grade', () => {
+  it('isolates submerged skin optics and restores its shared material once', () => {
+    const root = new Group()
+    const geometry = new SphereGeometry(1)
+    const skin = new MeshPhysicalMaterial({ name: 'skin', ior: 1.5 })
+    const eye = new MeshPhysicalMaterial({ name: 'eye', ior: 1.5 })
+    root.add(
+      new Mesh(geometry, skin),
+      new Mesh(geometry, skin),
+      new Mesh(geometry, eye),
+    )
+    const compile = Reflect.get(skin, 'onBeforeCompile')
+    const eyeCompile = Reflect.get(eye, 'onBeforeCompile')
+    const cacheKey = Reflect.get(skin, 'customProgramCacheKey')
+    const lease = applyOceanSubjectGrade(root, {
+      midtoneExponent: 1.2,
+      saturation: 1.65,
+      materialNames: ['skin'],
+      incidentMediumIor: 1.333,
+    })
+
+    expect(lease.materialCount).toBe(1)
+    expect(skin.ior).toBeCloseTo(1.5 / 1.333, 10)
+    expect(eye.ior).toBe(1.5)
+    expect(Reflect.get(eye, 'onBeforeCompile')).toBe(eyeCompile)
+    expect(skin.customProgramCacheKey()).toContain('1.3330')
+    lease.restore()
+    lease.restore()
+    expect(skin.ior).toBe(1.5)
+    expect(Reflect.get(skin, 'onBeforeCompile')).toBe(compile)
+    expect(Reflect.get(skin, 'customProgramCacheKey')).toBe(cacheKey)
+    geometry.dispose()
+    skin.dispose()
+    eye.dispose()
+  })
+
   it('adds and restores one reversible authored-albedo shader grade', () => {
     const root = new Group()
     const sharedMaterial = new MeshStandardMaterial({ color: '#ffffff' })

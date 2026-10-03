@@ -85,6 +85,30 @@ transport. The ordinary ocean UI no longer applies the inherited land-coloured
 screen vignette; controls retain their own backgrounds and text shadows.
 Global exposure and the clear-water extinction coefficients are unchanged.
 
+The calm-water spectrum weights every original wave amplitude by
+`1.35 / sqrt(1 + (4 metres / wavelength)^4)`. Its 4 m ripple turnover reduces
+short-wave surface breakup while retaining all 24 world-coordinate phases,
+directions and gravity-dispersion frequencies. At the shared 0.25 m footprint,
+resolved slope RMS changes from 0.10156 to 0.10235; sub-3 m waves contribute
+4.1% rather than 31.0% of its variance. Unresolved slope RMS changes from
+0.22650 to 0.03008. The height RMS is 0.191 m rather than 0.147 m. Both the
+visible interface and photon field use this same art-directed spectrum; their
+caustic structure changes with its source waves. No receiver-atlas filter is
+added. These values describe the selected analytic sea, not measured weather.
+
+Two authored body materials have ocean-only, reversible calibrations. The
+ichthyosaur's low-chroma grey-green skin uses saturation 1.65 and albedo exponent
+1.20. Its opaque non-metallic physical skin uses the material IOR relative to
+water (1.5 / 1.333): normal-incidence dielectric F0 is 0.003475 before the
+authored specular intensity, instead of the air-interface 0.04. This keeps the
+pigment contribution distinct from the broad neutral reflection; it cannot
+invent colour absent from the source texture. The mosasaur's dark blue body
+uses albedo exponent 0.90 with saturation 1.18. The curve lifts its dark pigment
+without an emissive floor; normals and the shared light field still shape the
+body. Eyes, teeth, the avatar and other animals keep their prior calibrations.
+Authored IOR, compile callbacks and cache keys are restored on lease release.
+These skin adjustments and the calmer spectrum remain a visual candidate.
+
 Review-only surface modes isolate air, reflected water,
 Fresnel weight, cloud sky scale and unshadowed sky for matching-camera checks.
 These modes are absent from the production water shader. Review-only paired

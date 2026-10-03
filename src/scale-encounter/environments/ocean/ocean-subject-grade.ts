@@ -1,5 +1,6 @@
 import {
   Mesh,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   type Material,
   type Object3D,
@@ -18,12 +19,22 @@ export interface OceanSubjectGradeOptions {
   readonly midtoneExponent: number
   /** Values above one restore colour separation lost to underwater scattering. */
   readonly saturation: number
+  /** Restrict a skin calibration to authored material names, keeping eyes and teeth intact. */
+  readonly materialNames?: readonly string[]
+  /** Keep an existing grade on materials excluded from the skin calibration. */
+  readonly unselectedGrade?: Pick<
+    OceanSubjectGradeOptions,
+    'midtoneExponent' | 'saturation'
+  >
+  /** Surrounding medium IOR for an opaque, non-metallic physical skin material. */
+  readonly incidentMediumIor?: number
 }
 
 interface MaterialPatch {
   readonly material: MeshStandardMaterial
   readonly onBeforeCompile: MeshStandardMaterial['onBeforeCompile']
   readonly programCacheKey: Material['customProgramCacheKey']
+  readonly authoredIor: number | null
 }
 
 function finiteGradeValue(value: number, fallback: number): number {
@@ -40,8 +51,6 @@ export function applyOceanSubjectGrade(
   root: Object3D,
   options: OceanSubjectGradeOptions,
 ): OceanSubjectGradeLease {
-  const saturation = finiteGradeValue(options.saturation, 1)
-  const midtoneExponent = finiteGradeValue(options.midtoneExponent, 1)
   const patches: MaterialPatch[] = []
   const visited = new Set<MeshStandardMaterial>()
 
@@ -54,6 +63,17 @@ export function applyOceanSubjectGrade(
       if (!(entry instanceof MeshStandardMaterial) || visited.has(entry)) {
         continue
       }
+      const materialOptions: OceanSubjectGradeOptions | undefined =
+        options.materialNames && !options.materialNames.includes(entry.name)
+          ? options.unselectedGrade
+          : options
+      if (!materialOptions) continue
+      const saturation = finiteGradeValue(materialOptions.saturation, 1)
+      const midtoneExponent = finiteGradeValue(materialOptions.midtoneExponent, 1)
+      const incidentMediumIor = finiteGradeValue(
+        materialOptions.incidentMediumIor ?? 1,
+        1,
+      )
       visited.add(entry)
       const originalOnBeforeCompile = Reflect.get(
         entry,
@@ -63,11 +83,22 @@ export function applyOceanSubjectGrade(
         entry,
         'customProgramCacheKey',
       )
+      const authoredIor =
+        incidentMediumIor !== 1 &&
+        entry instanceof MeshPhysicalMaterial &&
+        entry.metalness === 0 &&
+        entry.transmission === 0
+          ? entry.ior
+          : null
       patches.push({
         material: entry,
         onBeforeCompile: originalOnBeforeCompile,
         programCacheKey: originalProgramCacheKey,
+        authoredIor,
       })
+      if (authoredIor !== null && entry instanceof MeshPhysicalMaterial) {
+        entry.ior = Math.max(1, authoredIor / incidentMediumIor)
+      }
       entry.onBeforeCompile = function onBeforeCompile(shader, renderer) {
         originalOnBeforeCompile.call(this, shader, renderer)
         shader.fragmentShader = shader.fragmentShader.replace(
@@ -90,7 +121,8 @@ export function applyOceanSubjectGrade(
       }
       entry.customProgramCacheKey = () =>
         `${originalProgramCacheKey.call(entry)}|${OCEAN_SUBJECT_GRADE_REVISION}|` +
-        `${saturation.toFixed(4)}|${midtoneExponent.toFixed(4)}`
+        `${saturation.toFixed(4)}|${midtoneExponent.toFixed(4)}|` +
+        `${incidentMediumIor.toFixed(4)}`
       entry.needsUpdate = true
     }
   })
@@ -102,6 +134,12 @@ export function applyOceanSubjectGrade(
       if (restored) return
       restored = true
       for (const patch of patches) {
+        if (
+          patch.authoredIor !== null &&
+          patch.material instanceof MeshPhysicalMaterial
+        ) {
+          patch.material.ior = patch.authoredIor
+        }
         patch.material.onBeforeCompile = patch.onBeforeCompile
         patch.material.customProgramCacheKey = patch.programCacheKey
         patch.material.needsUpdate = true

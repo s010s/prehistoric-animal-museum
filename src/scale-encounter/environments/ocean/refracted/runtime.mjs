@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import * as THREE from 'three';
 import { createRefractedCausticField, refractSun, flatIrradiance } from './caustic-atlas.mjs';
-import { createWaveUniforms, WAVE_COMPONENTS } from './wave-field.mjs';
+import { createWaveUniforms, WAVE_COMPONENTS, WAVE_SPECTRUM } from './wave-field.mjs';
 import { CLOUD_BANK_GLSL } from './cloud-bank.mjs';
 import { createPhysicalWaterSurface } from './water-surface.mjs';
 import { decorateSharedActorLighting, preserveBlueDepthPalette } from './subject-light.mjs';
@@ -81,7 +81,7 @@ export function createOceanRefractedRuntime(renderer, candidate, origin = new TH
     const gl = renderer.getContext(), timer = gl.getExtension('EXT_disjoint_timer_query_webgl2'), queries = [], cpuSamples = [], gpuSamples = [], frameSamples = [];
     let lastFrame = 0;
     const percentile = (values, q) => values.length ? [...values].sort((a, b) => a - b)[Math.floor((values.length - 1) * q)] : null;
-    const diagnostics = { tier, reason: supported ? 'bounded real-time atlas and medium pixels' : 'missing float render/blend/filter extension', atlasBytes: field.diagnostics.atlasBytes, photonResolution: field.options?.photonResolution ?? 0, layers: field.options?.layers ?? 0, waveFootprint: WAVE_FOOTPRINT, volumeSteps: 96, renderScale: 1, maxMediumPixels, updates: 0, waveTime: 0, sideDiffuseFraction: ACTOR_LIGHTING.sideDiffuseFraction, diffuseGain: ACTOR_LIGHTING.diffuseGain, hdrScene: hdrSupported, boundaryRadianceScale: COMPARISON_RENDER.boundaryRadianceScale, anisotropy: MEDIUM.anisotropy, maxPathMetres: COMPARISON_RENDER.maxPathMetres };
+    const diagnostics = { tier, reason: supported ? 'bounded real-time atlas and medium pixels' : 'missing float render/blend/filter extension', atlasBytes: field.diagnostics.atlasBytes, photonResolution: field.options?.photonResolution ?? 0, layers: field.options?.layers ?? 0, waveFootprint: WAVE_FOOTPRINT, waveSpectrum: WAVE_SPECTRUM, volumeSteps: 96, renderScale: 1, maxMediumPixels, updates: 0, waveTime: 0, sideDiffuseFraction: ACTOR_LIGHTING.sideDiffuseFraction, diffuseGain: ACTOR_LIGHTING.diffuseGain, hdrScene: hdrSupported, boundaryRadianceScale: COMPARISON_RENDER.boundaryRadianceScale, anisotropy: MEDIUM.anisotropy, maxPathMetres: COMPARISON_RENDER.maxPathMetres };
     function decorate(scene) { scene.traverse(o => { if (!o.isMesh)
         return; const list = Array.isArray(o.material) ? o.material : [o.material]; if (!list.some(m => m.isMeshStandardMaterial && !materials.has(m)))
         return; for (const m of list)

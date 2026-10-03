@@ -2216,14 +2216,28 @@ export class ViewerController {
       boostFlow = createScaleEncounterBoostFlowEffect(definition.habitat)
       if (boostFlow) this.scene.add(boostFlow.root)
       if (environment?.sceneCandidateSemantic === 'ocean') {
-        // Grade authored subject albedo before PBR lighting instead of
-        // darkening the entire ocean exposure. The animal can take slightly
-        // more midtone depth; the child's skin receives a gentler grade so it
-        // remains readable in the close guided camera.
-        oceanAnimalGrade = applyOceanSubjectGrade(current.modelRoot, {
-          midtoneExponent: 1.08,
-          saturation: 1.18,
-        })
+        // These two authored skins need different treatments: the fish has
+        // low-chroma grey-green pigment and an air-interface physical IOR;
+        // the mosasaur has genuinely dark blue dorsal pigment. Grade only
+        // their body materials before the existing PBR light field, keeping
+        // the countershading, normals, eyes and teeth intact.
+        const animalGrade = definition.id === 'ichthyosaur'
+          ? {
+              midtoneExponent: 1.2,
+              saturation: 1.65,
+              materialNames: ['IchthyosaurSkin-1'],
+              incidentMediumIor: 1.333,
+              unselectedGrade: { midtoneExponent: 1.08, saturation: 1.18 },
+            }
+          : definition.id === 'mosasaurus'
+            ? {
+                midtoneExponent: 0.9,
+                saturation: 1.18,
+                materialNames: ['Mosasaurus'],
+                unselectedGrade: { midtoneExponent: 1.08, saturation: 1.18 },
+              }
+            : { midtoneExponent: 1.08, saturation: 1.18 }
+        oceanAnimalGrade = applyOceanSubjectGrade(current.modelRoot, animalGrade)
         oceanAvatarGrade = applyOceanSubjectGrade(avatar.root, {
           midtoneExponent: 1.045,
           saturation: 1.12,

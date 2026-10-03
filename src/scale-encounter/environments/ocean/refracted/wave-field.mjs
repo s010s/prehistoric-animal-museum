@@ -3,12 +3,20 @@
  * Shared by visible surface, refracted irradiance generation, and CPU checks.
  * No simulation state, wall clock, random calls, or independently animated normals.
  */
+// Calm-water wind-ripple turnover in real metres, shared by every receiver.
+// Keep all wave components. Move slope energy toward longer waves instead of
+// blurring the rendered surface or its caustics independently. The long-wave
+// gain retains the resolved (.25m footprint) RMS slope of the prior spectrum.
+export const WAVE_SPECTRUM = Object.freeze({
+    revision: 'calm-world-spectrum-v2', shortWaveTurnoverMetres: 4, longWaveGain: 1.35,
+});
 // A broad, deterministic directional spectrum. Irrational directions and
 // incommensurate wavelengths avoid a tiled or parallel stripe appearance.
 // All receivers still evaluate exactly this same analytic height/gradient.
 export const WAVE_COMPONENTS = Object.freeze(Array.from({ length: 24 }, (_, i) => {
     const wavelength = 22 * Math.pow(.79, i), angle = i * 2.399963229728653 + .28;
-    const amplitude = .11 * Math.pow(wavelength / 22, .76) * (1 + .23 * Math.sin(i * 1.71));
+    const rippleGain = WAVE_SPECTRUM.longWaveGain / Math.sqrt(1 + (WAVE_SPECTRUM.shortWaveTurnoverMetres / wavelength) ** 4);
+    const amplitude = .11 * Math.pow(wavelength / 22, .76) * (1 + .23 * Math.sin(i * 1.71)) * rippleGain;
     return Object.freeze({ amplitude, wavelength, angle, phase: i * 1.61803398875 + .4,
         k: 2 * Math.PI / wavelength, dirX: Math.cos(angle), dirZ: Math.sin(angle),
         omega: Math.sqrt(9.81 * 2 * Math.PI / wavelength) });

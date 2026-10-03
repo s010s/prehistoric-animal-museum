@@ -49,7 +49,7 @@ irradiance+=diffuseWaterE*${ACTOR_LIGHTING.diffuseGain}*(${ACTOR_LIGHTING.sideDi
 #endif
 #include <lights_fragment_end>`).replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor=.46+.52*clamp(roughnessFactor,0.,1.);');
                 if (reviewUniforms) {
-                    s.fragmentShader = s.fragmentShader.replace(/vec3\((1\.0800|1\.0450)\)/g, 'vec3(mix($1,1.,uReviewGradeOff))').replace('#include <opaque_fragment>', 'if(uReviewActorMode==1)outgoingLight=diffuseColor.rgb;if(uReviewActorMode==2)outgoingLight=reflectedLight.indirectDiffuse;if(uReviewActorMode==3)outgoingLight=reflectedLight.directDiffuse;if(uReviewActorMode==4)outgoingLight=vec3(1.);\n#include <opaque_fragment>');
+                    s.fragmentShader = s.fragmentShader.replace(/(diffuseColor\.rgb\s*=\s*pow\(\s*max\(diffuseColor\.rgb,\s*vec3\(0\.0\)\),\s*vec3\()([\d.]+)(\)\s*\);)/g, '$1mix($2,1.,uReviewGradeOff)$3').replace('#include <opaque_fragment>', 'if(uReviewActorMode==1)outgoingLight=diffuseColor.rgb;if(uReviewActorMode==2)outgoingLight=reflectedLight.indirectDiffuse;if(uReviewActorMode==3)outgoingLight=reflectedLight.directDiffuse;if(uReviewActorMode==4)outgoingLight=vec3(1.);\n#include <opaque_fragment>');
                 }
             };
             m.customProgramCacheKey = () => key.call(m) + '|ocean-refracted-world-sun-v3|' + ACTOR_LIGHTING.diffuseGain + '|' + ACTOR_LIGHTING.sideDiffuseFraction + '|' + !!reviewUniforms + '|' + (field.diagnostics.revision ?? 'analytic-mean-v1');
