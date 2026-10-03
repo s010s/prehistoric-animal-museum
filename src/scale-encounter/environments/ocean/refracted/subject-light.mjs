@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import * as THREE from 'three';
-import { MEDIUM, ACTOR_LIGHTING } from './config.mjs';
+import { MEDIUM, ACTOR_LIGHTING, COMPARISON_RENDER } from './config.mjs';
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 export function preserveBlueDepthPalette(texture, sunColor) {
     const { data, width, height } = texture.image, legacySun = new THREE.Vector3(-.25, .68, -.69).normalize();
@@ -12,7 +12,7 @@ export function preserveBlueDepthPalette(texture, sunColor) {
             const az = ((x + .5) / width - .5) * Math.PI * 2, cosine = Math.max(0, Math.cos(az) * h * legacySun.x + dy * legacySun.y + Math.sin(az) * h * legacySun.z), oldSolar = (Math.pow(cosine, 15) * .2 + Math.pow(cosine, 190) * .68) * smooth(-.02, .66, dy);
             for (let c = 0; c < 3; c++) {
                 const k = (y * width + x) * 4 + c, base = Math.max(0, THREE.DataUtils.fromHalfFloat(data[k]) - [sunColor.r, sunColor.g, sunColor.b][c] * oldSolar);
-                data[k] = THREE.DataUtils.toHalfFloat(base * gain * [1.05, 1, .985][c]);
+                data[k] = THREE.DataUtils.toHalfFloat(base * gain * [1.05, 1, .985][c] * COMPARISON_RENDER.boundaryRadianceScale);
             }
         }
     }

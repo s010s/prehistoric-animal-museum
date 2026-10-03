@@ -6285,6 +6285,13 @@ html[data-locale="en"] .collection-card__copy strong {
   );
 }
 
+/* The 3D ocean owns depth, colour and illumination. A land-coloured screen
+   vignette would flatten the beams and tint even diagnostic framebuffer views.
+   Keep the setup/error backdrop and each control's own readable background. */
+.scale-encounter-shell[data-habitat="water"]:not([data-phase="setup"]):not([data-phase="error"])::before {
+  background: none;
+}
+
 .scale-encounter-shell[data-phase="setup"]::after,
 .scale-encounter-shell[data-phase="error"]::after {
   background: rgb(19 38 30 / 22%);

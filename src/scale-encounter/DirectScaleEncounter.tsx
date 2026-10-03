@@ -1717,6 +1717,7 @@ export function DirectScaleEncounter({
       aria-modal="true"
       className="scale-encounter-shell"
       data-animal-id={animal.id}
+      data-habitat={SCALE_ENCOUNTER_DEFINITIONS[content.animalId].habitat}
       data-ecology-density={ecologyDensity}
       data-environment={environmentVariant}
       data-experience-layer={experienceLayer}

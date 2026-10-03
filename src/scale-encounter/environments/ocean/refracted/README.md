@@ -15,7 +15,7 @@ a finite square mesh. Grazing rays continue into a smooth mean water surface.
 The medium uses actual scene depth, Beer attenuation and bounded midpoint
 quadrature; it cannot add sunlight behind an opaque visible animal.
 
-Real-time budgets differ from the offline film: a 128 photon grid, 160 pixels per
+Real-time budgets are bounded: a 128 photon grid, 160 pixels per
 depth tile, 20 depth layers, four solar samples, a 0.25 m shared wave footprint,
 16 broad sky slope samples and 96 medium steps. The RGBA32F atlas occupies
 8,398,080 bytes. Scene color/depth and the linear medium composite share a
@@ -45,29 +45,40 @@ water LUT reflection rather than traced reflections; coarse real-time atlas and
 bounded line integration. Sharp caustic-volume peaks may persist at some angles
 and times. Low-end quality is a distinct analytic fallback.
 
-The free comparison camera travels farther and looks more steeply upward than
-fixed film shots. Clear-water coefficients are sigmaT=[.009,.0036,.0024] and
+Clear-water coefficients are sigmaT=[.009,.0036,.0024] and
 sigmaS=[.0008,.0011,.0014] per metre, shared by light and medium. Cloud solar
 transmission remains .10 under the near bank while broad sky transmission is
 .45. Local reflected-water radiance scales from 1.30 under the bank to 1.83
-at the opening. The actor's broad diffuse calibration has gain 1.45 and a .65
+at the opening, before terminal boundary calibration. Shared air solar
+irradiance is [13,12.4,11.2], with a normalized HG phase parameter of .7.
+Broad sky scattering follows the cloud above each world column, rather than
+adding an equally bright isotropic contribution under the near cloud bank.
+The actor's broad diffuse calibration has gain 1.45 and a .65
 side/lower fraction. Each directional light retains its original color and
 intensity before multiplication by the shared irradiance, so disabled exhibit
 and camera lights remain zero. These are art-directed runtime adaptations,
 not a claim of full physical cloud transport or final visual acceptance.
 
-The transmitted daytime sky uses a bright cyan upper hemisphere. A legacy
-dark zenith palette produced the user-identified gray patch at the upper-right
-of upward Retina views; this is distinct from the atlas DPR defect. Sky fill
-changes the broad air radiance while preserving the solar/cloud boundary and
-the Fresnel mixture. Review-only surface modes isolate air, reflected water,
+The transmitted daytime sky mixes toward cyan with coefficient .65 at fixed
+linear luminance. Terminal sky, reflected-water and deep-background radiance
+use a common .62 scale; subject irradiance and volume scattering are not
+exposure-scaled with that boundary. The interface sun gain is .5, compensating
+the stronger shared source so the old solar glint is not simply doubled.
+These source calibrations are art approximations, not full cloud/reflection
+transport. The ordinary ocean UI no longer applies the inherited land-coloured
+screen vignette; controls retain their own backgrounds and text shadows.
+Global exposure and the clear-water extinction coefficients are unchanged.
+
+Review-only surface modes isolate air, reflected water,
 Fresnel weight, cloud sky scale and unshadowed sky for matching-camera checks.
 These modes are absent from the production water shader. Review-only paired
 studies can choose a 72/96/120 m medium path cap and surface-fade ranges of
-35–160 or 80–240 m. Unflagged and production values remain 72 m and 35–160 m.
-The distant-opening path hypothesis has mathematical support but still needs
-pixel evidence with actual opaque depth and natural camera changes. Human
-acceptance of the corrected appearance remains pending.
+35–160 or 80–240 m. Unflagged and production values are 120 m and 35–160 m.
+The longer cap admits the remote opening in the initial comparison camera;
+actual opaque depth and the water interface still terminate every visible ray.
+Combined, solar-only and sky-only scattering use debug modes 2, 8 and 9, after
+the ordinary final display transform. Visual acceptance and the additional
+march-length sampling/peak risks require actual camera and time review.
 
 Software follows the project AGPL-3.0-only license. The ray-bundle area Jacobian
 and depth-slice lookup reference ScottieFox/caustic-volume at commit
@@ -79,8 +90,9 @@ retain their individual project credits and licenses; they are not all CC0.
 
 ## Local review
 
-Run `npx playwright test --config playwright.ocean.config.ts` on macOS with
-installed Chrome. It opens an independent headless Chrome/Metal context, uses
+Run targeted checks with
+`npx playwright test --config playwright.ocean.config.ts --headed --workers=1`
+on macOS with installed Chrome. It opens an independent Chrome/Metal context, uses
 review mode at `http://127.0.0.1:4216`, and stores screenshots and 360-frame
 measurements under ignored `.handoff/ocean-v12/`. It is deliberately excluded
 from the cross-platform default E2E configuration. Reduced motion and animated
