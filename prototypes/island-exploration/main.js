@@ -67,7 +67,10 @@ if(contextRecovery){
   document.body.dataset.recovery=JSON.stringify(recovery);
   let lastSafeState=null;try{const raw=document.querySelector('#gpu-review')?.dataset.snapshot;if(raw)lastSafeState=JSON.parse(raw);}catch{}
   const failure={observedAt:Date.now(),build:__WORLD_BUILD__,url:location.href,statusMessage:e.statusMessage??null,injectionRequested:workloadReview?.injectionRequested??false,recovery,drawSize:[renderer.domElement.width,renderer.domElement.height],pose:poseReady?camera.position.toArray():null,lastSafeState};
-  try{sessionStorage.setItem(failureKey,JSON.stringify(failure));}catch{}
+  let stored=false;try{sessionStorage.setItem(failureKey,JSON.stringify(failure));stored=true;}catch{}
+  // Keep the export on this paused page if storage cannot survive a reload.
+  // The localhost flush is still useful, but it is not available on every host.
+  if(!stored){recoveryUrl=null;failure.recovery={...recovery,allowed:false,url:null,reason:'evidence-storage-unavailable'};document.body.dataset.recovery=JSON.stringify(failure.recovery);}
   showFailureExport(failure);evidenceFlush=workloadReview?.contextLost(failure)??Promise.resolve();
   benchmark?.cancel('WebGL context lost');
   if(poseReady){stop();keys.clear();joy.x=joy.y=0;alt.up=alt.down=false;look=null;}
