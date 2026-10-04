@@ -119,3 +119,7 @@ large video buffers as base64; they are never started by ordinary preview.
 Explicit localhost workload-review recordings also stream their bounded Blob to the
 local review sink on completion. Binary video is saved in the ignored results directory;
 this does not run for ordinary preview or send data to any external host.
+
+The legacy `dry` direct-render diagnostic retains its default framebuffer AA/depth;
+their removal applies only to the fullscreen composite path. Atlas clears also
+wait for a startup submission slot. The explicit override deadline covers startup.

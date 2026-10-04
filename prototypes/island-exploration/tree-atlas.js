@@ -7,7 +7,7 @@ export async function bakeTreeAtlas(renderer,templates,waitForWork){
  const scene=new T.Scene(),camera=new T.OrthographicCamera(-.7,.7,.7,-.7,.01,100),center=new T.Vector3(0,.5,0);
  renderer.toneMapping=T.NoToneMapping;renderer.autoClear=false;renderer.setClearColor(0,0);renderer.setScissorTest(false);
  for(let pass=0;pass<2;pass++){
-  renderer.setRenderTarget(targets[pass]);renderer.clear();
+  await waitForWork('tree-atlas-clear');renderer.setRenderTarget(targets[pass]);renderer.clear();
   for(let species=0;species<templates.length;species++){
    const tree=templates[species],meshes=tree.parts.map(part=>{
     const m=new T.MeshBasicMaterial({map:part.material.map,color:part.material.color,vertexColors:part.material.vertexColors,alphaTest:part.material.alphaTest,side:T.DoubleSide,toneMapped:false});

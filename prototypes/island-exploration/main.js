@@ -31,13 +31,14 @@ addEventListener('visibilitychange',()=>pauseReason('hidden',document.hidden));
 addEventListener('pagehide',()=>pauseReason('pagehide',true));
 addEventListener('pageshow',()=>pauseReason('pagehide',false));
 const budgetNote=document.createElement('small');budgetNote.id='workload-budget';budgetNote.style.cssText='position:fixed;top:64px;right:16px;z-index:40;color:white;background:#16332dcc;padding:5px 8px';budgetNote.textContent=workload.override?'高负载覆盖 · 20 秒后自动暂停':'调查保护档 · ≤0.92 MP · 30 FPS';document.body.append(budgetNote);
-async function waitForWork(stage){while(true){if(lost)throw Error('Graphics context lost during '+stage);const t=await new Promise(resolve=>requestAnimationFrame(resolve));if(clock.accept(t).submit){bootSlots++;return;}}}
+async function waitForWork(stage){while(true){if(lost)throw Error('Graphics context lost during '+stage);const t=await new Promise(resolve=>requestAnimationFrame(resolve));if(workload.override&&clock.activeNow(t)/1000>=workload.deadlineSeconds)pauseReason('override-expired',true);if(clock.accept(t).submit){bootSlots++;return;}}}
 for(const dialog of document.querySelectorAll('dialog')){dialog.addEventListener('close',()=>pauseReason('dialog',Boolean(document.querySelector('dialog[open]'))));}
 new MutationObserver(()=>pauseReason('dialog',Boolean(document.querySelector('dialog[open]')))).observe(document.body,{subtree:true,attributes:true,attributeFilter:['open']});
 let walking=params.get('walk')==='1';
 let fine=params.has('quality')?params.get('quality')==='high':innerWidth>=900,cruise=false,touring=false,tourT=0,speedIndex=1,yaw=0,pitch=0,elapsed=0,last=0,frames=[],frame=0
 const speeds=[5,35,150],speedNames=['近看','漫游','远行']
-const renderer=new T.WebGLRenderer({canvas:$('#scene'),antialias:false,depth:false,powerPreference:'high-performance'});renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=habitat?1.35:.92;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.info.autoReset=false
+const directPreview=params.has('dry');
+const renderer=new T.WebGLRenderer({canvas:$('#scene'),antialias:directPreview&&habitat,depth:directPreview,powerPreference:'high-performance'});renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=habitat?1.35:.92;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.info.autoReset=false
 const diagnostics=makeDiagnostics(renderer,params),workloadReview=makeWorkloadReview(renderer,params);
 const observer=diagnostics??workloadReview;
 const scene=new T.Scene();scene.background=new T.Color('#c8dce2');const camera=new T.PerspectiveCamera(62,innerWidth/innerHeight,.3,45000);camera.rotation.order='YXZ'
@@ -69,7 +70,7 @@ const sunDirection=new T.Vector3(...SUN_DIRECTION).normalize();
 const shadowFocus=makeShadowFocus(sunDirection);
 const sun=new T.DirectionalLight('#fff1d9',2.35);sun.castShadow=true;sun.shadow.mapSize.set(512,512);Object.assign(sun.shadow.camera,{left:-140,right:140,top:140,bottom:-140,near:1,far:1200});sun.shadow.bias=-.00015;sun.shadow.normalBias=.08;scene.add(sun,sun.target);scene.add(new T.HemisphereLight('#d7e9f4','#45533e',habitat?.65:.85))
 // Function declarations are hoisted, but renderScale must exist before startup.
-renderScale=1;quality(); // Before any large targets, atlases, PMREM, compilation or GPU pass.
+renderScale=1;quality();budgetNote.dataset.initialDrawingBuffer=JSON.stringify([renderer.domElement.width,renderer.domElement.height]);budgetNote.dataset.framebuffer=JSON.stringify(renderer.getContext().getContextAttributes()); // Before any large targets, atlases, PMREM, compilation or GPU pass.
 const sky=await makeSky(sunDirection,workload.cloud);scene.add(sky.mesh);observer?.labelGroup(sky.mesh,'sky');scene.background=null;let environmentTarget=null;
 Object.assign(sky.uniforms,await makeTerrainLight(habitat));
 const air=makeAtmosphere(sky.uniforms);
