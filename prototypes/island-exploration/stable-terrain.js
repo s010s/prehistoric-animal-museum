@@ -29,7 +29,7 @@ export function buildStableTerrain({reflection=false}={}){
  // One root-cell halo keeps the contact cells' stitched boundary rings exact.
  if(reflection)for(let j=0;j<N;j++)for(let i=0;i<N;i++){
   let contact=false;for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if(i+dx>=0&&i+dx<N&&j+dz>=0&&j+dz<N&&contacts[(j+dz)*N+i+dx])contact=true;
-  if(!contact)steps[j*N+i]=Math.max(steps[j*N+i],16);
+  if(!contact)steps[j*N+i]=Math.max(steps[j*N+i],32);
  }
  const at=(i,j)=>i<0||j<0||i>=N||j>=N?64:steps[j*N+i],chunks=[]
  for(let cz=-H;cz<H;cz+=CHUNK)for(let cx=-H;cx<H;cx+=CHUNK){
@@ -44,6 +44,7 @@ export function buildStableTerrain({reflection=false}={}){
   }
   chunks.push({cx,cz,p:new Float32Array(p),n:new Float32Array(n),w:new Float32Array(w),shade:new Float32Array(shade),water:new Float32Array(water),coast:new Float32Array(coast),seepWet:new Float32Array(seepWet),indices:new Uint32Array(indices)})
  }
+ chunks.audit={stepRoots:Object.fromEntries([.5,1,2,4,8,16,32,64].map(s=>[s,steps.reduce((n,v)=>n+(v===s?1:0),0)])),contactRoots:contacts.reduce((n,v)=>n+v,0),reflectionMinimumMetres:reflection?32:null};
  return chunks
 }
-if(typeof self!=='undefined'&&typeof document==='undefined'){self.onmessage=()=>{const chunks=buildStableTerrain(),reflectionChunks=buildStableTerrain({reflection:true}).map((r,i)=>r.indices.length===chunks[i].indices.length?null:r);const buffers=[...chunks,...reflectionChunks.filter(Boolean)].flatMap(r=>[r.p.buffer,r.n.buffer,r.w.buffer,r.shade.buffer,r.water.buffer,r.coast.buffer,r.seepWet.buffer,r.indices.buffer]);self.postMessage({chunks,reflectionChunks},buffers)};self.postMessage({ready:true})}
+if(typeof self!=='undefined'&&typeof document==='undefined'){self.onmessage=()=>{const chunks=buildStableTerrain(),proxy=buildStableTerrain({reflection:true}),reflectionChunks=proxy.map((r,i)=>r.indices.length===chunks[i].indices.length?null:r);const buffers=[...chunks,...reflectionChunks.filter(Boolean)].flatMap(r=>[r.p.buffer,r.n.buffer,r.w.buffer,r.shade.buffer,r.water.buffer,r.coast.buffer,r.seepWet.buffer,r.indices.buffer]);self.postMessage({chunks,reflectionChunks,terrainAudit:{main:chunks.audit,proxy:proxy.audit}},buffers)};self.postMessage({ready:true})}
