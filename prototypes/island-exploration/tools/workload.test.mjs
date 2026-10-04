@@ -55,5 +55,22 @@ check('recovery sanitizes URL and stops after one automatic reload',()=>{
  for(const k of ['highLoad','diagnostics','reviewDpr','dry','skyState','contextRecovery','fixedBenchmark'])assert.equal(p.has(k),false);
  assert.equal(recoveryPlan(r.url,0).allowed,false);assert.equal(recoveryPlan(url,1).allowed,false);
 });
+// Added before desktop tiers: accidental default promotion, mixed increments,
+// unbounded trial, low quality lifting caps, recovery re-entering a desktop tier.
+check('desktop clarity grows one explicit tier at a time',()=>{
+ const tiers=['pace','900','1080','clouds'].map(t=>resolveWorkload(new URLSearchParams('desktopTier='+t+'&desktopTrial=1')));
+ assert.deepEqual(tiers.map(p=>p.maxPixels),[921600,1440000,2073600,2073600]);
+ assert.ok(tiers.every(p=>p.targetFps===60&&p.deadlineSeconds===45));
+ assert.deepEqual(tiers.map(p=>p.cloud.width),[1536,1536,1536,3072]);
+ assert.deepEqual(tiers.map(p=>p.cloud.steps),[120,120,120,240]);
+ assert.ok(tiers.every(p=>p.cloud.raysPerFrame<=12288));
+ assert.equal(resolveWorkload(new URLSearchParams('desktopTier=nonsense')).targetFps,30);
+});
+check('desktop selection is stripped on recovery',()=>{
+ const r=recoveryPlan('http://127.0.0.1:4386/?desktopTier=clouds&desktopTrial=1&benchmark=1',0);
+ const p=new URL(r.url).searchParams;
+ assert.equal(p.has('desktopTier'),false);assert.equal(p.has('desktopTrial'),false);
+ assert.equal(resolveWorkload(p).targetFps,30);
+});
 const out=process.argv[2];if(out){mkdirSync(dirname(resolve(out)),{recursive:true});writeFileSync(out,JSON.stringify({schema:'island-workload-checks-v1',cases,passed:cases.every(c=>c.passed)},null,2))}
 console.log(JSON.stringify(cases,null,2));if(cases.some(c=>!c.passed))process.exitCode=1;

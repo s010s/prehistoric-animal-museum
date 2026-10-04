@@ -1,15 +1,18 @@
 // Temporary investigation protection. Review UI and fixed time never lift it.
 export function resolveWorkload(params) {
-  const override=params.get('highLoad')==='1' && !params.has('recoveryAttempt');
-  const ceiling=override?2400000:921600;
+  const recovered=params.has('recoveryAttempt');
+  const tier=recovered?null:({pace:[921600,1280],900:[1440000,1600],1080:[2073600,1920],clouds:[2073600,1920]})[params.get('desktopTier')];
+  const desktopTier=tier?params.get('desktopTier'):null;
+  const override=!tier&&params.get('highLoad')==='1'&&!recovered;
+  const ceiling=tier?tier[0]:override?2400000:921600;
   const requested=Number(params.get('pixelBudget'));
   return Object.freeze({
     review:params.get('benchmark')==='1', fixed:params.get('fixedBenchmark')==='1',
-    override, maxPixels:requested>0?Math.min(ceiling,Math.floor(requested)):ceiling,
-    maxDimension:override?2048:1280, targetFps:override?60:30,
-    deadlineSeconds:override?20:null,
+    override,desktopTier, maxPixels:requested>0?Math.min(ceiling,Math.floor(requested)):ceiling,
+    maxDimension:tier?tier[1]:override?2048:1280, targetFps:tier||override?60:30,
+    deadlineSeconds:tier&&params.get('desktopTrial')==='1'?45:override?20:null,
     // These are temporary quality reductions, separately reported from optimization.
-    cloud:{width:1536,height:384,steps:120,raysPerFrame:12288},
+    cloud:{width:desktopTier==='clouds'?3072:1536,height:desktopTier==='clouds'?768:384,steps:desktopTier==='clouds'?240:120,raysPerFrame:12288},
   });
 }
 
@@ -46,7 +49,7 @@ export class FrameClock {
   snapshot(now) {return {targetFps:1000/this.interval,submittedFrames:this.submittedFrames,callbacks:this.callbacks,activeSeconds:this.activeNow(now)/1000,wallSeconds:(now-this.start)/1000,pausedSeconds:(this.pausedTotal+(this.pauseStart===null?0:now-this.pauseStart))/1000,paused:this.pauseStart!==null};}
 }
 
-const unsafe=['highLoad','diagnostics','workloadReview','reviewDpr','dry','graybox','skyState','contextRecovery','reflectionShadow','shadowBootstrap','linearComposite','timerTest','gpuPass','contractAudit','fixedBenchmark','pixelBudget'];
+const unsafe=['highLoad','desktopTier','desktopTrial','reflectionTerrain','diagnostics','workloadReview','reviewDpr','dry','graybox','skyState','contextRecovery','reflectionShadow','shadowBootstrap','linearComposite','timerTest','gpuPass','contractAudit','fixedBenchmark','pixelBudget'];
 export function recoveryPlan(href,storedAttempts=0) {
   const url=new URL(href),attempts=Math.max(Number(url.searchParams.get('recoveryAttempt'))||0,Number(storedAttempts)||0);
   if(attempts>=1)return {allowed:false,attempts,url:null};
