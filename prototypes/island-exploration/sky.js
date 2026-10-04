@@ -116,7 +116,20 @@ export async function makeSky(sunDirection,budget){
  fragmentShader:`varying vec3 skyDirection;${skyGLSL}\nvoid main(){gl_FragColor=vec4(distantRadiance(normalize(skyDirection)),1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}`});
  const mesh=new T.Mesh(new T.SphereGeometry(1,32,16),material);mesh.frustumCulled=false;mesh.renderOrder=-1000;
  mesh.onBeforeRender=(_r,_s,c)=>{mesh.position.copy(c.position);mesh.updateMatrixWorld()};
- // Review-only GPU comparison of the published striped image against a full render.
+ // Explicit review jobs are submitted through the main frame gate, separately
+ // from timing. The density comparison is 8192 rays, below the normal stripe cap.
+ const auditDensity=renderer=>{
+  if(!published)return {passed:false,reason:'No completed panorama'};
+  const target=renderer.getRenderTarget(),origin=uniforms.cloudViewOrigin.value.clone();
+  const rt=new T.WebGLRenderTarget(64,64,{type:T.FloatType,depthBuffer:false});
+  const mat=new T.ShaderMaterial({uniforms,depthTest:false,depthWrite:false,vertexShader:'varying vec2 uvSky;void main(){uvSky=uv;gl_Position=vec4(position.xy,0.,1.);}',fragmentShader:`#define CLOUD_COST_AUDIT\nvarying vec2 uvSky;uniform vec3 cloudViewOrigin;${skyGLSL}
+void main(){float az=(uvSky.x-.5)*6.2831853,el=uvSky.y*1.5707963;vec3 d=vec3(cos(az)*cos(el),sin(el),sin(az)*cos(el));
+cloudVolumeReads=0.;vec4 a=traceCloudSkyCore(cloudViewOrigin,d,skyGradient(d),vec3(.12,.26,.40),vec3(1.,.90,.72),skySun,false);float before=cloudVolumeReads;
+cloudVolumeReads=0.;vec4 b=traceCloudSkyCore(cloudViewOrigin,d,skyGradient(d),vec3(.12,.26,.40),vec3(1.,.90,.72),skySun,true);vec4 delta=abs(a-b);gl_FragColor=vec4(max(max(delta.x,delta.y),max(delta.z,delta.w)),before,cloudVolumeReads,1.);}`});
+  const s=new T.Scene(),g=new T.PlaneGeometry(2,2);s.add(new T.Mesh(g,mat));const data=new Float32Array(64*64*4);
+  try{uniforms.cloudViewOrigin.value.copy(published.position);renderer.setRenderTarget(rt);renderer.render(s,panoCamera);renderer.readRenderTargetPixels(rt,0,0,64,64,data);let maxDifference=0,beforeReads=0,afterReads=0,valid=true;for(let i=0;i<data.length;i+=4){valid&&=data[i+3]===1&&data.subarray(i,i+4).every(Number.isFinite);maxDifference=Math.max(maxDifference,data[i]);beforeReads+=data[i+1];afterReads+=data[i+2];}return {passed:valid&&maxDifference<=.00001&&afterReads<=beforeReads,rays:8192,maxDifference,beforeVolumeReads:beforeReads,afterVolumeReads:afterReads,savedFraction:1-afterReads/Math.max(1,beforeReads),position:published.position.toArray(),steps:uniforms.cloudStepCount.value,coverage:uniforms.cloudCoverage.value,gpuTime:null};}
+  finally{uniforms.cloudViewOrigin.value.copy(origin);renderer.setRenderTarget(target);rt.dispose();mat.dispose();g.dispose();}
+ };
  const audit=(renderer)=>{
   if(!published)return {passed:false,reason:'No completed panorama'};
   const target=renderer.getRenderTarget(),auto=renderer.autoClear,origin=uniforms.cloudViewOrigin.value.clone(),phase=uniforms.cloudPhase.value.clone(),time=uniforms.skyTime.value,config=stateCache?captureConfig():null;
@@ -130,7 +143,7 @@ export async function makeSky(sunDirection,budget){
    return {revision:published.revision,inputRevision:revision,passed:different===0&&nonZeroChannels>0&&finiteChannels===a.length,nonZeroChannels,finiteChannels,comparedChannels:a.length,differentChannels:different,differentRows:rows.size,pixelRatio:renderer.getPixelRatio(),completed,lastRefresh:published.cut?'full':'striped',position:published.position.toArray(),phase:published.phase.toArray()};
   }finally{if(stateCache){applyConfig(config);uniforms.skyTime.value=time}uniforms.cloudViewOrigin.value.copy(origin);uniforms.cloudPhase.value.copy(phase);renderer.setRenderTarget(target);renderer.autoClear=auto;reference.dispose();}
  };
- return {mesh,uniforms,updateLighting,audit,setFrozen:value=>frozen=Boolean(value),
+ return {mesh,uniforms,updateLighting,audit,auditDensity,setFrozen:value=>frozen=Boolean(value),
  setQuality(fine){const w=fine?budget.width:768,h=fine?budget.height:192,steps=fine?budget.steps:80;if(w===width&&h===height)return;width=w;height=h;rows=Math.max(1,Math.floor(budget.raysPerFrame/width));uniforms.cloudStepCount.value=steps;panoramas.forEach(p=>p.setSize(width,height));published=panoJob=null;inputState=null;uniforms.cloudPanoramaReady.value=0;revision++;shadowRevision=-1;},
  resources:()=>[...panoramas.map((t,i)=>['cloudPanorama'+i,t]),['cloudShadow',shadowTarget]],
  dispose(){panoramas.forEach(p=>p.dispose());shadowTarget.dispose();volume.dispose();weather.dispose();for(const s of [panoScene,shadowScene])for(const o of s.children){o.geometry.dispose();o.material.dispose();}mesh.geometry.dispose();material.dispose();},

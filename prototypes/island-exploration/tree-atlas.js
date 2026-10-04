@@ -18,7 +18,8 @@ export async function bakeTreeAtlas(renderer,templates,waitForWork){
    for(let row=0;row<3;row++)for(let col=0;col<cols;col++){
     await waitForWork('tree-atlas-cell');
     const elevation=row*.55,az=col*Math.PI/4;camera.position.set(Math.sin(az)*Math.cos(elevation)*20,.5+Math.sin(elevation)*20,Math.cos(az)*Math.cos(elevation)*20);camera.lookAt(center);camera.updateMatrixWorld();
-    renderer.setViewport(col*cell,(species*3+row)*cell,cell,cell);renderer.render(scene,camera);
+    // Target texels, independent of the protected canvas DPR.
+    targets[pass].viewport.set(col*cell,(species*3+row)*cell,cell,cell);renderer.setRenderTarget(targets[pass]);renderer.render(scene,camera);
    }
    meshes.forEach(m=>{scene.remove(m);m.material.dispose()});
   }

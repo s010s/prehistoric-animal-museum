@@ -19,7 +19,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     wetland: '看芦苇根部、泥洲和浅水。水线与接触是否稳定。',
     cliffs: '看岩体体积与投影。慢横移，检查影边跳格、离地或覆盖丢失。',
   }
-  let recorder=null, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false, videoPending=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
+  let recorder=null,videoUrl=null,videoBytes=0,videoTruncated=false, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false, videoPending=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
   const path=new T.CatmullRomCurve3(REGION_ROUTE.points.map(([x,z])=>new T.Vector3(x,0,z)),false,'centripetal');
   const gaze=new T.CatmullRomCurve3(REGION_ROUTE.gaze.map(([x,z,y])=>new T.Vector3(x,y,z)),false,'centripetal');
   let lastRoute=null;
@@ -48,7 +48,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   $('benchmark-frame').onchange=()=>{const r=records[Number($('benchmark-frame').value)];if(r?.image){$('benchmark-preview').src=r.image;$('benchmark-preview').alt=`${r.place} · ${r.kind} · tick ${r.tick}`}};
   function capture(kind, extra = {}) {
     const state = getState()
-    const result = { kind, place: current, time: thisTime(), clock:replay?.clock??'fixed-tick', route:routeState(), tick, ...state, ...extra }
+    const result = { kind, place: current, time: thisTime(), clock:replay?.clock??(replay?'fixed-tick':'active-wall'), route:routeState(), tick, ...state, ...extra }
     if(records.length>=64){records.shift();$('benchmark-frame').innerHTML='';}
     records.push(result)
     if(result.image){evidenceReadback=true;const option=document.createElement('option');option.value=String(records.length-1);option.textContent=`${current} · ${kind} · tick ${tick}`;$('benchmark-frame').append(option);$('benchmark-frame').value=option.value;$('benchmark-preview').src=result.image;$('benchmark-preview').alt=`${current} · ${kind} · ${state.drawSize.join('×')} · ${state.build.sourceHash.slice(0,12)}`}
@@ -72,9 +72,9 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   }
   function startRecording(){
     if(evidenceMode==='timing')return;
-    videoPending=true;$('benchmark-video').removeAttribute('src');
+    videoPending=true;if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=null;}$('benchmark-video').removeAttribute('src');
     try{const stream=canvas.captureStream(24),mimeType=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t)),chunks=[];
-      recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:6000000});let bytes=0;recorder.ondataavailable=e=>{bytes+=e.data.size;if(bytes<=180000000)chunks.push(e.data);else if(recorder.state!=='inactive')recorder.stop();};recorder.onstop=()=>{const blob=new Blob(chunks,{type:mimeType}),reader=new FileReader();reader.onload=()=>{$('benchmark-video').src=reader.result;$('benchmark-video').dataset.mime=mimeType;videoPending=false;};reader.readAsDataURL(blob);stream.getTracks().forEach(t=>t.stop());};recorder.start(1000);
+      videoBytes=0;videoTruncated=false;recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:6000000});let bytes=0;recorder.ondataavailable=e=>{bytes+=e.data.size;videoBytes=bytes;if(bytes<=180000000)chunks.push(e.data);else if(recorder.state!=='inactive'){videoTruncated=true;recorder.stop();}};recorder.onstop=()=>{const blob=new Blob(chunks,{type:mimeType});videoUrl=URL.createObjectURL(blob);$('benchmark-video').src=videoUrl;$('benchmark-video').dataset.mime=mimeType;videoPending=false;stream.getTracks().forEach(t=>t.stop());};recorder.start(1000);
     }catch(e){videoPending=false;capture('video-error',{message:String(e)});}
   }
   $('benchmark-walk').onclick=()=>{
@@ -95,7 +95,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   $('benchmark-marsh-high').onclick=()=>{stop();suite=null;reset('wetland');camera.position.set(3900,500,5450);camera.lookAt(camera.position.clone().set(5400,2.4,4000));syncPose?.();};
   $('benchmark-dpr-matrix').onclick=()=>{stop();suite=null;tick=0;samples=[];interrupted=null;setTime(60);replay={position:camera.position.clone(),quaternion:camera.quaternion.clone(),start:now(),mode:'dpr',ticks:719,previousDpr:getState().pixelRatio};};
   $('benchmark-water').onchange=()=>setWaterDebug(Number($('benchmark-water').value));
-  $('benchmark-sky-audit').onclick=()=>{const result=auditSky();capture('sky-stripe-audit',{result});$('benchmark-note').textContent=JSON.stringify(result);};
+  $('benchmark-sky-audit').onclick=async()=>{const result=await auditSky();capture('sky-stripe-audit',{result});$('benchmark-note').textContent=JSON.stringify(result);};
   $('benchmark-sky-high').onclick=()=>{stop();suite=null;reset('heath');camera.position.y=1643;camera.lookAt(camera.position.clone().add({x:0,y:400,z:1000}));syncPose?.();};
   $('benchmark-rock-close').onclick=()=>{stop();suite=null;reset('cliffs');camera.position.set(-2940,8,-2320);camera.lookAt(camera.position.clone().set(-2820,24,-2240));syncPose?.();};
   $('benchmark-beach-eye').onclick=()=>{stop();suite=null;reset('bay');camera.position.set(9120,terrainHeight(9120,2330)+1.7,2330);camera.lookAt(camera.position.clone().set(9164,.8,2338));syncPose?.();};
@@ -120,10 +120,11 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   updateLabel(); $('benchmark-note').textContent = observations[current] || observations.forest; setTime(60)
   const api={
     setPaused(value){if(recorder?.state==='recording'&&value)recorder.pause();else if(recorder?.state==='paused'&&!value)recorder.resume();},
-    get active() { return Boolean(replay) },
+    get active() { return Boolean(replay||suite) },
     get groundRouteActive() { return replay?.mode==='region' },
     get diagnosticComplete() { return diagnosticComplete },
     get videoPending() { return videoPending },
+    get videoState(){return {bytes:videoBytes,limitBytes:180000000,truncated:videoTruncated,pending:videoPending}},
     get visualRecords() { return records },
     prepareDiagnostic(route) {
       evidenceMode='timing';diagnosticRepeat=false;diagnosticComplete=false;cancel('next measurement');

@@ -2,7 +2,7 @@
 import * as T from 'three';
 export function makeWorkloadReview(renderer,params) {
   if(params.get('workloadReview')!=='1')return null;
-  let context=null,current=null,sample=null,renders=0,reportSerial=0,scope='startup',pendingShot=false;
+  let context=null,current=null,sample=null,renders=0,reportSerial=0,scope='startup',pendingShot=false,warming=false,generation=0;
   const events=[],errors=[],reports=[];
   const original=renderer.render.bind(renderer);
   renderer.render=(...args)=>{renders++;return original(...args)};
@@ -11,6 +11,7 @@ export function makeWorkloadReview(renderer,params) {
   panel.style.cssText='position:fixed;bottom:8px;left:8px;z-index:90;background:#122a29ef;color:white;padding:10px;max-width:560px;font:12px system-ui';
   panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button><button id="gpu-context">一次受控 context loss</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
   document.body.append(panel);
+  const auditButton=document.createElement('button');auditButton.textContent='验证云优化等价';auditButton.id='gpu-density-audit';panel.querySelector('div').append(auditButton);
   const $=id=>panel.querySelector('#'+id),wait=ms=>new Promise(r=>setTimeout(r,ms));
   const state=()=>context.getState();
   async function save(kind,record) {
@@ -25,7 +26,7 @@ export function makeWorkloadReview(renderer,params) {
   const stats=values=>{const a=[...values].sort((a,b)=>a-b),p=q=>a.length?a[Math.min(a.length-1,Math.floor((a.length-1)*q))]:null;return{count:a.length,p50:p(.5),p95:p(.95),p99:p(.99),max:a.at(-1)??null,mean:a.length?a.reduce((s,n)=>s+n,0)/a.length:null}};
   async function finish(reason='window complete') {
     if(!sample)return;
-    const s=sample;sample=null;clearTimeout(s.timer);context.setPaused(true);
+    const s=sample;sample=null;$('gpu-arm').disabled=false;clearTimeout(s.timer);context.setPaused(true);
     const end=state(),duration=(performance.now()-s.started)/1000,intervals=s.frames.map(f=>f.frameIntervalMs);
     const artifact=await save('timing',{arm:s.arm,reason,source:s.before.build,before:s.before,after:end,durationSeconds:duration,frames:s.frames,events:[...events],errors:[...errors],
       summary:{frames:s.frames.length,submittedFps:s.frames.length/duration,frameMs:stats(intervals),longFrameRatio:intervals.filter(n=>n>50).length/Math.max(1,intervals.length),cpuSubmissionMs:stats(s.frames.map(f=>f.cpuSubmissionMs)),renders:renders-s.renderStart},
@@ -33,7 +34,7 @@ export function makeWorkloadReview(renderer,params) {
     return artifact;
   }
   $('gpu-arm').onchange=()=>{
-    if(!context||sample)return;
+    if(!context||sample||warming)return;
     const arm=$('gpu-arm').value;
     context.sky.setFrozen(arm==='cloud');
     context.water.setDiagnostic({freezeReflection:arm==='reflection',disableAO:arm==='ao',cheap:arm==='water'});
@@ -41,16 +42,18 @@ export function makeWorkloadReview(renderer,params) {
     panel.dataset.arm=arm;
   };
   $('gpu-sample').onclick=async()=>{
-    if(!context||sample)return;
-    context.setPaused(false);$('gpu-arm').onchange();
+    if(!context||sample||warming)return;
+    context.setPaused(false);$('gpu-arm').onchange();warming=true;const run=++generation;$('gpu-arm').disabled=true;
     const started=performance.now();
-    while((!context.sky.status().ready||state().vegetation.pending||state().flow.pending)&&performance.now()-started<20000)await wait(100);
-    if(!context.sky.status().ready||errors.length||state().programErrors){context.setPaused(true);await save('blocked',{passed:false,state:state(),errors:[...errors],reason:'Cache or resources not ready'});return;}
-    await wait(2000);events.length=0;const before=state();
+    while(run===generation&&(!context.sky.status().ready||state().vegetation.pending||state().flow.pending)&&performance.now()-started<20000)await wait(100);
+    if(run!==generation)return;
+    if(!context.sky.status().ready||state().vegetation.pending||state().flow.pending||errors.length||state().programErrors){warming=false;$('gpu-arm').disabled=false;context.setPaused(true);await save('blocked',{passed:false,state:state(),errors:[...errors],reason:'Cache or resources not ready'});return;}
+    await wait(2000);if(run!==generation)return;warming=false;events.length=0;const before=state();
     sample={arm:$('gpu-arm').value,started:performance.now(),before,frames:[],renderStart:renders,timer:setTimeout(()=>finish(),12000)};
     $('gpu-state').textContent='固定镜头短采样 · '+sample.arm;
   };
-  $('gpu-stop').onclick=()=>{context?.setPaused(true);finish('user stop')};
+  $('gpu-stop').onclick=()=>{generation++;warming=false;$('gpu-arm').disabled=false;context?.setPaused(true);finish('user stop')};
+  auditButton.onclick=async()=>{if(!context||sample||warming)return;context.setPaused(false);const result=await context.queueReviewJob(()=>context.sky.auditDensity(renderer));context.setPaused(true);await save('density-audit',{passed:result.passed,result,state:state(),errors:[...errors]});};
   $('gpu-shot').onclick=async()=>{
     if(!context||sample)return;
     pendingShot=true;context.setPaused(false);$('gpu-state').textContent='独立单帧取证，完成后暂停';
@@ -96,7 +99,7 @@ export function makeWorkloadReview(renderer,params) {
     }catch(error){context.setPaused(true);await save('s0-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]})}
   };
   return {
-    get collecting(){return Boolean(sample)},labelGroup(){},labelGeometry(){},
+    get collecting(){return Boolean(sample||warming)},labelGroup(){},labelGeometry(){},
     attach(value){context={...context,...value};},
     event(type,detail={}){events.push({type,...detail,wallMs:performance.now()});if(events.length>512)events.shift();},
     beginFrame(t,raw){current={rafTimestampMs:t,frameIntervalMs:raw,cpu:{},passes:[]};},
