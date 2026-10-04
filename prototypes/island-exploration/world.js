@@ -131,20 +131,23 @@ export async function groundMaterial(){
 
 function geometry(r){const g=new T.BufferGeometry();g.setIndex(new T.BufferAttribute(r.indices,1));g.setAttribute('position',new T.BufferAttribute(r.p,3));g.setAttribute('normal',new T.BufferAttribute(r.n,3));g.setAttribute('surfaceBlend',new T.BufferAttribute(r.w,3));g.setAttribute('landShade',new T.BufferAttribute(r.shade,1));g.setAttribute('waterHeight',new T.BufferAttribute(r.water,1));g.setAttribute('coastalInfluence',new T.BufferAttribute(r.coast,1));g.setAttribute('seepWet',new T.BufferAttribute(r.seepWet??new Float32Array(r.p.length/3),1));g.computeBoundingSphere();return g}
 export function makeLandscape(material,apply,getFine=()=>false,diagnostics){
- const group=new T.Group(),collision=new Map();let readyResolve,pending=true,triangles=0,vertices=0
+ const group=new T.Group(),collision=new Map(),mirrorMeshes=[];let readyResolve,pending=true,triangles=0,vertices=0,mirrorTriangles=0,mirrorActive=false;
+ let reflectionProxy=new URLSearchParams(location.search).get('reflectionTerrain')!=='full';
  diagnostics?.labelGroup(group,'terrain');
  const ready=new Promise(resolve=>readyResolve=resolve)
  const worker=new Worker(new URL('./stable-terrain.js',import.meta.url),{type:'module'})
  worker.onmessage=({data})=>{
   if(data.ready){worker.postMessage({build:true});return}
-  const consumeStart=performance.now();const {chunks}=data
+  const consumeStart=performance.now();const {chunks,reflectionChunks}=data
   for(const r of chunks){
    // Index the exact rendered triangles, including stitched boundaries.
    const bins=new Map();for(let t=0;t<r.indices.length;t+=3){const a=r.indices[t]*3,b=r.indices[t+1]*3,c=r.indices[t+2]*3;
     const x0=Math.floor(Math.min(r.p[a],r.p[b],r.p[c])/64),x1=Math.floor((Math.max(r.p[a],r.p[b],r.p[c])-1e-5)/64),z0=Math.floor(Math.min(r.p[a+2],r.p[b+2],r.p[c+2])/64),z1=Math.floor((Math.max(r.p[a+2],r.p[b+2],r.p[c+2])-1e-5)/64);
     for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){const key=x+','+z;if(!bins.has(key))bins.set(key,[]);bins.get(key).push(t);}}
    for(const[key,list]of bins)collision.set(key,{p:r.p,ix:r.indices,list:new Uint32Array(list)});
-   const mesh=new T.Mesh(geometry(r),material);mesh.receiveShadow=true;apply?.(mesh);group.add(mesh);triangles+=r.indices.length/3;vertices+=r.p.length/3}
+   const mesh=new T.Mesh(geometry(r),material),proxy=reflectionChunks[chunks.indexOf(r)];
+   mirrorMeshes.push({mesh,main:mesh.geometry,mirror:proxy?geometry(proxy):mesh.geometry});mirrorTriangles+=(proxy??r).indices.length/3;
+   mesh.receiveShadow=true;apply?.(mesh);group.add(mesh);triangles+=r.indices.length/3;vertices+=r.p.length/3}
   // Refine only dense collision buckets; keep their exact original triangle ownership.
   for(const cell of collision.values())if(cell.list.length>1024){
    const bins=new Map(),{p,ix}=cell;
@@ -162,7 +165,7 @@ export function makeLandscape(material,apply,getFine=()=>false,diagnostics){
   pending=false;worker.terminate();readyResolve();diagnostics?.event('workerConsume',{worker:'terrain',cpuMs:performance.now()-consumeStart})
  }
  // Three.js performs separate frustum culling for the main, reflection and shadow
- // cameras. Geometry and materials never change with distance or quality.
+ // cameras. Main geometry and collision never change with distance or quality.
  const heightAt=(x,z)=>{const cell=collision.get(Math.floor(x/64)+','+Math.floor(z/64));if(!cell)return terrainHeight(x,z);const {p,ix}=cell,list=cell.secondary?.get(Math.floor(x/8)+','+Math.floor(z/8))??cell.list;let h=-Infinity;for(const t of list){const a=ix[t]*3,b=ix[t+1]*3,c=ix[t+2]*3,ax=p[a],az=p[a+2],bx=p[b],bz=p[b+2],cx=p[c],cz=p[c+2],den=(bz-cz)*(ax-cx)+(cx-bx)*(az-cz);if(Math.abs(den)<1e-8)continue;const u=((bz-cz)*(x-cx)+(cx-bx)*(z-cz))/den,v=((cz-az)*(x-cx)+(ax-cx)*(z-cz))/den;if(u>=-1e-6&&v>=-1e-6&&u+v<=1.000001)h=Math.max(h,u*p[a+1]+v*p[b+1]+(1-u-v)*p[c+1]);}return Number.isFinite(h)?h:terrainHeight(x,z)};
- return {group,ready,heightAt,update(){},status:()=>({pending,revision:pending?0:1,mode:'fixed-geography',chunks:group.children.length,triangles,vertices,joined:true,riverDetailMetres:8})}
+ return {group,ready,heightAt,update(){},setReflectionTerrain(value){reflectionProxy=Boolean(value);},reflectionMode(active){mirrorActive=active;for(const r of mirrorMeshes)r.mesh.geometry=active&&reflectionProxy?r.mirror:r.main;},dispose(){worker.terminate();for(const r of mirrorMeshes){r.main.dispose();if(r.mirror!==r.main)r.mirror.dispose();}collision.clear();},status:()=>({pending,revision:pending?0:1,mode:'fixed-geography',chunks:group.children.length,triangles,vertices,joined:true,riverDetailMetres:8,reflection:{mode:reflectionProxy?'fixed-proxy':'full',triangles:reflectionProxy?mirrorTriangles:triangles,proxyGeometries:mirrorMeshes.filter(r=>r.main!==r.mirror).length,shoreContactPreserved:true,mainRestored:!mirrorActive&&mirrorMeshes.every(r=>r.mesh.geometry===r.main)}})}
 }

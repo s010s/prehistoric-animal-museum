@@ -6,8 +6,8 @@ import {surfaceSample} from './surface-sample.js'
 const ROOT=64,CHUNK=2048,N=SIZE/ROOT
 // The tessellation belongs to the island, never to a moving camera. Flat sea
 // retains a coarse grid; channels, shorelines and crags get fixed fine cells.
-export function buildStableTerrain(){
- const steps=new Float32Array(N*N),H=SIZE/2
+export function buildStableTerrain({reflection=false}={}){
+ const steps=new Float32Array(N*N),contacts=new Uint8Array(N*N),H=SIZE/2
  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
   const x=i*ROOT-H,z=j*ROOT-H,cx=x+32,cz=z+32,h=terrainHeight(cx,cz),corners=[terrainHeight(x,z),terrainHeight(x+64,z),terrainHeight(x,z+64),terrainHeight(x+64,z+64)],lo=Math.min(h,...corners),hi=Math.max(h,...corners)
   const channel=(cz>-4096&&cz<4416&&Math.abs(cx-riverX(cz))<halfWidth(cz)+128)||(cz>0&&cz<5824&&Math.abs(cx-tributaryX(cz))<146)
@@ -20,6 +20,16 @@ export function buildStableTerrain(){
   const source=(cz>-4096&&cz<-3904&&Math.abs(cx-riverX(cz))<96)||(cz>-768&&cz<-640&&cx>forestSpring.x-32&&cx<forestSpring.x+64);
   const regionWalking=regionWeight(cx,cz)>0&&regionPathDistance(cx,cz)<48;
   steps[j*N+i]=forestSource?.5:regionWalking?1:source?1:crag?4:walking?2:galleryRiver?4:inlandShore?4:(Math.abs(cx-9160)<420&&Math.abs(cz-2330)<420&&hi>-5&&lo<9)?2:(cz>-3200&&cz< -850&&cx> -2810&&cx< -2200)?4:channel||crag||(cz>-3200&&cz< -850&&cx> -2720&&cx< -2310)||(lo<5&&hi>-5)||hi>650?8:hi<-8?64:(hi-lo<10&&error<.5?32:16)
+  // Fixed reflection-only tessellation. Keep the original source and every
+  // root cell intersecting a water level, including coastal wave contact.
+  // Main geometry, material attributes and collision indexing stay untouched.
+  const contact=source||channel||inlandShore||(lo<5&&hi>-5)||(Math.abs(cx-9160)<420&&Math.abs(cz-2330)<420&&hi>-5&&lo<9);
+  contacts[j*N+i]=contact?1:0;
+ }
+ // One root-cell halo keeps the contact cells' stitched boundary rings exact.
+ if(reflection)for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+  let contact=false;for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if(i+dx>=0&&i+dx<N&&j+dz>=0&&j+dz<N&&contacts[(j+dz)*N+i+dx])contact=true;
+  if(!contact)steps[j*N+i]=Math.max(steps[j*N+i],16);
  }
  const at=(i,j)=>i<0||j<0||i>=N||j>=N?64:steps[j*N+i],chunks=[]
  for(let cz=-H;cz<H;cz+=CHUNK)for(let cx=-H;cx<H;cx+=CHUNK){
@@ -36,4 +46,4 @@ export function buildStableTerrain(){
  }
  return chunks
 }
-if(typeof self!=='undefined'&&typeof document==='undefined'){self.onmessage=()=>{const chunks=buildStableTerrain();self.postMessage({chunks},chunks.flatMap(r=>[r.p.buffer,r.n.buffer,r.w.buffer,r.shade.buffer,r.water.buffer,r.coast.buffer,r.seepWet.buffer,r.indices.buffer]))};self.postMessage({ready:true})}
+if(typeof self!=='undefined'&&typeof document==='undefined'){self.onmessage=()=>{const chunks=buildStableTerrain(),reflectionChunks=buildStableTerrain({reflection:true}).map((r,i)=>r.indices.length===chunks[i].indices.length?null:r);const buffers=[...chunks,...reflectionChunks.filter(Boolean)].flatMap(r=>[r.p.buffer,r.n.buffer,r.w.buffer,r.shade.buffer,r.water.buffer,r.coast.buffer,r.seepWet.buffer,r.indices.buffer]);self.postMessage({chunks,reflectionChunks},buffers)};self.postMessage({ready:true})}

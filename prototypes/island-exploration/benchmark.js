@@ -1,9 +1,10 @@
 import * as T from 'three';
 import {REGION_ROUTE,REGION_VERSION} from './sample-region.js';
+import {WALK_ROUTE} from './regional-walk.js';
 import {trailX} from './habitat.js';
 import {terrainHeight,riverX,riverLevel} from './field.js';
 // Review-only UI and evidence. This module is inert outside ?benchmark=1.
-export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, getState, auditSky, setWaterDebug, setReviewDpr, setShadow, getShadow, setTime, syncPose, navigationHeight,now=()=>performance.now(),getWorldTime=()=>60 }) {
+export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, getState, auditSky, setWaterDebug, setReviewDpr, setShadow, getShadow, setTime, syncPose, navigationHeight,planRegion,now=()=>performance.now(),getWorldTime=()=>60 }) {
   if (params.get('benchmark') !== '1') return null
   const ids = landmarks.map(l => l.id)
   const observations = {
@@ -20,10 +21,10 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     cliffs: '看岩体体积与投影。慢横移，检查影边跳格、离地或覆盖丢失。',
   }
   let recorder=null,videoUrl=null,videoBytes=0,videoTruncated=false,videoArtifact=null,videoSaveError=null, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false, videoPending=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
-  const path=new T.CatmullRomCurve3(REGION_ROUTE.points.map(([x,z])=>new T.Vector3(x,0,z)),false,'centripetal');
-  const gaze=new T.CatmullRomCurve3(REGION_ROUTE.gaze.map(([x,z,y])=>new T.Vector3(x,y,z)),false,'centripetal');
+  let path=new T.CurvePath(),plannedRoute=null;
+  const walkGaze=z=>{const stops=[[-714,-2051,-720,31],[-700,-2044,-710,28],[-675,-2004,-675,17],[-605,-1949,-605,26],[-560,-1969,-560,25]];for(let i=1;i<stops.length;i++)if(z<=stops[i][0]){const a=stops[i-1],b=stops[i],t=T.MathUtils.smoothstep(z,a[0],b[0]);return new T.Vector3(T.MathUtils.lerp(a[1],b[1],t),T.MathUtils.lerp(a[3],b[3],t),T.MathUtils.lerp(a[2],b[2],t));}return new T.Vector3(-1969,25,-560);};
   let lastRoute=null;
-  const routeState=()=>replay?.mode==='region'?{id:REGION_ROUTE.id,version:REGION_VERSION,clock:replay.clock,durationSeconds:replay.seconds,progress:Math.min(1,(now()-replay.start)/(replay.seconds*1000)),distanceMetres:path.getLength(),coordinates:REGION_ROUTE.points}:lastRoute;
+  const routeState=()=>replay?.mode==='region'?{id:WALK_ROUTE.id,version:WALK_ROUTE.version,geographyVersion:REGION_VERSION,clock:replay.clock,durationSeconds:replay.seconds,progress:Math.min(1,(now()-replay.start)/(replay.seconds*1000)),distanceMetres:path.getLength(),coordinates:plannedRoute.points,plan:plannedRoute,speed:1.55,constraints:'ordinary-ground-navigation'}:lastRoute;
   const thisTime=()=>!replay?getWorldTime():replay.clock==='wall'?60+(now()-replay.start)/1000:60+tick/60;
   const records = [], errors = []; let interrupted = null, pendingCapture = false, evidenceReadback = false
   addEventListener('error', e => errors.push(e.message))
@@ -31,7 +32,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   const panel = document.createElement('section')
   panel.id = 'benchmark'
   panel.setAttribute('aria-label', '世界验收')
-  panel.innerHTML = `<button id="benchmark-collapse" aria-expanded="true">收起验收</button><strong>世界验收 · 受限预览</strong><p id="benchmark-note"></p><div class="benchmark-actions"><button id="benchmark-look"></button><button id="benchmark-variant"></button><button id="benchmark-replay">横移往返 · 12 秒</button><button id="benchmark-region-tour">实时溪谷游览 · 3 分 45 秒</button><button id="benchmark-walk">录制林间步行 · 12 秒</button><button id="benchmark-sky-orbit">录制天空环视 · 24 秒</button><button id="benchmark-continuity">录制前进后退 · 24 秒</button><button id="benchmark-ground">贴地巡航检查</button><button id="benchmark-trees">林缘树影</button><button id="benchmark-stationary">录制固定视角 · 12 秒</button><button id="benchmark-prairie">草原地面</button><button id="benchmark-valley">溪谷崖壁</button><button id="benchmark-spring-eye">北源泉池近看</button><button id="benchmark-source">北源出流</button><button id="benchmark-marsh-high">沼泽俯瞰</button><button id="benchmark-dpr-matrix">像素比例切换 · 12 秒</button><label>水面分量<select id="benchmark-water" aria-label="水面分量"><option value="0">正常</option><option value="1">法线</option><option value="2">反射</option><option value="4">泡沫</option><option value="5">水体</option></select></label><button id="benchmark-sky-audit">校验云层条带</button><button id="benchmark-sky-high">高原仰视</button><button id="benchmark-rock-close">近看岩岸</button><button id="benchmark-shore-close">近看岸浪</button><button id="benchmark-beach-eye">沙滩平视</button><button id="benchmark-shore">岸浪周期 · 42 秒</button><button id="benchmark-reset">复位到地点</button><button id="benchmark-save">记录当前画面</button><button id="benchmark-export">导出验收记录</button><button id="benchmark-suite">巡检全部 ${ids.length} 个地点</button></div><div id="benchmark-places"></div><details id="benchmark-image"><summary>最近原始画布截图</summary><label>选择验收截图<select id="benchmark-frame" aria-label="选择验收截图"></select></label><img id="benchmark-preview" alt="最近记录的原始 3D 画布" style="display:block;width:100%;height:auto" /></details><details id="benchmark-video-panel"><summary>最近移动录像</summary><video id="benchmark-video" controls style="width:100%"></video></details><output id="benchmark-status" aria-live="polite"></output><details id="benchmark-evidence"><summary>验收数据（不含截图）</summary><pre id="benchmark-json"></pre></details>`
+  panel.innerHTML = `<button id="benchmark-collapse" aria-expanded="true">收起验收</button><strong>世界验收 · 受限预览</strong><p id="benchmark-note"></p><div class="benchmark-actions"><button id="benchmark-look"></button><button id="benchmark-variant"></button><button id="benchmark-replay">横移往返 · 12 秒</button><button id="benchmark-region-tour">录制区域地面行走</button><button id="benchmark-walk">录制林间步行 · 12 秒</button><button id="benchmark-sky-orbit">录制天空环视 · 24 秒</button><button id="benchmark-continuity">录制前进后退 · 24 秒</button><button id="benchmark-ground">贴地巡航检查</button><button id="benchmark-trees">林缘树影</button><button id="benchmark-stationary">录制固定视角 · 12 秒</button><button id="benchmark-prairie">草原地面</button><button id="benchmark-valley">溪谷崖壁</button><button id="benchmark-spring-eye">北源泉池近看</button><button id="benchmark-source">北源出流</button><button id="benchmark-marsh-high">沼泽俯瞰</button><button id="benchmark-dpr-matrix">像素比例切换 · 12 秒</button><label>水面分量<select id="benchmark-water" aria-label="水面分量"><option value="0">正常</option><option value="1">法线</option><option value="2">反射</option><option value="4">泡沫</option><option value="5">水体</option></select></label><button id="benchmark-sky-audit">校验云层条带</button><button id="benchmark-sky-high">高原仰视</button><button id="benchmark-rock-close">近看岩岸</button><button id="benchmark-shore-close">近看岸浪</button><button id="benchmark-beach-eye">沙滩平视</button><button id="benchmark-shore">岸浪周期 · 42 秒</button><button id="benchmark-reset">复位到地点</button><button id="benchmark-save">记录当前画面</button><button id="benchmark-export">导出验收记录</button><button id="benchmark-suite">巡检全部 ${ids.length} 个地点</button></div><div id="benchmark-places"></div><details id="benchmark-image"><summary>最近原始画布截图</summary><label>选择验收截图<select id="benchmark-frame" aria-label="选择验收截图"></select></label><img id="benchmark-preview" alt="最近记录的原始 3D 画布" style="display:block;width:100%;height:auto" /></details><details id="benchmark-video-panel"><summary>最近移动录像</summary><video id="benchmark-video" controls style="width:100%"></video></details><output id="benchmark-status" aria-live="polite"></output><details id="benchmark-evidence"><summary>验收数据（不含截图）</summary><pre id="benchmark-json"></pre></details>`
   document.body.append(panel)
   const $ = id => panel.querySelector('#' + id)
   $('benchmark-collapse').onclick=()=>{const compact=panel.classList.toggle('compact');$('benchmark-collapse').textContent=compact?'展开验收':'收起验收';$('benchmark-collapse').setAttribute('aria-expanded',String(!compact))};
@@ -74,7 +75,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     if(evidenceMode==='timing')return;
     videoPending=true;if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=null;}$('benchmark-video').removeAttribute('src');
     try{const stream=canvas.captureStream(24),mimeType=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t)),chunks=[];
-      videoBytes=0;videoTruncated=false;videoArtifact=null;videoSaveError=null;recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:6000000});let bytes=0;recorder.ondataavailable=e=>{bytes+=e.data.size;videoBytes=bytes;if(bytes<=180000000)chunks.push(e.data);else if(recorder.state!=='inactive'){videoTruncated=true;recorder.stop();}};recorder.onstop=async()=>{const blob=new Blob(chunks,{type:mimeType});videoUrl=URL.createObjectURL(blob);$('benchmark-video').src=videoUrl;$('benchmark-video').dataset.mime=mimeType;stream.getTracks().forEach(t=>t.stop());if(params.get('workloadReview')==='1'&&location.hostname==='127.0.0.1'){try{const name=(params.get('runLabel')||'review')+'-video-'+Date.now();const res=await fetch('/__gpu-video/'+name,{method:'POST',headers:{'Content-Type':blob.type},body:blob});if(!res.ok)throw Error(res.status);videoArtifact=(await res.json()).path;}catch(error){videoSaveError=String(error);}}videoPending=false;};recorder.start(1000);
+      videoBytes=0;videoTruncated=false;videoArtifact=null;videoSaveError=null;recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:3000000});let bytes=0;recorder.ondataavailable=e=>{bytes+=e.data.size;videoBytes=bytes;if(bytes<=180000000)chunks.push(e.data);else if(recorder.state!=='inactive'){videoTruncated=true;recorder.stop();}};recorder.onstop=async()=>{const blob=new Blob(chunks,{type:mimeType});videoUrl=URL.createObjectURL(blob);$('benchmark-video').src=videoUrl;$('benchmark-video').dataset.mime=mimeType;stream.getTracks().forEach(t=>t.stop());if(params.get('workloadReview')==='1'&&location.hostname==='127.0.0.1'){try{const name=(params.get('runLabel')||'review')+'-video-'+Date.now();const res=await fetch('/__gpu-video/'+name,{method:'POST',headers:{'Content-Type':blob.type},body:blob});if(!res.ok)throw Error(res.status);videoArtifact=(await res.json()).path;}catch(error){videoSaveError=String(error);}}videoPending=false;};recorder.start(1000);
     }catch(e){videoPending=false;capture('video-error',{message:String(e)});}
   }
   $('benchmark-walk').onclick=()=>{
@@ -145,10 +146,13 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     },
     get time() { return thisTime() },
     routeState,
-    startRealtime({capture:video=false,seconds=REGION_ROUTE.seconds,repeat=false}={}) {
-      stop();suite=null;reset('side-spring');evidenceMode=video?'video':'timing';diagnosticRepeat=repeat;diagnosticComplete=false;lastRoute=null;
+    startRealtime({capture:video=false,seconds=null,repeat=false}={}) {
+      stop();suite=null;reset('side-spring');evidenceMode=video?'video':'normal';diagnosticRepeat=repeat;diagnosticComplete=false;lastRoute=null;
+      plannedRoute=planRegion();if(!plannedRoute.passed){capture('route-blocked',{passed:false,plan:plannedRoute});return;}
+      path=new T.CurvePath();for(let i=1;i<plannedRoute.points.length;i++){const a=plannedRoute.points[i-1],b=plannedRoute.points[i];path.add(new T.LineCurve3(new T.Vector3(a[0],0,a[1]),new T.Vector3(b[0],0,b[1])));}
+      seconds??=plannedRoute.seconds;
       replay={position:camera.position.clone(),quaternion:camera.quaternion.clone(),start:now(),mode:'region',clock:'wall',seconds,ticks:seconds*60};
-      const p=path.getPointAt(0);camera.position.set(p.x,navigationHeight(p.x,p.z)+1.75,p.z);camera.lookAt(gaze.getPoint(0));syncPose?.();
+      const p=path.getPoint(0);camera.position.set(p.x,navigationHeight(p.x,p.z)+1.75,p.z);camera.lookAt(walkGaze(p.z));syncPose?.();
       if(video)startRecording();
     },
     cancel,
@@ -156,7 +160,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     beforeFrame() {
       if (!replay || replay.mode==='shore') return
       if(replay.clock==='wall')tick=Math.min(replay.ticks,(now()-replay.start)/1000*60);
-      if(replay.mode==='region'){const u=Math.min(1,tick/replay.ticks),p=path.getPointAt(u),t=path.getUtoTmapping(u);camera.position.set(p.x,navigationHeight(p.x,p.z)+1.75,p.z);camera.lookAt(gaze.getPoint(t));return;}
+      if(replay.mode==='region'){const u=Math.min(1,tick/replay.ticks),p=path.getPoint(u);camera.position.set(p.x,navigationHeight(p.x,p.z)+1.75,p.z);camera.lookAt(walkGaze(p.z));return;}
       if(replay.mode==='stationary'){camera.position.copy(replay.position);camera.quaternion.copy(replay.quaternion);return;}
       if(replay.mode==='continuity'){const distance=45*(1-Math.cos(tick/1440*Math.PI*2));camera.position.copy(replay.position);camera.position.x-=Math.sin(replay.yaw)*distance;camera.position.z-=Math.cos(replay.yaw)*distance;camera.quaternion.copy(replay.quaternion);camera.rotation.y+=.12*Math.sin(tick/1440*Math.PI*4);return;}
       if(replay.mode==='sky'){camera.position.copy(replay.position);camera.position.x+=80*Math.sin(tick/1440*Math.PI*2);camera.rotation.set(.28+.16*Math.sin(tick/1440*Math.PI*4),replay.yaw+tick/1440*Math.PI*2,0);return;}
@@ -192,16 +196,20 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
       if (pendingCapture) { capture('still', { ready, image: canvas.toDataURL('image/png') }); pendingCapture = false }
       panel.dataset.ready = String(ready)
       panel.dataset.snapshot = JSON.stringify({ ...state, tick, time: this.time, ready })
+      if(replay?.mode==='region'){
+        const expected=path.getPoint(Math.min(1,tick/replay.ticks)),deviation=Math.hypot(expected.x-camera.position.x,expected.z-camera.position.z);
+        if(deviation>2){cancel('Ground route deviated by '+deviation.toFixed(3)+' metres');return;}
+      }
       if (replay && (state.programErrors || state.vegetation.error || state.flow.error || now() - replay.start > (replay.clock==='wall'?(replay.seconds+60)*1000:params.get('diagnostics')==='1'?600000:120000))) cancel('resource error or replay timeout')
       if (replay) {
-        if(evidenceMode!=='timing'&&samples.length<16000)samples.push({ tick, frameMs: raw, afterEvidenceReadback, clearance:state.clearance,exposure:state.exposure,skyCache:state.skyCache,cpu: { ...state.cpu }, pending: !jobsReady, shadow: state.shadow, position: state.position, drawCalls: state.drawCalls, triangles: state.triangles })
+        if(evidenceMode!=='timing'&&samples.length<24000)samples.push({ tick, frameMs: raw, afterEvidenceReadback, clearance:state.clearance,exposure:state.exposure,skyCache:{ready:state.skyCache.ready,revision:state.skyCache.revision,raysLastFrame:state.skyCache.raysLastFrame,totalRays:state.skyCache.totalRays},cpu: { ...state.cpu }, pending: !jobsReady, shadow: state.shadow, navigation:state.navigation, worldTime:state.worldTime, position: state.position, drawCalls: state.drawCalls, triangles: state.triangles })
         if(replay.mode==='dpr'&&tick%180===179){capture('sky-stripe-audit',{result:auditSky()});evidenceReadback=true;}
         if(evidenceMode!=='timing'&&replay.clock!=='wall'&&jobsReady&&tick%180===0)capture('motion-frame',{image:canvas.toDataURL('image/png')});
         if (replay.clock!=='wall'&&jobsReady) tick++
         if ((replay.clock==='wall'&&now()-replay.start>=replay.seconds*1000)||tick > (replay.ticks??720)) {
           if(diagnosticRepeat){tick=0;if(replay.clock==='wall')replay.start=now();setTime(60);samples=[];return;}
           diagnosticComplete=true;
-          if(replay.mode==='region')lastRoute={...routeState(),progress:1,completed:true,wallMs:now()-replay.start,worldSeconds:thisTime()-60};
+          if(replay.mode==='region')lastRoute={...routeState(),progress:1,completed:Math.hypot(camera.position.x-plannedRoute.points.at(-1)[0],camera.position.z-plannedRoute.points.at(-1)[1])<.3,endErrorMetres:Math.hypot(camera.position.x-plannedRoute.points.at(-1)[0],camera.position.z-plannedRoute.points.at(-1)[1]),blockedFrames:samples.filter(f=>f.navigation?.constraints.blocked).length,wallMs:now()-replay.start,worldSeconds:thisTime()-60};
           tick = replay.ticks??720
           const ordered = samples.map(s => s.frameMs).sort((a, b) => a - b)
           const clean=samples.filter(s=>!s.afterEvidenceReadback).map(s=>s.frameMs).sort((a,b)=>a-b);

@@ -9,12 +9,41 @@ export function makeWorkloadReview(renderer,params) {
   addEventListener('error',e=>{if(errors.length<64)errors.push(e.message)});
   const panel=document.createElement('section');panel.id='gpu-review';
   panel.style.cssText='position:fixed;bottom:8px;left:8px;z-index:90;background:#122a29ef;color:white;padding:10px;max-width:560px;font:12px system-ui';
-  panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button><button id="gpu-context">一次受控 context loss</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
+  panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常 · 地形代理</option><option value="fullTerrain">仅完整反射地形</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button><button id="gpu-context">一次受控 context loss</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
   document.body.append(panel);
   const auditButton=document.createElement('button');auditButton.textContent='验证云优化等价';auditButton.id='gpu-density-audit';panel.querySelector('div').append(auditButton);
   const routeButton=document.createElement('button');routeButton.textContent='保存游览与资源';routeButton.id='gpu-route-save';panel.querySelector('div').append(routeButton);
+  const walkTiming=document.createElement('button');walkTiming.textContent='区域行走 · 仅计时';panel.querySelector('div').append(walkTiming);walkTiming.onclick=()=>{if(!context||sample||warming)return;context.benchmark.startRealtime({capture:false});context.setPaused(false);};
+  // Failure cases recorded before the reflection/navigation implementation:
+  // changed main/collision mesh; shoreline cracks; stale mirror/shadow time;
+  // per-frame proxy allocation; pause work; rock tunnelling, steep/deep-water
+  // walking; diagnostic routes skipping the ordinary movement constraints.
+  const mirrorButton=document.createElement('button');mirrorButton.textContent='验证反射与地面约束';panel.querySelector('div').append(mirrorButton);
+  const fold=document.createElement('button');fold.textContent='收起 GPU 验证';panel.querySelector('strong').after(fold);fold.onclick=()=>{const hidden=panel.querySelector('div').hidden=!panel.querySelector('div').hidden;panel.querySelector('pre').hidden=hidden;panel.querySelector('output').hidden=hidden;fold.textContent=hidden?'展开 GPU 验证':'收起 GPU 验证';};
   const $=id=>panel.querySelector('#'+id),wait=ms=>new Promise(r=>setTimeout(r,ms));
   const state=()=>context.getState();
+  mirrorButton.onclick=async()=>{
+    if(!context||sample||warming)return;
+    const checks={},snapshots=[];warming=true;context.setPaused(false);
+    try{
+      await wait(2200);const a=state();snapshots.push(a);
+      await wait(2200);const b=state();snapshots.push(b);
+      const p=b.terrain.reflection;
+      checks.mainGeometryRestored=p?.mainRestored===true&&b.terrain.triangles===3634836;
+      checks.proxyReducesGeometry=p?.triangles>0&&p.triangles<b.terrain.triangles*.7;
+      checks.shoreContactGridPreserved=p?.shoreContactPreserved===true;
+      checks.mirrorEveryFrame=b.flow.reflection?.lastTime===b.worldTime&&b.flow.reflection?.updates-a.flow.reflection?.updates===b.workload.submittedFrames-a.workload.submittedFrames;
+      checks.currentShadowBeforeMirror=b.flow.currentReflectionShadow===true;
+      checks.animalsAndLinearHDR=b.encounter.instances.length===2&&b.flow.composition.mode==='linear-hdr';
+      context.setPaused(true);const r=renders;await wait(1100);const c=state();snapshots.push(c);
+      checks.pauseStopsMirror=r===renders&&b.flow.reflection?.updates===c.flow.reflection?.updates;
+      const walk=await context.auditWalk?.();
+      checks.walkConstraints=walk?.passed===true;
+      checks.noRuntimeOrShaderErrors=!errors.length&&!b.programErrors;
+      await save('reflection-walk-e2e',{passed:Object.values(checks).every(Boolean),checks,snapshots,walk:walk??null,errors:[...errors]});
+    }catch(error){context.setPaused(true);await save('reflection-walk-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]});}
+    finally{warming=false;context.setPaused(true);}
+  };
   async function save(kind,record) {
     const name=(params.get('runLabel')||kind)+'-'+kind+'-'+(++reportSerial)+'-'+Date.now();
     const artifact={schema:'island-gpu-governance-v1',kind,name,url:location.href,userAgent:navigator.userAgent,three:T.REVISION,gpuTime:null,gpuTiming:'not measured; no timer queries',...record};
@@ -30,13 +59,14 @@ export function makeWorkloadReview(renderer,params) {
     const s=sample;sample=null;$('gpu-arm').disabled=false;clearTimeout(s.timer);context.setPaused(true);
     const end=state(),duration=(performance.now()-s.started)/1000,intervals=s.frames.map(f=>f.frameIntervalMs);
     const artifact=await save('timing',{arm:s.arm,reason,source:s.before.build,before:s.before,after:end,durationSeconds:duration,frames:s.frames,events:[...events],errors:[...errors],
-      summary:{frames:s.frames.length,submittedFps:s.frames.length/duration,frameMs:stats(intervals),longFrameRatio:intervals.filter(n=>n>50).length/Math.max(1,intervals.length),cpuSubmissionMs:stats(s.frames.map(f=>f.cpuSubmissionMs)),renders:renders-s.renderStart},
+      summary:{frames:s.frames.length,submittedFps:s.frames.length/duration,frameMs:stats(intervals),over33msRatio:intervals.filter(n=>n>33.4).length/Math.max(1,intervals.length),targetFps:s.before.workload.targetFps,longFrameRatio:intervals.filter(n=>n>50).length/Math.max(1,intervals.length),cpuSubmissionMs:stats(s.frames.map(f=>f.cpuSubmissionMs)),renders:renders-s.renderStart},
       passed:reason==='window complete'&&s.frames.length>0&&!errors.length&&!end.programErrors&&end.drawSize[0]*end.drawSize[1]<=end.workload.maxPixels});
     return artifact;
   }
   $('gpu-arm').onchange=()=>{
     if(!context||sample||warming)return;
     const arm=$('gpu-arm').value;
+    context.landscape.setReflectionTerrain(arm!=='fullTerrain');
     context.sky.setFrozen(arm==='cloud');
     context.water.setDiagnostic({freezeReflection:arm==='reflection',disableAO:arm==='ao',cheap:arm==='water'});
     context.setPixelScale(arm==='pixels'?Math.SQRT1_2:1);
@@ -49,7 +79,7 @@ export function makeWorkloadReview(renderer,params) {
     while(run===generation&&(!context.sky.status().ready||state().vegetation.pending||state().flow.pending)&&performance.now()-started<20000)await wait(100);
     if(run!==generation)return;
     if(!context.sky.status().ready||state().vegetation.pending||state().flow.pending||errors.length||state().programErrors){warming=false;$('gpu-arm').disabled=false;context.setPaused(true);await save('blocked',{passed:false,state:state(),errors:[...errors],reason:'Cache or resources not ready'});return;}
-    await wait(2000);if(run!==generation)return;warming=false;events.length=0;const before=state();
+    context.setTime(60);await wait(2000);if(run!==generation)return;warming=false;events.length=0;const before=state();
     sample={arm:$('gpu-arm').value,started:performance.now(),before,frames:[],renderStart:renders,timer:setTimeout(()=>finish(),12000)};
     $('gpu-state').textContent='固定镜头短采样 · '+sample.arm;
   };
@@ -108,7 +138,7 @@ export function makeWorkloadReview(renderer,params) {
     cpu(name,ms){if(current)current.cpu[name]=ms;},
     pass(name,fn){const before={...renderer.info.render},start=performance.now(),oldScope=scope;scope=name;try{return fn()}finally{scope=oldScope;if(current)current.passes.push({name,cpuSubmissionMs:performance.now()-start,calls:renderer.info.render.calls-before.calls,triangles:renderer.info.render.triangles-before.triangles});}},
     endGpuFrame(){},
-    endFrame(cpuMs){if(pendingShot){pendingShot=false;context.setPaused(true);const image=renderer.domElement.toDataURL('image/png');void save('still',{state:state(),image,errors:[...errors]});}if(sample&&current&&sample.frames.length<720){const s=state();sample.frames.push({...current,cpuSubmissionMs:cpuMs,worldTime:s.worldTime,drawSize:s.drawSize,cloudRays:s.skyCache.raysLastFrame,drawCalls:s.drawCalls,triangles:s.triangles,memory:s.memory,position:s.position,pending:s.vegetation.pending||s.flow.pending});}current=null;},
+    endFrame(cpuMs){if(pendingShot){pendingShot=false;context.setPaused(true);const image=renderer.domElement.toDataURL('image/png');void save('still',{state:state(),image,errors:[...errors]});}if(sample&&current&&sample.frames.length<900){const s=state();sample.frames.push({...current,cpuSubmissionMs:cpuMs,worldTime:s.worldTime,drawSize:s.drawSize,cloudRays:s.skyCache.raysLastFrame,drawCalls:s.drawCalls,triangles:s.triangles,memory:s.memory,position:s.position,pending:s.vegetation.pending||s.flow.pending});}current=null;},
     heartbeat(s){panel.dataset.snapshot=JSON.stringify({renders,...s});if(!sample)$('gpu-state').textContent=(s.workload.paused?'3D 已暂停':'运行中')+' · 提交 '+s.workload.submittedFrames+' · GPU 绘制 '+renders;},
   };
 }
