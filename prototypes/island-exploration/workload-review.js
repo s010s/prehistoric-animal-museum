@@ -12,6 +12,7 @@ export function makeWorkloadReview(renderer,params) {
   panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button><button id="gpu-context">一次受控 context loss</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
   document.body.append(panel);
   const auditButton=document.createElement('button');auditButton.textContent='验证云优化等价';auditButton.id='gpu-density-audit';panel.querySelector('div').append(auditButton);
+  const routeButton=document.createElement('button');routeButton.textContent='保存游览与资源';routeButton.id='gpu-route-save';panel.querySelector('div').append(routeButton);
   const $=id=>panel.querySelector('#'+id),wait=ms=>new Promise(r=>setTimeout(r,ms));
   const state=()=>context.getState();
   async function save(kind,record) {
@@ -54,6 +55,7 @@ export function makeWorkloadReview(renderer,params) {
   };
   $('gpu-stop').onclick=()=>{generation++;warming=false;$('gpu-arm').disabled=false;context?.setPaused(true);finish('user stop')};
   auditButton.onclick=async()=>{if(!context||sample||warming)return;context.setPaused(false);const result=await context.queueReviewJob(()=>context.sky.auditDensity(renderer));context.setPaused(true);await save('density-audit',{passed:result.passed,result,state:state(),errors:[...errors]});};
+  routeButton.onclick=async()=>{if(!context||sample||warming)return;context.setPaused(true);const records=context.benchmark.visualRecords.map(({image,...record})=>record),s=state(),motion=records.findLast(r=>r.kind==='replay'&&r.route?.id==='side-spring-loop'),suite=records.findLast(r=>r.kind==='suite-complete');await save('regional-e2e',{passed:Boolean(motion?.completed&&motion.route?.completed&&!motion.samples.some(f=>!f.position.every(Number.isFinite)||f.clearance<1.2)&&!errors.length&&!s.programErrors&&s.encounter.instances.length===2),state:s,records,video:context.benchmark.videoState,suitePassed:suite?.passed??null,errors:[...errors]});};
   $('gpu-shot').onclick=async()=>{
     if(!context||sample)return;
     pendingShot=true;context.setPaused(false);$('gpu-state').textContent='独立单帧取证，完成后暂停';

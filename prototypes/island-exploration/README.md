@@ -40,7 +40,7 @@ The review UI includes repeatable ground-level forest walking, a close rock-shor
 
 Cloud weather is generated independently of shape noise with `node prototypes/island-exploration/tools/bake-cloud-weather.mjs`. The periodic 1024² linear data map uses Tidewater’s two FBM profiles and coverage offset. Cloud panorama alpha carries transmittance to occlude the sun. Panorama strips use render-target texel coordinates, so fractional canvas pixel ratios cannot leave stale rows.
 
-With `?benchmark=1&reviewDpr=1.6`, the highland sky view, 24-second recorded orbit and pixel-ratio switching checks are available. The stripe check compares all 9,437,184 half-float channels of the last published panorama to an independent full-frame render at its frozen camera and weather phase. The ratio sequence includes 0.73, 1, 1.6 and 2. This checks cache correctness; visual quality still requires reviewing the captured world views and motion.
+With `?benchmark=1&reviewDpr=1.6`, the highland sky view, 24-second recorded orbit and pixel-ratio switching checks are available. The explicit stripe check now compares one bounded stripe of the published panorama against the same camera and weather phase. It does not claim a full-image comparison. The ratio sequence includes 0.73, 1, 1.6 and 2. This checks cache correctness; visual quality still requires reviewing the captured world views and motion.
 
 The authored shore uses centimetre-scale swash films with horizontal front distances, draining backwash and a refracted thin-film absorption path. Carrier triangles extend past the analytic front, keeping the leading edge independent of the two-metre grid. The review UI can isolate reflection, foam, normal and water-body shading. Distant sea haze integrates the same altitude-dependent extinction as the visible water to avoid a separate dark horizon belt.
 
@@ -89,3 +89,29 @@ The explicit local workload review also auto-pauses after 20 active idle seconds
 including while browser control is delayed. Starting a short sample or pressing
 Continue rearms this bound. Explicit bounded routes retain their own timeout.
 Ordinary preview remains continuous.
+
+
+### Cloud and water work removal
+
+The density bounds use the actual linear UNORM noise range to skip samples only
+when density is provably zero or both erosion smoothsteps are already one.
+`验证云优化等价` compares the original and bounded march in an explicit 64×64 GPU
+job (8192 rays total, at the same step count), reports radiance error and executed
+volume fetches, then pauses. It is separate from timing and uses synchronous
+readback only on that explicit action. Old stripe audits also use the frame gate.
+
+Static water bodies use conservative bounds; long rivers and spring runs retain
+their exact shared vertices and triangle order in smaller index ranges. The moving
+ocean remains exempt from static culling. Planar texture taps are skipped only at
+zero contribution and use explicit level zero on the non-mipmapped linear texture.
+Reflection still refreshes every rendered frame. Its 4x MSAA is now explicit.
+The fullscreen display framebuffer has no AA/depth allocation; the opaque HDR
+buffer retains 4x/2x MSAA. This is independent of the temporary pixel/FPS reduction.
+Canvas dimensions are physical integer pixels; `effectivePixelRatio` records the
+CSS-to-buffer ratio separately. Tree atlas viewports always use target texels.
+
+Record the normal 225-second regional tour separately from short timing, then use
+`保存游览与资源` to save its route, clearance, pending-work samples, video limit
+status and resource snapshot. The optional all-destination inspection runs once at
+final delivery. Review recordings use bounded Blob URLs rather than duplicating
+large video buffers as base64; they are never started by ordinary preview.
