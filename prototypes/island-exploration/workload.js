@@ -49,11 +49,11 @@ export class FrameClock {
   snapshot(now) {return {targetFps:1000/this.interval,submittedFrames:this.submittedFrames,callbacks:this.callbacks,activeSeconds:this.activeNow(now)/1000,wallSeconds:(now-this.start)/1000,pausedSeconds:(this.pausedTotal+(this.pauseStart===null?0:now-this.pauseStart))/1000,paused:this.pauseStart!==null};}
 }
 
-const unsafe=['highLoad','desktopTier','desktopTrial','reflectionTerrain','diagnostics','workloadReview','reviewDpr','dry','graybox','skyState','contextRecovery','reflectionShadow','shadowBootstrap','linearComposite','timerTest','gpuPass','contractAudit','fixedBenchmark','pixelBudget'];
+const unsafe=['highLoad','desktopTier','desktopTrial','reflectionTerrain','contextLossTest','shaderDiagnostics','diagnostics','workloadReview','reviewDpr','dry','graybox','skyState','contextRecovery','reflectionShadow','shadowBootstrap','linearComposite','timerTest','gpuPass','contractAudit','fixedBenchmark','pixelBudget'];
 export function recoveryPlan(href,storedAttempts=0) {
   const url=new URL(href),attempts=Math.max(Number(url.searchParams.get('recoveryAttempt'))||0,Number(storedAttempts)||0);
   if(attempts>=1)return {allowed:false,attempts,url:null};
   unsafe.forEach(key=>url.searchParams.delete(key));
-  url.searchParams.set('quality','mobile');url.searchParams.set('gpuScope','none');url.searchParams.set('recoveryAttempt',String(attempts+1));
+  url.searchParams.set('quality','mobile');url.searchParams.set('gpuScope','none');url.searchParams.set('paused','1');url.searchParams.set('recoveryAttempt',String(attempts+1));
   return {allowed:true,attempts:attempts+1,url:url.href};
 }

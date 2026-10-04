@@ -47,6 +47,13 @@ const observer=diagnostics??workloadReview;
 const scene=new T.Scene();scene.background=new T.Color('#c8dce2');const camera=new T.PerspectiveCamera(62,innerWidth/innerHeight,.3,45000);camera.rotation.order='YXZ'
 let lost=false,recoveryUrl=null,poseReady=false;
 const contextRecovery=true,recoveryKey='island-context-recovery:'+location.pathname;
+const failureKey='island-graphics-failure:'+location.pathname;let evidenceFlush=Promise.resolve();
+function showFailureExport(data){
+ document.body.dataset.contextFailure=JSON.stringify(data);
+ let b=$('#recovery-export');if(!b){const note=document.createElement('p');note.id='recovery-note';note.textContent='图形资源中断后保持暂停。恢复信息可保存到本机。';$('#loading').append(note);b=document.createElement('button');b.id='recovery-export';b.textContent='保存恢复状态';$('#loading').append(b);}
+ b.onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='island-context-state.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+}
+if(params.has('recoveryAttempt'))try{const saved=sessionStorage.getItem(failureKey);if(saved)showFailureExport(JSON.parse(saved));}catch{}
 let recoveryAttempts=Number(params.get('recoveryAttempt'))||0;try{recoveryAttempts=Math.max(recoveryAttempts,Number(sessionStorage.getItem(recoveryKey))||0)}catch{}
 if(contextRecovery){
  renderer.domElement.addEventListener('webglcontextlost',e=>{
@@ -58,7 +65,10 @@ if(contextRecovery){
   }
   const recovery=recoveryPlan(url.href,recoveryAttempts);recoveryUrl=recovery.url;recoveryAttempts=recovery.attempts;if(recovery.allowed)try{sessionStorage.setItem(recoveryKey,String(recoveryAttempts))}catch{}
   document.body.dataset.recovery=JSON.stringify(recovery);
-  if(!$('#recovery-export')){const b=document.createElement('button');b.id='recovery-export';b.textContent='保存恢复状态';b.onclick=()=>{const data={build:__WORLD_BUILD__,attempts:recoveryAttempts,automaticRecovery:Boolean(recoveryUrl),drawSize:[renderer.domElement.width,renderer.domElement.height],pose:poseReady?camera.position.toArray():null};const link=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));link.href=url;link.download='island-context-state.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};$('#loading').append(b);}if(!recovery.allowed){$('#load-detail').textContent='图形资源再次中断，已停止自动恢复。请关闭此预览后再检查。';}
+  let lastSafeState=null;try{const raw=document.querySelector('#gpu-review')?.dataset.snapshot;if(raw)lastSafeState=JSON.parse(raw);}catch{}
+  const failure={observedAt:Date.now(),build:__WORLD_BUILD__,url:location.href,statusMessage:e.statusMessage??null,injectionRequested:workloadReview?.injectionRequested??false,recovery,drawSize:[renderer.domElement.width,renderer.domElement.height],pose:poseReady?camera.position.toArray():null,lastSafeState};
+  try{sessionStorage.setItem(failureKey,JSON.stringify(failure));}catch{}
+  showFailureExport(failure);evidenceFlush=workloadReview?.contextLost(failure)??Promise.resolve();
   benchmark?.cancel('WebGL context lost');
   if(poseReady){stop();keys.clear();joy.x=joy.y=0;alt.up=alt.down=false;look=null;}
   document.body.dataset.ready='false';
@@ -67,7 +77,7 @@ if(contextRecovery){
  });
  // Cached render targets have lost their contents. Re-enter through startup
  // so tree atlases, sky history, water and the environment are rebuilt together.
- renderer.domElement.addEventListener('webglcontextrestored',()=>{if(lost&&recoveryUrl)location.replace(recoveryUrl);});
+ renderer.domElement.addEventListener('webglcontextrestored',async()=>{if(lost&&recoveryUrl){await Promise.race([evidenceFlush.catch(()=>{}),new Promise(resolve=>setTimeout(resolve,250))]);location.replace(recoveryUrl);}});
 }
 const sunDirection=new T.Vector3(...SUN_DIRECTION).normalize();
 const shadowFocus=makeShadowFocus(sunDirection);
@@ -154,7 +164,7 @@ function render(t){requestAnimationFrame(render);if(workloadReview&&!benchmark?.
  observer?.endFrame(performance.now()-frameStart);
 }
 workloadReview?.attach({getState:reviewState,setPaused:value=>pauseReason('user',value),go,clock,sky,water,landscape,benchmark,camera,quality:()=>{resizePending=true},setFine:value=>{fine=value;resizePending=true},setPixelScale:value=>{renderScale=value;resizePending=true},setTime:value=>{elapsed=worldBase=value;worldAnchor=activeNow()},getPaused:()=>pauseReasons.size>0,queueReviewJob,auditWalk:()=>groundNav.audit(WALK_ROUTE.anchors,props.walkingRocks())});
-setInterval(()=>{const state=reviewState();budgetNote.dataset.snapshot=JSON.stringify(state);workloadReview?.heartbeat(state);},1000);
+setInterval(()=>{if(lost)return;const state=reviewState();budgetNote.dataset.snapshot=JSON.stringify(state);workloadReview?.heartbeat(state);},1000);
 addEventListener('pagehide',event=>{if(!event.persisted){props.dispose();landscape.dispose();sky.dispose();environmentTarget?.dispose();water.dispose?.();renderer.dispose();}});
 requestAnimationFrame(render)
 

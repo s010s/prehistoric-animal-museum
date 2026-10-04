@@ -2,28 +2,31 @@
 import * as T from 'three';
 export function makeWorkloadReview(renderer,params) {
   if(params.get('workloadReview')!=='1')return null;
-  let context=null,current=null,sample=null,renders=0,reportSerial=0,scope='startup',pendingShot=false,warming=false,generation=0;
+  let context=null,current=null,sample=null,renders=0,reportSerial=0,scope='startup',pendingShot=false,warming=false,generation=0,lastState=null,terminal=false,injectionRequested=false;
   const events=[],errors=[],reports=[];
   const original=renderer.render.bind(renderer);
   renderer.render=(...args)=>{renders++;return original(...args)};
   addEventListener('error',e=>{if(errors.length<64)errors.push(e.message)});
   const panel=document.createElement('section');panel.id='gpu-review';
   panel.style.cssText='position:fixed;bottom:8px;left:8px;z-index:90;background:#122a29ef;color:white;padding:10px;max-width:560px;font:12px system-ui';
-  panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常 · 地形代理</option><option value="fullTerrain">仅完整反射地形</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button><button id="gpu-context">一次受控 context loss</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
+  panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常 · 地形代理</option><option value="fullTerrain">仅完整反射地形</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
   document.body.append(panel);
   const auditButton=document.createElement('button');auditButton.textContent='验证云优化等价';auditButton.id='gpu-density-audit';panel.querySelector('div').append(auditButton);
   const routeButton=document.createElement('button');routeButton.textContent='保存游览与资源';routeButton.id='gpu-route-save';panel.querySelector('div').append(routeButton);
-  const walkTiming=document.createElement('button');walkTiming.textContent='区域行走 · 仅计时';panel.querySelector('div').append(walkTiming);walkTiming.onclick=()=>{if(!context||sample||warming)return;context.benchmark.startRealtime({capture:false});context.setPaused(false);};
+  const walkTiming=document.createElement('button');walkTiming.textContent='区域行走 · 仅计时';panel.querySelector('div').append(walkTiming);walkTiming.onclick=()=>{if(!context||terminal||sample||warming)return;context.benchmark.startRealtime({capture:false});context.setPaused(false);};
   // Failure cases recorded before the reflection/navigation implementation:
   // changed main/collision mesh; shoreline cracks; stale mirror/shadow time;
   // per-frame proxy allocation; pause work; rock tunnelling, steep/deep-water
   // walking; diagnostic routes skipping the ordinary movement constraints.
   const mirrorButton=document.createElement('button');mirrorButton.textContent='验证反射与地面约束';panel.querySelector('div').append(mirrorButton);
   const fold=document.createElement('button');fold.textContent='收起 GPU 验证';panel.querySelector('strong').after(fold);fold.onclick=()=>{const hidden=panel.querySelector('div').hidden=!panel.querySelector('div').hidden;panel.querySelector('pre').hidden=hidden;panel.querySelector('output').hidden=hidden;fold.textContent=hidden?'展开 GPU 验证':'收起 GPU 验证';};
+  // Fault injection belongs to a separate explicit test URL. Never place it
+  // among ordinary timing controls, where an input mistake can lose evidence.
+  if(params.get('contextLossTest')==='1'){const b=document.createElement('button');b.id='gpu-context';b.textContent='测试入口 · 注入一次 context loss';panel.querySelector('div').append(b);}
   const $=id=>panel.querySelector('#'+id),wait=ms=>new Promise(r=>setTimeout(r,ms));
-  const state=()=>context.getState();
+  const state=()=>{if(terminal)throw Error('Graphics context lost; observations stopped');lastState=context.getState();return lastState;};
   mirrorButton.onclick=async()=>{
-    if(!context||sample||warming)return;
+    if(!context||terminal||sample||warming)return;
     const checks={},snapshots=[];warming=true;context.setPaused(false);
     try{
       await wait(2200);const a=state();snapshots.push(a);
@@ -64,7 +67,7 @@ export function makeWorkloadReview(renderer,params) {
     return artifact;
   }
   $('gpu-arm').onchange=()=>{
-    if(!context||sample||warming)return;
+    if(!context||terminal||sample||warming)return;
     const arm=$('gpu-arm').value;
     context.landscape.setReflectionTerrain(arm!=='fullTerrain');
     context.sky.setFrozen(arm==='cloud');
@@ -73,7 +76,7 @@ export function makeWorkloadReview(renderer,params) {
     panel.dataset.arm=arm;
   };
   $('gpu-sample').onclick=async()=>{
-    if(!context||sample||warming)return;
+    if(!context||terminal||sample||warming||context.benchmark?.active)return;
     context.setPaused(false);$('gpu-arm').onchange();warming=true;const run=++generation;$('gpu-arm').disabled=true;
     const started=performance.now();
     while(run===generation&&(!context.sky.status().ready||state().vegetation.pending||state().flow.pending)&&performance.now()-started<20000)await wait(100);
@@ -84,20 +87,20 @@ export function makeWorkloadReview(renderer,params) {
     $('gpu-state').textContent='固定镜头短采样 · '+sample.arm;
   };
   $('gpu-stop').onclick=()=>{generation++;warming=false;$('gpu-arm').disabled=false;context?.setPaused(true);finish('user stop')};
-  auditButton.onclick=async()=>{if(!context||sample||warming)return;context.setPaused(false);const result=await context.queueReviewJob(()=>context.sky.auditDensity(renderer));context.setPaused(true);await save('density-audit',{passed:result.passed,result,state:state(),errors:[...errors]});};
-  routeButton.onclick=async()=>{if(!context||sample||warming)return;context.setPaused(true);const records=context.benchmark.visualRecords.map(({image,...record})=>record),s=state(),motion=records.findLast(r=>r.kind==='replay'&&r.route?.id==='side-spring-loop'),suite=records.findLast(r=>r.kind==='suite-complete');await save('regional-e2e',{passed:Boolean(motion?.completed&&motion.route?.completed&&!motion.samples.some(f=>!f.position.every(Number.isFinite)||f.clearance<1.2)&&!errors.length&&!s.programErrors&&s.encounter.instances.length===2),state:s,records,video:context.benchmark.videoState,suitePassed:suite?.passed??null,errors:[...errors]});};
+  auditButton.onclick=async()=>{if(!context||terminal||sample||warming)return;context.setPaused(false);const result=await context.queueReviewJob(()=>context.sky.auditDensity(renderer));context.setPaused(true);await save('density-audit',{passed:result.passed,result,state:state(),errors:[...errors]});};
+  routeButton.onclick=async()=>{if(!context||terminal||sample||warming)return;context.setPaused(true);const records=context.benchmark.visualRecords.map(({image,...record})=>record),s=state(),motion=records.findLast(r=>r.kind==='replay'&&r.route?.id==='side-spring-loop'),suite=records.findLast(r=>r.kind==='suite-complete');await save('regional-e2e',{passed:Boolean(motion?.completed&&motion.route?.completed&&!motion.samples.some(f=>!f.position.every(Number.isFinite)||f.clearance<1.2)&&!errors.length&&!s.programErrors&&s.encounter.instances.length===2),state:s,records,video:context.benchmark.videoState,suitePassed:suite?.passed??null,errors:[...errors]});};
   $('gpu-shot').onclick=async()=>{
-    if(!context||sample)return;
+    if(!context||terminal||sample)return;
     pendingShot=true;context.setPaused(false);$('gpu-state').textContent='独立单帧取证，完成后暂停';
   };
-  $('gpu-context').onclick=()=>{
-    if(!context||sample)return;
+  const injection=$('gpu-context');if(injection)injection.onclick=()=>{
+    if(!context||terminal||sample)return;
     const ext=renderer.getContext().getExtension('WEBGL_lose_context');
     if(!ext){$('gpu-state').textContent='context loss 注入不可用';return;}
-    context.setPaused(true);ext.loseContext();setTimeout(()=>ext.restoreContext(),1000);
+    injectionRequested=true;panel.dataset.injection=JSON.stringify({requestedAt:Date.now(),test:'WEBGL_lose_context'});context.setPaused(true);ext.loseContext();setTimeout(()=>ext.restoreContext(),1000);
   };
   $('gpu-s0').onclick=async()=>{
-    if(!context||sample)return;
+    if(!context||terminal||sample)return;
     const checks={},snapshots=[],check=(name,passed)=>checks[name]=Boolean(passed);
     const capture=()=>{const s=state();snapshots.push({renders,state:s});return s};
     try{
@@ -131,6 +134,15 @@ export function makeWorkloadReview(renderer,params) {
     }catch(error){context.setPaused(true);await save('s0-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]})}
   };
   return {
+    get injectionRequested(){return injectionRequested;},
+    contextLost(detail){
+      terminal=true;generation++;warming=false;pendingShot=false;
+      const interrupted=sample;sample=null;if(interrupted)clearTimeout(interrupted.timer);
+      errors.push('WebGL context lost');$('gpu-arm').disabled=true;
+      panel.querySelectorAll('button').forEach(b=>b.disabled=true);
+      // No GL read or screenshot after loss: use the last safe observation.
+      return save('context-loss',{passed:false,reason:'graphics context lost',injectionRequested,detail,lastSafeState:lastState,collection:interrupted?'sampling':lastState?'idle-or-warmup':'startup',before:interrupted?.before??null,frames:interrupted?.frames??[],events:[...events],errors:[...errors]});
+    },
     get collecting(){return Boolean(sample||warming)},labelGroup(){},labelGeometry(){},
     attach(value){context={...context,...value};},
     event(type,detail={}){events.push({type,...detail,wallMs:performance.now()});if(events.length>512)events.shift();},
@@ -139,6 +151,6 @@ export function makeWorkloadReview(renderer,params) {
     pass(name,fn){const before={...renderer.info.render},start=performance.now(),oldScope=scope;scope=name;try{return fn()}finally{scope=oldScope;if(current)current.passes.push({name,cpuSubmissionMs:performance.now()-start,calls:renderer.info.render.calls-before.calls,triangles:renderer.info.render.triangles-before.triangles});}},
     endGpuFrame(){},
     endFrame(cpuMs){if(pendingShot){pendingShot=false;context.setPaused(true);const image=renderer.domElement.toDataURL('image/png');void save('still',{state:state(),image,errors:[...errors]});}if(sample&&current&&sample.frames.length<900){const s=state();sample.frames.push({...current,cpuSubmissionMs:cpuMs,worldTime:s.worldTime,drawSize:s.drawSize,cloudRays:s.skyCache.raysLastFrame,drawCalls:s.drawCalls,triangles:s.triangles,memory:s.memory,position:s.position,pending:s.vegetation.pending||s.flow.pending});}current=null;},
-    heartbeat(s){panel.dataset.snapshot=JSON.stringify({renders,...s});if(!sample)$('gpu-state').textContent=(s.workload.paused?'3D 已暂停':'运行中')+' · 提交 '+s.workload.submittedFrames+' · GPU 绘制 '+renders;},
+    heartbeat(s){if(terminal)return;lastState=s;panel.dataset.snapshot=JSON.stringify({renders,...s});if(!sample)$('gpu-state').textContent=(s.workload.paused?'3D 已暂停':'运行中')+' · 提交 '+s.workload.submittedFrames+' · GPU 绘制 '+renders;},
   };
 }
