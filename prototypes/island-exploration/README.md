@@ -84,3 +84,8 @@ Timing lasts 12 seconds and auto-pauses. Stills request one bounded frame and ar
 separate from timing. JSON and PNG evidence can be saved with the local-only
 `tools/gpu-review-server.py`; results default to ignored `docs/research/`.
 `build-meta.json` identifies the actual served source and assets, including dirtiness.
+
+The explicit local workload review also auto-pauses after 20 active idle seconds,
+including while browser control is delayed. Starting a short sample or pressing
+Continue rearms this bound. Explicit bounded routes retain their own timeout.
+Ordinary preview remains continuous.
