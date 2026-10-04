@@ -3,7 +3,7 @@
 export const islandCloudGLSL=`
 uniform sampler3D cloudNoiseMap;uniform sampler2D cloudWeather;
 uniform vec2 cloudOrigin,cloudPhase;
-uniform float cloudCoverage,cloudThickness,cloudDataReady,cloudAppearanceWeight,weatherHaze,rainWetness;
+uniform float cloudCoverage,cloudThickness,cloudDataReady,cloudAppearanceWeight,weatherHaze,rainWetness,cloudStepCount;
 float cloudOvercast(){return smoothstep(.55,.9,cloudCoverage)*cloudAppearanceWeight;}
 // Density construction adapted from Tidewater SkyProClouds.js, MIT, DRG Software Solutions LLC.
 float cloudField(vec3 p){
@@ -31,8 +31,9 @@ vec4 traceCloudSky(vec3 p,vec3 d,vec3 base,vec3 ambient,vec3 solar,vec3 sun){
  if(d.y<=.035||cloudCoverage<=0.||cloudDataReady<.5)return vec4(base,1.);
  float start=max(0.,(4000.-p.y)/d.y),end=min((9200.-p.y)/d.y,70000.);
  if(end<=start)return vec4(base,1.);
- float ds=(end-start)/240.,transmission=1.;vec3 light=vec3(0.);
+ float ds=(end-start)/cloudStepCount,transmission=1.;vec3 light=vec3(0.);
  for(int i=0;i<240;i++){
+  if(float(i)>=cloudStepCount)break;
   float dist=start+(float(i)+fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715)))))*ds;vec3 q=p+d*dist;float den=cloudField(q);
   if(den>.001){
    float h=clamp((q.y-4000.)/5200.,0.,1.);

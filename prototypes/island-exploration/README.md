@@ -29,7 +29,7 @@ This prototype is intended to support continued world-layout, water, geology, ve
 
 ## Repeatable visual review
 
-Add `?quality=high&place=side-spring&benchmark=1&gpuScope=none` to the preview URL. Review mode freezes the world at 60 seconds, records the camera pose and source/assets hashes, and provides a thirteen-place runtime tour, a 12-second lateral camera replay, a recorded ground-level trail walk and a 42-second shore cycle. Export includes original canvas frames and timing; passing runtime checks is not a visual verdict. `pose=x,y,z,yaw,pitch` restores a custom camera on initial load.
+Add `?quality=high&place=side-spring&benchmark=1&gpuScope=none` to the preview URL. Review UI preserves the workload budget and uses normal animation time; only the new explicit `fixedBenchmark=1` freezes an idle review. It records the camera pose and source/assets hashes, and provides a thirteen-place runtime tour, a 12-second lateral camera replay, a recorded ground-level trail walk and a 42-second shore cycle. Export includes original canvas frames and timing; passing runtime checks is not a visual verdict. `pose=x,y,z,yaw,pitch` restores a custom camera on initial load.
 
 Terrain ecology uses the same path mask for ground, trees and undergrowth. `tools/bake-light.mjs` generates the horizon and habitat fields after terrain changes; run it with `node --import tsx prototypes/island-exploration/tools/bake-light.mjs`. Rebuild afterward. `tools/bake-shore.mjs` updates the coast field when coastal terrain changes. The tree atlas uses the same branch geometry as nearby trees; the 45–90 metre stochastic handover should be assessed in movement.
 
@@ -57,3 +57,30 @@ The side spring at z≈−720 and northern source at z≈−4023 have separate d
 Use `gpuScope=none` for this review. It creates no GPU timer-query sample. Timing and video are separate runs; frame evidence includes route identity, version, world/wall time, position, pending state and source/assets hashes. Automatic benchmark routes bypass ordinary animal collision, so ordinary WASD/joystick navigation must also be checked. The measurement UI and still checks do not establish visual quality.
 
 Water keeps the opaque/depth image and bounded reflection independent. Current opaque shadows are rendered before reflection; AO, water and spray compose into a separate half-float linear target, then a single fullscreen output applies exposure and display conversion. The target resizes with the actual drawing buffer and is disposed/recreated with its owner. No temporal AA, screen-space reflection or dependency upgrade is included.
+
+
+### GPU investigation protection (new)
+
+Ordinary and historical review URLs now default to at most 921,600 canvas pixels,
+longest edge 1280, and 30 submitted frames per active second. This is a temporary
+quality reduction, including 1536×384 / 120-step cloud caches and a 128-face PMREM;
+it is not final desktop visual acceptance. Low quality also reduces the cloud cache.
+`benchmark=1` enables UI only. `fixedBenchmark=1` explicitly fixes idle world time.
+`pixelBudget` can lower the pixel ceiling; `reviewDpr` cannot bypass it.
+The new `highLoad=1` explicitly enables a bounded 2.4MP / 60 FPS override with a
+20-active-second deadline and visible label. Do not use it for fault investigation.
+
+Pause 3D remains available during loading. Pausing, opening a dialog, hiding the
+page or pagehide stops new GPU work, including cache rebuilds and worker-result
+installation. Resume discards pacing backlog and excludes paused time from the
+world and wall-clock review route. Context restoration permits one automatic
+reload per page session, forces low quality, sanitizes diagnostic parameters and
+then stops automatic recovery on another loss; the minimal state is exportable.
+
+`workloadReview=1&gpuScope=none` is a new lightweight, explicitly enabled local
+E2E/short-sample panel. It wraps public render calls, never GL uploads or GPU timer
+queries. Its freeze/cheap variants are diagnostics, never product optimizations.
+Timing lasts 12 seconds and auto-pauses. Stills request one bounded frame and are
+separate from timing. JSON and PNG evidence can be saved with the local-only
+`tools/gpu-review-server.py`; results default to ignored `docs/research/`.
+`build-meta.json` identifies the actual served source and assets, including dirtiness.

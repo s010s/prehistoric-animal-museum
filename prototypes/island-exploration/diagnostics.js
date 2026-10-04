@@ -4,7 +4,7 @@ export function makeDiagnostics(renderer, params) {
   if (params.get('diagnostics') !== '1' || params.get('benchmark') !== '1') return null
   const gl = renderer.getContext(), nativeExt = gl.getExtension('EXT_disjoint_timer_query_webgl2')
   const ext = params.get('timerTest') === 'unsupported' ? null : nativeExt
-  const gpuMode = ['frame','shadow','none','isolated','pass'].includes(params.get('gpuScope')) ? params.get('gpuScope') : 'isolated'
+  const gpuMode = ['frame','shadow','none','isolated','pass'].includes(params.get('gpuScope')) ? params.get('gpuScope') : 'none'
   const isolatedScopes=['cloudPanorama','cloudShadow','oceanSpectrum0','oceanSpectrum1','planarReflection','mainInclusiveShadow','aoOutputComposite','water','displayOutput'],requestedPass=isolatedScopes.includes(params.get('gpuPass'))?params.get('gpuPass'):null
   const counts = () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, points: renderer.info.render.points, lines: renderer.info.render.lines })
   const difference = (a,b) => Object.fromEntries(Object.keys(a).map(k => [k,a[k]-b[k]]))
@@ -23,9 +23,9 @@ export function makeDiagnostics(renderer, params) {
   const gpuSupport = ext ? 'supported' : 'unsupported'
   function event(type, detail = {}) {
     const e = { type, wallNowMs: performance.now(), frameId, ...detail }
-    if (phase === 'sample' || phase === 'drain') runEvents.push(e)
-    else if (!context) initialEvents.push(e)
-    else events.push(e)
+    if (phase === 'sample' || phase === 'drain') {if(runEvents.length<20000)runEvents.push(e)}
+    else if (!context) {if(initialEvents.length<512)initialEvents.push(e)}
+    else {events.push(e);if(events.length>512)events.shift()}
   }
   // These are actual WebGL buffer transfer/allocation arguments, not instance estimates.
   // Texture transfer bytes are deliberately unknown (DOM image, driver conversion/mips).
@@ -116,7 +116,7 @@ export function makeDiagnostics(renderer, params) {
   }
   function assertions(state) {
     const all = gpuRows.every(r => r.status === 'valid' ? Number.isFinite(r.ms) && r.ms >= 0 : r.ms === null)
-    return {rawRafTimestamps:frameRows.length>0&&frameRows.every(r=>Number.isFinite(r.rafTimestampMs)&&r.frameIntervalMs>0),cpuFinite:frameRows.every(r=>Object.values(r.cpu).every(v=>Number.isFinite(v)&&v>=0)),submissionsReconcile:frameRows.every(r=>r.passes.reduce((s,p)=>s+p.calls,0)===r.submissions.calls&&r.passes.reduce((s,p)=>s+p.triangles,0)===r.submissions.triangles),gpuValidOrNull:all,noNestedQueries:activeQuery===null&&queryNestingAttempts===0,drawSize:state.drawSize[0]===2048&&state.drawSize[1]===1152,fixedExposure:frameRows.every(r=>r.exposure===1.35),adaptiveDisabled:!state.adaptive,noResourceErrors:!state.programErrors&&!state.vegetation.error&&!state.flow.error,framesCollected:frameRows.length>0,completeRoute:['hot','smoke'].includes(job.kind)||context.benchmark.diagnosticComplete,unsupportedNull:gpuSupport!=='unsupported'||gpuRows.every(r=>r.ms===null&&r.status==='unsupported'),disjointNull:params.get('timerTest')!=='disjoint'||gpuRows.some(r=>r.status==='disjoint'&&r.ms===null)}
+    return {rawRafTimestamps:frameRows.length>0&&frameRows.every(r=>Number.isFinite(r.rafTimestampMs)&&r.frameIntervalMs>0),cpuFinite:frameRows.every(r=>Object.values(r.cpu).every(v=>Number.isFinite(v)&&v>=0)),submissionsReconcile:frameRows.every(r=>r.passes.reduce((s,p)=>s+p.calls,0)===r.submissions.calls&&r.passes.reduce((s,p)=>s+p.triangles,0)===r.submissions.triangles),gpuValidOrNull:all,noNestedQueries:activeQuery===null&&queryNestingAttempts===0,drawSize:state.drawSize[0]*state.drawSize[1]<=state.workload.maxPixels&&Math.max(...state.drawSize)<=state.workload.maxDimension,fixedExposure:frameRows.every(r=>r.exposure===1.35),adaptiveDisabled:!state.adaptive,noResourceErrors:!state.programErrors&&!state.vegetation.error&&!state.flow.error,framesCollected:frameRows.length>0,completeRoute:['hot','smoke'].includes(job.kind)||context.benchmark.diagnosticComplete,unsupportedNull:gpuSupport!=='unsupported'||gpuRows.every(r=>r.ms===null&&r.status==='unsupported'),disjointNull:params.get('timerTest')!=='disjoint'||gpuRows.some(r=>r.status==='disjoint'&&r.ms===null)}
   }
   const panel = document.createElement('section'); panel.id='e00'; panel.style.cssText='position:fixed;top:12px;left:12px;z-index:80;background:#14252ef0;color:white;padding:10px;max-width:460px;font:12px sans-serif'
   panel.innerHTML='<strong>独立测量</strong><div><button id="e00-regression">路线计时</button><button id="e00-hot">热稳定 3 轮</button><button id="e03-ab">实例排序 A/B · 3 轮</button><button id="e00-video">独立录像</button><button id="e00-smoke">仪表检查</button><button id="e00-stop">停止采集</button></div><output id="e00-status">等待启动</output><pre id="e00-result" style="max-height:80px;overflow:auto"></pre>'

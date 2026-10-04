@@ -13,31 +13,51 @@ import {makeEncounter} from './encounter.js'
 import {makeTerrainLight} from './terrain-light.js'
 import {makeBenchmark} from './benchmark.js'
 import {makeDiagnostics} from './diagnostics.js'
+import {resolveWorkload,fitDrawingBuffer,FrameClock,recoveryPlan} from './workload.js'
+import {makeWorkloadReview} from './workload-review.js'
 const $=s=>document.querySelector(s),params=new URLSearchParams(location.search)
 const habitat=params.get('look')!=='baseline';
-const benchmarkMode=params.get('benchmark')==='1',shadowBootstrap=!(params.get('benchmark')==='1'&&params.get('shadowBootstrap')==='legacy');let benchmark=null,stableShadow=params.get('shadow')!=='baseline';
+const workload=resolveWorkload(params),benchmarkMode=workload.review,shadowBootstrap=true;let benchmark=null,stableShadow=params.get('shadow')!=='baseline';
+const clock=new FrameClock(workload.targetFps,performance.now()),pauseReasons=new Set(params.get('paused')==='1'?['user']:[]);
+let renderScale=1;
+let bootSlots=0,bootComplete=false,worldBase=benchmarkMode?60:0,worldAnchor=0,resizePending=true,resizeTimer=null;
+const activeNow=()=>clock.activeNow(performance.now());
+function pauseReason(reason,on){on?pauseReasons.add(reason):pauseReasons.delete(reason);clock.setPaused(pauseReasons.size>0,performance.now());benchmark?.setPaused(pauseReasons.size>0);$('#pause-3d').textContent=pauseReasons.has('user')?'继续 3D':'暂停 3D';$('#pause-3d').setAttribute('aria-pressed',String(pauseReasons.has('user')));document.body.dataset.paused=String(pauseReasons.size>0);}
+$('#pause-3d').onclick=()=>pauseReason('user',!pauseReasons.has('user'));
+pauseReason('hidden',document.hidden);
+addEventListener('visibilitychange',()=>pauseReason('hidden',document.hidden));
+addEventListener('pagehide',()=>pauseReason('pagehide',true));
+addEventListener('pageshow',()=>pauseReason('pagehide',false));
+const budgetNote=document.createElement('small');budgetNote.id='workload-budget';budgetNote.style.cssText='position:fixed;top:64px;right:16px;z-index:40;color:white;background:#16332dcc;padding:5px 8px';budgetNote.textContent=workload.override?'高负载覆盖 · 20 秒后自动暂停':'调查保护档 · ≤0.92 MP · 30 FPS';document.body.append(budgetNote);
+async function waitForWork(stage){while(true){if(lost)throw Error('Graphics context lost during '+stage);const t=await new Promise(resolve=>requestAnimationFrame(resolve));if(clock.accept(t).submit){bootSlots++;return;}}}
+for(const dialog of document.querySelectorAll('dialog')){dialog.addEventListener('close',()=>pauseReason('dialog',Boolean(document.querySelector('dialog[open]'))));}
+new MutationObserver(()=>pauseReason('dialog',Boolean(document.querySelector('dialog[open]')))).observe(document.body,{subtree:true,attributes:true,attributeFilter:['open']});
 let walking=params.get('walk')==='1';
 let fine=params.has('quality')?params.get('quality')==='high':innerWidth>=900,cruise=false,touring=false,tourT=0,speedIndex=1,yaw=0,pitch=0,elapsed=0,last=0,frames=[],frame=0
 const speeds=[5,35,150],speedNames=['近看','漫游','远行']
 const renderer=new T.WebGLRenderer({canvas:$('#scene'),antialias:habitat,powerPreference:'high-performance'});renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=habitat?1.35:.92;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.info.autoReset=false
-const diagnostics=makeDiagnostics(renderer,params);
+const diagnostics=makeDiagnostics(renderer,params),workloadReview=makeWorkloadReview(renderer,params);
+const observer=diagnostics??workloadReview;
 const scene=new T.Scene();scene.background=new T.Color('#c8dce2');const camera=new T.PerspectiveCamera(62,innerWidth/innerHeight,.3,45000);camera.rotation.order='YXZ'
 let lost=false,recoveryUrl=null,poseReady=false;
-const contextRecovery=!(benchmarkMode&&params.get('contextRecovery')==='legacy');
+const contextRecovery=true,recoveryKey='island-context-recovery:'+location.pathname;
+let recoveryAttempts=Number(params.get('recoveryAttempt'))||0;try{recoveryAttempts=Math.max(recoveryAttempts,Number(sessionStorage.getItem(recoveryKey))||0)}catch{}
 if(contextRecovery){
  renderer.domElement.addEventListener('webglcontextlost',e=>{
-  e.preventDefault();if(lost)return;lost=true;
+  e.preventDefault();if(lost)return;lost=true;pauseReason('context',true);
   const url=new URL(location.href);
   if(poseReady){
    url.searchParams.set('pose',[...camera.position.toArray(),camera.rotation.y,camera.rotation.x].join(','));
-   url.searchParams.set('quality',fine?'high':'mobile');
+   url.searchParams.set('quality','mobile');
   }
-  recoveryUrl=url.href;
+  const recovery=recoveryPlan(url.href,recoveryAttempts);recoveryUrl=recovery.url;recoveryAttempts=recovery.attempts;if(recovery.allowed)try{sessionStorage.setItem(recoveryKey,String(recoveryAttempts))}catch{}
+  document.body.dataset.recovery=JSON.stringify(recovery);
+  if(!$('#recovery-export')){const b=document.createElement('button');b.id='recovery-export';b.textContent='保存恢复状态';b.onclick=()=>{const data={build:__WORLD_BUILD__,attempts:recoveryAttempts,automaticRecovery:Boolean(recoveryUrl),drawSize:[renderer.domElement.width,renderer.domElement.height],pose:poseReady?camera.position.toArray():null};const link=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));link.href=url;link.download='island-context-state.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};$('#loading').append(b);}if(!recovery.allowed){$('#load-detail').textContent='图形资源再次中断，已停止自动恢复。请关闭此预览后再检查。';}
   benchmark?.cancel('WebGL context lost');
   if(poseReady){stop();keys.clear();joy.x=joy.y=0;alt.up=alt.down=false;look=null;}
   document.body.dataset.ready='false';
   $('#loading').classList.remove('done');$('#loading').setAttribute('aria-hidden','false');
-  $('#load-detail').textContent='图形资源正在恢复…';
+  $('#load-detail').textContent=recoveryUrl?'图形资源正在以保护档恢复…':'图形资源再次中断，已停止自动恢复。';
  });
  // Cached render targets have lost their contents. Re-enter through startup
  // so tree atlases, sky history, water and the environment are rebuilt together.
@@ -46,14 +66,16 @@ if(contextRecovery){
 const sunDirection=new T.Vector3(...SUN_DIRECTION).normalize();
 const shadowFocus=makeShadowFocus(sunDirection);
 const sun=new T.DirectionalLight('#fff1d9',2.35);sun.castShadow=true;sun.shadow.mapSize.set(512,512);Object.assign(sun.shadow.camera,{left:-140,right:140,top:140,bottom:-140,near:1,far:1200});sun.shadow.bias=-.00015;sun.shadow.normalBias=.08;scene.add(sun,sun.target);scene.add(new T.HemisphereLight('#d7e9f4','#45533e',habitat?.65:.85))
-const sky=await makeSky(sunDirection);sky.updateLighting(renderer,0,camera);const skyScene=new T.Scene();skyScene.add(sky.mesh);const pmrem=new T.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(skyScene,.03,.3,45000).texture;scene.environmentIntensity=habitat?.42:.42;pmrem.dispose();scene.add(sky.mesh);diagnostics?.labelGroup(sky.mesh,'sky');scene.background=null;
+// Function declarations are hoisted, but renderScale must exist before startup.
+renderScale=1;quality(); // Before any large targets, atlases, PMREM, compilation or GPU pass.
+const sky=await makeSky(sunDirection,workload.cloud);scene.add(sky.mesh);observer?.labelGroup(sky.mesh,'sky');scene.background=null;let environmentTarget=null;
 Object.assign(sky.uniforms,await makeTerrainLight(habitat));
 const air=makeAtmosphere(sky.uniforms);
-const landscape=makeLandscape(await groundMaterial(),o=>air.apply(o),()=>fine,diagnostics);scene.add(landscape.group);air.apply(landscape.group)
-const water=await makeWater(renderer,camera,riverRocks,sky.uniforms,()=>fine,diagnostics,()=>!shadowBootstrap||Boolean(sun.shadow.map))
+const landscape=makeLandscape(await groundMaterial(),o=>air.apply(o),()=>fine,observer);scene.add(landscape.group);air.apply(landscape.group)
+const water=await makeWater(renderer,camera,riverRocks,sky.uniforms,()=>fine,observer,()=>!shadowBootstrap||Boolean(sun.shadow.map))
 $('#load-detail').textContent='铺开森林、岩岸和潮汐河谷…'
 await landscape.ready;
-const props=await makeProps(renderer,o=>air.apply(o),()=>fine,diagnostics,(x,z)=>landscape.heightAt(x,z));scene.add(props.group);air.apply(props.group);water.setReflectionMode(props.reflectionMode);const cliffs=await makeCliffs(habitat);scene.add(cliffs);diagnostics?.labelGroup(cliffs,'cliffs');air.apply(cliffs)
+const props=await makeProps(renderer,o=>air.apply(o),()=>fine,observer,(x,z)=>landscape.heightAt(x,z),waitForWork);scene.add(props.group);air.apply(props.group);water.setReflectionMode(props.reflectionMode);const cliffs=await makeCliffs(habitat);scene.add(cliffs);observer?.labelGroup(cliffs,'cliffs');air.apply(cliffs)
 if(params.get('graybox')==='1'){scene.overrideMaterial=new T.MeshLambertMaterial({color:'#9da9a0'});props.group.visible=false;}
 const walkingHeight=(x,z)=>Math.max(landscape.heightAt(x,z),cliffs.userData.heightAt(x,z));
 const navigationHeight=(x,z)=>walking||benchmark?.groundRouteActive?walkingHeight(x,z):Math.max(surfaceHeight(x,z),walkingHeight(x,z));
@@ -67,8 +89,8 @@ function stop(){benchmark?.cancel('navigation or manual interruption');touring=f
 function go(id){const l=landmarks.find(p=>p.id===(id==='spring'?'side-spring':id))??landmarks[0];stop();if(l.id==='encounter'){speedIndex=0;$('#speed').textContent='速度 · 近看';}camera.position.fromArray(l.p);if(walking&&waterLevelAt(l.p[0],l.p[2])-walkingHeight(l.p[0],l.p[2])>.65){walking=false;$('#walk-mode').setAttribute('aria-pressed','false');}camera.fov=l.id==='encounter'&&innerWidth/innerHeight<.8?80:62;camera.updateProjectionMatrix();camera.position.y=Math.max(camera.position.y,navigationHeight(camera.position.x,camera.position.z)+3);orient(new T.Vector3(...l.t));$('#place').textContent=l.name;$('#place-note').textContent=l.note;params.set('place',l.id);params.set('quality',fine?'high':'mobile');params.delete('pose');history.replaceState(null,'',`?${params}`);benchmark?.destination(l.id);map($('#minimap'));frames=[]}
 for(const [i,l]of landmarks.entries()){const b=document.createElement('button');b.innerHTML=`${i+1} · ${l.name}<small>${l.note}</small>`;b.onclick=()=>{go(l.id);$('#map-dialog').close()};$('#destinations').append(b)}
 $('#map-button').onclick=()=>{stop();map($('#large-map'),true);$('#map-dialog').showModal()};$('#map-dialog .close').onclick=()=>$('#map-dialog').close();$('#help').onclick=()=>{stop();$('#help-dialog').showModal()};$('#help-dialog .close').onclick=()=>$('#help-dialog').close()
-let mobileScale=1,renderScale=1;function quality(){const budget=fine?2400000:1300000;renderer.setPixelRatio(benchmarkMode?Math.max(.5,Math.min(2,Number(params.get('reviewDpr'))||1)):Math.min(devicePixelRatio,fine?1.6:mobileScale,Math.sqrt(budget/(innerWidth*innerHeight)))*renderScale);renderer.setSize(innerWidth,innerHeight,false);$('#quality').textContent=fine?'精细画质':'手机画质';const size=fine?2048:512;if(sun.shadow.mapSize.x!==size){sun.shadow.map?.dispose();sun.shadow.map=null;sun.shadow.mapSize.set(size,size)}}
-$('#quality').onclick=()=>{stop();fine=!fine;renderScale=1;params.set('quality',fine?'high':'mobile');history.replaceState(null,'',`?${params}`);quality()};addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.fov=params.get('place')==='encounter'&&camera.aspect<.8?80:62;camera.updateProjectionMatrix();quality()})
+function quality(){const size=fitDrawingBuffer(workload,{width:innerWidth,height:innerHeight,dpr:Number(params.get('reviewDpr'))||devicePixelRatio,fine,scale:renderScale});renderer.setPixelRatio(size.ratio);renderer.setSize(innerWidth,innerHeight,false);$('#quality').textContent=fine?'精细画质':'轻量画质';budgetNote.textContent=(workload.override?'高负载覆盖 · 20 秒限时':'调查保护档')+' · '+renderer.domElement.width+'×'+renderer.domElement.height+' · '+workload.targetFps+' FPS';const shadowSize=fine?2048:512;if(sun.shadow.mapSize.x!==shadowSize){sun.shadow.map?.dispose();sun.shadow.map=null;sun.shadow.mapSize.set(shadowSize,shadowSize)}resizePending=false;}
+$('#quality').onclick=()=>{stop();fine=!fine;renderScale=1;params.set('quality',fine?'high':'mobile');history.replaceState(null,'',`?${params}`);resizePending=true};addEventListener('resize',()=>{resizePending=true;clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{resizePending=true},100)})
 $('#speed').onclick=()=>{speedIndex=(speedIndex+1)%3;$('#speed').textContent=`速度 · ${speedNames[speedIndex]}`}
 $('#cruise').onclick=()=>{const next=!cruise;stop();cruise=next;$('#cruise').textContent=cruise?'停止巡航':'向前巡航';$('#cruise').setAttribute('aria-pressed',String(cruise))}
 const route=new T.CatmullRomCurve3([[-1850,45,-450],[-1750,90,-1100],[-2020,260,-2250],[-1650,420,-3350],[800,650,-2500],[1800,710,-5850],[5500,390,-700],[6500,270,2100],[8400,150,3300],[4600,130,5300],[2950,130,6200],[500,330,4200],[-2100,270,3450],[-3100,200,500],[-3000,230,-2400],[-1850,80,-450]].map(p=>new T.Vector3(...p)),false,'centripetal')
@@ -86,18 +108,19 @@ stick.onpointerdown=e=>{manual();stick.setPointerCapture(e.pointerId);moveStick(
 for(const id of ['up','down']){const b=$('#'+id);b.onpointerdown=e=>{manual();alt[id]=true;b.setPointerCapture(e.pointerId)};b.onpointerup=b.onpointercancel=()=>alt[id]=false;b.onclick=()=>{manual();camera.position.y+=id==='up'?4:-4}}
 $('#walk-mode').setAttribute('aria-pressed',String(walking));
 $('#walk-mode').onclick=()=>{manual();walking=!walking;$('#walk-mode').setAttribute('aria-pressed',String(walking));};
-const initialPose=params.get('pose');quality();go(params.get('place')??'side-spring');if(initialPose){const p=initialPose.split(',').map(Number);if(p.length===5&&p.every(Number.isFinite)){camera.position.set(p[0],p[1],p[2]);yaw=p[3];pitch=p[4];camera.rotation.set(pitch,yaw,0)}};poseReady=true;elapsed=benchmarkMode?60:0;props.update(camera,elapsed);landscape.update(camera);$('#load-detail').textContent='准备阳光、海面与远景…';await landscape.ready;await renderer.compileAsync(scene,camera);$('#loading').classList.add('done');$('#loading').setAttribute('aria-hidden','true');document.body.dataset.ready='true'
+const initialPose=params.get('pose');quality();go(params.get('place')??'side-spring');if(initialPose){const p=initialPose.split(',').map(Number);if(p.length===5&&p.every(Number.isFinite)){camera.position.set(p[0],p[1],p[2]);yaw=p[3];pitch=p[4];camera.rotation.set(pitch,yaw,0)}};poseReady=true;elapsed=worldBase;await waitForWork('environment-pmrem');const skyScene=new T.Scene();skyScene.add(sky.mesh);const pmrem=new T.PMREMGenerator(renderer);environmentTarget=pmrem.fromScene(skyScene,.03,.3,45000,{size:128});scene.environment=environmentTarget.texture;scene.environmentIntensity=.42;pmrem.dispose();scene.add(sky.mesh);await waitForWork('initial-instance-install');props.update(camera,elapsed);landscape.update(camera);$('#load-detail').textContent='准备阳光、海面与远景…';await landscape.ready;await waitForWork('main-shader-compile');await renderer.compileAsync(scene,camera);bootComplete=true;worldAnchor=activeNow();clock.resetCadence(performance.now());clock.submittedFrames=0;$('#loading').classList.add('done');$('#loading').setAttribute('aria-hidden','true');document.body.dataset.ready='true'
 let perfStage={propsMs:0,renderMs:0},longFrames=0;
-function reviewState(){return {regionVersion:REGION_VERSION,route:benchmark?.routeState(),navigation:{walking,speed:walking?1.65:speeds[speedIndex]},build:__WORLD_BUILD__,variant:stableShadow?'stable':'baseline',shadowBootstrap,look:habitat?'habitat':'baseline',position:camera.position.toArray(),quaternion:camera.quaternion.toArray(),fov:camera.fov,drawSize:[renderer.domElement.width,renderer.domElement.height],viewport:[innerWidth,innerHeight],pixelRatio:renderer.getPixelRatio(),quality:fine?'high':'mobile',adaptive:!benchmarkMode,clearance:camera.position.y-(walking&&!benchmark?.active?walkingHeight(camera.position.x,camera.position.z):navigationHeight(camera.position.x,camera.position.z)),ground:{visibleHeight:landscape.heightAt(camera.position.x,camera.position.z),waterHeight:waterLevelAt(camera.position.x,camera.position.z),navigationHeight:navigationHeight(camera.position.x,camera.position.z)},exposure:renderer.toneMappingExposure,sunDirection:sunDirection.toArray(),weather:Object.fromEntries(['cloudCoverage','cloudThickness','weatherHaze','rainWetness','cloudPhase','skyTime'].map(k=>[k,sky.uniforms[k].value.toArray?.()??sky.uniforms[k].value])),worldTime:elapsed,skyCache:sky.status(),encounter:animal.status(),vegetation:props.status(),flow:water.status(),terrain:landscape.status(),shadow:shadowFocus.snapshot(sun),cpu:{...perfStage},drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,programErrors:renderer.info.programs?.filter(p=>p.diagnostics?.runnable===false).length??0}}
-benchmark=makeBenchmark({params,camera,canvas:renderer.domElement,landmarks,go,stop,getState:reviewState,auditSky:()=>sky.audit(renderer),setWaterDebug:value=>water.setDebug(value),setReviewDpr:value=>{params.set('reviewDpr',String(value));quality()},syncPose:()=>{yaw=camera.rotation.y;pitch=camera.rotation.x},getShadow:()=>stableShadow,setShadow:value=>{stableShadow=value;params.set('shadow',value?'stable':'baseline');history.replaceState(null,'',`?${params}`)},setTime:value=>elapsed=value,navigationHeight});
+function resourceState(){return [...sky.resources(),...water.resources(),...props.auditResources(),...(environmentTarget?[['environment',environmentTarget]]:[]),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])].map(([name,t])=>({name,width:t.width,height:t.height,samples:t.samples,type:t.texture.type,format:t.texture.format,depthBuffer:t.depthBuffer,colourSpace:t.texture.colorSpace}));}
+function reviewState(){return {regionVersion:REGION_VERSION,route:benchmark?.routeState(),navigation:{walking,speed:walking?1.65:speeds[speedIndex]},build:__WORLD_BUILD__,variant:stableShadow?'stable':'baseline',shadowBootstrap,look:habitat?'habitat':'baseline',position:camera.position.toArray(),quaternion:camera.quaternion.toArray(),fov:camera.fov,drawSize:[renderer.domElement.width,renderer.domElement.height],viewport:[innerWidth,innerHeight],pixelRatio:renderer.getPixelRatio(),quality:fine?'high':'mobile',adaptive:false,workload:{...clock.snapshot(performance.now()),...workload,overrideDeadlineRemaining:workload.deadlineSeconds===null?null:Math.max(0,workload.deadlineSeconds-clock.activeNow(performance.now())/1000),pauseReasons:[...pauseReasons],bootSlots,bootComplete,loops:1},resources:resourceState(),clearance:camera.position.y-(walking&&!benchmark?.active?walkingHeight(camera.position.x,camera.position.z):navigationHeight(camera.position.x,camera.position.z)),ground:{visibleHeight:landscape.heightAt(camera.position.x,camera.position.z),waterHeight:waterLevelAt(camera.position.x,camera.position.z),navigationHeight:navigationHeight(camera.position.x,camera.position.z)},exposure:renderer.toneMappingExposure,sunDirection:sunDirection.toArray(),weather:Object.fromEntries(['cloudCoverage','cloudThickness','weatherHaze','rainWetness','cloudPhase','skyTime'].map(k=>[k,sky.uniforms[k].value.toArray?.()??sky.uniforms[k].value])),worldTime:elapsed,skyCache:sky.status(),encounter:animal.status(),vegetation:props.status(),flow:water.status(),terrain:landscape.status(),shadow:shadowFocus.snapshot(sun),cpu:{...perfStage},drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory,programs:renderer.info.programs?.length??0},programErrors:renderer.info.programs?.filter(p=>p.observer?.runnable===false).length??0}}
+benchmark=makeBenchmark({params,camera,canvas:renderer.domElement,landmarks,go,stop,getState:reviewState,auditSky:()=>pauseReasons.size?{passed:false,reason:'3D paused'}:sky.audit(renderer),setWaterDebug:value=>water.setDebug(value),setReviewDpr:value=>{params.set('reviewDpr',String(value));resizePending=true},syncPose:()=>{yaw=camera.rotation.y;pitch=camera.rotation.x},getShadow:()=>stableShadow,setShadow:value=>{stableShadow=value;params.set('shadow',value?'stable':'baseline');history.replaceState(null,'',`?${params}`)},setTime:value=>{elapsed=worldBase=value;worldAnchor=activeNow()},now:activeNow,getWorldTime:()=>elapsed,navigationHeight});
 
-diagnostics?.labelGroup(animal.group,'animal');
-diagnostics?.attach({benchmark,getState:reviewState,resources:()=>[...sky.resources(),...water.resources(),...props.auditResources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])],scene,landscape,props,camera});
+observer?.labelGroup(animal.group,'animal');
+observer?.attach({benchmark,getState:reviewState,resources:()=>[...sky.resources(),...water.resources(),...props.auditResources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])],scene,landscape,props,camera});
 const previousPosition=new T.Vector3();
 if(!contextRecovery)renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();lost=true;benchmark?.cancel('WebGL context lost');$('#loading').classList.remove('done');$('#load-detail').textContent='图形资源中断，请刷新重试。'})
-function render(t){requestAnimationFrame(render);if(lost||document.hidden){last=t;diagnostics?.event('frame-skipped',{hidden:document.hidden,lost});return}const raw=last?t-last:16;const dt=Math.min(.05,raw/1000);last=t;elapsed=benchmark?benchmark.time:elapsed+raw/1000;frames.push(raw);if(raw>50)longFrames++;if(frames.length>120)frames.shift()
- const frameStart=diagnostics?performance.now():0;renderer.info.reset();diagnostics?.beginFrame(t,raw,elapsed);
- const navStart=diagnostics?performance.now():0;
+function render(t){requestAnimationFrame(render);if(workload.override&&clock.activeNow(t)/1000>=workload.deadlineSeconds)pauseReason('override-expired',true);const accepted=clock.accept(t);if(lost||!accepted.submit)return;const raw=accepted.raw,dt=accepted.deltaSeconds;last=t;if(resizePending){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();quality();}sky.setQuality(fine);elapsed=benchmark?.active?benchmark.time:workload.fixed?worldBase:worldBase+(clock.activeNow(t)-worldAnchor)/1000;frames.push(raw);if(raw>50)longFrames++;if(frames.length>120)frames.shift()
+ const frameStart=observer?performance.now():0;renderer.info.reset();observer?.beginFrame(t,raw,elapsed);
+ const navStart=observer?performance.now():0;
  previousPosition.copy(camera.position);
  if(benchmark?.active){benchmark.beforeFrame()}
  else if(touring){tourT=Math.min(1,tourT+dt/320);const p=safeRoute.getPoint(tourT),target=tourT<.986?safeRoute.getPoint(tourT+.014):tourGaze.getPoint(1);p.y=Math.max(p.y,navigationHeight(p.x,p.z)+90);target.y=Math.max(target.y-35,p.y-120);camera.position.copy(p);orient(target);pitch=T.MathUtils.clamp(pitch,-.45,.25);camera.rotation.set(pitch,yaw,0);if(tourT>=1)stop()}
@@ -111,17 +134,20 @@ function render(t){requestAnimationFrame(render);if(lost||document.hidden){last=
  // the camera must not inherit flight navigation's water-surface floor.
  if(walking&&!benchmark?.active&&waterLevelAt(camera.position.x,camera.position.z)-walkingHeight(camera.position.x,camera.position.z)>.65){camera.position.copy(previousPosition);stop();}
  camera.position.y=walking&&!benchmark?.active?walkingHeight(camera.position.x,camera.position.z)+1.75:Math.max(camera.position.y,navigationHeight(camera.position.x,camera.position.z)+1.75);
- diagnostics?.cpu('navigationCollision',performance.now()-navStart);
- const shadowStart=diagnostics?performance.now():0;shadowFocus.apply(sun,camera,terrainHeight,stableShadow);diagnostics?.cpu('shadowFocus',performance.now()-shadowStart)
- const animalStart=diagnostics?performance.now():0;animal.update(elapsed,camera);diagnostics?.cpu('animals',performance.now()-animalStart);
- const skyStart=diagnostics?performance.now():0;sky.update(elapsed);sky.updateLighting(renderer,elapsed,camera,diagnostics);diagnostics?.cpu('skyInclusive',performance.now()-skyStart);
- const ps=performance.now();props.update(camera,elapsed);perfStage.propsMs=performance.now()-ps;diagnostics?.cpu('propsUpdate',perfStage.propsMs);
- const terrainStart=diagnostics?performance.now():0;landscape.update(camera);diagnostics?.cpu('terrainManagement',performance.now()-terrainStart);
- const rs=performance.now();params.has('dry')?renderer.render(scene,camera):water.render(scene,camera,elapsed);perfStage.renderMs=performance.now()-rs;diagnostics?.cpu('renderSubmissionInclusive',perfStage.renderMs);
- diagnostics?.endGpuFrame();const reviewStart=diagnostics?performance.now():0;benchmark?.afterFrame(raw,reviewState());diagnostics?.cpu('reviewUIInclusive',performance.now()-reviewStart);
- if(frame++%30===0){let nearest=landmarks[0],dist=Infinity;for(const l of landmarks){const d=Math.hypot(l.p[0]-camera.position.x,l.p[2]-camera.position.z);if(d<dist){nearest=l;dist=d}}$('#place').textContent=dist>6500?'外海':nearest.name;$('#place-note').textContent=touring?'沿海岸、河谷和山脊连续飞行':dist>6500?'打开地图，随时返回海岛':nearest.note;const avg=frames.reduce((a,b)=>a+b,0)/frames.length;$('#status').textContent=`海拔 ${Math.round(camera.position.y)} m · ${Math.round(1000/avg)} fps${touring?' · 导览中':''}`;const ordered=[...frames].sort((a,b)=>a-b);const metrics={waterTime:elapsed,frameMs:{p50:ordered[Math.floor(ordered.length*.5)],p95:ordered[Math.floor(ordered.length*.95)],max:ordered.at(-1)},longFrames,cpu:perfStage,drawSize:[renderer.domElement.width,renderer.domElement.height],version:'island-r5',position:camera.position.toArray(),ground:terrainHeight(camera.position.x,camera.position.z),touring,tourT,cruise,speed:speeds[speedIndex],quality:fine?'high':'mobile',pixelRatio:renderer.getPixelRatio(),viewport:[innerWidth,innerHeight],fps:1000/avg,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,objects:props.counts,terrain:landscape.status()};$('#status').dataset.metrics=JSON.stringify(metrics);map($('#minimap'));if(!benchmarkMode&&frames.length===120&&frame>240&&frame%240===1&&ordered[Math.floor(ordered.length*.95)]>25&&avg>20&&renderScale>.7){renderScale=Math.max(.7,renderScale-.1);quality();frames=[]}}
- diagnostics?.endFrame(performance.now()-frameStart);
+ observer?.cpu('navigationCollision',performance.now()-navStart);
+ const shadowStart=observer?performance.now():0;shadowFocus.apply(sun,camera,terrainHeight,stableShadow);observer?.cpu('shadowFocus',performance.now()-shadowStart)
+ const animalStart=observer?performance.now():0;animal.update(elapsed,camera);observer?.cpu('animals',performance.now()-animalStart);
+ const skyStart=observer?performance.now():0;sky.update(elapsed);sky.updateLighting(renderer,elapsed,camera,observer);observer?.cpu('skyInclusive',performance.now()-skyStart);
+ const ps=performance.now();props.update(camera,elapsed);perfStage.propsMs=performance.now()-ps;observer?.cpu('propsUpdate',perfStage.propsMs);
+ const terrainStart=observer?performance.now():0;landscape.update(camera);observer?.cpu('terrainManagement',performance.now()-terrainStart);
+ const rs=performance.now();params.has('dry')?renderer.render(scene,camera):water.render(scene,camera,elapsed);perfStage.renderMs=performance.now()-rs;observer?.cpu('renderSubmissionInclusive',perfStage.renderMs);
+ observer?.endGpuFrame();const reviewStart=observer?performance.now():0;benchmark?.afterFrame(raw,reviewState());observer?.cpu('reviewUIInclusive',performance.now()-reviewStart);
+ if(frame++%30===0){let nearest=landmarks[0],dist=Infinity;for(const l of landmarks){const d=Math.hypot(l.p[0]-camera.position.x,l.p[2]-camera.position.z);if(d<dist){nearest=l;dist=d}}$('#place').textContent=dist>6500?'外海':nearest.name;$('#place-note').textContent=touring?'沿海岸、河谷和山脊连续飞行':dist>6500?'打开地图，随时返回海岛':nearest.note;const avg=frames.reduce((a,b)=>a+b,0)/frames.length;$('#status').textContent=`海拔 ${Math.round(camera.position.y)} m · ${Math.round(1000/avg)} fps${touring?' · 导览中':''}`;const ordered=[...frames].sort((a,b)=>a-b);const metrics={waterTime:elapsed,frameMs:{p50:ordered[Math.floor(ordered.length*.5)],p95:ordered[Math.floor(ordered.length*.95)],max:ordered.at(-1)},longFrames,cpu:perfStage,drawSize:[renderer.domElement.width,renderer.domElement.height],version:'island-r5',position:camera.position.toArray(),ground:terrainHeight(camera.position.x,camera.position.z),touring,tourT,cruise,speed:speeds[speedIndex],quality:fine?'high':'mobile',pixelRatio:renderer.getPixelRatio(),viewport:[innerWidth,innerHeight],fps:1000/avg,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,objects:props.counts,terrain:landscape.status()};$('#status').dataset.metrics=JSON.stringify(metrics);map($('#minimap'));}
+ observer?.endFrame(performance.now()-frameStart);
 }
+workloadReview?.attach({getState:reviewState,setPaused:value=>pauseReason('user',value),go,clock,sky,water,benchmark,camera,quality:()=>{resizePending=true},setFine:value=>{fine=value;resizePending=true},setPixelScale:value=>{renderScale=value;resizePending=true},setTime:value=>{elapsed=worldBase=value;worldAnchor=activeNow()},getPaused:()=>pauseReasons.size>0});
+setInterval(()=>{const state=reviewState();budgetNote.dataset.snapshot=JSON.stringify(state);workloadReview?.heartbeat(state);},1000);
+addEventListener('pagehide',event=>{if(!event.persisted){props.dispose();sky.dispose();environmentTarget?.dispose();water.dispose?.();renderer.dispose();}});
 requestAnimationFrame(render)
 
 // A separate, explicitly enabled contract audit; never included in route timing.

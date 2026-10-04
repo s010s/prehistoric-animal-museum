@@ -9,3 +9,6 @@
 #encounter-actions{position:absolute;left:28px;bottom:155px;display:flex;flex-direction:column;align-items:flex-start;gap:9px;pointer-events:none}#encounter-actions span{font-size:11px;letter-spacing:.08em;text-shadow:0 1px 5px #000}#observe{pointer-events:auto;padding:13px 19px;border-color:#b6c6a8;background:#e5e9d3;color:#233e34;font-size:14px;box-shadow:0 5px 24px #0003}#observe[hidden]{display:none}#animal-dialog{max-width:480px}#animal-dialog h2{font-size:40px;margin-bottom:0}.animal-latin{opacity:.65}.animal-note{font-size:12px;opacity:.75}#animal-dialog dl{display:flex;gap:24px;margin:28px 0}#animal-dialog dt{font-size:11px;opacity:.65}#animal-dialog dd{margin:7px 0;font-size:14px}@media(max-width:600px){#encounter-actions{left:20px;bottom:200px;max-width:75vw}#encounter-actions span{font-size:10px}#observe{font-size:12px;padding:11px 14px}#animal-dialog dl{gap:14px}#animal-dialog dd{font-size:12px}}
 
 #benchmark-collapse{float:right;margin-left:12px}#benchmark.compact{top:auto;bottom:100px;padding:6px}#benchmark.compact>*:not(#benchmark-collapse){display:none}#benchmark.compact #benchmark-collapse{float:none;margin:0}
+
+/* Pause stays usable while startup waits for its next bounded GPU slot. */
+.top-actions{z-index:100}

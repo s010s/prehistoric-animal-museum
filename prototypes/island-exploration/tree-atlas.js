@@ -1,7 +1,7 @@
 import * as T from 'three'
 // Colour and template-space normal are baked separately from the very same
 // branch geometry used nearby. Neither channel contains a baked sun or sky.
-export function bakeTreeAtlas(renderer,templates){
+export async function bakeTreeAtlas(renderer,templates,waitForWork){
  const cell=256,cols=8,rows=templates.length*3,targets=[0,1].map(()=>new T.WebGLRenderTarget(cols*cell,rows*cell,{generateMipmaps:true,minFilter:T.LinearMipmapLinearFilter,magFilter:T.LinearFilter,depthBuffer:true}));
  const old={target:renderer.getRenderTarget(),tone:renderer.toneMapping,clear:renderer.getClearColor(new T.Color()),alpha:renderer.getClearAlpha(),viewport:renderer.getViewport(new T.Vector4()),scissor:renderer.getScissor(new T.Vector4()),test:renderer.getScissorTest(),auto:renderer.autoClear};
  const scene=new T.Scene(),camera=new T.OrthographicCamera(-.7,.7,.7,-.7,.01,100),center=new T.Vector3(0,.5,0);
@@ -16,6 +16,7 @@ export function bakeTreeAtlas(renderer,templates){
     const mesh=new T.Mesh(part.geometry,m);mesh.scale.setScalar(1/tree.height);scene.add(mesh);return mesh;
    });
    for(let row=0;row<3;row++)for(let col=0;col<cols;col++){
+    await waitForWork('tree-atlas-cell');
     const elevation=row*.55,az=col*Math.PI/4;camera.position.set(Math.sin(az)*Math.cos(elevation)*20,.5+Math.sin(elevation)*20,Math.cos(az)*Math.cos(elevation)*20);camera.lookAt(center);camera.updateMatrixWorld();
     renderer.setViewport(col*cell,(species*3+row)*cell,cell,cell);renderer.render(scene,camera);
    }
