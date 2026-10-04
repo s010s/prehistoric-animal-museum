@@ -58,6 +58,7 @@ let recoveryAttempts=Number(params.get('recoveryAttempt'))||0;try{recoveryAttemp
 if(contextRecovery){
  renderer.domElement.addEventListener('webglcontextlost',e=>{
   e.preventDefault();if(lost)return;lost=true;pauseReason('context',true);
+  const cancelledReviewJob=Boolean(reviewJob);if(reviewJob){const queued=reviewJob;reviewJob=null;queued.resolve({passed:false,reason:'Graphics context lost; bounded job cancelled'});}
   const url=new URL(location.href);
   if(poseReady){
    url.searchParams.set('pose',[...camera.position.toArray(),camera.rotation.y,camera.rotation.x].join(','));
@@ -66,12 +67,12 @@ if(contextRecovery){
   const recovery=recoveryPlan(url.href,recoveryAttempts);recoveryUrl=recovery.url;recoveryAttempts=recovery.attempts;if(recovery.allowed)try{sessionStorage.setItem(recoveryKey,String(recoveryAttempts))}catch{}
   document.body.dataset.recovery=JSON.stringify(recovery);
   let lastSafeState=null;try{const raw=document.querySelector('#gpu-review')?.dataset.snapshot;if(raw)lastSafeState=JSON.parse(raw);}catch{}
-  const failure={observedAt:Date.now(),build:__WORLD_BUILD__,url:location.href,statusMessage:e.statusMessage??null,injectionRequested:workloadReview?.injectionRequested??false,recovery,drawSize:[renderer.domElement.width,renderer.domElement.height],pose:poseReady?camera.position.toArray():null,lastSafeState,routeEvidence:benchmark?.contextLost(lastSafeState)??null};
+  const failure={observedAt:Date.now(),build:__WORLD_BUILD__,url:location.href,statusMessage:e.statusMessage??null,injectionRequested:workloadReview?.injectionRequested??false,recovery,drawSize:[renderer.domElement.width,renderer.domElement.height],pose:poseReady?camera.position.toArray():null,lastSafeState,routeEvidence:benchmark?.contextLost(lastSafeState)??null,diagnosticEvidence:diagnostics?.interruption??null,cancelledReviewJob};
   let stored=false;try{sessionStorage.setItem(failureKey,JSON.stringify(failure));stored=true;}catch{}
   // Keep the export on this paused page if storage cannot survive a reload.
   // The localhost flush is still useful, but it is not available on every host.
   if(!stored){recoveryUrl=null;failure.recovery={...recovery,allowed:false,url:null,reason:'evidence-storage-unavailable'};document.body.dataset.recovery=JSON.stringify(failure.recovery);}
-  showFailureExport(failure);evidenceFlush=workloadReview?.contextLost(failure)??Promise.resolve();
+  showFailureExport(failure);evidenceFlush=Promise.all([workloadReview?.contextLost(failure)??Promise.resolve(),diagnostics?.interruptionFlush??Promise.resolve()]);
   if(poseReady){stop();keys.clear();joy.x=joy.y=0;alt.up=alt.down=false;look=null;}
   document.body.dataset.ready='false';
   $('#loading').classList.remove('done');$('#loading').setAttribute('aria-hidden','false');
@@ -174,10 +175,11 @@ requestAnimationFrame(render)
 if(diagnostics&&params.get('contractAudit')==='1'){
  const panel=document.createElement('section');panel.id='e09';panel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:80;background:#14252ef0;color:white;padding:10px;font:12px sans-serif';panel.innerHTML='<button id="e09-audit">合成契约审计</button><output id="e09-status">等待审计</output><pre id="e09-result" style="max-height:90px;max-width:440px;overflow:auto"></pre>';document.body.append(panel)
  const button=panel.querySelector('button');button.onclick=async()=>{
+  if(lost){panel.querySelector('output').textContent='图形资源中断，审计已停止';return}
   if(benchmark.active||diagnostics.collecting){panel.querySelector('output').textContent='请先停止路线计时';return}
   button.disabled=true
-  try {const {auditComposition}=await import('./contract-audit.js');if(benchmark.active||diagnostics.collecting){panel.querySelector('output').textContent='请先停止路线计时';return}const report=auditComposition(renderer,{scene,materials:water.auditMaterials(),resources:()=>[...sky.resources(),...water.resources(),...props.auditResources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])]});panel.dataset.report=JSON.stringify(report);panel.dataset.passed=String(report.passed);panel.querySelector('output').textContent=report.passed?'审计完成':'审计失败';panel.querySelector('pre').textContent=JSON.stringify({preexistingGlErrors:report.preexistingGlErrors,probeGlErrors:report.probeGlErrors,checks:report.checks,probes:report.probes},null,2)}
+  try {const {auditComposition}=await import('./contract-audit.js');if(lost){panel.querySelector('output').textContent='图形资源中断，审计已停止';return}if(benchmark.active||diagnostics.collecting){panel.querySelector('output').textContent='请先停止路线计时';return}const report=await queueReviewJob(()=>auditComposition(renderer,{scene,materials:water.auditMaterials(),resources:()=>[...sky.resources(),...water.resources(),...props.auditResources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])]}));if(lost)return;panel.dataset.report=JSON.stringify(report);panel.dataset.passed=String(report.passed);panel.querySelector('output').textContent=report.passed?'审计完成':'审计失败';panel.querySelector('pre').textContent=JSON.stringify({preexistingGlErrors:report.preexistingGlErrors,probeGlErrors:report.probeGlErrors,checks:report.checks,probes:report.probes},null,2)}
   catch(error){panel.dataset.passed='false';panel.dataset.report=JSON.stringify({passed:false,error:String(error)});panel.querySelector('output').textContent='审计失败'}
-  finally {button.disabled=false}
+  finally {button.disabled=lost}
  }
 }

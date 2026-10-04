@@ -91,7 +91,7 @@ export function makeWorkloadReview(renderer,params) {
     $('gpu-state').textContent='固定镜头短采样 · '+sample.arm;
   };
   $('gpu-stop').onclick=()=>{generation++;warming=false;$('gpu-arm').disabled=false;context?.setPaused(true);finish('user stop')};
-  auditButton.onclick=async()=>{if(!context||terminal||sample||warming)return;context.setPaused(false);const result=await context.queueReviewJob(()=>context.sky.auditDensity(renderer));context.setPaused(true);await save('density-audit',{passed:result.passed,result,state:state(),errors:[...errors]});};
+  auditButton.onclick=async()=>{if(!context||terminal||sample||warming)return;context.setPaused(false);const result=await context.queueReviewJob(()=>context.sky.auditDensity(renderer));context.setPaused(true);if(terminal)return;await save('density-audit',{passed:result.passed,result,state:state(),errors:[...errors]});};
   routeButton.onclick=async()=>{if(!context||terminal||sample||warming)return;context.setPaused(true);const records=context.benchmark.visualRecords.map(({image,...record})=>record),s=state(),motion=records.findLast(r=>r.kind==='replay'&&r.route?.id==='side-spring-loop'),suite=records.findLast(r=>r.kind==='suite-complete');await save('regional-e2e',{passed:Boolean(motion?.completed&&motion.route?.completed&&!motion.samples.some(f=>!f.position.every(Number.isFinite)||f.clearance<1.2)&&!errors.length&&!s.programErrors&&s.encounter.instances.length===2),state:s,records,video:context.benchmark.videoState,suitePassed:suite?.passed??null,errors:[...errors]});};
   $('gpu-shot').onclick=async()=>{
     if(!context||terminal||sample)return;

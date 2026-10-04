@@ -100,7 +100,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   $('benchmark-marsh-high').onclick=()=>{stop();suite=null;reset('wetland');camera.position.set(3900,500,5450);camera.lookAt(camera.position.clone().set(5400,2.4,4000));syncPose?.();};
   $('benchmark-dpr-matrix').onclick=()=>{stop();suite=null;tick=0;samples=[];interrupted=null;setTime(60);replay={position:camera.position.clone(),quaternion:camera.quaternion.clone(),start:now(),mode:'dpr',ticks:719,previousDpr:getState().pixelRatio};};
   $('benchmark-water').onchange=()=>setWaterDebug(Number($('benchmark-water').value));
-  $('benchmark-sky-audit').onclick=async()=>{const result=await auditSky();capture('sky-stripe-audit',{result});$('benchmark-note').textContent=JSON.stringify(result);};
+  $('benchmark-sky-audit').onclick=async()=>{const result=await auditSky();if(terminal)return;capture('sky-stripe-audit',{result});$('benchmark-note').textContent=JSON.stringify(result);};
   $('benchmark-sky-high').onclick=()=>{stop();suite=null;reset('heath');camera.position.y=1643;camera.lookAt(camera.position.clone().add({x:0,y:400,z:1000}));syncPose?.();};
   $('benchmark-rock-close').onclick=()=>{stop();suite=null;reset('cliffs');camera.position.set(-2940,8,-2320);camera.lookAt(camera.position.clone().set(-2820,24,-2240));syncPose?.();};
   $('benchmark-beach-eye').onclick=()=>{stop();suite=null;reset('bay');camera.position.set(9120,terrainHeight(9120,2330)+1.7,2330);camera.lookAt(camera.position.clone().set(9164,.8,2338));syncPose?.();};
