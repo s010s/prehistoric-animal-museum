@@ -125,6 +125,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     get groundRouteActive() { return replay?.mode==='region' },
     get diagnosticComplete() { return diagnosticComplete },
     get videoPending() { return videoPending },
+    get observationState(){return {routeActive:Boolean(replay||suite),recording:Boolean(recorder&&recorder.state!=='inactive'),videoPending,pendingCapture,evidenceReadback}},
     get videoState(){return {bytes:videoBytes,limitBytes:180000000,truncated:videoTruncated,pending:videoPending,artifact:videoArtifact,saveError:videoSaveError}},
     get visualRecords() { return records },
     prepareDiagnostic(route) {

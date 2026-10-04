@@ -1,5 +1,6 @@
 // Explicit, bounded browser E2E and short observations. No GL hooks or timer queries.
 import * as T from 'three';
+import {observationConditions,validateTimingObservation} from './short-observation.js';
 export function makeWorkloadReview(renderer,params) {
   if(params.get('workloadReview')!=='1')return null;
   let context=null,current=null,sample=null,renders=0,reportSerial=0,scope='startup',pendingShot=false,warming=false,generation=0,lastState=null,terminal=false,injectionRequested=false;
@@ -7,6 +8,7 @@ export function makeWorkloadReview(renderer,params) {
   const original=renderer.render.bind(renderer);
   renderer.render=(...args)=>{renders++;return original(...args)};
   addEventListener('error',e=>{if(errors.length<64)errors.push(e.message)});
+  addEventListener('unhandledrejection',e=>{if(errors.length<64)errors.push(String(e.reason))});
   const panel=document.createElement('section');panel.id='gpu-review';
   panel.style.cssText='position:fixed;bottom:8px;left:8px;z-index:90;background:#122a29ef;color:white;padding:10px;max-width:560px;font:12px system-ui';
   panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常 · 地形代理</option><option value="fullTerrain">仅完整反射地形</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
@@ -51,7 +53,7 @@ export function makeWorkloadReview(renderer,params) {
     const name=(params.get('runLabel')||kind)+'-'+kind+'-'+(++reportSerial)+'-'+Date.now();
     const artifact={schema:'island-gpu-governance-v1',kind,name,url:location.href,userAgent:navigator.userAgent,three:T.REVISION,gpuTime:null,gpuTiming:'not measured; no timer queries',...record};
     reports.push(artifact);if(reports.length>24)reports.shift();
-    panel.dataset.report=JSON.stringify(artifact);$('gpu-result').textContent=JSON.stringify({kind,passed:artifact.passed,summary:artifact.summary,checks:artifact.checks},null,2);
+    panel.dataset.report=JSON.stringify(artifact);$('gpu-result').textContent=JSON.stringify({kind,passed:artifact.passed,validation:artifact.validation,summary:artifact.summary,checks:artifact.checks},null,2);
     try{const res=await fetch('/__gpu/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(artifact)});if(!res.ok)throw Error(res.status);$('gpu-state').textContent='已保存在本地 · '+name;}
     catch(error){$('gpu-state').textContent='本地保存失败 · '+error;artifact.saveError=String(error)}
     return artifact;
@@ -59,11 +61,13 @@ export function makeWorkloadReview(renderer,params) {
   const stats=values=>{const a=[...values].sort((a,b)=>a-b),p=q=>a.length?a[Math.min(a.length-1,Math.floor((a.length-1)*q))]:null;return{count:a.length,p50:p(.5),p95:p(.95),p99:p(.99),max:a.at(-1)??null,mean:a.length?a.reduce((s,n)=>s+n,0)/a.length:null}};
   async function finish(reason='window complete') {
     if(!sample)return;
-    const s=sample;sample=null;$('gpu-arm').disabled=false;clearTimeout(s.timer);context.setPaused(true);
+    const s=sample,sampleEvents=[...events];sample=null;$('gpu-arm').disabled=false;clearTimeout(s.timer);context.setPaused(true);
     const end=state(),duration=(performance.now()-s.started)/1000,intervals=s.frames.map(f=>f.frameIntervalMs);
-    const artifact=await save('timing',{arm:s.arm,reason,source:s.before.build,before:s.before,after:end,durationSeconds:duration,frames:s.frames,events:[...events],errors:[...errors],
+    const record={arm:s.arm,reason,source:s.before.build,before:s.before,after:end,durationSeconds:duration,frames:s.frames,events:sampleEvents,errors:[...errors]};
+    const validation=validateTimingObservation(record);
+    const artifact=await save('timing',{...record,validation,
       summary:{frames:s.frames.length,submittedFps:s.frames.length/duration,frameMs:stats(intervals),over33msRatio:intervals.filter(n=>n>33.4).length/Math.max(1,intervals.length),targetFps:s.before.workload.targetFps,longFrameRatio:intervals.filter(n=>n>50).length/Math.max(1,intervals.length),cpuSubmissionMs:stats(s.frames.map(f=>f.cpuSubmissionMs)),renders:renders-s.renderStart},
-      passed:reason==='window complete'&&s.frames.length>0&&!errors.length&&!end.programErrors&&end.drawSize[0]*end.drawSize[1]<=end.workload.maxPixels});
+      passed:validation.valid});
     return artifact;
   }
   $('gpu-arm').onchange=()=>{
@@ -150,7 +154,7 @@ export function makeWorkloadReview(renderer,params) {
     cpu(name,ms){if(current)current.cpu[name]=ms;},
     pass(name,fn){const before={...renderer.info.render},start=performance.now(),oldScope=scope;scope=name;try{return fn()}finally{scope=oldScope;if(current)current.passes.push({name,cpuSubmissionMs:performance.now()-start,calls:renderer.info.render.calls-before.calls,triangles:renderer.info.render.triangles-before.triangles});}},
     endGpuFrame(){},
-    endFrame(cpuMs){if(pendingShot){pendingShot=false;context.setPaused(true);const image=renderer.domElement.toDataURL('image/png');void save('still',{state:state(),image,errors:[...errors]});}if(sample&&current&&sample.frames.length<900){const s=state();sample.frames.push({...current,cpuSubmissionMs:cpuMs,worldTime:s.worldTime,drawSize:s.drawSize,cloudRays:s.skyCache.raysLastFrame,drawCalls:s.drawCalls,triangles:s.triangles,memory:s.memory,position:s.position,pending:s.vegetation.pending||s.flow.pending});}current=null;},
+    endFrame(cpuMs){if(pendingShot){pendingShot=false;context.setPaused(true);const image=renderer.domElement.toDataURL('image/png');void save('still',{state:state(),image,errors:[...errors]});}if(sample&&current&&sample.frames.length<900){const s=state();sample.frames.push({...current,cpuSubmissionMs:cpuMs,worldTime:s.worldTime,drawSize:s.drawSize,cloudRays:s.skyCache.raysLastFrame,drawCalls:s.drawCalls,triangles:s.triangles,memory:s.memory,position:s.position,quaternion:s.quaternion,conditions:observationConditions(s),benchmarkObservation:s.benchmarkObservation,pending:s.terrain.pending||s.vegetation.pending||s.flow.pending||Boolean(s.vegetation.error||s.flow.error||s.programErrors)});}current=null;},
     heartbeat(s){if(terminal)return;lastState=s;panel.dataset.snapshot=JSON.stringify({renders,...s});if(!sample)$('gpu-state').textContent=(s.workload.paused?'3D 已暂停':'运行中')+' · 提交 '+s.workload.submittedFrames+' · GPU 绘制 '+renders;},
   };
 }
