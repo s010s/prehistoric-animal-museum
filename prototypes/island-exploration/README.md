@@ -54,7 +54,7 @@ The shore height atlas covers the east bay and estuary using their own sampled t
 
 The side spring at z≈−720 and northern source at z≈−4023 have separate destination IDs, `side-spring` and `north-source`. The default entry is the side spring. `sample-region.js` owns the local terrain envelope, shared path mask and versioned `side-spring-loop` route. The v3 review walk keeps the v2 geography and ecology mask fixed. It joins creek and animal viewpoints using a bounded ground search, then uses the same visible-terrain, rock, slope, deep-water and animal constraints as ordinary walking. Its duration is derived from the planned distance at 1.55 m/s, rather than speeding up a fixed-duration movie. It advances through pending worker updates and records those frames; a deviation or missed endpoint fails the route. Legacy diagnostic replays retain their fixed tick clock.
 
-Use `gpuScope=none` for this review. It creates no GPU timer-query sample. Timing and video are separate runs; frame evidence includes route identity, version, world/wall time, position, pending state and source/assets hashes. Automatic benchmark routes bypass ordinary animal collision, so ordinary WASD/joystick navigation must also be checked. The measurement UI and still checks do not establish visual quality.
+Use `gpuScope=none` for this review. It creates no GPU timer-query sample. Timing and video are separate runs; frame evidence includes route identity, version, world/wall time, position, pending state and source/assets hashes. The ground walk shares ordinary animal collision; legacy diagnostic flight routes bypass it. Ordinary WASD/joystick navigation must also be checked. The measurement UI and still checks do not establish visual quality.
 
 Water keeps the opaque/depth image and bounded reflection independent. Current opaque shadows are rendered before reflection; AO, water and spray compose into a separate half-float linear target, then a single fullscreen output applies exposure and display conversion. The target resizes with the actual drawing buffer and is disposed/recreated with its owner. No temporal AA, screen-space reflection or dependency upgrade is included.
 
@@ -110,7 +110,7 @@ buffer retains 4x/2x MSAA. This is independent of the temporary pixel/FPS reduct
 Canvas dimensions are physical integer pixels; `effectivePixelRatio` records the
 CSS-to-buffer ratio separately. Tree atlas viewports always use target texels.
 
-Record the normal 225-second regional tour separately from short timing, then use
+Record the regional ground walk at its distance-derived duration separately from short timing, then use
 `保存游览与资源` to save its route, clearance, pending-work samples, video limit
 status and resource snapshot. The optional all-destination inspection runs once at
 final delivery. Review recordings use bounded Blob URLs rather than duplicating
