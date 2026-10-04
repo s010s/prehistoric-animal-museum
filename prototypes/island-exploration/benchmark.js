@@ -24,6 +24,8 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   let path=new T.CurvePath(),plannedRoute=null;
   const walkGaze=z=>{const stops=[[-714,-2051,-720,31],[-700,-2044,-710,28],[-675,-2004,-675,17],[-605,-1949,-605,26],[-560,-1969,-560,25]];for(let i=1;i<stops.length;i++)if(z<=stops[i][0]){const a=stops[i-1],b=stops[i],t=T.MathUtils.smoothstep(z,a[0],b[0]);return new T.Vector3(T.MathUtils.lerp(a[1],b[1],t),T.MathUtils.lerp(a[3],b[3],t),T.MathUtils.lerp(a[2],b[2],t));}return new T.Vector3(-1969,25,-560);};
   let lastRoute=null;
+  let terminal=false,lastSafeState=null;
+  const readState=()=>terminal?lastSafeState:getState();
   const routeState=()=>replay?.mode==='region'?{id:WALK_ROUTE.id,version:WALK_ROUTE.version,geographyVersion:REGION_VERSION,clock:replay.clock,durationSeconds:replay.seconds,progress:Math.min(1,(now()-replay.start)/(replay.seconds*1000)),distanceMetres:path.getLength(),coordinates:plannedRoute.points,plan:plannedRoute,speed:1.55,constraints:'ordinary-ground-navigation'}:lastRoute;
   const thisTime=()=>!replay?getWorldTime():replay.clock==='wall'?60+(now()-replay.start)/1000:60+tick/60;
   const records = [], errors = []; let interrupted = null, pendingCapture = false, evidenceReadback = false
@@ -48,8 +50,9 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   }
   $('benchmark-frame').onchange=()=>{const r=records[Number($('benchmark-frame').value)];if(r?.image){$('benchmark-preview').src=r.image;$('benchmark-preview').alt=`${r.place} · ${r.kind} · tick ${r.tick}`}};
   function capture(kind, extra = {}) {
-    const state = getState()
-    const result = { kind, place: current, time: thisTime(), clock:replay?.clock??(replay?'fixed-tick':'active-wall'), route:routeState(), tick, ...state, ...extra }
+    const state = readState()
+    if(!terminal)lastSafeState=state;
+    const result = { kind, place: current, time: thisTime(), clock:replay?.clock??(replay?'fixed-tick':'active-wall'), route:routeState(), tick, stateUnavailable:!state, ...state, ...extra }
     if(records.length>=64){records.shift();$('benchmark-frame').innerHTML='';}
     records.push(result)
     if(result.image){evidenceReadback=true;const option=document.createElement('option');option.value=String(records.length-1);option.textContent=`${current} · ${kind} · tick ${tick}`;$('benchmark-frame').append(option);$('benchmark-frame').value=option.value;$('benchmark-preview').src=result.image;$('benchmark-preview').alt=`${current} · ${kind} · ${state.drawSize.join('×')} · ${state.build.sourceHash.slice(0,12)}`}
@@ -74,9 +77,10 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   function startRecording(){
     if(evidenceMode==='timing')return;
     videoPending=true;if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=null;}$('benchmark-video').removeAttribute('src');
-    try{const stream=canvas.captureStream(24),mimeType=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t)),chunks=[];
+    let stream;
+    try{stream=canvas.captureStream(24);const mimeType=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t)),chunks=[];
       videoBytes=0;videoTruncated=false;videoArtifact=null;videoSaveError=null;recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:3000000});let bytes=0;recorder.ondataavailable=e=>{bytes+=e.data.size;videoBytes=bytes;if(bytes<=180000000)chunks.push(e.data);else if(recorder.state!=='inactive'){videoTruncated=true;recorder.stop();}};recorder.onstop=async()=>{const blob=new Blob(chunks,{type:mimeType});videoUrl=URL.createObjectURL(blob);$('benchmark-video').src=videoUrl;$('benchmark-video').dataset.mime=mimeType;stream.getTracks().forEach(t=>t.stop());if(params.get('workloadReview')==='1'&&location.hostname==='127.0.0.1'){try{const name=(params.get('runLabel')||'review')+'-video-'+Date.now();const res=await fetch('/__gpu-video/'+name,{method:'POST',headers:{'Content-Type':blob.type},body:blob});if(!res.ok)throw Error(res.status);videoArtifact=(await res.json()).path;}catch(error){videoSaveError=String(error);}}videoPending=false;};recorder.start(1000);
-    }catch(e){videoPending=false;capture('video-error',{message:String(e)});}
+    }catch(e){stream?.getTracks().forEach(t=>t.stop());videoPending=false;videoSaveError=String(e);capture('video-error',{message:String(e)});}
   }
   $('benchmark-walk').onclick=()=>{
     stop();suite=null;reset('forest');tick=0;samples=[];interrupted=null;
@@ -106,20 +110,29 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   $('benchmark-save').onclick = () => { pendingCapture = true }
   $('benchmark-export').onclick = () => {
     capture('export-state', { ready: settled >= 30, interrupted })
-    const blob = new Blob([JSON.stringify({ schema: 'island-world-review-v1', createdAt: new Date().toISOString(), source: getState().build, humanVerdict: 'pending', errors, gpuTiming: 'unavailable', realMobile: 'not tested', userAgent: navigator.userAgent, records }, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify({ schema: 'island-world-review-v1', createdAt: new Date().toISOString(), source: readState()?.build??null, humanVerdict: 'pending', errors, gpuTiming: 'unavailable', realMobile: 'not tested', userAgent: navigator.userAgent, records }, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob), a = document.createElement('a')
     a.href = url; a.download = `island-world-review-${Date.now()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   function cancel(reason) {
     if (!replay) return
     if(recorder&&recorder.state!=='inactive')recorder.stop();
-    if (replay && evidenceMode!=='timing') capture('replay-interrupted', { reason, completed: false, samples })
-    if(replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
+    const record=replay&&evidenceMode!=='timing'?capture('replay-interrupted', { reason, completed: false, samples }):null;
+    if(!terminal&&replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
           syncPose?.(); replay = null; interrupted = reason; $('benchmark-replay').textContent = '横移往返 · 12 秒'
+    return record;
   }
   $('benchmark-region-tour').onclick=()=>{if(replay){cancel('user stopped');return;}api.startRealtime({capture:true});};
   updateLabel(); $('benchmark-note').textContent = observations[current] || observations.forest; setTime(60)
   const api={
+    contextLost(safeState=null){
+      if(terminal)return null;
+      terminal=true;lastSafeState??=safeState;suite=null;pendingCapture=false;
+      const record=cancel('WebGL context lost')??capture('context-lost',{completed:false,reason:'WebGL context lost'});
+      panel.querySelectorAll('button,select').forEach(e=>e.disabled=e.id!=='benchmark-export');
+      $('benchmark-status').textContent='图形资源中断，验收已停止；可导出已有记录。';
+      return record;
+    },
     setPaused(value){if(recorder?.state==='recording'&&value)recorder.pause();else if(recorder?.state==='paused'&&!value)recorder.resume();},
     get active() { return Boolean(replay||suite) },
     get groundRouteActive() { return replay?.mode==='region' },
@@ -148,6 +161,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     get time() { return thisTime() },
     routeState,
     startRealtime({capture:video=false,seconds=null,repeat=false}={}) {
+      if(terminal)return;
       stop();suite=null;reset('side-spring');evidenceMode=video?'video':'normal';diagnosticRepeat=repeat;diagnosticComplete=false;lastRoute=null;
       plannedRoute=planRegion();if(!plannedRoute.passed){capture('route-blocked',{passed:false,plan:plannedRoute});return;}
       path=new T.CurvePath();for(let i=1;i<plannedRoute.points.length;i++){const a=plannedRoute.points[i-1],b=plannedRoute.points[i];path.add(new T.LineCurve3(new T.Vector3(a[0],0,a[1]),new T.Vector3(b[0],0,b[1])));}
@@ -159,6 +173,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     cancel,
     destination(id) { panel.dataset.ready='false'; current = id; tick = 0; settled = 0; setTime(60); $('benchmark-note').textContent = observations[id] || ''; },
     beforeFrame() {
+      if(terminal)return;
       if (!replay || replay.mode==='shore') return
       if(replay.clock==='wall')tick=Math.min(replay.ticks,(now()-replay.start)/1000*60);
       if(replay.mode==='region'){const u=Math.min(1,tick/replay.ticks),p=path.getPoint(u);camera.position.set(p.x,navigationHeight(p.x,p.z)+1.75,p.z);camera.lookAt(walkGaze(p.z));return;}
@@ -177,6 +192,8 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
       camera.quaternion.copy(replay.quaternion)
     },
     afterFrame(raw, state) {
+      if(terminal)return;
+      lastSafeState=state;
       const afterEvidenceReadback=evidenceReadback;evidenceReadback=false;
       const signature = JSON.stringify([state.position, state.quaternion, state.drawSize, state.quality, state.variant])
       const jobsReady = !state.terrain.pending && !state.vegetation.pending && !state.flow.pending && !state.vegetation.error && !state.flow.error && (state.flow.exposure?.valid??true) && !state.flow.exposure?.error

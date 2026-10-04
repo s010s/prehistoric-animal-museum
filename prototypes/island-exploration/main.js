@@ -66,13 +66,12 @@ if(contextRecovery){
   const recovery=recoveryPlan(url.href,recoveryAttempts);recoveryUrl=recovery.url;recoveryAttempts=recovery.attempts;if(recovery.allowed)try{sessionStorage.setItem(recoveryKey,String(recoveryAttempts))}catch{}
   document.body.dataset.recovery=JSON.stringify(recovery);
   let lastSafeState=null;try{const raw=document.querySelector('#gpu-review')?.dataset.snapshot;if(raw)lastSafeState=JSON.parse(raw);}catch{}
-  const failure={observedAt:Date.now(),build:__WORLD_BUILD__,url:location.href,statusMessage:e.statusMessage??null,injectionRequested:workloadReview?.injectionRequested??false,recovery,drawSize:[renderer.domElement.width,renderer.domElement.height],pose:poseReady?camera.position.toArray():null,lastSafeState};
+  const failure={observedAt:Date.now(),build:__WORLD_BUILD__,url:location.href,statusMessage:e.statusMessage??null,injectionRequested:workloadReview?.injectionRequested??false,recovery,drawSize:[renderer.domElement.width,renderer.domElement.height],pose:poseReady?camera.position.toArray():null,lastSafeState,routeEvidence:benchmark?.contextLost(lastSafeState)??null};
   let stored=false;try{sessionStorage.setItem(failureKey,JSON.stringify(failure));stored=true;}catch{}
   // Keep the export on this paused page if storage cannot survive a reload.
   // The localhost flush is still useful, but it is not available on every host.
   if(!stored){recoveryUrl=null;failure.recovery={...recovery,allowed:false,url:null,reason:'evidence-storage-unavailable'};document.body.dataset.recovery=JSON.stringify(failure.recovery);}
   showFailureExport(failure);evidenceFlush=workloadReview?.contextLost(failure)??Promise.resolve();
-  benchmark?.cancel('WebGL context lost');
   if(poseReady){stop();keys.clear();joy.x=joy.y=0;alt.up=alt.down=false;look=null;}
   document.body.dataset.ready='false';
   $('#loading').classList.remove('done');$('#loading').setAttribute('aria-hidden','false');
@@ -138,7 +137,7 @@ benchmark=makeBenchmark({params,camera,canvas:renderer.domElement,landmarks,go,s
 observer?.labelGroup(animal.group,'animal');
 observer?.attach({benchmark,getState:reviewState,resources:()=>[...sky.resources(),...water.resources(),...props.auditResources(),...(sun.shadow.map?[['sun-shadow',sun.shadow.map]]:[])],scene,landscape,props,camera});
 const previousPosition=new T.Vector3();
-if(!contextRecovery)renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();lost=true;benchmark?.cancel('WebGL context lost');$('#loading').classList.remove('done');$('#load-detail').textContent='图形资源中断，请刷新重试。'})
+if(!contextRecovery)renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();lost=true;benchmark?.contextLost();$('#loading').classList.remove('done');$('#load-detail').textContent='图形资源中断，请刷新重试。'})
 function render(t){requestAnimationFrame(render);if(workloadReview&&!benchmark?.active&&!workloadReview.collecting&&clock.activeNow(t)>=reviewGuardEnd)pauseReason('review-idle',true);if(workload.deadlineSeconds!==null&&(!workload.desktopTier||trialAnchor!==null)&&(clock.activeNow(t)-(trialAnchor??0))/1000>=workload.deadlineSeconds)pauseReason('override-expired',true);const accepted=clock.accept(t);if(lost||!accepted.submit)return;if(reviewJob){const job=reviewJob;reviewJob=null;try{job.resolve(job.fn());}catch(error){job.resolve({passed:false,error:String(error)});}return;}const raw=accepted.raw,dt=accepted.deltaSeconds;last=t;if(resizePending){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();quality();}sky.setQuality(fine);elapsed=benchmark?.active?benchmark.time:workload.fixed?worldBase:worldBase+(clock.activeNow(t)-worldAnchor)/1000;frames.push(raw);if(raw>50)longFrames++;if(frames.length>120)frames.shift()
  const frameStart=observer?performance.now():0;renderer.info.reset();observer?.beginFrame(t,raw,elapsed);
  const navStart=observer?performance.now():0;
