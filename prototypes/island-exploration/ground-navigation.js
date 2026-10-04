@@ -8,7 +8,7 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
     const h=heightAt(x,z),distance=from?Math.hypot(x-from.x,z-from.z):0;
     if(waterAt(x,z)-h>.65)return 'deep-water';
     if(rockAt(x,z,h))return 'rock';
-    if(from&&distance>1e-5&&Math.abs(h-heightAt(from.x,from.z))>distance*.8+.025)return 'slope';
+    if(from&&distance>1e-5&&Math.abs(h-heightAt(from.x,from.z))>distance*.8+1e-4)return 'slope';
     for(const [dx,dz] of [[-.32,0],[.32,0],[0,-.32],[0,.32]])if(heightAt(x+dx,z+dz)>h+.65)return 'footprint';
     return null;
   };
@@ -43,7 +43,7 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
         if(p===b){found=true;break;}
         for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){
           const x=p.x+dx,z=p.z+dz;if(x<Math.min(a.x,b.x)-18||x>Math.max(a.x,b.x)+18||z<Math.min(a.z,b.z)-18||z>Math.max(a.z,b.z)+18)continue;
-          const q=point(x,z),d=Math.hypot(dx,dz);if(q.bad||Math.abs(q.h-p.h)>d*.8+.025)continue;
+          const q=point(x,z),d=Math.hypot(dx,dz);if(q.bad||Math.abs(q.h-p.h)>d*.8+1e-4)continue;
           // Check intervening positions, not just grid nodes or their heights.
           let blocked=false;for(let j=1;j<=4;j++)if(probe(p.x+dx*j/4,p.z+dz*j/4,{x:p.x+dx*(j-1)/4,z:p.z+dz*(j-1)/4})){blocked=true;break;}if(blocked)continue;
           const g=node.g+d;if(g>=(scores.get(key(q))??Infinity))continue;scores.set(key(q),g);parents.set(q,p);open.push({p:q,g,f:g+Math.hypot(b.x-x,b.z-z)});
