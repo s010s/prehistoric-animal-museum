@@ -11,6 +11,19 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kw):super().__init__(*args,directory=a.directory,**kw)
     def do_POST(self):
         if self.headers.get('Origin')!=f'http://127.0.0.1:{a.port}':self.send_error(403);return
+        video=re.fullmatch('/__gpu-video/([a-zA-Z0-9-]+)',self.path)
+        if video:
+            n=int(self.headers.get('Content-Length','0'))
+            if not 0<n<=180000000:self.send_error(400);return
+            folder=output/video[1];folder.mkdir(exist_ok=True)
+            target=folder/'capture.webm'
+            with target.open('wb') as stream:
+                remaining=n
+                while remaining:
+                    chunk=self.rfile.read(min(1048576,remaining))
+                    if not chunk:self.send_error(400);return
+                    stream.write(chunk);remaining-=len(chunk)
+            self.send_response(200);self.end_headers();self.wfile.write(json.dumps({'saved':True,'path':str(target)}).encode());return
         m=re.fullmatch('/__gpu/([a-zA-Z0-9-]+)',self.path)
         n=int(self.headers.get('Content-Length','0'))
         if not m or not 0<n<=24000000:self.send_error(400);return

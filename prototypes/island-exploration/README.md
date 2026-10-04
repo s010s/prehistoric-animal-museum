@@ -115,3 +115,7 @@ Record the normal 225-second regional tour separately from short timing, then us
 status and resource snapshot. The optional all-destination inspection runs once at
 final delivery. Review recordings use bounded Blob URLs rather than duplicating
 large video buffers as base64; they are never started by ordinary preview.
+
+Explicit localhost workload-review recordings also stream their bounded Blob to the
+local review sink on completion. Binary video is saved in the ignored results directory;
+this does not run for ordinary preview or send data to any external host.

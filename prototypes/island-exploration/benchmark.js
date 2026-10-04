@@ -19,7 +19,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     wetland: '看芦苇根部、泥洲和浅水。水线与接触是否稳定。',
     cliffs: '看岩体体积与投影。慢横移，检查影边跳格、离地或覆盖丢失。',
   }
-  let recorder=null,videoUrl=null,videoBytes=0,videoTruncated=false, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false, videoPending=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
+  let recorder=null,videoUrl=null,videoBytes=0,videoTruncated=false,videoArtifact=null,videoSaveError=null, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false, videoPending=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
   const path=new T.CatmullRomCurve3(REGION_ROUTE.points.map(([x,z])=>new T.Vector3(x,0,z)),false,'centripetal');
   const gaze=new T.CatmullRomCurve3(REGION_ROUTE.gaze.map(([x,z,y])=>new T.Vector3(x,y,z)),false,'centripetal');
   let lastRoute=null;
@@ -74,7 +74,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     if(evidenceMode==='timing')return;
     videoPending=true;if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=null;}$('benchmark-video').removeAttribute('src');
     try{const stream=canvas.captureStream(24),mimeType=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t)),chunks=[];
-      videoBytes=0;videoTruncated=false;recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:6000000});let bytes=0;recorder.ondataavailable=e=>{bytes+=e.data.size;videoBytes=bytes;if(bytes<=180000000)chunks.push(e.data);else if(recorder.state!=='inactive'){videoTruncated=true;recorder.stop();}};recorder.onstop=()=>{const blob=new Blob(chunks,{type:mimeType});videoUrl=URL.createObjectURL(blob);$('benchmark-video').src=videoUrl;$('benchmark-video').dataset.mime=mimeType;videoPending=false;stream.getTracks().forEach(t=>t.stop());};recorder.start(1000);
+      videoBytes=0;videoTruncated=false;videoArtifact=null;videoSaveError=null;recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:6000000});let bytes=0;recorder.ondataavailable=e=>{bytes+=e.data.size;videoBytes=bytes;if(bytes<=180000000)chunks.push(e.data);else if(recorder.state!=='inactive'){videoTruncated=true;recorder.stop();}};recorder.onstop=async()=>{const blob=new Blob(chunks,{type:mimeType});videoUrl=URL.createObjectURL(blob);$('benchmark-video').src=videoUrl;$('benchmark-video').dataset.mime=mimeType;stream.getTracks().forEach(t=>t.stop());if(params.get('workloadReview')==='1'&&location.hostname==='127.0.0.1'){try{const name=(params.get('runLabel')||'review')+'-video-'+Date.now();const res=await fetch('/__gpu-video/'+name,{method:'POST',headers:{'Content-Type':blob.type},body:blob});if(!res.ok)throw Error(res.status);videoArtifact=(await res.json()).path;}catch(error){videoSaveError=String(error);}}videoPending=false;};recorder.start(1000);
     }catch(e){videoPending=false;capture('video-error',{message:String(e)});}
   }
   $('benchmark-walk').onclick=()=>{
@@ -124,7 +124,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     get groundRouteActive() { return replay?.mode==='region' },
     get diagnosticComplete() { return diagnosticComplete },
     get videoPending() { return videoPending },
-    get videoState(){return {bytes:videoBytes,limitBytes:180000000,truncated:videoTruncated,pending:videoPending}},
+    get videoState(){return {bytes:videoBytes,limitBytes:180000000,truncated:videoTruncated,pending:videoPending,artifact:videoArtifact,saveError:videoSaveError}},
     get visualRecords() { return records },
     prepareDiagnostic(route) {
       evidenceMode='timing';diagnosticRepeat=false;diagnosticComplete=false;cancel('next measurement');
