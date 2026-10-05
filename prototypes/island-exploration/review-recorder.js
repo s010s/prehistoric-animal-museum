@@ -3,7 +3,7 @@
 export function makeReviewRecorder({canvas,Recorder=globalThis.MediaRecorder,now=()=>Date.now(),setTimer=setTimeout,clearTimer=clearTimeout,upload=null,publish=()=>{},onStop=()=>{}}){
   let session=null,sequence=0,paused=false;
   const pending=s=>Boolean(s&&['armed','recording','paused','stopping','saving'].includes(s.status));
-  const snapshot=s=>s?{id:s.id,status:s.status,pending:pending(s),frames:s.frames,bytes:s.bytes,limitBytes:s.byteLimit,truncated:s.truncated,mime:s.mime,artifact:s.artifact,saveError:s.error,reason:s.reason,startedAt:s.startedAt,finishedAt:s.finishedAt,wallLimitMs:s.wallLimitMs}:{id:null,status:'idle',pending:false,frames:0,bytes:0,limitBytes:180000000,truncated:false,mime:null,artifact:null,saveError:null,reason:null};
+  const snapshot=s=>s?{id:s.id,status:s.status,pending:pending(s),frames:s.frames,bytes:s.bytes,limitBytes:s.byteLimit,truncated:s.truncated,mime:s.mime,artifact:s.artifact,saveError:s.error,reason:s.reason,startedAt:s.startedAt,finishedAt:s.finishedAt,wallLimitMs:s.wallLimitMs,tracksReleased:s.released,trackStates:(s.stream?.getTracks()??[]).map(t=>t.readyState??null)}:{id:null,status:'idle',pending:false,frames:0,bytes:0,limitBytes:180000000,truncated:false,mime:null,artifact:null,saveError:null,reason:null};
   const clear=(s,key)=>{if(s[key]!=null){clearTimer(s[key]);s[key]=null;}};
   const release=s=>{if(s.released)return;s.released=true;for(const track of s.stream?.getTracks()??[])try{track.stop();}catch{}};
   const current=s=>session===s;
