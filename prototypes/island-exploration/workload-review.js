@@ -42,12 +42,14 @@ export function makeWorkloadReview(renderer,params) {
       checks.linearReflectionEquivalent=compared>0&&different/compared<=.001;
       checks.currentShadowAndHDR=s.flow.currentReflectionShadow&&s.flow.composition.mode==='linear-hdr'&&s.encounter.instances.length===2;
       checks.mainGeometryAndStateRestored=s.terrain.reflection.mainRestored&&b.restored===true;
+      const spatial=context.landscape.auditReflectionTiles?.();
+      checks.spatialIndexAndCullingConservative=spatial?.passed===true&&spatial.excludedCells>0;
       context.setPaused(true);const r=renders;await wait(1100);const paused=state();
       checks.pauseStillStopsAllWork=r===renders&&paused.flow.reflection.updates===s.flow.reflection.updates&&paused.flow.spectrum.updates===s.flow.spectrum.updates;
       checks.noErrors=!errors.length&&!s.programErrors;
-      await save('reflection-region-e2e',{passed:Object.values(checks).every(Boolean),checks,region,comparison:{compared,different,differentRatio:different/Math.max(1,compared),maxAbsolute,maxRelative},readbacks:2,readbackBytes:(a.pixels?.byteLength??0)+(b.pixels?.byteLength??0),snapshots,errors:[...errors]});
+      await save('reflection-region-e2e',{passed:Object.values(checks).every(Boolean),checks,region,spatial,comparison:{compared,different,differentRatio:different/Math.max(1,compared),maxAbsolute,maxRelative},readbacks:2,readbackBytes:(a.pixels?.byteLength??0)+(b.pixels?.byteLength??0),snapshots,errors:[...errors]});
     }catch(error){context.setPaused(true);await save('reflection-region-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]});}
-    finally{context.water.setReflectionRegion?.(true);warming=false;context.setPaused(true);}
+    finally{context.water.setReflectionRegion?.(true);context.landscape.setReflectionTiles?.(true);warming=false;context.setPaused(true);}
   };
   protectionButton.onclick=async()=>{
     if(!context||terminal||sample||warming)return;

@@ -340,7 +340,7 @@ void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=co
      r.clear();cropProjection(savedMirrorProjection.elements,lastRegion,target.width,target.height,c.projectionMatrix.elements);c.projectionMatrixInverse.copy(c.projectionMatrix).invert();
      target.viewport.set(lastRegion.x,lastRegion.y,lastRegion.width,lastRegion.height);target.scissor.copy(target.viewport);target.scissorTest=true;r.setRenderTarget(target);
     }
-    mirrorProjection.multiplyMatrices(c.projectionMatrix,c.matrixWorldInverse);mirrorFrustum.setFromProjectionMatrix(mirrorProjection,T.WebGLCoordinateSystem,c.reversedDepth);lastClipPlane.copy(mirrorFrustum.planes[5]);lastClipTime=time;reflectionMode(true,lastClipPlane);
+    mirrorProjection.multiplyMatrices(c.projectionMatrix,c.matrixWorldInverse);mirrorFrustum.setFromProjectionMatrix(mirrorProjection,T.WebGLCoordinateSystem,c.reversedDepth);lastClipPlane.copy(mirrorFrustum.planes[5]);lastClipTime=time;reflectionMode(true,lastClipPlane,mirrorFrustum);
    }
    sceneBefore.call(this,r,s,c,target);
   };
