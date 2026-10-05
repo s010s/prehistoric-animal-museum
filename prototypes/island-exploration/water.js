@@ -311,11 +311,7 @@ void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=co
  let spray=null,lastW=0,lastH=0,lastFine=null,reflectionMode=()=>{};
  const shadowSun=skyUniforms.skySun.value.clone();
  const pass=(name,fn)=>diagnostics?diagnostics.pass(name,fn):fn();
- const api={auditLinearComposite(scene,camera,time){
-  if(renderer.domElement.width*renderer.domElement.height>921600||!linearComposite)throw Error('Linear comparison requires protected HDR');
-  api.render(scene,camera,time);const pixels=new Uint16Array(composite.width*composite.height*4);renderer.readRenderTargetPixels(composite,0,0,composite.width,composite.height,pixels);
-  return {pixels,width:composite.width,height:composite.height,position:camera.position.toArray(),time,samples:opaque.samples};
- },setReflectionRegion(value){regionEnabled=Boolean(value);},auditReflectionRegion(scene,camera,time,enabled){
+ const api={setReflectionRegion(value){regionEnabled=Boolean(value);},auditReflectionRegion(scene,camera,time,enabled){
   if(renderer.domElement.width*renderer.domElement.height>921600)throw Error('Reflection comparison exceeds protected pixel budget');
   regionEnabled=Boolean(enabled);api.render(scene,camera,time);
   const target=reflector.getRenderTarget(),pixels=new Uint16Array(target.width*target.height*4);

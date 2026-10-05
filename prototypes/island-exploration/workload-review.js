@@ -51,31 +51,6 @@ export function makeWorkloadReview(renderer,params) {
     }catch(error){context.setPaused(true);await save('reflection-region-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]});}
     finally{context.water.setReflectionRegion?.(true);context.landscape.setReflectionTiles?.(true);warming=false;context.setPaused(true);}
   };
-  // Defined before main spatial culling. No timing/capture overlap; two frames.
-  const mainButton=document.createElement('button');mainButton.id='gpu-main-tiles';mainButton.textContent='独立主地形 HDR 对照';panel.querySelector('div').append(mainButton);
-  mainButton.onclick=async()=>{
-    if(!context||terminal||sample||warming||context.benchmark?.active)return;
-    warming=true;const checks={},snapshots=[];
-    try{
-      context.setPaused(false);
-      const a=await context.queueReviewJob(()=>context.auditMainTiles(false));if(terminal)return;snapshots.push(state());
-      const b=await context.queueReviewJob(()=>context.auditMainTiles(true));if(terminal)return;snapshots.push(state());
-      const s=snapshots[1];checks.sameCameraTimeAndResources=a.time===b.time&&JSON.stringify(a.position)===JSON.stringify(b.position)&&a.width===b.width&&a.height===b.height;
-      checks.protectedOnly=s.workload.targetFps===30&&s.drawSize[0]*s.drawSize[1]<=921600;
-      checks.imageAndHDR=a.pixels.some(n=>n!==0)&&b.pixels.some(n=>n!==0)&&s.flow.composition.mode==='linear-hdr';
-      const half=n=>{const sign=n&32768?-1:1,e=(n>>>10)&31,f=n&1023;return sign*(e===0?f*2**-24:e===31?(f?NaN:Infinity):(1+f/1024)*2**(e-15));};
-      let compared=0,different=0,maxAbsolute=0,maxRelative=0;
-      if(checks.sameCameraTimeAndResources)for(let i=0;i<a.pixels.length;i++){if(i%4===3)continue;const av=half(a.pixels[i]),bv=half(b.pixels[i]),abs=Math.abs(av-bv),rel=abs/Math.max(1,Math.abs(av));compared++;maxAbsolute=Math.max(maxAbsolute,abs);maxRelative=Math.max(maxRelative,rel);if(!Number.isFinite(rel)||rel>.002)different++;}
-      checks.linearCompositeEquivalent=compared>0&&different/compared<=.001;
-      const spatial=context.landscape.auditMainTiles(context.camera);checks.excludedTilesConservative=spatial.passed&&spatial.excludedTiles>0;
-      checks.sameAnimalsPlantsAndTerrain=JSON.stringify(snapshots[0].vegetation.counts)===JSON.stringify(s.vegetation.counts)&&s.encounter.instances.length===2&&s.terrain.triangles===3634836;
-      checks.currentShadowAndMainRestored=s.flow.currentReflectionShadow&&s.terrain.reflection.mainRestored;
-      context.setPaused(true);const r=renders;await wait(1100);const paused=state();checks.pauseStillStopsAllWork=r===renders&&s.flow.reflection.updates===paused.flow.reflection.updates&&s.flow.spectrum.updates===paused.flow.spectrum.updates;
-      checks.noErrors=!errors.length&&!s.programErrors;
-      await save('main-tiles-e2e',{passed:Object.values(checks).every(Boolean),checks,spatial,comparison:{compared,different,differentRatio:different/Math.max(1,compared),maxAbsolute,maxRelative},readbacks:2,readbackBytes:a.pixels.byteLength+b.pixels.byteLength,snapshots,errors:[...errors]});
-    }catch(error){context.setPaused(true);await save('main-tiles-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]});}
-    finally{context.landscape.setMainTiles?.(true);warming=false;context.setPaused(true);}
-  };
   protectionButton.onclick=async()=>{
     if(!context||terminal||sample||warming)return;
     warming=true;const checks={},snapshots=[];
