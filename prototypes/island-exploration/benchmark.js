@@ -2,10 +2,11 @@ import * as T from 'three';
 import {REGION_ROUTE,REGION_VERSION} from './sample-region.js';
 import {WALK_ROUTE} from './regional-walk.js';
 import {makeRegionalFollower} from './regional-follow.js';
+import {makeReviewRecorder} from './review-recorder.js';
 import {trailX} from './habitat.js';
 import {terrainHeight,riverX,riverLevel} from './field.js';
 // Review-only UI and evidence. This module is inert outside ?benchmark=1.
-export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, getState, auditSky, setWaterDebug, setReviewDpr, setShadow, getShadow, setTime, syncPose, navigationHeight,navigateGround,pauseScene=()=>{},planRegion,now=()=>performance.now(),getWorldTime=()=>60 }) {
+export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, getState, auditSky, setWaterDebug, setReviewDpr, setShadow, getShadow, setTime, syncPose, navigationHeight,navigateGround,pauseScene=()=>{},resumeScene=()=>false,planRegion,now=()=>performance.now(),getWorldTime=()=>60 }) {
   if (params.get('benchmark') !== '1') return null
   const ids = landmarks.map(l => l.id)
   const observations = {
@@ -21,13 +22,13 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     wetland: '看芦苇根部、泥洲和浅水。水线与接触是否稳定。',
     cliffs: '看岩体体积与投影。慢横移，检查影边跳格、离地或覆盖丢失。',
   }
-  let recorder=null,videoUrl=null,videoBytes=0,videoTruncated=false,videoArtifact=null,videoSaveError=null, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false, videoPending=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
+  let videoUrl=null, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
   let path=new T.CurvePath(),plannedRoute=null,groundFollower=null;
   const walkGaze=z=>{const stops=[[-714,-2051,-720,31],[-700,-2044,-710,28],[-675,-2004,-675,17],[-605,-1949,-605,26],[-560,-1969,-560,25]];for(let i=1;i<stops.length;i++)if(z<=stops[i][0]){const a=stops[i-1],b=stops[i],t=T.MathUtils.smoothstep(z,a[0],b[0]);return new T.Vector3(T.MathUtils.lerp(a[1],b[1],t),T.MathUtils.lerp(a[3],b[3],t),T.MathUtils.lerp(a[2],b[2],t));}return new T.Vector3(-1969,25,-560);};
   let lastRoute=null;
   let terminal=false,lastSafeState=null;
   const readState=()=>terminal?lastSafeState:getState();
-  const routeState=()=>replay?.mode==='region'?{id:WALK_ROUTE.id,version:WALK_ROUTE.version,geographyVersion:REGION_VERSION,clock:replay.clock,durationSeconds:replay.seconds,progress:groundFollower.status().progress,walk:groundFollower.status(),distanceMetres:path.getLength(),coordinates:plannedRoute.points,plan:plannedRoute,speed:1.55,constraints:'ordinary-ground-navigation'}:lastRoute;
+  const routeState=()=>replay?.mode==='region'?{id:WALK_ROUTE.id,version:WALK_ROUTE.version,geographyVersion:REGION_VERSION,clock:replay.clock,durationSeconds:replay.seconds,clip:Boolean(replay.clip),progress:groundFollower.status().progress,walk:groundFollower.status(),distanceMetres:path.getLength(),coordinates:plannedRoute.points,plan:plannedRoute,speed:1.55,constraints:'ordinary-ground-navigation'}:lastRoute;
   const thisTime=()=>!replay?getWorldTime():replay.clock==='wall'?60+(now()-replay.start)/1000:60+tick/60;
   const records = [], errors = []; let interrupted = null, pendingCapture = false, evidenceReadback = false
   addEventListener('error', e => errors.push(e.message))
@@ -35,7 +36,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   const panel = document.createElement('section')
   panel.id = 'benchmark'
   panel.setAttribute('aria-label', '世界验收')
-  panel.innerHTML = `<button id="benchmark-collapse" aria-expanded="true">收起验收</button><strong>世界验收 · 受限预览</strong><p id="benchmark-note"></p><div class="benchmark-actions"><button id="benchmark-look"></button><button id="benchmark-variant"></button><button id="benchmark-replay">横移往返 · 12 秒</button><button id="benchmark-region-tour">录制区域地面行走</button><button id="benchmark-walk">录制林间步行 · 12 秒</button><button id="benchmark-sky-orbit">录制天空环视 · 24 秒</button><button id="benchmark-continuity">录制前进后退 · 24 秒</button><button id="benchmark-ground">贴地巡航检查</button><button id="benchmark-trees">林缘树影</button><button id="benchmark-stationary">录制固定视角 · 12 秒</button><button id="benchmark-prairie">草原地面</button><button id="benchmark-valley">溪谷崖壁</button><button id="benchmark-spring-eye">北源泉池近看</button><button id="benchmark-source">北源出流</button><button id="benchmark-marsh-high">沼泽俯瞰</button><button id="benchmark-dpr-matrix">像素比例切换 · 12 秒</button><label>水面分量<select id="benchmark-water" aria-label="水面分量"><option value="0">正常</option><option value="1">法线</option><option value="2">反射</option><option value="4">泡沫</option><option value="5">水体</option></select></label><button id="benchmark-sky-audit">校验云层条带</button><button id="benchmark-sky-high">高原仰视</button><button id="benchmark-rock-close">近看岩岸</button><button id="benchmark-shore-close">近看岸浪</button><button id="benchmark-beach-eye">沙滩平视</button><button id="benchmark-shore">岸浪周期 · 42 秒</button><button id="benchmark-reset">复位到地点</button><button id="benchmark-save">记录当前画面</button><button id="benchmark-export">导出验收记录</button><button id="benchmark-suite">巡检全部 ${ids.length} 个地点</button></div><div id="benchmark-places"></div><details id="benchmark-image"><summary>最近原始画布截图</summary><label>选择验收截图<select id="benchmark-frame" aria-label="选择验收截图"></select></label><img id="benchmark-preview" alt="最近记录的原始 3D 画布" style="display:block;width:100%;height:auto" /></details><details id="benchmark-video-panel"><summary>最近移动录像</summary><video id="benchmark-video" controls style="width:100%"></video></details><output id="benchmark-status" aria-live="polite"></output><details id="benchmark-evidence"><summary>验收数据（不含截图）</summary><pre id="benchmark-json"></pre></details>`
+  panel.innerHTML = `<button id="benchmark-collapse" aria-expanded="true">收起验收</button><strong>世界验收 · 受限预览</strong><p id="benchmark-note"></p><div class="benchmark-actions"><button id="benchmark-look"></button><button id="benchmark-variant"></button><button id="benchmark-replay">横移往返 · 12 秒</button><button id="benchmark-motion-clip">正常行走录像 · 12 秒</button><button id="benchmark-region-tour">录制完整区域地面行走</button><button id="benchmark-walk">录制林间步行 · 12 秒</button><button id="benchmark-sky-orbit">录制天空环视 · 24 秒</button><button id="benchmark-continuity">录制前进后退 · 24 秒</button><button id="benchmark-ground">贴地巡航检查</button><button id="benchmark-trees">林缘树影</button><button id="benchmark-stationary">录制固定视角 · 12 秒</button><button id="benchmark-prairie">草原地面</button><button id="benchmark-valley">溪谷崖壁</button><button id="benchmark-spring-eye">北源泉池近看</button><button id="benchmark-source">北源出流</button><button id="benchmark-marsh-high">沼泽俯瞰</button><button id="benchmark-dpr-matrix">像素比例切换 · 12 秒</button><label>水面分量<select id="benchmark-water" aria-label="水面分量"><option value="0">正常</option><option value="1">法线</option><option value="2">反射</option><option value="4">泡沫</option><option value="5">水体</option></select></label><button id="benchmark-sky-audit">校验云层条带</button><button id="benchmark-sky-high">高原仰视</button><button id="benchmark-rock-close">近看岩岸</button><button id="benchmark-shore-close">近看岸浪</button><button id="benchmark-beach-eye">沙滩平视</button><button id="benchmark-shore">岸浪周期 · 42 秒</button><button id="benchmark-reset">复位到地点</button><button id="benchmark-save">记录当前画面</button><button id="benchmark-export">导出验收记录</button><button id="benchmark-suite">巡检全部 ${ids.length} 个地点</button></div><div id="benchmark-places"></div><details id="benchmark-image"><summary>最近原始画布截图</summary><label>选择验收截图<select id="benchmark-frame" aria-label="选择验收截图"></select></label><img id="benchmark-preview" alt="最近记录的原始 3D 画布" style="display:block;width:100%;height:auto" /></details><details id="benchmark-video-panel"><summary>最近移动录像</summary><video id="benchmark-video" controls style="width:100%"></video></details><output id="benchmark-status" aria-live="polite"></output><details id="benchmark-evidence"><summary>验收数据（不含截图）</summary><pre id="benchmark-json"></pre></details>`
   document.body.append(panel)
   const $ = id => panel.querySelector('#' + id)
   $('benchmark-collapse').onclick=()=>{const compact=panel.classList.toggle('compact');$('benchmark-collapse').textContent=compact?'展开验收':'收起验收';$('benchmark-collapse').setAttribute('aria-expanded',String(!compact))};
@@ -75,13 +76,19 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     replay = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), start: now() }
     $('benchmark-replay').textContent = '停止横移'
   }
+  const videoRecorder=makeReviewRecorder({canvas,
+    upload:params.get('workloadReview')==='1'&&location.hostname==='127.0.0.1'?async(blob,signal)=>{
+      const name=(params.get('runLabel')||'review')+'-video-'+Date.now();
+      const res=await fetch('/__gpu-video/'+name,{method:'POST',headers:{'Content-Type':blob.type},body:blob,signal});
+      if(!res.ok)throw Error('video save HTTP '+res.status);return (await res.json()).path;
+    }:null,
+    publish:(blob,session)=>{if(videoUrl)URL.revokeObjectURL(videoUrl);videoUrl=URL.createObjectURL(blob);$('benchmark-video').src=videoUrl;$('benchmark-video').dataset.mime=session.mime;},
+    onStop:reason=>{cancel(reason);pauseScene();},
+  });
   function startRecording(){
-    if(evidenceMode==='timing')return;
-    videoPending=true;if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=null;}$('benchmark-video').removeAttribute('src');
-    let stream;
-    try{stream=canvas.captureStream(24);const mimeType=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t)),chunks=[];
-      videoBytes=0;videoTruncated=false;videoArtifact=null;videoSaveError=null;recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:3000000});let bytes=0;recorder.ondataavailable=e=>{bytes+=e.data.size;videoBytes=bytes;if(bytes<=180000000)chunks.push(e.data);else if(recorder.state!=='inactive'){videoTruncated=true;recorder.stop();}};recorder.onstop=async()=>{const blob=new Blob(chunks,{type:mimeType});videoUrl=URL.createObjectURL(blob);$('benchmark-video').src=videoUrl;$('benchmark-video').dataset.mime=mimeType;stream.getTracks().forEach(t=>t.stop());if(params.get('workloadReview')==='1'&&location.hostname==='127.0.0.1'){try{const name=(params.get('runLabel')||'review')+'-video-'+Date.now();const res=await fetch('/__gpu-video/'+name,{method:'POST',headers:{'Content-Type':blob.type},body:blob});if(!res.ok)throw Error(res.status);videoArtifact=(await res.json()).path;}catch(error){videoSaveError=String(error);}}videoPending=false;};recorder.start(1000);
-    }catch(e){stream?.getTracks().forEach(t=>t.stop());videoPending=false;videoSaveError=String(e);capture('video-error',{message:String(e)});}
+    if(evidenceMode==='timing')return false;
+    videoRecorder.setPaused(Boolean(readState()?.workload?.paused));
+    return videoRecorder.arm({wallLimitMs:replay?.clip?20000:Math.min(500000,((replay?.seconds??(replay?.ticks??720)/30)+60)*1000)});
   }
   $('benchmark-walk').onclick=()=>{
     stop();suite=null;reset('forest');tick=0;samples=[];interrupted=null;
@@ -116,14 +123,15 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     a.href = url; a.download = `island-world-review-${Date.now()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   function cancel(reason) {
-    if (!replay) return
-    if(recorder&&recorder.state!=='inactive')recorder.stop();
+    const hadCapture=videoRecorder.pending;videoRecorder.stop(reason);
+    if (!replay){if(hadCapture)pauseScene();return;}
     const record=replay&&evidenceMode!=='timing'?capture('replay-interrupted', { reason, completed: false, samples }):null;
-    if(reason.startsWith('Ground route')||reason==='resource error or replay timeout')pauseScene();
+    if(hadCapture||replay.clip||reason.startsWith('Ground route')||reason.startsWith('capture ')||reason==='resource error or replay timeout')pauseScene();
     if(!terminal&&replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
           syncPose?.(); replay = null; interrupted = reason; $('benchmark-replay').textContent = '横移往返 · 12 秒'
     return record;
   }
+  $('benchmark-motion-clip').onclick=()=>api.startMotionClip();
   $('benchmark-region-tour').onclick=()=>{if(replay){cancel('user stopped');return;}api.startRealtime({capture:true});};
   updateLabel(); $('benchmark-note').textContent = observations[current] || observations.forest; setTime(60)
   const api={
@@ -135,13 +143,13 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
       $('benchmark-status').textContent='图形资源中断，验收已停止；可导出已有记录。';
       return record;
     },
-    setPaused(value){if(recorder?.state==='recording'&&value)recorder.pause();else if(recorder?.state==='paused'&&!value)recorder.resume();},
+    setPaused(value){videoRecorder.setPaused(value);},
     get active() { return Boolean(replay||suite) },
     get groundRouteActive() { return replay?.mode==='region' },
     get diagnosticComplete() { return diagnosticComplete },
-    get videoPending() { return videoPending },
-    get observationState(){return {routeActive:Boolean(replay||suite),recording:Boolean(recorder&&recorder.state!=='inactive'),videoPending,pendingCapture,evidenceReadback}},
-    get videoState(){return {bytes:videoBytes,limitBytes:180000000,truncated:videoTruncated,pending:videoPending,artifact:videoArtifact,saveError:videoSaveError}},
+    get videoPending() { return videoRecorder.pending },
+    get observationState(){return {routeActive:Boolean(replay||suite),recording:videoRecorder.recording,videoPending:videoRecorder.pending,pendingCapture,evidenceReadback}},
+    get videoState(){return videoRecorder.state},
     get visualRecords() { return records },
     prepareDiagnostic(route) {
       evidenceMode='timing';diagnosticRepeat=false;diagnosticComplete=false;cancel('next measurement');
@@ -153,25 +161,34 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
       else $('benchmark-beach-eye').onclick();
     },
     startDiagnostic(route,{capture:video=false,repeat=false}={}) {
-      evidenceMode=video?'video':'timing';diagnosticRepeat=repeat;diagnosticComplete=false;if(video){records.length=0;$('benchmark-frame').innerHTML='';}
+      if(videoRecorder.pending)return;
+      evidenceMode=video?'video':'timing';diagnosticRepeat=repeat;diagnosticComplete=false;
       if(route===REGION_ROUTE.id){this.startRealtime({capture:video,repeat});return;}
       if(route==='forest')$('benchmark-replay').onclick();
       else if(route==='beach')$('benchmark-shore').onclick();
       else $('benchmark-continuity').onclick();
-      if(video&&!recorder?.state?.includes('recording'))startRecording();
+      if(video&&!videoRecorder.pending)startRecording();
     },
     get time() { return thisTime() },
     routeState,
-    startRealtime({capture:video=false,seconds=null,repeat=false}={}) {
-      if(terminal)return;
+    startMotionClip(){
+      if(terminal||replay||suite||videoRecorder.pending)return false;
+      this.startRealtime({capture:true,seconds:12,clip:true});
+      if(!replay)return false;
+      if(resumeScene()!==true){cancel('capture resume blocked');return false;}
+      return true;
+    },
+    startRealtime({capture:video=false,seconds=null,repeat=false,clip=false}={}) {
+      if(terminal||videoRecorder.pending)return false;
       stop();suite=null;reset('side-spring');evidenceMode=video?'video':'normal';diagnosticRepeat=repeat;diagnosticComplete=false;lastRoute=null;
       plannedRoute=planRegion();if(!plannedRoute.passed){capture('route-blocked',{passed:false,plan:plannedRoute});return;}
       path=new T.CurvePath();for(let i=1;i<plannedRoute.points.length;i++){const a=plannedRoute.points[i-1],b=plannedRoute.points[i];path.add(new T.LineCurve3(new T.Vector3(a[0],0,a[1]),new T.Vector3(b[0],0,b[1])));}
       groundFollower=makeRegionalFollower(plannedRoute.points,navigateGround);
       seconds??=plannedRoute.seconds;
-      replay={position:camera.position.clone(),quaternion:camera.quaternion.clone(),start:now(),mode:'region',clock:'wall',seconds,ticks:seconds*60};
-      const p=path.getPoint(0);camera.position.set(p.x,navigationHeight(p.x,p.z)+1.75,p.z);camera.lookAt(walkGaze(p.z));syncPose?.();
-      if(video)startRecording();
+      replay={position:camera.position.clone(),quaternion:camera.quaternion.clone(),start:now(),mode:'region',clock:'wall',seconds,ticks:seconds*60,clip:Boolean(clip)};
+      const p=path.getPoint(0);camera.position.set(p.x,navigationHeight(p.x,p.z)+1.75,p.z);camera.lookAt(walkGaze(p.z));replay.position.copy(camera.position);replay.quaternion.copy(camera.quaternion);syncPose?.();
+      if(video&&!startRecording()){cancel('capture arm rejected');return false;}
+      return true;
     },
     cancel,
     destination(id) { panel.dataset.ready='false'; current = id; tick = 0; settled = 0; setTime(60); $('benchmark-note').textContent = observations[id] || ''; },
@@ -197,6 +214,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     afterFrame(raw, state) {
       if(terminal)return;
       lastSafeState=state;
+      videoRecorder.afterFrame();
       const afterEvidenceReadback=evidenceReadback;evidenceReadback=false;
       const signature = JSON.stringify([state.position, state.quaternion, state.drawSize, state.quality, state.variant])
       const jobsReady = !state.terrain.pending && !state.vegetation.pending && !state.flow.pending && !state.vegetation.error && !state.flow.error && (state.flow.exposure?.valid??true) && !state.flow.exposure?.error
@@ -227,20 +245,25 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
         if(replay.mode==='dpr'&&tick%180===179){capture('sky-stripe-audit',{result:auditSky()});evidenceReadback=true;}
         if(evidenceMode!=='timing'&&replay.clock!=='wall'&&jobsReady&&tick%180===0)capture('motion-frame',{image:canvas.toDataURL('image/png')});
         if (replay.clock!=='wall'&&jobsReady) tick++
-        if ((replay.mode==='region'?groundFollower.status().complete:replay.clock==='wall'&&now()-replay.start>=replay.seconds*1000)||tick > (replay.ticks??720)) {
+        if ((replay.clip?now()-replay.start>=replay.seconds*1000:replay.mode==='region'?groundFollower.status().complete:replay.clock==='wall'&&now()-replay.start>=replay.seconds*1000)||tick > (replay.ticks??720)) {
           if(diagnosticRepeat){tick=0;if(replay.clock==='wall')replay.start=now();setTime(60);samples=[];return;}
           diagnosticComplete=true;
-          if(replay.mode==='region')lastRoute={...routeState(),progress:1,completed:Math.hypot(camera.position.x-plannedRoute.points.at(-1)[0],camera.position.z-plannedRoute.points.at(-1)[1])<.3,endErrorMetres:Math.hypot(camera.position.x-plannedRoute.points.at(-1)[0],camera.position.z-plannedRoute.points.at(-1)[1]),blockedFrames:samples.filter(f=>f.navigation?.constraints.blocked).length,wallMs:now()-replay.start,worldSeconds:thisTime()-60};
+          if(replay.mode==='region')lastRoute={...routeState(),progress:groundFollower.status().progress,completed:!replay.clip&&Math.hypot(camera.position.x-plannedRoute.points.at(-1)[0],camera.position.z-plannedRoute.points.at(-1)[1])<.3,endErrorMetres:Math.hypot(camera.position.x-plannedRoute.points.at(-1)[0],camera.position.z-plannedRoute.points.at(-1)[1]),blockedFrames:samples.filter(f=>f.navigation?.constraints?.blocked).length,wallMs:now()-replay.start,worldSeconds:thisTime()-60};
           tick = replay.ticks??720
           const ordered = samples.map(s => s.frameMs).sort((a, b) => a - b)
           const clean=samples.filter(s=>!s.afterEvidenceReadback).map(s=>s.frameMs).sort((a,b)=>a-b);
-          if(evidenceMode!=='timing')capture(replay.mode==='shore'?'shore-cycle':replay.mode==='walk'?'trail-walk':replay.mode==='sky'?'sky-orbit':replay.mode==='dpr'?'dpr-matrix':replay.mode==='continuity'?'continuity':'replay', { completed: true, ...(replay.mode==='region'?{route:lastRoute}:{}), renderingFrameMs:{p50:clean[Math.floor(clean.length*.5)],p95:clean[Math.floor(clean.length*.95)],max:clean.at(-1)},evidenceReadbackFrames:samples.filter(s=>s.afterEvidenceReadback).length, startPosition: replay.position.toArray(), endPosition: camera.position.toArray(), wallMs: now() - replay.start, frameMs: { p50: ordered[Math.floor(ordered.length * .5)], p95: ordered[Math.floor(ordered.length * .95)], max: ordered.at(-1) }, samples })
-          if(recorder&&recorder.state!=='inactive')recorder.stop();
+          if(evidenceMode!=='timing')capture(replay.clip?'motion-clip':replay.mode==='shore'?'shore-cycle':replay.mode==='walk'?'trail-walk':replay.mode==='sky'?'sky-orbit':replay.mode==='dpr'?'dpr-matrix':replay.mode==='continuity'?'continuity':'replay', { completed: true, ...(replay.mode==='region'?{route:lastRoute,worldSeconds:thisTime()-60}:{}), renderingFrameMs:{p50:clean[Math.floor(clean.length*.5)],p95:clean[Math.floor(clean.length*.95)],max:clean.at(-1)},evidenceReadbackFrames:samples.filter(s=>s.afterEvidenceReadback).length, startPosition: replay.position.toArray(), endPosition: camera.position.toArray(), wallMs: now() - replay.start, frameMs: { p50: ordered[Math.floor(ordered.length * .5)], p95: ordered[Math.floor(ordered.length * .95)], max: ordered.at(-1) }, samples })
+          const hadCapture=videoRecorder.pending;videoRecorder.stop(replay.clip?'clip complete':'route complete');
+          if(replay.clip||hadCapture)pauseScene();
           if(replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
           syncPose?.(); replay = null; $('benchmark-replay').textContent = '横移往返 · 12 秒'
         }
       }
       $('benchmark-status').textContent = `${replay ? `${replay.mode==='shore'?'岸浪':replay.mode==='walk'?'步行':'横移'} ${Math.min(tick,replay.ticks??720)} / ${replay.ticks??720}` : ready ? '画面就绪' : errors.length || state.programErrors || state.vegetation.error || state.flow.error ? '资源出错，不能验收' : '等待局部资源与画面稳定'} · 世界 ${this.time.toFixed(2)} 秒 · ${state.drawSize.join('×')} · 已记录 ${records.length} 项`
     },
-  };return api;
+  };
+  // An unfinished encoder/upload owns its route until it has settled. The
+  // dedicated region toggle can still explicitly cancel; other starts wait.
+  for(const id of ['benchmark-walk','benchmark-sky-orbit','benchmark-continuity','benchmark-stationary']){const handler=$(id).onclick;$(id).onclick=()=>{if(!videoRecorder.pending)handler();};}
+  return api;
 }

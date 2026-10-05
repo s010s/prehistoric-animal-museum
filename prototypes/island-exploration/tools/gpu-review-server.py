@@ -15,8 +15,10 @@ class Handler(SimpleHTTPRequestHandler):
         if video:
             n=int(self.headers.get('Content-Length','0'))
             if not 0<n<=180000000:self.send_error(400);return
+            mime=self.headers.get('Content-Type','').split(';',1)[0].strip().lower()
+            if mime not in ('video/webm','video/mp4'):self.send_error(415);return
             folder=output/video[1];folder.mkdir(exist_ok=True)
-            target=folder/'capture.webm'
+            target=folder/('capture.mp4' if mime=='video/mp4' else 'capture.webm')
             with target.open('wb') as stream:
                 remaining=n
                 while remaining:
