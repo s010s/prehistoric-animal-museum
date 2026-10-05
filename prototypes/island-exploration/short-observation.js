@@ -16,7 +16,7 @@ export function observationConditions(s) {
     fixed:s.workload?.fixed,desktopTier:s.workload?.desktopTier??null,cloudPolicy:s.workload?.cloud,
     cloud:[s.skyCache?.width,s.skyCache?.height,s.skyCache?.steps,s.skyCache?.raysPerFrame,s.skyCache?.frozen],
     composition:s.flow?.composition?.mode,waterDiagnostic:s.flow?.diagnostic,
-    grassDiagnostic:s.vegetation?.diagnosticGrass??false,
+    grassDiagnostic:s.vegetation?.diagnosticGrass??false,mainPartition:s.terrain?.mainPartition?.enabled??false,
     terrainRevision:s.terrain?.revision,reflectionTerrain:s.terrain?.reflection?.mode,
     resources:s.resources?.map(({name,width,height,type,format,samples,depthBuffer,colourSpace})=>({name,width,height,type,format,samples,depthBuffer,colourSpace})).sort((a,b)=>a.name.localeCompare(b.name)),
   };
