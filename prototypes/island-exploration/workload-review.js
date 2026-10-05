@@ -33,6 +33,7 @@ export function makeWorkloadReview(renderer,params) {
       checks.identicalCameraTimeAndResources=a.time===b.time&&JSON.stringify(a.position)===JSON.stringify(b.position)&&a.width===b.width&&a.height===b.height&&a.samples===b.samples;
       checks.protectedOnly=s.workload.targetFps===30&&s.drawSize[0]*s.drawSize[1]<=921600;
       checks.cropKeepsResolution=a.width===512&&a.height===512&&a.samples===4&&region?.mode==='crop'&&region.width*region.height<512*512;
+      checks.readbackHasImage=a.pixels.some(n=>n!==0)&&b.pixels.some(n=>n!==0);
       let compared=0,different=0,maxAbsolute=0,maxRelative=0;
       const half=n=>{const sign=n&32768?-1:1,e=(n>>>10)&31,f=n&1023;return sign*(e===0?f*2**-24:e===31?(f?NaN:Infinity):(1+f/1024)*2**(e-15));};
       if(checks.identicalCameraTimeAndResources&&region)for(let y=region.y+1;y<region.y+region.height-1;y++)for(let x=region.x+1;x<region.x+region.width-1;x++)for(let c=0;c<3;c++){

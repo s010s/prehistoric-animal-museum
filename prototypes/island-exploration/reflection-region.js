@@ -38,6 +38,29 @@ export function restrictBounds(bounds,planes,out=new Float64Array(6),validated=f
   return out;
 }
 
+const polygonStorage=new WeakMap();
+function readablePolygon(bounds,planes,m,level,sign,scratch){
+  let storage=polygonStorage.get(scratch);if(!storage){storage={a:new Float64Array(64),b:new Float64Array(64),count:0,points:null};polygonStorage.set(scratch,storage);}
+  let a=storage.a,b=storage.b,n=4;a[0]=bounds[0];a[1]=bounds[2];a[2]=bounds[3];a[3]=bounds[2];a[4]=bounds[3];a[5]=bounds[5];a[6]=bounds[0];a[7]=bounds[5];
+  const clip=(x,z,c)=>{
+    if(!n)return;c+=1e-7;let out=0,px=a[(n-1)*2],pz=a[(n-1)*2+1],pd=x*px+z*pz+c;
+    for(let i=0;i<n;i++){
+      const qx=a[i*2],qz=a[i*2+1],qd=x*qx+z*qz+c;
+      if((pd>=0)!==(qd>=0)){const t=pd/(pd-qd);if(out>=32){n=-1;return;}b[out*2]=px+(qx-px)*t;b[out*2+1]=pz+(qz-pz)*t;out++;}
+      if(qd>=0){if(out>=32){n=-1;return;}b[out*2]=qx;b[out*2+1]=qz;out++;}
+      px=qx;pz=qz;pd=qd;
+    }
+    n=out;const old=a;a=b;b=old;
+  };
+  for(const p of planes){clip(p[0],p[2],p[3]+Math.max(p[1]*bounds[1],p[1]*bounds[4]));if(n<=0)break;}
+  const wx=m[3],wz=m[11],wc=m[7]*level+m[15],ux=m[0],uz=m[8],uc=m[4]*level+m[12],vx=m[1],vz=m[9],vc=m[5]*level+m[13],low=-.051,high=1.051;
+  if(n>0)clip(sign*wx,sign*wz,sign*wc);
+  if(n>0)clip(sign*(ux-low*wx),sign*(uz-low*wz),sign*(uc-low*wc));
+  if(n>0)clip(sign*(high*wx-ux),sign*(high*wz-uz),sign*(high*wc-uc));
+  if(n>0)clip(sign*(vx-low*wx),sign*(vz-low*wz),sign*(vc-low*wc));
+  if(n>0)clip(sign*(high*wx-vx),sign*(high*wz-vz),sign*(high*wc-vc));
+  storage.count=n;storage.points=a;return storage;
+}
 export function reflectionRegion(regions,planes,textureMatrix,level,width,height,scratch=new Float64Array(6)) {
   const full=reason=>({mode:'full',reason,x:0,y:0,width,height,areaRatio:1});
   if(!regions||!textureMatrix||textureMatrix.length!==16||!finite(textureMatrix)||!Number.isFinite(level)||!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<=0||height<=0||planes.some(p=>p.length!==4||!finite(p)))return full('unknown-support');
@@ -46,13 +69,15 @@ export function reflectionRegion(regions,planes,textureMatrix,level,width,height
   for(const b of regions){
     if(!b||b.length!==6||!finite(b))return full('unknown-bound');
     if(!restrictBounds(b,planes,scratch,true))continue;
-    contributors++;
-    for(let xi=0;xi<2;xi++)for(let zi=0;zi<2;zi++){
-      const x=scratch[xi*3],z=scratch[2+zi*3];
-      const w=m[3]*x+m[7]*level+m[11]*z+m[15];
-      if(w<=1e-5)return full('near-homogeneous-bound');
-      const u=(m[0]*x+m[4]*level+m[8]*z+m[12])/w,v=(m[1]*x+m[5]*level+m[9]*z+m[13])/w;
-      minU=Math.min(minU,u);maxU=Math.max(maxU,u);minV=Math.min(minV,v);maxV=Math.max(maxV,v);
+    for(let sign=-1;sign<=1;sign+=2){
+      const polygon=readablePolygon(scratch,planes,m,level,sign,scratch);
+      if(polygon.count<0)return full('polygon-capacity');if(!polygon.count)continue;contributors++;
+      for(let i=0;i<polygon.count;i++){
+        const x=polygon.points[i*2],z=polygon.points[i*2+1],w=m[3]*x+m[7]*level+m[11]*z+m[15];
+        if(Math.abs(w)<=1e-5)return full('near-homogeneous-bound');
+        const u=(m[0]*x+m[4]*level+m[8]*z+m[12])/w,v=(m[1]*x+m[5]*level+m[9]*z+m[13])/w;
+        minU=Math.min(minU,u);maxU=Math.max(maxU,u);minV=Math.min(minV,v);maxV=Math.max(maxV,v);
+      }
     }
   }
   if(!contributors)return full('no-possible-support');
