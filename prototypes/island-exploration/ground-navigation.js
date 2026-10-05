@@ -34,7 +34,19 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
     if(!anchors?.length||anchors.some(a=>a.length!==2||!a.every(Number.isFinite)))return {passed:false,reason:'Invalid review anchors',points:[]};
     const cache=new Map(),point=(x,z)=>{const key=x+','+z;if(!cache.has(key))cache.set(key,{x,z,h:heightAt(x,z),bad:probe(x,z)});return cache.get(key);};
     const candidates=([x,z])=>{const out=[];for(let dz=-6;dz<=6;dz++)for(let dx=-6;dx<=6;dx++){const p=point(Math.round(x)+dx,Math.round(z)+dz),distance=Math.hypot(p.x-x,p.z-z);if(!p.bad&&distance<=6)out.push({p,distance});}return out.sort((a,b)=>a.distance-b.distance);};
-    const first=candidates(anchors[0])[0]?.p;if(!first)return {passed:false,reason:'No accessible start',points:[]};
+    const edges=new Map(),directions=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+    const edgeAllowed=(p,q)=>{
+      const a=p.x+','+p.z,b=q.x+','+q.z,key=a<b?a+'|'+b:b+'|'+a;
+      if(edges.has(key))return edges.get(key);
+      const dx=q.x-p.x,dz=q.z-p.z,d=Math.hypot(dx,dz),steps=Math.ceil(d/.05);
+      let allowed=!p.bad&&!q.bad&&Math.abs(q.h-p.h)<=d*.8+1e-4;
+      for(let j=1;allowed&&j<=steps;j++){
+        if(probe(p.x+dx*j/steps,p.z+dz*j/steps,{x:p.x+dx*(j-1)/steps,z:p.z+dz*(j-1)/steps})||probe(q.x-dx*j/steps,q.z-dz*j/steps,{x:q.x-dx*(j-1)/steps,z:q.z-dz*(j-1)/steps}))allowed=false;
+      }
+      edges.set(key,allowed);return allowed;
+    };
+    const first=candidates(anchors[0]).find(c=>directions.some(([dx,dz])=>edgeAllowed(c.p,point(c.p.x+dx,c.p.z+dz))))?.p;
+    if(!first)return {passed:false,reason:'No accessible start',points:[]};
     const path=[[first.x,first.z]],segments=[];let a=first;
     for(let k=1;k<anchors.length;k++){
       const [ax,az]=anchors[k],closing=k===anchors.length-1&&Math.hypot(ax-anchors[0][0],az-anchors[0][1])<.001;
@@ -47,13 +59,9 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
         const node=open.splice(at,1)[0],p=node.p;if(node.g!==scores.get(key(p)))continue;
         const offset=goalScores.get(key(p));
         if(offset!==undefined&&(!best||offset<best.distance)){best={p,distance:offset};if(offset<=goals[0].distance+1e-9)break;}
-        for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){
+        for(const [dx,dz] of directions){
           const x=p.x+dx,z=p.z+dz;if(x<Math.min(a.x,ax)-18||x>Math.max(a.x,ax)+18||z<Math.min(a.z,az)-18||z>Math.max(a.z,az)+18)continue;
-          const q=point(x,z),d=Math.hypot(dx,dz);if(q.bad||Math.abs(q.h-p.h)>d*.8+1e-4)continue;
-          // Fine probes use the ordinary movement constraints. A coarse
-          // quarter-node average can hide a local lip that real walking hits.
-          const steps=Math.ceil(d/.05);let blocked=false;
-          for(let j=1;j<=steps;j++)if(probe(p.x+dx*j/steps,p.z+dz*j/steps,{x:p.x+dx*(j-1)/steps,z:p.z+dz*(j-1)/steps})){blocked=true;break;}if(blocked)continue;
+          const q=point(x,z),d=Math.hypot(dx,dz);if(!edgeAllowed(p,q))continue;
           const g=node.g+d;if(g>=(scores.get(key(q))??Infinity))continue;scores.set(key(q),g);parents.set(q,p);open.push({p:q,g,f:g+Math.hypot(ax-x,az-z)});
         }
       }
@@ -61,7 +69,7 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
       const b=best.p,run=[];for(let p=b;p!==a;p=parents.get(p))run.push([p.x,p.z]);path.push(...run.reverse());segments.push({anchor:k,visited,requested:[ax,az],selected:[b.x,b.z],offsetMetres:best.distance});a=b;
     }
     let length=0;for(let i=1;i<path.length;i++)length+=Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]);
-    return {passed:true,points:path,length,seconds:Math.ceil(length/1.55),segments,groundSamples:cache.size};
+    return {passed:true,points:path,length,seconds:Math.ceil(length/1.55),segments,groundSamples:cache.size,edgeSamples:edges.size};
   }
   function audit(anchors,rocks){
     const route=plan(anchors),checks={boundedPlan:route.passed,visibleRockCollision:rocks.some(r=>probe(r.x,r.z)==='rock')};
