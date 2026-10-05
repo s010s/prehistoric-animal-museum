@@ -14,6 +14,35 @@ export function makeWorkloadReview(renderer,params) {
   panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常 · 地形代理</option><option value="fullTerrain">仅完整反射地形</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
   document.body.append(panel);
   const auditButton=document.createElement('button');auditButton.textContent='验证云优化等价';auditButton.id='gpu-density-audit';panel.querySelector('div').append(auditButton);
+  // Define the protection E2E before adding spectrum observability or changing
+  // recovery: normal submissions must advance, then every heavy counter stops;
+  // resuming advances active time only. Missing counters fail the evidence.
+  const protectionButton=document.createElement('button');protectionButton.id='gpu-protection';protectionButton.textContent='保护流程短验证';panel.querySelector('div').append(protectionButton);
+  protectionButton.onclick=async()=>{
+    if(!context||terminal||sample||warming)return;
+    warming=true;const checks={},snapshots=[];
+    const capture=()=>{const s=state();snapshots.push({renders,state:s});return s;};
+    try{
+      context.setPaused(false);const a=capture();await wait(2200);if(terminal)return;const b=capture();
+      checks.normalFramesAdvance=b.workload.submittedFrames>a.workload.submittedFrames&&b.flow.reflection.updates>a.flow.reflection.updates&&b.flow.spectrum?.updates>a.flow.spectrum?.updates;
+      context.setPaused(true);const c=capture();await wait(2200);if(terminal)return;const d=capture();
+      checks.pausedAllRendererSubmissions=snapshots[2].renders===snapshots[3].renders;
+      checks.pausedCloudRays=c.skyCache.totalRays===d.skyCache.totalRays;
+      checks.pausedReflection=c.flow.reflection.updates===d.flow.reflection.updates;
+      checks.pausedSpectrum=Number.isFinite(c.flow.spectrum?.updates)&&c.flow.spectrum.updates===d.flow.spectrum?.updates;
+      checks.pausedWetMemory=c.flow.wetMemory.updates===d.flow.wetMemory.updates;
+      checks.pausedWorldAndActiveTime=c.worldTime===d.worldTime&&c.workload.activeSeconds===d.workload.activeSeconds;
+      context.setPaused(false);await wait(2200);if(terminal)return;const e=capture();
+      const active=e.workload.activeSeconds-d.workload.activeSeconds;
+      checks.resumeRealTime=Math.abs(e.worldTime-d.worldTime-active)<.12&&active>=2&&active<2.6;
+      checks.noCatchup=e.workload.submittedFrames-d.workload.submittedFrames<=Math.ceil(active*e.workload.targetFps)+2&&Math.hypot(...e.position.map((n,i)=>n-d.position[i]))<.01;
+      checks.sameProtection=e.workload.targetFps===a.workload.targetFps&&e.drawSize.every((n,i)=>n===a.drawSize[i])&&e.drawSize[0]*e.drawSize[1]<=e.workload.maxPixels;
+      checks.animalsAndHDR=e.encounter.instances.length===2&&e.flow.composition.mode==='linear-hdr';
+      checks.noErrors=!errors.length&&!e.programErrors&&!e.vegetation.error&&!e.flow.error;
+      context.setPaused(true);await save('protection-e2e',{passed:Object.values(checks).every(Boolean),checks,snapshots,errors:[...errors]});
+    }catch(error){context.setPaused(true);if(!terminal)await save('protection-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]});}
+    finally{warming=false;context.setPaused(true);}
+  };
   const routeButton=document.createElement('button');routeButton.textContent='保存游览与资源';routeButton.id='gpu-route-save';panel.querySelector('div').append(routeButton);
   const walkTiming=document.createElement('button');walkTiming.textContent='区域行走 · 仅计时';panel.querySelector('div').append(walkTiming);walkTiming.onclick=()=>{if(!context||terminal||sample||warming)return;context.benchmark.startRealtime({capture:false});context.setPaused(false);};
   // Failure cases recorded before the reflection/navigation implementation:

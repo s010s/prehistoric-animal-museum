@@ -64,7 +64,7 @@ if(contextRecovery){
    url.searchParams.set('pose',[...camera.position.toArray(),camera.rotation.y,camera.rotation.x].join(','));
    url.searchParams.set('quality','mobile');
   }
-  const recovery=recoveryPlan(url.href,recoveryAttempts);recoveryUrl=recovery.url;recoveryAttempts=recovery.attempts;if(recovery.allowed)try{sessionStorage.setItem(recoveryKey,String(recoveryAttempts))}catch{}
+  const recovery={...recoveryPlan(url.href,recoveryAttempts),automatic:false};recoveryUrl=recovery.url;recoveryAttempts=recovery.attempts;if(recovery.allowed)try{sessionStorage.setItem(recoveryKey,String(recoveryAttempts))}catch{}
   document.body.dataset.recovery=JSON.stringify(recovery);
   let lastSafeState=null;try{const raw=document.querySelector('#gpu-review')?.dataset.snapshot;if(raw)lastSafeState=JSON.parse(raw);}catch{}
   const failure={observedAt:Date.now(),build:__WORLD_BUILD__,url:location.href,statusMessage:e.statusMessage??null,injectionRequested:workloadReview?.injectionRequested??false,recovery,drawSize:[renderer.domElement.width,renderer.domElement.height],pose:poseReady?camera.position.toArray():null,lastSafeState,routeEvidence:benchmark?.contextLost(lastSafeState)??null,diagnosticEvidence:diagnostics?.interruption??null,cancelledReviewJob};
@@ -76,11 +76,11 @@ if(contextRecovery){
   if(poseReady){stop();keys.clear();joy.x=joy.y=0;alt.up=alt.down=false;look=null;}
   document.body.dataset.ready='false';
   $('#loading').classList.remove('done');$('#loading').setAttribute('aria-hidden','false');
-  $('#load-detail').textContent=recoveryUrl?'图形资源正在以保护档恢复…':'图形资源再次中断，已停止自动恢复。';
+  $('#load-detail').textContent='图形资源中断，已暂停并保留原页；请先保存恢复记录。';
  });
- // Cached render targets have lost their contents. Re-enter through startup
- // so tree atlases, sky history, water and the environment are rebuilt together.
- renderer.domElement.addEventListener('webglcontextrestored',async()=>{if(lost&&recoveryUrl){await Promise.race([evidenceFlush.catch(()=>{}),new Promise(resolve=>setTimeout(resolve,250))]);location.replace(recoveryUrl);}});
+ // Cached targets are invalid. Keep the original page and evidence paused
+ // even if the driver restores a context; never reload away the failure scene.
+ renderer.domElement.addEventListener('webglcontextrestored',()=>{if(!lost)return;pauseReason('context',true);document.body.dataset.contextRestored=String(Date.now());void evidenceFlush.catch(()=>{});$('#load-detail').textContent='图形上下文已恢复，原页仍暂停；记录保留，未自动重载。';});
 }
 const sunDirection=new T.Vector3(...SUN_DIRECTION).normalize();
 const shadowFocus=makeShadowFocus(sunDirection);

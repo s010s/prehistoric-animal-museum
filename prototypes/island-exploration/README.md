@@ -73,9 +73,9 @@ The new `highLoad=1` explicitly enables a bounded 2.4MP / 60 FPS override with a
 Pause 3D remains available during loading. Pausing, opening a dialog, hiding the
 page or pagehide stops new GPU work, including cache rebuilds and worker-result
 installation. Resume discards pacing backlog and excludes paused time from the
-world and wall-clock review route. Context restoration permits one automatic
-reload per page session, forces low quality, sanitizes diagnostic parameters and
-then stops automatic recovery on another loss; the minimal state is exportable.
+world and wall-clock review route. Context restoration leaves the original page
+paused, with an exportable failure record and a sanitized low-quality fallback
+URL. It does not automatically reload or resume the invalid caches.
 
 `workloadReview=1&gpuScope=none` is a new lightweight, explicitly enabled local
 E2E/short-sample panel. It wraps public render calls, never GL uploads or GPU timer
@@ -128,7 +128,9 @@ The mirror alone uses a fixed 32 m terrain proxy away from water. Sources, river
 
 Desktop restoration is explicit: `desktopTier=pace` raises the submission target to 60 at the protected pixel budget; `900` permits 1600×900; `1080` permits 1920×1080; `clouds` also restores 3072×768 / 240-step clouds. All tiers keep cloud jobs capped at 12,288 rays per submitted frame. `desktopTrial=1` pauses after 45 active seconds of main rendering, following the finite gated startup sequence. Normal previews remain protected unless a tier is selected. Recovery strips the tier and returns to conservative limits. The setting names describe workload targets, not a guarantee of measured FPS.
 
-A graphics-context interruption invalidates the active observation. Review mode retains the last safe state and partial sample without GL readback, with a short localhost flush and session fallback. Recovery starts paused, strips diagnostic/desktop overrides and permits at most one automatic reload. The recovery page provides a local export even before startup completes. Fault injection is absent from normal review controls and requires the separate `contextLossTest=1` URL.
+A graphics-context interruption invalidates the active observation. Review mode retains the last safe state and partial sample without GL readback, with a localhost flush and session fallback. The original page stays paused even when a context is restored; it never automatically reloads. The recorded fallback URL strips diagnostic/desktop overrides and starts paused. A local export is available before startup completes. Fault injection is absent from normal review controls and requires the separate `contextLossTest=1` URL.
+
+The explicit “保护流程短验证” check runs a few seconds, pauses, then resumes at the same quality and pixel budget. It records renderer, cloud, mirror, spectral-wave and wet-memory counters plus active/world time. It does not switch quality, capture an image, record video or issue GPU queries.
 
 Short fixed-camera windows also record per-frame workload conditions and evidence activity. Pause, camera movement, resource errors, changed pixel/cloud/RT settings, missing submissions, or concurrent routes, screenshots or video invalidate the window while retaining its raw numbers. Reflection comparisons require valid full/proxy arms with matching source, assets, pose, world phase and workload. These checks establish measurement conditions, not GPU timing or desktop acceptance.
 
