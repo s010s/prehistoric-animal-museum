@@ -2,8 +2,8 @@ import * as T from 'three';
 
 // Ordinary input and the review walk use the same visible ground and obstacles.
 // No physics backlog: at most 0.33m for a walking submission, including boost.
-export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
-  let last={blocked:null,distance:0};
+export function makeGroundNavigation({heightAt,waterAt,rockAt,animal,getRevision=null}) {
+  let last={blocked:null,distance:0},lastPlan=null;
   const probe=(x,z,from)=>{
     const h=heightAt(x,z),distance=from?Math.hypot(x-from.x,z-from.z):0;
     if(waterAt(x,z)-h>.65)return 'deep-water';
@@ -30,7 +30,7 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
     p.y=heightAt(p.x,p.z)+1.75;position.copy(p);
     last={blocked,distance:Math.hypot(p.x-previous.x,p.z-previous.z)};return last;
   }
-  function plan(anchors){
+  function computePlan(anchors){
     if(!anchors?.length||anchors.some(a=>a.length!==2||!a.every(Number.isFinite)))return {passed:false,reason:'Invalid review anchors',points:[]};
     const cache=new Map(),point=(x,z)=>{const key=x+','+z;if(!cache.has(key))cache.set(key,{x,z,h:heightAt(x,z),bad:probe(x,z)});return cache.get(key);};
     const candidates=([x,z])=>{const out=[];for(let dz=-6;dz<=6;dz++)for(let dx=-6;dx<=6;dx++){const p=point(Math.round(x)+dx,Math.round(z)+dz),distance=Math.hypot(p.x-x,p.z-z);if(!p.bad&&distance<=6)out.push({p,distance});}return out.sort((a,b)=>a.distance-b.distance);};
@@ -86,6 +86,13 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
     }
     let length=0;for(let i=1;i<path.length;i++)length+=Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]);
     return {passed:true,points:path,length,seconds:Math.ceil(length/1.55),segments,groundSamples:cache.size,edgeSamples:edges.size};
+  }
+  function plan(anchors){
+    const revision=getRevision?.(),key=JSON.stringify(anchors);
+    if(getRevision&&lastPlan?.key===key&&lastPlan.revision===revision)return {...lastPlan.route,planning:{mode:'cached',revision}};
+    const route=computePlan(anchors);
+    lastPlan=getRevision&&route.passed?{key,revision,route}:null;
+    return {...route,planning:{mode:'computed',revision:revision??null}};
   }
   function audit(anchors,rocks){
     const route=plan(anchors),checks={boundedPlan:route.passed,visibleRockCollision:rocks.some(r=>probe(r.x,r.z)==='rock')};
