@@ -9,7 +9,7 @@ export function resolveWorkload(params) {
   return Object.freeze({
     review:params.get('benchmark')==='1', fixed:params.get('fixedBenchmark')==='1',
     override,desktopTier, maxPixels:requested>0?Math.min(ceiling,Math.floor(requested)):ceiling,
-    maxDimension:tier?tier[1]:override?2048:1280, targetFps:tier||override?60:30,
+    maxDimension:tier?tier[1]:override?2048:1280, targetFps:tier||override?(params.get('frameCap')==='30'?30:60):30,
     deadlineSeconds:tier&&params.get('desktopTrial')==='1'?45:override?20:null,
     // These are temporary quality reductions, separately reported from optimization.
     cloud:{width:desktopTier==='clouds'?3072:1536,height:desktopTier==='clouds'?768:384,steps:desktopTier==='clouds'?240:120,raysPerFrame:12288},
@@ -49,7 +49,7 @@ export class FrameClock {
   snapshot(now) {return {targetFps:1000/this.interval,submittedFrames:this.submittedFrames,callbacks:this.callbacks,activeSeconds:this.activeNow(now)/1000,wallSeconds:(now-this.start)/1000,pausedSeconds:(this.pausedTotal+(this.pauseStart===null?0:now-this.pauseStart))/1000,paused:this.pauseStart!==null};}
 }
 
-const unsafe=['highLoad','desktopTier','desktopTrial','reflectionTerrain','contextLossTest','shaderDiagnostics','diagnostics','workloadReview','reviewDpr','dry','graybox','skyState','contextRecovery','reflectionShadow','shadowBootstrap','linearComposite','timerTest','gpuPass','contractAudit','fixedBenchmark','pixelBudget'];
+const unsafe=['highLoad','desktopTier','desktopTrial','frameCap','reflectionTerrain','contextLossTest','shaderDiagnostics','diagnostics','workloadReview','reviewDpr','dry','graybox','skyState','contextRecovery','reflectionShadow','shadowBootstrap','linearComposite','timerTest','gpuPass','contractAudit','fixedBenchmark','pixelBudget'];
 export function recoveryPlan(href,storedAttempts=0) {
   const url=new URL(href),attempts=Math.max(Number(url.searchParams.get('recoveryAttempt'))||0,Number(storedAttempts)||0);
   if(attempts>=1)return {allowed:false,attempts,url:null};

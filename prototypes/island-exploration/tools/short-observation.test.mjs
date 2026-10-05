@@ -19,6 +19,9 @@ function window(arm='baseline'){
 function check(name,fn){try{fn();cases.push({name,passed:true});}catch(error){cases.push({name,passed:false,error:String(error)});}}
 function rejects(name,change){check(name,()=>{const r=window();change(r);assert.equal(validateTimingObservation(r).valid,false);});}
 rejects('grass diagnostic changes cannot masquerade as stable workload',r=>{r.before.vegetation.diagnosticGrass=false;r.after.vegetation.diagnosticGrass=true;});
+// Before adding the atlas normal scheduling arm: a mixed shader policy is not
+// a stable window, even when geometry, pixels and frame target stay constant.
+rejects('atlas normal scheduling changes invalidate a timing window',r=>{r.before.vegetation.atlasNormalDeferred=true;r.after.vegetation.atlasNormalDeferred=false;});
 check('complete stationary window is valid',()=>assert.equal(validateTimingObservation(window()).valid,true));
 rejects('empty sample cannot pass',r=>r.frames=[]);
 rejects('partial sample is not a complete window',r=>r.reason='user stop');

@@ -7,17 +7,65 @@ export function makeWorkloadReview(renderer,params) {
   const events=[],errors=[],reports=[];
   const original=renderer.render.bind(renderer);
   renderer.render=(...args)=>{renders++;return original(...args)};
+  // Draw counts only: nested in the main pass, never an additive GPU budget.
+  const originalShadow=renderer.shadowMap.render.bind(renderer.shadowMap);
+  renderer.shadowMap.render=(...args)=>{const calls=renderer.info.render.calls,triangles=renderer.info.render.triangles;try{return originalShadow(...args);}finally{if(current&&renderer.info.render.calls>calls)current.shadow={parent:scope,calls:renderer.info.render.calls-calls,triangles:renderer.info.render.triangles-triangles,gpuTime:null};}};
   addEventListener('error',e=>{if(errors.length<64)errors.push(e.message)});
   addEventListener('unhandledrejection',e=>{if(errors.length<64)errors.push(String(e.reason))});
   const panel=document.createElement('section');panel.id='gpu-review';
   panel.style.cssText='position:fixed;bottom:8px;left:8px;z-index:90;background:#122a29ef;color:white;padding:10px;max-width:560px;font:12px system-ui';
-  panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常 · 地形代理</option><option value="fullTerrain">仅完整反射地形</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option><option value="grass">诊断 · 仅停止近草提交</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
+  panel.innerHTML='<strong>受限 GPU 验证 · 无 GPU 查询</strong><div><button id="gpu-s0">验证暂停与预算</button><select id="gpu-arm" aria-label="短实验变量"><option value="baseline">全部正常 · 地形代理</option><option value="fullTerrain">仅完整反射地形</option><option value="pixels">仅半像素</option><option value="cloud">仅冻结云重算</option><option value="reflection">仅冻结反射重画</option><option value="ao">仅停 AO</option><option value="water">仅廉价水着色</option><option value="grass">诊断 · 仅停止近草提交</option><option value="atlasNormals">对照 · 原树林法线调度</option></select><button id="gpu-sample">12 秒短样本</button><button id="gpu-stop">停止并保存</button><button id="gpu-shot">独立截图</button></div><output id="gpu-state">启动调度中</output><pre id="gpu-result" style="max-height:110px;overflow:auto"></pre>';
   document.body.append(panel);
   const auditButton=document.createElement('button');auditButton.textContent='验证云优化等价';auditButton.id='gpu-density-audit';panel.querySelector('div').append(auditButton);
   // Define the protection E2E before adding spectrum observability or changing
   // recovery: normal submissions must advance, then every heavy counter stops;
   // resuming advances active time only. Missing counters fail the evidence.
   const protectionButton=document.createElement('button');protectionButton.id='gpu-protection';protectionButton.textContent='保护流程短验证';panel.querySelector('div').append(protectionButton);
+  // Defined before changing the shader scheduling or blur lifecycle. These
+  // observations are independent of timing/video and always finish paused.
+  const atlasButton=document.createElement('button');atlasButton.id='gpu-atlas-normal';atlasButton.textContent='独立树林法线 HDR 对照';panel.querySelector('div').append(atlasButton);
+  atlasButton.onclick=async()=>{
+    if(!context||terminal||sample||warming||context.benchmark?.active)return;
+    warming=true;const checks={},snapshots=[];
+    try{
+      context.setPaused(false);
+      const a=await context.queueReviewJob(()=>context.auditAtlasNormal(false));if(terminal)return;snapshots.push(state());
+      const b=await context.queueReviewJob(()=>context.auditAtlasNormal(true));if(terminal)return;snapshots.push(state());
+      const s=snapshots[1];checks.sameCameraTimeAndResources=a.time===b.time&&JSON.stringify(a.position)===JSON.stringify(b.position)&&JSON.stringify(a.resources)===JSON.stringify(b.resources);
+      checks.protectedOnly=s.workload.targetFps===30&&s.drawSize[0]*s.drawSize[1]<=921600;
+      const half=n=>{const sign=n&32768?-1:1,e=(n>>>10)&31,f=n&1023;return sign*(e===0?f*2**-24:e===31?(f?NaN:Infinity):(1+f/1024)*2**(e-15));};
+      const comparisons=[];
+      for(let t=0;t<a.targets.length;t++){
+        const x=a.targets[t],y=b.targets[t];let compared=0,different=0,maxAbsolute=0,maxRelative=0;
+        if(x.width===y.width&&x.height===y.height&&x.pixels.length===y.pixels.length)for(let i=0;i<x.pixels.length;i++){if(i%4===3)continue;const av=half(x.pixels[i]),bv=half(y.pixels[i]),abs=Math.abs(av-bv),rel=abs/Math.max(1,Math.abs(av));compared++;maxAbsolute=Math.max(maxAbsolute,abs);maxRelative=Math.max(maxRelative,rel);if(!Number.isFinite(rel)||rel>.002)different++;}
+        comparisons.push({name:x.name,compared,different,maxAbsolute,maxRelative,imagePresent:x.pixels.some(n=>n!==0)&&y.pixels.some(n=>n!==0)});
+      }
+      checks.mainAndMirrorEquivalent=comparisons.length===2&&comparisons.every(c=>c.imagePresent&&c.compared>0&&c.different/c.compared<=.001);
+      checks.originalAnimalsPlantsAndHDR=s.encounter.instances.length===2&&JSON.stringify(snapshots[0].vegetation.counts)===JSON.stringify(s.vegetation.counts)&&s.flow.composition.mode==='linear-hdr';
+      checks.currentShadowAndRestore=s.flow.currentReflectionShadow&&s.flow.reflection.lastTime===s.worldTime&&s.terrain.reflection.mainRestored&&s.flow.reflection.regionRestored;
+      context.setPaused(true);const r=renders;await wait(1100);const p=state();
+      checks.pauseStopsAllWork=r===renders&&s.flow.spectrum.updates===p.flow.spectrum.updates&&s.flow.reflection.updates===p.flow.reflection.updates&&s.skyCache.totalRays===p.skyCache.totalRays;
+      checks.noErrors=!errors.length&&!p.programErrors;
+      await save('atlas-normal-e2e',{passed:Object.values(checks).every(Boolean),checks,comparisons,readbacks:4,readbackBytes:[...a.targets,...b.targets].reduce((n,t)=>n+t.pixels.byteLength,0),snapshots,errors:[...errors]});
+    }catch(error){context.setPaused(true);await save('atlas-normal-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]});}
+    finally{context.setAtlasNormalDeferred?.(true);warming=false;context.setPaused(true);}
+  };
+  const blurButton=document.createElement('button');blurButton.id='gpu-blur';blurButton.textContent='测试入口 · 人为失焦暂停';panel.querySelector('div').append(blurButton);
+  blurButton.onclick=async()=>{
+    if(!context||terminal||sample||warming||context.benchmark?.active)return;
+    warming=true;const checks={},snapshots=[];
+    try{
+      context.setPaused(false);await wait(2200);const a=state();snapshots.push(a);
+      dispatchEvent(new Event('blur'));const r=renders,b=state();snapshots.push(b);
+      dispatchEvent(new Event('focus'));await wait(2200);const c=state();snapshots.push(c);
+      checks.explicitUserPause=b.workload.paused&&b.workload.pauseReasons.includes('user');
+      checks.allGpuStops=r===renders&&b.flow.reflection.updates===c.flow.reflection.updates&&b.flow.spectrum.updates===c.flow.spectrum.updates&&b.skyCache.totalRays===c.skyCache.totalRays&&b.flow.wetMemory.updates===c.flow.wetMemory.updates;
+      checks.worldAndFocusStayPaused=c.workload.paused&&b.worldTime===c.worldTime&&b.workload.activeSeconds===c.workload.activeSeconds;
+      checks.noErrors=!errors.length&&!c.programErrors;
+      await save('blur-pause-e2e',{passed:Object.values(checks).every(Boolean),injection:'synthetic window blur/focus; NOT a system/context fault',checks,snapshots,errors:[...errors]});
+    }catch(error){await save('blur-pause-e2e',{passed:false,checks,snapshots,error:String(error)});}
+    finally{warming=false;context.setPaused(true);}
+  };
   // Explicit rendering E2E, defined before enabling reflection-region cropping.
   // Exactly two separately gated frames; readback is absent from ordinary runs
   // and timing. The full and candidate images share camera, time and resources.
@@ -142,6 +190,7 @@ export function makeWorkloadReview(renderer,params) {
     context.landscape.setReflectionTerrain(arm!=='fullTerrain');
     context.sky.setFrozen(arm==='cloud');
     context.props.setDiagnosticGrass(arm==='grass');
+    context.setAtlasNormalDeferred(arm!=='atlasNormals');
     context.water.setDiagnostic({freezeReflection:arm==='reflection',disableAO:arm==='ao',cheap:arm==='water'});
     context.setPixelScale(arm==='pixels'?Math.SQRT1_2:1);
     panel.dataset.arm=arm;

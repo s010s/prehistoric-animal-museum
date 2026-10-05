@@ -311,7 +311,16 @@ void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=co
  let spray=null,lastW=0,lastH=0,lastFine=null,reflectionMode=()=>{};
  const shadowSun=skyUniforms.skySun.value.clone();
  const pass=(name,fn)=>diagnostics?diagnostics.pass(name,fn):fn();
- const api={setReflectionRegion(value){regionEnabled=Boolean(value);},auditReflectionRegion(scene,camera,time,enabled){
+ const api={auditAtlasNormal(scene,camera,time){
+  if(renderer.domElement.width*renderer.domElement.height>921600||!composite)throw Error('Atlas comparison requires protected linear HDR');
+  api.render(scene,camera,time);
+  const targets=[['linearComposite',composite],['reflection',reflector.getRenderTarget()]].map(([name,target])=>{
+   const pixels=new Uint16Array(target.width*target.height*4);
+   renderer.readRenderTargetPixels(target,0,0,target.width,target.height,pixels);
+   return {name,pixels,width:target.width,height:target.height};
+  });
+  return {targets,position:camera.position.toArray(),time,resources:targets.map(({name,width,height})=>({name,width,height}))};
+ },setReflectionRegion(value){regionEnabled=Boolean(value);},auditReflectionRegion(scene,camera,time,enabled){
   if(renderer.domElement.width*renderer.domElement.height>921600)throw Error('Reflection comparison exceeds protected pixel budget');
   regionEnabled=Boolean(enabled);api.render(scene,camera,time);
   const target=reflector.getRenderTarget(),pixels=new Uint16Array(target.width*target.height*4);

@@ -72,5 +72,15 @@ check('desktop selection is stripped on recovery',()=>{
  assert.equal(p.has('desktopTier'),false);assert.equal(p.has('desktopTrial'),false);
  assert.equal(resolveWorkload(p).targetFps,30);
 });
+// Written before adding the explicit clarity/cadence tradeoff. A selected
+// higher pixel tier may retain 30 Hz; UI/recovery must never lift protection.
+check('clarity and submission cap can be chosen independently within limits',()=>{
+ const p=resolveWorkload(new URLSearchParams('desktopTier=1080&desktopTrial=1&frameCap=30'));
+ assert.equal(p.targetFps,30);assert.equal(p.maxPixels,2073600);assert.equal(p.deadlineSeconds,45);
+ assert.equal(resolveWorkload(new URLSearchParams('frameCap=60')).targetFps,30);
+ assert.equal(resolveWorkload(new URLSearchParams('desktopTier=900&frameCap=120')).targetFps,60);
+ const restored=new URL(recoveryPlan('http://127.0.0.1:4386/?desktopTier=1080&frameCap=30',0).url);
+ assert.equal(restored.searchParams.has('frameCap'),false);
+});
 const out=process.argv[2];if(out){mkdirSync(dirname(resolve(out)),{recursive:true});writeFileSync(out,JSON.stringify({schema:'island-workload-checks-v1',cases,passed:cases.every(c=>c.passed)},null,2))}
 console.log(JSON.stringify(cases,null,2));if(cases.some(c=>!c.passed))process.exitCode=1;
