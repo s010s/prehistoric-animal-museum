@@ -48,6 +48,20 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
     const first=candidates(anchors[0]).find(c=>directions.some(([dx,dz])=>edgeAllowed(c.p,point(c.p.x+dx,c.p.z+dz))))?.p;
     if(!first)return {passed:false,reason:'No accessible start',points:[]};
     const path=[[first.x,first.z]],segments=[];let a=first;
+    // A short final chord can cross a long obstacle. Reuse only the finite,
+    // bidirectionally checked graph of the outbound walk, with no new probes
+    // beyond the ordinary local search box or relaxed movement constraints.
+    const returnOverTraversed=()=>{
+      const graph=new Map(),node=([x,z])=>{const p=point(x,z);if(!graph.has(p))graph.set(p,new Map());return p;};
+      for(let i=1;i<path.length;i++){const p=node(path[i-1]),q=node(path[i]);if(!edgeAllowed(p,q))return null;const d=Math.hypot(q.x-p.x,q.z-p.z);graph.get(p).set(q,d);graph.get(q).set(p,d);}
+      const open=[{p:a,g:0}],scores=new Map([[a,0]]),parents=new Map();let visited=0;
+      while(open.length&&visited<graph.size){
+        let at=0;for(let i=1;i<open.length;i++)if(open[i].g<open[at].g)at=i;const n=open.splice(at,1)[0];if(n.g!==scores.get(n.p))continue;visited++;
+        if(n.p===first){const run=[];for(let p=first;p!==a;p=parents.get(p))run.push([p.x,p.z]);return {run:run.reverse(),visited};}
+        for(const [q,d] of graph.get(n.p)??[]){const g=n.g+d;if(g>=(scores.get(q)??Infinity))continue;scores.set(q,g);parents.set(q,n.p);open.push({p:q,g});}
+      }
+      return null;
+    };
     for(let k=1;k<anchors.length;k++){
       const [ax,az]=anchors[k],closing=k===anchors.length-1&&Math.hypot(ax-anchors[0][0],az-anchors[0][1])<.001;
       const goals=closing?[{p:first,distance:Math.hypot(first.x-ax,first.z-az)}]:candidates(anchors[k]);
@@ -65,8 +79,10 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
           const g=node.g+d;if(g>=(scores.get(key(q))??Infinity))continue;scores.set(key(q),g);parents.set(q,p);open.push({p:q,g,f:g+Math.hypot(ax-x,az-z)});
         }
       }
+      let run=[],mode='local-search',returnVisited=0;
+      if(!best&&closing){const known=returnOverTraversed();if(known){best={p:first,distance:goals[0].distance};run=known.run;mode='traversed-edges';returnVisited=known.visited;}}
       if(!best)return {passed:false,reason:'Bounded path search could not join anchors',segment:k,visited,points:path};
-      const b=best.p,run=[];for(let p=b;p!==a;p=parents.get(p))run.push([p.x,p.z]);path.push(...run.reverse());segments.push({anchor:k,visited,requested:[ax,az],selected:[b.x,b.z],offsetMetres:best.distance});a=b;
+      const b=best.p;if(mode==='local-search'){for(let p=b;p!==a;p=parents.get(p))run.push([p.x,p.z]);run.reverse();}path.push(...run);segments.push({anchor:k,visited,returnVisited,mode,requested:[ax,az],selected:[b.x,b.z],offsetMetres:best.distance});a=b;
     }
     let length=0;for(let i=1;i<path.length;i++)length+=Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]);
     return {passed:true,points:path,length,seconds:Math.ceil(length/1.55),segments,groundSamples:cache.size,edgeSamples:edges.size};
