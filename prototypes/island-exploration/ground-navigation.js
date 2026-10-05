@@ -31,26 +31,34 @@ export function makeGroundNavigation({heightAt,waterAt,rockAt,animal}) {
     last={blocked,distance:Math.hypot(p.x-previous.x,p.z-previous.z)};return last;
   }
   function plan(anchors){
+    if(!anchors?.length||anchors.some(a=>a.length!==2||!a.every(Number.isFinite)))return {passed:false,reason:'Invalid review anchors',points:[]};
     const cache=new Map(),point=(x,z)=>{const key=x+','+z;if(!cache.has(key))cache.set(key,{x,z,h:heightAt(x,z),bad:probe(x,z)});return cache.get(key);};
-    const nearest=([x,z])=>{let best=null,score=Infinity;for(let dz=-6;dz<=6;dz++)for(let dx=-6;dx<=6;dx++){const p=point(Math.round(x)+dx,Math.round(z)+dz),d=Math.hypot(p.x-x,p.z-z);if(!p.bad&&d<score){best=p;score=d;}}return best;};
-    const goals=anchors.map(nearest);if(goals.some(p=>!p))return {passed:false,reason:'No accessible anchor',points:[]};
-    const path=[[goals[0].x,goals[0].z]],segments=[];
-    for(let k=1;k<goals.length;k++){
-      const a=goals[k-1],b=goals[k],key=p=>p.x+','+p.z,open=[{p:a,g:0,f:0}],scores=new Map([[key(a),0]]),parents=new Map();let found=false,visited=0;
-      while(open.length&&visited++<8000){
-        let at=0;for(let i=1;i<open.length;i++)if(open[i].f<open[at].f)at=i;
+    const candidates=([x,z])=>{const out=[];for(let dz=-6;dz<=6;dz++)for(let dx=-6;dx<=6;dx++){const p=point(Math.round(x)+dx,Math.round(z)+dz),distance=Math.hypot(p.x-x,p.z-z);if(!p.bad&&distance<=6)out.push({p,distance});}return out.sort((a,b)=>a.distance-b.distance);};
+    const first=candidates(anchors[0])[0]?.p;if(!first)return {passed:false,reason:'No accessible start',points:[]};
+    const path=[[first.x,first.z]],segments=[];let a=first;
+    for(let k=1;k<anchors.length;k++){
+      const [ax,az]=anchors[k],closing=k===anchors.length-1&&Math.hypot(ax-anchors[0][0],az-anchors[0][1])<.001;
+      const goals=closing?[{p:first,distance:Math.hypot(first.x-ax,first.z-az)}]:candidates(anchors[k]);
+      if(!goals.length)return {passed:false,reason:'No accessible anchor',segment:k,points:path};
+      const key=p=>p.x+','+p.z,goalScores=new Map(goals.map(g=>[key(g.p),g.distance]));
+      const open=[{p:a,g:0,f:0}],scores=new Map([[key(a),0]]),parents=new Map();let best=null,visited=0;
+      while(open.length&&visited<8000){
+        visited++;let at=0;for(let i=1;i<open.length;i++)if(open[i].f<open[at].f)at=i;
         const node=open.splice(at,1)[0],p=node.p;if(node.g!==scores.get(key(p)))continue;
-        if(p===b){found=true;break;}
+        const offset=goalScores.get(key(p));
+        if(offset!==undefined&&(!best||offset<best.distance)){best={p,distance:offset};if(offset<=goals[0].distance+1e-9)break;}
         for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){
-          const x=p.x+dx,z=p.z+dz;if(x<Math.min(a.x,b.x)-18||x>Math.max(a.x,b.x)+18||z<Math.min(a.z,b.z)-18||z>Math.max(a.z,b.z)+18)continue;
+          const x=p.x+dx,z=p.z+dz;if(x<Math.min(a.x,ax)-18||x>Math.max(a.x,ax)+18||z<Math.min(a.z,az)-18||z>Math.max(a.z,az)+18)continue;
           const q=point(x,z),d=Math.hypot(dx,dz);if(q.bad||Math.abs(q.h-p.h)>d*.8+1e-4)continue;
-          // Check intervening positions, not just grid nodes or their heights.
-          let blocked=false;for(let j=1;j<=4;j++)if(probe(p.x+dx*j/4,p.z+dz*j/4,{x:p.x+dx*(j-1)/4,z:p.z+dz*(j-1)/4})){blocked=true;break;}if(blocked)continue;
-          const g=node.g+d;if(g>=(scores.get(key(q))??Infinity))continue;scores.set(key(q),g);parents.set(q,p);open.push({p:q,g,f:g+Math.hypot(b.x-x,b.z-z)});
+          // Fine probes use the ordinary movement constraints. A coarse
+          // quarter-node average can hide a local lip that real walking hits.
+          const steps=Math.ceil(d/.05);let blocked=false;
+          for(let j=1;j<=steps;j++)if(probe(p.x+dx*j/steps,p.z+dz*j/steps,{x:p.x+dx*(j-1)/steps,z:p.z+dz*(j-1)/steps})){blocked=true;break;}if(blocked)continue;
+          const g=node.g+d;if(g>=(scores.get(key(q))??Infinity))continue;scores.set(key(q),g);parents.set(q,p);open.push({p:q,g,f:g+Math.hypot(ax-x,az-z)});
         }
       }
-      if(!found)return {passed:false,reason:'Bounded path search could not join anchors',segment:k,visited,points:path};
-      const run=[];for(let p=b;p!==a;p=parents.get(p))run.push([p.x,p.z]);path.push(...run.reverse());segments.push({anchor:k,visited});
+      if(!best)return {passed:false,reason:'Bounded path search could not join anchors',segment:k,visited,points:path};
+      const b=best.p,run=[];for(let p=b;p!==a;p=parents.get(p))run.push([p.x,p.z]);path.push(...run.reverse());segments.push({anchor:k,visited,requested:[ax,az],selected:[b.x,b.z],offsetMetres:best.distance});a=b;
     }
     let length=0;for(let i=1;i<path.length;i++)length+=Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]);
     return {passed:true,points:path,length,seconds:Math.ceil(length/1.55),segments,groundSamples:cache.size};
