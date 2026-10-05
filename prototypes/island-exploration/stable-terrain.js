@@ -3,6 +3,7 @@ import {trailX} from './habitat.js'
 import {forestSpring} from './spring.js'
 import {SIZE,terrainHeight,riverX,halfWidth,tributaryX,waterLevelAt} from './field.js'
 import {surfaceSample} from './surface-sample.js'
+import {buildReflectionRange} from './reflection-range.js'
 const ROOT=64,CHUNK=2048,N=SIZE/ROOT
 // The tessellation belongs to the island, never to a moving camera. Flat sea
 // retains a coarse grid; channels, shorelines and crags get fixed fine cells.
@@ -47,4 +48,4 @@ export function buildStableTerrain({reflection=false}={}){
  chunks.audit={stepRoots:Object.fromEntries([.5,1,2,4,8,16,32,64].map(s=>[s,steps.reduce((n,v)=>n+(v===s?1:0),0)])),contactRoots:contacts.reduce((n,v)=>n+v,0),reflectionMinimumMetres:reflection?32:null};
  return chunks
 }
-if(typeof self!=='undefined'&&typeof document==='undefined'){self.onmessage=()=>{const chunks=buildStableTerrain(),proxy=buildStableTerrain({reflection:true}),reflectionChunks=proxy.map((r,i)=>r.indices.length===chunks[i].indices.length?null:r);const buffers=[...chunks,...reflectionChunks.filter(Boolean)].flatMap(r=>[r.p.buffer,r.n.buffer,r.w.buffer,r.shade.buffer,r.water.buffer,r.coast.buffer,r.seepWet.buffer,r.indices.buffer]);self.postMessage({chunks,reflectionChunks,terrainAudit:{main:chunks.audit,proxy:proxy.audit}},buffers)};self.postMessage({ready:true})}
+if(typeof self!=='undefined'&&typeof document==='undefined'){self.onmessage=()=>{const chunks=buildStableTerrain(),proxy=buildStableTerrain({reflection:true}),reflectionChunks=proxy.map((r,i)=>r.indices.length===chunks[i].indices.length?null:r);const reflectionRanges=chunks.map((r,i)=>buildReflectionRange((reflectionChunks[i]??r).indices,(reflectionChunks[i]??r).p));for(let i=0;i<reflectionChunks.length;i++)if(reflectionChunks[i]&&reflectionRanges[i])reflectionChunks[i].indices=reflectionRanges[i].indices;const buffers=[...new Set([...chunks,...reflectionChunks.filter(Boolean)].flatMap(r=>[r.p.buffer,r.n.buffer,r.w.buffer,r.shade.buffer,r.water.buffer,r.coast.buffer,r.seepWet.buffer,r.indices.buffer]).concat(reflectionRanges.filter(Boolean).flatMap(r=>[r.indices.buffer,r.heights.buffer,r.starts.buffer])))];self.postMessage({chunks,reflectionChunks,reflectionRanges,terrainAudit:{main:chunks.audit,proxy:proxy.audit}},buffers)};self.postMessage({ready:true})}

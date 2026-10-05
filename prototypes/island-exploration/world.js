@@ -1,3 +1,4 @@
+import {reflectionDrawStart} from './reflection-range.js'
 import {regionPathField} from './sample-region.js'
 import {canopyLighting} from './canopy-light.js'
 import * as T from 'three'
@@ -131,14 +132,14 @@ export async function groundMaterial(){
 
 function geometry(r){const g=new T.BufferGeometry();g.setIndex(new T.BufferAttribute(r.indices,1));g.setAttribute('position',new T.BufferAttribute(r.p,3));g.setAttribute('normal',new T.BufferAttribute(r.n,3));g.setAttribute('surfaceBlend',new T.BufferAttribute(r.w,3));g.setAttribute('landShade',new T.BufferAttribute(r.shade,1));g.setAttribute('waterHeight',new T.BufferAttribute(r.water,1));g.setAttribute('coastalInfluence',new T.BufferAttribute(r.coast,1));g.setAttribute('seepWet',new T.BufferAttribute(r.seepWet??new Float32Array(r.p.length/3),1));g.computeBoundingSphere();return g}
 export function makeLandscape(material,apply,getFine=()=>false,diagnostics){
- const group=new T.Group(),collision=new Map(),mirrorMeshes=[];let readyResolve,pending=true,triangles=0,vertices=0,mirrorTriangles=0,mirrorActive=false,terrainAudit=null;
+ const group=new T.Group(),collision=new Map(),mirrorMeshes=[],localClip=new T.Plane(),clipInverse=new T.Matrix4();let readyResolve,pending=true,triangles=0,vertices=0,mirrorTriangles=0,mirrorActive=false,terrainAudit=null;
  let reflectionProxy=new URLSearchParams(location.search).get('reflectionTerrain')!=='full';
  diagnostics?.labelGroup(group,'terrain');
  const ready=new Promise(resolve=>readyResolve=resolve)
  const worker=new Worker(new URL('./stable-terrain.js',import.meta.url),{type:'module'})
  worker.onmessage=({data})=>{
   if(data.ready){worker.postMessage({build:true});return}
-  const consumeStart=performance.now();const {chunks,reflectionChunks}=data;terrainAudit=data.terrainAudit
+  const consumeStart=performance.now();const {chunks,reflectionChunks,reflectionRanges}=data;terrainAudit=data.terrainAudit
   for(const r of chunks){
    // Index the exact rendered triangles, including stitched boundaries.
    const bins=new Map();for(let t=0;t<r.indices.length;t+=3){const a=r.indices[t]*3,b=r.indices[t+1]*3,c=r.indices[t+2]*3;
@@ -146,7 +147,7 @@ export function makeLandscape(material,apply,getFine=()=>false,diagnostics){
     for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){const key=x+','+z;if(!bins.has(key))bins.set(key,[]);bins.get(key).push(t);}}
    for(const[key,list]of bins)collision.set(key,{p:r.p,ix:r.indices,list:new Uint32Array(list)});
    const mesh=new T.Mesh(geometry(r),material),proxy=reflectionChunks[chunks.indexOf(r)];
-   mirrorMeshes.push({mesh,main:mesh.geometry,mirror:proxy?geometry(proxy):mesh.geometry});mirrorTriangles+=(proxy??r).indices.length/3;
+   const range=reflectionRanges?.[chunks.indexOf(r)]??null,mirror=proxy?geometry(proxy):new T.BufferGeometry();if(!proxy){for(const[name,a]of Object.entries(mesh.geometry.attributes))mirror.setAttribute(name,a);mirror.boundingSphere=mesh.geometry.boundingSphere.clone();}mirror.setIndex(new T.BufferAttribute(range?.indices??(proxy??r).indices.slice(),1));mirrorMeshes.push({mesh,main:mesh.geometry,mirror,range,clip:{x:0,y:1,z:0,w:0},originalDrawStart:mesh.geometry.drawRange.start,originalDrawCount:mesh.geometry.drawRange.count});mirrorTriangles+=(proxy??r).indices.length/3;
    mesh.receiveShadow=true;apply?.(mesh);group.add(mesh);triangles+=r.indices.length/3;vertices+=r.p.length/3}
   // Refine only dense collision buckets; keep their exact original triangle ownership.
   for(const cell of collision.values())if(cell.list.length>1024){
@@ -167,5 +168,5 @@ export function makeLandscape(material,apply,getFine=()=>false,diagnostics){
  // Three.js performs separate frustum culling for the main, reflection and shadow
  // cameras. Main geometry and collision never change with distance or quality.
  const heightAt=(x,z)=>{const cell=collision.get(Math.floor(x/64)+','+Math.floor(z/64));if(!cell)return terrainHeight(x,z);const {p,ix}=cell,list=cell.secondary?.get(Math.floor(x/8)+','+Math.floor(z/8))??cell.list;let h=-Infinity;for(const t of list){const a=ix[t]*3,b=ix[t+1]*3,c=ix[t+2]*3,ax=p[a],az=p[a+2],bx=p[b],bz=p[b+2],cx=p[c],cz=p[c+2],den=(bz-cz)*(ax-cx)+(cx-bx)*(az-cz);if(Math.abs(den)<1e-8)continue;const u=((bz-cz)*(x-cx)+(cx-bx)*(z-cz))/den,v=((cz-az)*(x-cx)+(ax-cx)*(z-cz))/den;if(u>=-1e-6&&v>=-1e-6&&u+v<=1.000001)h=Math.max(h,u*p[a+1]+v*p[b+1]+(1-u-v)*p[c+1]);}return Number.isFinite(h)?h:terrainHeight(x,z)};
- return {group,ready,heightAt,update(){},setReflectionTerrain(value){reflectionProxy=Boolean(value);},reflectionMode(active){mirrorActive=active;for(const r of mirrorMeshes)r.mesh.geometry=active&&reflectionProxy?r.mirror:r.main;},dispose(){worker.terminate();for(const r of mirrorMeshes){r.main.dispose();if(r.mirror!==r.main)r.mirror.dispose();}collision.clear();},status:()=>({pending,revision:pending?0:1,mode:'fixed-geography',chunks:group.children.length,triangles,vertices,joined:true,riverDetailMetres:8,terrainAudit,reflection:{mode:reflectionProxy?'fixed-proxy':'full',triangles:reflectionProxy?mirrorTriangles:triangles,proxyGeometries:mirrorMeshes.filter(r=>r.main!==r.mirror).length,shoreContactPreserved:true,mainRestored:!mirrorActive&&mirrorMeshes.every(r=>r.mesh.geometry===r.main)}})}
+ return {group,ready,heightAt,update(){},setReflectionTerrain(value){reflectionProxy=Boolean(value);},reflectionMode(active,plane=null){mirrorActive=active;for(const r of mirrorMeshes){r.mesh.geometry=active&&reflectionProxy?r.mirror:r.main;if(active&&reflectionProxy){if(plane){localClip.copy(plane).applyMatrix4(clipInverse.copy(r.mesh.matrixWorld).invert());r.clip.x=localClip.normal.x;r.clip.y=localClip.normal.y;r.clip.z=localClip.normal.z;r.clip.w=localClip.constant;}const start=plane?reflectionDrawStart(r.range,r.clip):0;r.mirror.setDrawRange(start,r.mirror.index.count-start);}}},auditReflectionClip(){let checkedSkippedTriangles=0,failures=0;for(const r of mirrorMeshes){const p=r.mirror.attributes.position.array,ix=r.mirror.index.array;for(let i=0;i<r.mirror.drawRange.start;i+=3){checkedSkippedTriangles++;for(let j=0;j<3;j++){const k=ix[i+j]*3;if(!(r.clip.x*p[k]+r.clip.y*p[k+1]+r.clip.z*p[k+2]+r.clip.w<0))failures++;}}}return {passed:failures===0,checkedSkippedTriangles,failures,oracle:'every excluded vertex outside actual geometry-space mirror near plane; no GL'};},dispose(){worker.terminate();for(const r of mirrorMeshes){r.main.dispose();if(r.mirror!==r.main)r.mirror.dispose();}collision.clear();},status:()=>({pending,revision:pending?0:1,mode:'fixed-geography',chunks:group.children.length,triangles,vertices,joined:true,riverDetailMetres:8,terrainAudit,reflection:{mode:reflectionProxy?'fixed-proxy':'full',triangles:reflectionProxy?mirrorTriangles:triangles,proxyGeometries:mirrorMeshes.filter(r=>r.main!==r.mirror).length,clip:{culledTriangles:mirrorMeshes.reduce((n,r)=>n+r.mirror.drawRange.start/3,0),indexBytes:mirrorMeshes.reduce((n,r)=>n+r.mirror.index.array.byteLength,0),mainDrawRangesPreserved:mirrorMeshes.every(r=>r.main.drawRange.start===r.originalDrawStart&&r.main.drawRange.count===r.originalDrawCount)},shoreContactPreserved:true,mainRestored:!mirrorActive&&mirrorMeshes.every(r=>r.mesh.geometry===r.main)}})}
 }

@@ -94,7 +94,7 @@ const landscape=makeLandscape(await groundMaterial(),o=>air.apply(o),()=>fine,ob
 const water=await makeWater(renderer,camera,riverRocks,sky.uniforms,()=>fine,observer,()=>!shadowBootstrap||Boolean(sun.shadow.map))
 $('#load-detail').textContent='铺开森林、岩岸和潮汐河谷…'
 await landscape.ready;
-const props=await makeProps(renderer,o=>air.apply(o),()=>fine,observer,(x,z)=>landscape.heightAt(x,z),waitForWork);scene.add(props.group);air.apply(props.group);water.setReflectionMode(active=>{landscape.reflectionMode(active);props.reflectionMode(active);});const cliffs=await makeCliffs(habitat);scene.add(cliffs);observer?.labelGroup(cliffs,'cliffs');air.apply(cliffs)
+const props=await makeProps(renderer,o=>air.apply(o),()=>fine,observer,(x,z)=>landscape.heightAt(x,z),waitForWork);scene.add(props.group);air.apply(props.group);water.setReflectionMode((active,plane)=>{landscape.reflectionMode(active,plane);if(!plane)props.reflectionMode(active);});const cliffs=await makeCliffs(habitat);scene.add(cliffs);observer?.labelGroup(cliffs,'cliffs');air.apply(cliffs)
 if(params.get('graybox')==='1'){scene.overrideMaterial=new T.MeshLambertMaterial({color:'#9da9a0'});props.group.visible=false;}
 const walkingHeight=(x,z)=>Math.max(landscape.heightAt(x,z),cliffs.userData.heightAt(x,z));
 const navigationHeight=(x,z)=>walking||benchmark?.groundRouteActive?walkingHeight(x,z):Math.max(surfaceHeight(x,z),walkingHeight(x,z));

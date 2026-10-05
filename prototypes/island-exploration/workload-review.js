@@ -68,13 +68,17 @@ export function makeWorkloadReview(renderer,params) {
       checks.shoreContactGridPreserved=p?.shoreContactPreserved===true;
       checks.mirrorEveryFrame=b.flow.reflection?.lastTime===b.worldTime&&b.flow.reflection?.updates-a.flow.reflection?.updates===b.workload.submittedFrames-a.workload.submittedFrames;
       checks.currentShadowBeforeMirror=b.flow.currentReflectionShadow===true;
+      const clipping=context.landscape.auditReflectionClip?.();
+      checks.clipNeverSkipsVisibleTriangles=clipping?.passed===true&&clipping.checkedSkippedTriangles>0;
+      checks.currentMirrorClipPlane=b.flow.reflection.clipPlane?.time===b.worldTime&&b.flow.reflection.clipPlane?.source==='current-camera-near-plane';
+      checks.mainDrawRangesPreserved=p?.clip?.mainDrawRangesPreserved===true;
       checks.animalsAndLinearHDR=b.encounter.instances.length===2&&b.flow.composition.mode==='linear-hdr';
       context.setPaused(true);const r=renders;await wait(1100);const c=state();snapshots.push(c);
       checks.pauseStopsMirror=r===renders&&b.flow.reflection?.updates===c.flow.reflection?.updates;
       const walk=await context.auditWalk?.();
       checks.walkConstraints=walk?.passed===true;
       checks.noRuntimeOrShaderErrors=!errors.length&&!b.programErrors;
-      await save('reflection-walk-e2e',{passed:Object.values(checks).every(Boolean),checks,snapshots,walk:walk??null,errors:[...errors]});
+      await save('reflection-walk-e2e',{passed:Object.values(checks).every(Boolean),checks,snapshots,walk:walk??null,clipping,errors:[...errors]});
     }catch(error){context.setPaused(true);await save('reflection-walk-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]});}
     finally{warming=false;context.setPaused(true);}
   };
