@@ -11,6 +11,7 @@ import {contactOcclusionGLSL} from './contact-occlusion.js'
 import {riverReach} from './hydrology.js'
 import {makeFlowField} from './flow-field.js'
 import {Reflector} from 'three/addons/objects/Reflector.js'
+import {buildWaterRegions,reflectionRegion,cropProjection} from './reflection-region.js'
 import {SEA,riverX,halfWidth,riverLevel,lake,wetland,wetlandLevel,tarn,tributaryX,tributaryLevel,waterLevelAt,bankWaterLevelAt,terrainHeight} from './field.js'
 export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>false,diagnostics,shadowReady=()=>true){
  const shore=await shoreResources(),exposureMeter=makeExposureMeter(),spectrum=makeOceanSpectrum();
@@ -229,10 +230,47 @@ export async function makeWater(renderer,camera,rocks,skyUniforms,getFine=()=>fa
  }`})
  mat.defaultAttributeValues.springBedDepth=[0];mat.defaultAttributeValues.springHalfWidth=[0];mat.defaultAttributeValues.springEnergy=[0,0];mat.defaultAttributeValues.springDistance=[0];
  const geometryAudit={partitionedBodies:0,inputIndices:0,outputIndices:0,indexOrderPreserved:true,staticChunks:0};
+ const reflectionSupport=[],preparedSupport=[],activeSupport=[],supportScratch=new Float64Array(6),supportFrustum=new T.Frustum(),supportProjection=new T.Matrix4(),worldTexture=new T.Matrix4(),reflectorInverse=new T.Matrix4(),savedMirrorProjection=new T.Matrix4(),savedMirrorInverse=new T.Matrix4(),savedMirrorViewport=new T.Vector4(),savedMirrorScissor=new T.Vector4();
+ const supportPlanes=Array.from({length:9},()=>new Float64Array(4)),waveHeightBound=spectrum.heightBound+.35*(.56+.37+.19)+.01;
+ let supportKnown=true,regionEnabled=true,lastRegion=null,lastRegionRestored=true,cropCamera=null,savedScissorTest=false;
+ let shoreMin=Infinity,shoreMax=-Infinity;for(const h of shore.shoreHeight.value.image.data){shoreMin=Math.min(shoreMin,h);shoreMax=Math.max(shoreMax,h);}
+ function supportFor(geometry,kind){
+  const grid=geometry.userData.waterGrid??(geometry.parameters?.widthSegments&&geometry.parameters?.heightSegments?{cols:geometry.parameters.widthSegments,rows:geometry.parameters.heightSegments}:null),regions=buildWaterRegions(geometry.attributes.position.array,geometry.index?.array,grid);
+  if(!regions){supportKnown=false;return;}
+  for(const bounds of regions){reflectionSupport.push({bounds,ocean:kind<1||kind>=4,moving:kind<1});preparedSupport.push(new Float64Array(6));}
+ }
+ function prepareRegion(camera,level,target){
+  if(!regionEnabled||!supportKnown)return {mode:'full',reason:regionEnabled?'unknown-support':'explicit-reference',x:0,y:0,width:target.width,height:target.height,areaRatio:1};
+  supportProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);supportFrustum.setFromProjectionMatrix(supportProjection,T.WebGLCoordinateSystem,camera.reversedDepth);
+  for(let i=0;i<6;i++){const p=supportFrustum.planes[i],v=supportPlanes[i];v[0]=p.normal.x;v[1]=p.normal.y;v[2]=p.normal.z;v[3]=p.constant;}
+  const view=camera.matrixWorldInverse.elements,depth=supportPlanes[6];depth[0]=view[2];depth[1]=view[6];depth[2]=view[10];depth[3]=view[14]+650;supportPlanes[7][1]=1;supportPlanes[7][3]=12-level;supportPlanes[8][1]=-1;supportPlanes[8][3]=12+level;
+  const projection=camera.projectionMatrix.elements,maxDistance=650*Math.sqrt(1+((1+Math.abs(projection[8]))/projection[0])**2+((1+Math.abs(projection[9]))/projection[5])**2)+.2;activeSupport.length=0;
+  for(let i=0;i<reflectionSupport.length;i++){
+   const {bounds,ocean,moving}=reflectionSupport[i],b=preparedSupport[i];b.set(bounds);
+   if(moving){b[0]+=camera.position.x;b[3]+=camera.position.x;b[2]+=camera.position.z;b[5]+=camera.position.z;}
+   // Cover highp arithmetic/translation rounding before restricting support.
+   for(let a=0;a<3;a++){b[a]-=.1;b[a+3]+=.1;}
+   // Every visible contributor has view depth <=650; the perspective cone
+   // gives a conservative world-distance bound. Only reject entire cells:
+   // their original far vertices must still bound interpolated water height.
+   if(b[0]>camera.position.x+maxDistance||b[3]<camera.position.x-maxDistance||b[2]>camera.position.z+maxDistance||b[5]<camera.position.z-maxDistance)continue;
+   if(ocean){
+    b[1]=SEA-waveHeightBound-.1;b[4]=SEA+waveHeightBound+.1;
+    if(b[2]<2800&&b[5]>-4070){
+     let left=Infinity,right=-Infinity;const lo=Math.min(850,Math.max(0,Math.floor((b[2]+4000)/8)-1)),hi=Math.max(0,Math.min(850,Math.ceil((b[5]+4000)/8)+1));
+     for(let row=lo;row<=hi;row++){const rx=coverageData[row*4],radius=coverageData[row*4+1]+120;left=Math.min(left,rx-radius);right=Math.max(right,rx+radius);}
+     if(b[0]<=right&&b[3]>=left)b[4]+=Math.max(0,riverLevel(b[2])+.7)+.001;
+    }
+    for(const cell of [SHORE,ESTUARY_SHORE])if(b[0]<=cell.x+cell.size*.5&&b[3]>=cell.x-cell.size*.5&&b[2]<=cell.z+cell.size*.5&&b[5]>=cell.z-cell.size*.5){b[1]=Math.min(b[1],shoreMin-.1,-.92);b[4]=Math.max(b[4],shoreMax+.16,-.27);}
+   }else{b[1]-=waveHeightBound;b[4]+=waveHeightBound;}
+   activeSupport.push(b);
+  }
+  return reflectionRegion(activeSupport,supportPlanes,worldTexture.elements,level,target.width,target.height,supportScratch);
+ }
  function add(g,flow,kind=2){
   g.setAttribute('waterKind',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count).fill(kind),1));if(!g.attributes.velocity)g.setAttribute('velocity',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2).map((_,i)=>flow[i%2]),2));if(!g.attributes.riverCoord)g.setAttribute('riverCoord',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
   const fixed=kind>=1&&kind<4;
-  const install=geometry=>{const m=new T.Mesh(geometry,mat);m.frustumCulled=fixed;if(fixed){const box=new T.Box3(),p=geometry.attributes.position,v=new T.Vector3();for(let i=0;i<(geometry.index?.count??p.count);i++){v.fromBufferAttribute(p,geometry.index?geometry.index.getX(i):i);box.expandByPoint(v);}box.expandByScalar(8);geometry.boundingBox=box;geometry.boundingSphere=box.getBoundingSphere(new T.Sphere());geometryAudit.staticChunks++;}waterScene.add(m);return m;};
+  const install=geometry=>{const m=new T.Mesh(geometry,mat);m.frustumCulled=fixed;if(fixed){const box=new T.Box3(),p=geometry.attributes.position,v=new T.Vector3();for(let i=0;i<(geometry.index?.count??p.count);i++){v.fromBufferAttribute(p,geometry.index?geometry.index.getX(i):i);box.expandByPoint(v);}box.expandByScalar(8);geometry.boundingBox=box;geometry.boundingSphere=box.getBoundingSphere(new T.Sphere());geometryAudit.staticChunks++;}supportFor(geometry,kind);waterScene.add(m);return m;};
   if(!fixed||!g.index||g.index.count<=6144)return install(g);
   // Keep vertex identity, triangle order and shader inputs. Only index ownership
   // changes, so distant river/spring reaches can be rejected before shading.
@@ -269,16 +307,53 @@ void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=co
  let spray=null,lastW=0,lastH=0,lastFine=null,reflectionMode=()=>{};
  const shadowSun=skyUniforms.skySun.value.clone();
  const pass=(name,fn)=>diagnostics?diagnostics.pass(name,fn):fn();
- return {setDiagnostic({freezeReflection=false,disableAO=false,cheap=false}={}){reflectionFrozen=freezeReflection;aoDisabled=disableAO;u.cheapWater.value=cheap?1:0;},dispose(){field.dispose();spectrum.dispose?.();wetMemory?.dispose();disposeLinearComposite();opaque.dispose();reflector.dispose();waterScene.traverse(o=>o.geometry?.dispose());mat.dispose();copy.dispose();output?.dispose();removeEventListener('pagehide',disposeWetOnExit);},disposeLinearComposite,disposeShoreWetMemory:()=>wetMemory?.dispose(),auditMaterials:()=>({copy,water:mat,spray:spray?.material,output}),resources:()=>[['opaque',opaque],['reflection',reflector.getRenderTarget()],...(composite&&!compositeDisposed?[['linearComposite',composite]]:[]),...spectrum.resources(),...(wetMemory?.resources()??[])],setReflectionMode:fn=>reflectionMode=fn,setDebug:value=>u.debug.value=value,status:()=>({spectrum:spectrum.status(),currentReflectionShadow,reflection:{updates:reflectionUpdates,lastTime:lastReflectionTime,clipPlane:lastClipTime===null?null:{source:'current-camera-near-plane',time:lastClipTime,normal:lastClipPlane.normal.toArray(),constant:lastClipPlane.constant}},geometryAudit:{...geometryAudit},diagnostic:{reflectionFrozen,reflectionReady,aoDisabled,cheapWater:u.cheapWater.value===1},composition:{mode:linearComposite?'linear-hdr':'legacy-display',width:composite?.width??0,height:composite?.height??0,disposed:compositeDisposed,outputDraws:linearComposite?1:0,order:['opaque-current-shadow','reflection','linear-ao-copy','linear-water-spray','display-output']},debug:u.debug.value,wetMemory:wetMemory?.status()??null,...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){restoreLinearComposite();if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine&&!aoDisabled?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);composite?.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;wetMemory?.update(renderer,time,diagnostics);field.update(camera);spectrum.update(renderer,time,diagnostics);
+ const api={setReflectionRegion(value){regionEnabled=Boolean(value);},auditReflectionRegion(scene,camera,time,enabled){
+  if(renderer.domElement.width*renderer.domElement.height>921600)throw Error('Reflection comparison exceeds protected pixel budget');
+  regionEnabled=Boolean(enabled);api.render(scene,camera,time);
+  const target=reflector.getRenderTarget(),pixels=new Uint16Array(target.width*target.height*4);
+  renderer.readRenderTargetPixels(target,0,0,target.width,target.height,pixels);
+  return {pixels,width:target.width,height:target.height,samples:target.samples,position:camera.position.toArray(),time,region:lastRegion,restored:lastRegionRestored};
+ },setDiagnostic({freezeReflection=false,disableAO=false,cheap=false}={}){reflectionFrozen=freezeReflection;aoDisabled=disableAO;u.cheapWater.value=cheap?1:0;},dispose(){field.dispose();spectrum.dispose?.();wetMemory?.dispose();disposeLinearComposite();opaque.dispose();reflector.dispose();waterScene.traverse(o=>o.geometry?.dispose());mat.dispose();copy.dispose();output?.dispose();removeEventListener('pagehide',disposeWetOnExit);},disposeLinearComposite,disposeShoreWetMemory:()=>wetMemory?.dispose(),auditMaterials:()=>({copy,water:mat,spray:spray?.material,output}),resources:()=>[['opaque',opaque],['reflection',reflector.getRenderTarget()],...(composite&&!compositeDisposed?[['linearComposite',composite]]:[]),...spectrum.resources(),...(wetMemory?.resources()??[])],setReflectionMode:fn=>reflectionMode=fn,setDebug:value=>u.debug.value=value,status:()=>({spectrum:spectrum.status(),currentReflectionShadow,reflection:{updates:reflectionUpdates,lastTime:lastReflectionTime,regionEnabled,region:lastRegion,regionRestored:lastRegionRestored,supportRegions:reflectionSupport.length,supportBytes:reflectionSupport.length*6*8*2,clipPlane:lastClipTime===null?null:{source:'current-camera-near-plane',time:lastClipTime,normal:lastClipPlane.normal.toArray(),constant:lastClipPlane.constant}},geometryAudit:{...geometryAudit},diagnostic:{reflectionFrozen,reflectionReady,reflectionRegionEnabled:regionEnabled,aoDisabled,cheapWater:u.cheapWater.value===1},composition:{mode:linearComposite?'linear-hdr':'legacy-display',width:composite?.width??0,height:composite?.height??0,disposed:compositeDisposed,outputDraws:linearComposite?1:0,order:['opaque-current-shadow','reflection','linear-ao-copy','linear-water-spray','display-output']},debug:u.debug.value,wetMemory:wetMemory?.status()??null,...field.status(),exposure:exposureMeter.status(),pending:field.status().pending||ripplePending,error:field.status().error||rippleError}),setTerrainDepth(data,size,span){const tx=new T.DataTexture(data,size,size,T.RedFormat);tx.minFilter=tx.magFilter=T.LinearFilter;tx.needsUpdate=true;u.coastDepth.value.dispose();u.coastDepth.value=tx;u.terrainSpan.value=span;},render(scene,camera,time){restoreLinearComposite();if(!spray){spray=makeRockSpray(rocks,u);waterScene.add(spray)}u.oceanCenter.value.set(camera.position.x,camera.position.z);const fine=getFine();u.aoEnabled.value=fine&&!aoDisabled?1:0;if(fine!==lastFine){opaque.samples=habitat?(fine?4:2):0;opaque.dispose();reflector.getRenderTarget().setSize(fine?512:320,fine?512:320);lastFine=fine}renderer.getDrawingBufferSize(resolution);if(resolution.x!==lastW||resolution.y!==lastH){opaque.setSize(resolution.x,resolution.y);composite?.setSize(resolution.x,resolution.y);lastW=resolution.x;lastH=resolution.y}u.time.value=time;shoreTime.value=time;wetMemory?.update(renderer,time,diagnostics);field.update(camera);spectrum.update(renderer,time,diagnostics);
  // Reflections use the current main shadow coverage, including camera cuts.
  const sunChanged=!shadowSun.equals(skyUniforms.skySun.value),shadowMissing=!shadowReady();
  const renderOpaque=()=>{renderer.setRenderTarget(opaque);pass('mainInclusiveShadow',()=>{renderer.clear();renderer.render(scene,camera)});shadowSun.copy(skyUniforms.skySun.value)},primeShadow=currentReflectionShadow||shadowMissing||sunChanged;
  if(primeShadow){renderOpaque();if(shadowMissing||sunChanged)diagnostics?.event(sunChanged?'shadow-sun-change':'shadow-bootstrap',{reordered:true})}
  const localSpring=springAt(camera.position.x,camera.position.z),level=localSpring?.level??waterLevelAt(camera.position.x,camera.position.z);
  if(!reflectionFrozen||!reflectionReady){ // Render the planar image for every visible frame; no 8/12 Hz stepping.
- u.reflectionY.value=level;reflector.position.y=level;reflector.updateMatrixWorld();const shadowUpdate=renderer.shadowMap.autoUpdate,sceneBefore=scene.onBeforeRender;renderer.shadowMap.autoUpdate=false;try{reflectionMode(true);scene.onBeforeRender=function(r,s,c,target){if(target===reflector.getRenderTarget()){mirrorProjection.multiplyMatrices(c.projectionMatrix,c.matrixWorldInverse);mirrorFrustum.setFromProjectionMatrix(mirrorProjection,T.WebGLCoordinateSystem,c.reversedDepth);lastClipPlane.copy(mirrorFrustum.planes[5]);lastClipTime=time;reflectionMode(true,lastClipPlane);}sceneBefore.call(this,r,s,c,target);};pass('planarReflection',()=>reflector.onBeforeRender(renderer,scene,camera));reflectionUpdates++;lastReflectionTime=time;}finally{scene.onBeforeRender=sceneBefore;try{reflectionMode(false);}finally{renderer.shadowMap.autoUpdate=shadowUpdate;}}reflectionReady=true;u.reflectionMatrix.value.copy(reflector.material.uniforms.textureMatrix.value).multiply(new T.Matrix4().copy(reflector.matrixWorld).invert());
+ u.reflectionY.value=level;reflector.position.y=level;reflector.updateMatrixWorld();
+ const shadowUpdate=renderer.shadowMap.autoUpdate,sceneBefore=scene.onBeforeRender,mirrorTarget=reflector.getRenderTarget(),previousTarget=renderer.getRenderTarget(),xrEnabled=renderer.xr.enabled;
+ savedMirrorViewport.copy(mirrorTarget.viewport);savedMirrorScissor.copy(mirrorTarget.scissor);savedScissorTest=mirrorTarget.scissorTest;cropCamera=null;lastRegionRestored=false;renderer.shadowMap.autoUpdate=false;
+ try{
+  reflectionMode(true);
+  scene.onBeforeRender=function(r,s,c,target){
+   if(target===mirrorTarget){
+    worldTexture.copy(reflector.material.uniforms.textureMatrix.value).multiply(reflectorInverse.copy(reflector.matrixWorld).invert());
+    lastRegion=prepareRegion(camera,level,target);
+    if(lastRegion.mode==='crop'){
+     cropCamera=c;savedMirrorProjection.copy(c.projectionMatrix);savedMirrorInverse.copy(c.projectionMatrixInverse);
+     // Clear the full image first. Previously used texels can never survive a
+     // camera cut or expanding crop; the subsequent automatic clear is scoped.
+     r.clear();cropProjection(savedMirrorProjection.elements,lastRegion,target.width,target.height,c.projectionMatrix.elements);c.projectionMatrixInverse.copy(c.projectionMatrix).invert();
+     target.viewport.set(lastRegion.x,lastRegion.y,lastRegion.width,lastRegion.height);target.scissor.copy(target.viewport);target.scissorTest=true;r.setRenderTarget(target);
+    }
+    mirrorProjection.multiplyMatrices(c.projectionMatrix,c.matrixWorldInverse);mirrorFrustum.setFromProjectionMatrix(mirrorProjection,T.WebGLCoordinateSystem,c.reversedDepth);lastClipPlane.copy(mirrorFrustum.planes[5]);lastClipTime=time;reflectionMode(true,lastClipPlane);
+   }
+   sceneBefore.call(this,r,s,c,target);
+  };
+  pass('planarReflection',()=>reflector.onBeforeRender(renderer,scene,camera));reflectionUpdates++;lastReflectionTime=time;
+ }finally{
+  scene.onBeforeRender=sceneBefore;
+  if(cropCamera){cropCamera.projectionMatrix.copy(savedMirrorProjection);cropCamera.projectionMatrixInverse.copy(savedMirrorInverse);}
+  mirrorTarget.viewport.copy(savedMirrorViewport);mirrorTarget.scissor.copy(savedMirrorScissor);mirrorTarget.scissorTest=savedScissorTest;
+  renderer.xr.enabled=xrEnabled;reflector.visible=true;
+  try{reflectionMode(false);}finally{renderer.shadowMap.autoUpdate=shadowUpdate;renderer.setRenderTarget(previousTarget);}
+  lastRegionRestored=mirrorTarget.viewport.equals(savedMirrorViewport)&&mirrorTarget.scissor.equals(savedMirrorScissor)&&mirrorTarget.scissorTest===savedScissorTest&&(!cropCamera||cropCamera.projectionMatrix.equals(savedMirrorProjection));
+ }
+ reflectionReady=true;u.reflectionMatrix.value.copy(worldTexture);
+
  }
  if(!primeShadow)renderOpaque();if(habitat)exposureMeter.update(renderer,opaque,camera);renderer.setRenderTarget(composite);pass('aoOutputComposite',()=>renderer.render(copyScene,copyCamera));renderer.autoClear=false;pass('water',()=>renderer.render(waterScene,camera));renderer.autoClear=true;
  if(composite){renderer.setRenderTarget(null);pass('displayOutput',()=>renderer.render(outputScene,copyCamera))}
- }}
+ }};
+ return api;
 }

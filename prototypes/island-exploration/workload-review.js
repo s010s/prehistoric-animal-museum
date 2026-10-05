@@ -18,6 +18,36 @@ export function makeWorkloadReview(renderer,params) {
   // recovery: normal submissions must advance, then every heavy counter stops;
   // resuming advances active time only. Missing counters fail the evidence.
   const protectionButton=document.createElement('button');protectionButton.id='gpu-protection';protectionButton.textContent='保护流程短验证';panel.querySelector('div').append(protectionButton);
+  // Explicit rendering E2E, defined before enabling reflection-region cropping.
+  // Exactly two separately gated frames; readback is absent from ordinary runs
+  // and timing. The full and candidate images share camera, time and resources.
+  const regionButton=document.createElement('button');regionButton.id='gpu-reflection-region';regionButton.textContent='独立反射区域对照';panel.querySelector('div').append(regionButton);
+  regionButton.onclick=async()=>{
+    if(!context||terminal||sample||warming||context.benchmark?.active)return;
+    warming=true;const checks={},snapshots=[];
+    try{
+      context.setPaused(false);
+      const a=await context.queueReviewJob(()=>context.auditReflectionRegion(false));if(terminal)return;snapshots.push(state());
+      const b=await context.queueReviewJob(()=>context.auditReflectionRegion(true));if(terminal)return;snapshots.push(state());
+      const s=snapshots[1],region=b.region;
+      checks.identicalCameraTimeAndResources=a.time===b.time&&JSON.stringify(a.position)===JSON.stringify(b.position)&&a.width===b.width&&a.height===b.height&&a.samples===b.samples;
+      checks.protectedOnly=s.workload.targetFps===30&&s.drawSize[0]*s.drawSize[1]<=921600;
+      checks.cropKeepsResolution=a.width===512&&a.height===512&&a.samples===4&&region?.mode==='crop'&&region.width*region.height<512*512;
+      let compared=0,different=0,maxAbsolute=0,maxRelative=0;
+      const half=n=>{const sign=n&32768?-1:1,e=(n>>>10)&31,f=n&1023;return sign*(e===0?f*2**-24:e===31?(f?NaN:Infinity):(1+f/1024)*2**(e-15));};
+      if(checks.identicalCameraTimeAndResources&&region)for(let y=region.y+1;y<region.y+region.height-1;y++)for(let x=region.x+1;x<region.x+region.width-1;x++)for(let c=0;c<3;c++){
+        const i=(y*a.width+x)*4+c,av=half(a.pixels[i]),bv=half(b.pixels[i]),abs=Math.abs(av-bv),relative=abs/Math.max(1,Math.abs(av));compared++;maxAbsolute=Math.max(maxAbsolute,abs);maxRelative=Math.max(maxRelative,relative);if(!Number.isFinite(relative)||relative>.002)different++;
+      }
+      checks.linearReflectionEquivalent=compared>0&&different/compared<=.001;
+      checks.currentShadowAndHDR=s.flow.currentReflectionShadow&&s.flow.composition.mode==='linear-hdr'&&s.encounter.instances.length===2;
+      checks.mainGeometryAndStateRestored=s.terrain.reflection.mainRestored&&b.restored===true;
+      context.setPaused(true);const r=renders;await wait(1100);const paused=state();
+      checks.pauseStillStopsAllWork=r===renders&&paused.flow.reflection.updates===s.flow.reflection.updates&&paused.flow.spectrum.updates===s.flow.spectrum.updates;
+      checks.noErrors=!errors.length&&!s.programErrors;
+      await save('reflection-region-e2e',{passed:Object.values(checks).every(Boolean),checks,region,comparison:{compared,different,differentRatio:different/Math.max(1,compared),maxAbsolute,maxRelative},readbacks:2,readbackBytes:(a.pixels?.byteLength??0)+(b.pixels?.byteLength??0),snapshots,errors:[...errors]});
+    }catch(error){context.setPaused(true);await save('reflection-region-e2e',{passed:false,checks,snapshots,error:String(error),errors:[...errors]});}
+    finally{context.water.setReflectionRegion?.(true);warming=false;context.setPaused(true);}
+  };
   protectionButton.onclick=async()=>{
     if(!context||terminal||sample||warming)return;
     warming=true;const checks={},snapshots=[];
