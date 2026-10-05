@@ -1,10 +1,11 @@
 import * as T from 'three';
 import {REGION_ROUTE,REGION_VERSION} from './sample-region.js';
 import {WALK_ROUTE} from './regional-walk.js';
+import {makeRegionalFollower} from './regional-follow.js';
 import {trailX} from './habitat.js';
 import {terrainHeight,riverX,riverLevel} from './field.js';
 // Review-only UI and evidence. This module is inert outside ?benchmark=1.
-export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, getState, auditSky, setWaterDebug, setReviewDpr, setShadow, getShadow, setTime, syncPose, navigationHeight,planRegion,now=()=>performance.now(),getWorldTime=()=>60 }) {
+export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, getState, auditSky, setWaterDebug, setReviewDpr, setShadow, getShadow, setTime, syncPose, navigationHeight,navigateGround,pauseScene=()=>{},planRegion,now=()=>performance.now(),getWorldTime=()=>60 }) {
   if (params.get('benchmark') !== '1') return null
   const ids = landmarks.map(l => l.id)
   const observations = {
@@ -21,12 +22,12 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     cliffs: '看岩体体积与投影。慢横移，检查影边跳格、离地或覆盖丢失。',
   }
   let recorder=null,videoUrl=null,videoBytes=0,videoTruncated=false,videoArtifact=null,videoSaveError=null, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false, videoPending=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
-  let path=new T.CurvePath(),plannedRoute=null;
+  let path=new T.CurvePath(),plannedRoute=null,groundFollower=null;
   const walkGaze=z=>{const stops=[[-714,-2051,-720,31],[-700,-2044,-710,28],[-675,-2004,-675,17],[-605,-1949,-605,26],[-560,-1969,-560,25]];for(let i=1;i<stops.length;i++)if(z<=stops[i][0]){const a=stops[i-1],b=stops[i],t=T.MathUtils.smoothstep(z,a[0],b[0]);return new T.Vector3(T.MathUtils.lerp(a[1],b[1],t),T.MathUtils.lerp(a[3],b[3],t),T.MathUtils.lerp(a[2],b[2],t));}return new T.Vector3(-1969,25,-560);};
   let lastRoute=null;
   let terminal=false,lastSafeState=null;
   const readState=()=>terminal?lastSafeState:getState();
-  const routeState=()=>replay?.mode==='region'?{id:WALK_ROUTE.id,version:WALK_ROUTE.version,geographyVersion:REGION_VERSION,clock:replay.clock,durationSeconds:replay.seconds,progress:Math.min(1,(now()-replay.start)/(replay.seconds*1000)),distanceMetres:path.getLength(),coordinates:plannedRoute.points,plan:plannedRoute,speed:1.55,constraints:'ordinary-ground-navigation'}:lastRoute;
+  const routeState=()=>replay?.mode==='region'?{id:WALK_ROUTE.id,version:WALK_ROUTE.version,geographyVersion:REGION_VERSION,clock:replay.clock,durationSeconds:replay.seconds,progress:groundFollower.status().progress,walk:groundFollower.status(),distanceMetres:path.getLength(),coordinates:plannedRoute.points,plan:plannedRoute,speed:1.55,constraints:'ordinary-ground-navigation'}:lastRoute;
   const thisTime=()=>!replay?getWorldTime():replay.clock==='wall'?60+(now()-replay.start)/1000:60+tick/60;
   const records = [], errors = []; let interrupted = null, pendingCapture = false, evidenceReadback = false
   addEventListener('error', e => errors.push(e.message))
@@ -118,6 +119,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     if (!replay) return
     if(recorder&&recorder.state!=='inactive')recorder.stop();
     const record=replay&&evidenceMode!=='timing'?capture('replay-interrupted', { reason, completed: false, samples }):null;
+    if(reason.startsWith('Ground route')||reason==='resource error or replay timeout')pauseScene();
     if(!terminal&&replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
           syncPose?.(); replay = null; interrupted = reason; $('benchmark-replay').textContent = '横移往返 · 12 秒'
     return record;
@@ -165,6 +167,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
       stop();suite=null;reset('side-spring');evidenceMode=video?'video':'normal';diagnosticRepeat=repeat;diagnosticComplete=false;lastRoute=null;
       plannedRoute=planRegion();if(!plannedRoute.passed){capture('route-blocked',{passed:false,plan:plannedRoute});return;}
       path=new T.CurvePath();for(let i=1;i<plannedRoute.points.length;i++){const a=plannedRoute.points[i-1],b=plannedRoute.points[i];path.add(new T.LineCurve3(new T.Vector3(a[0],0,a[1]),new T.Vector3(b[0],0,b[1])));}
+      groundFollower=makeRegionalFollower(plannedRoute.points,navigateGround);
       seconds??=plannedRoute.seconds;
       replay={position:camera.position.clone(),quaternion:camera.quaternion.clone(),start:now(),mode:'region',clock:'wall',seconds,ticks:seconds*60};
       const p=path.getPoint(0);camera.position.set(p.x,navigationHeight(p.x,p.z)+1.75,p.z);camera.lookAt(walkGaze(p.z));syncPose?.();
@@ -172,11 +175,11 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
     },
     cancel,
     destination(id) { panel.dataset.ready='false'; current = id; tick = 0; settled = 0; setTime(60); $('benchmark-note').textContent = observations[id] || ''; },
-    beforeFrame() {
+    beforeFrame(raw=1000/60) {
       if(terminal)return;
       if (!replay || replay.mode==='shore') return
+      if(replay.mode==='region'){const walked=groundFollower.advance(camera.position,raw/1000);tick=walked.progress*replay.ticks;if(walked.blocked){cancel('Ground route blocked: '+walked.blocked);return;}camera.lookAt(walkGaze(camera.position.z));return;}
       if(replay.clock==='wall')tick=Math.min(replay.ticks,(now()-replay.start)/1000*60);
-      if(replay.mode==='region'){const u=Math.min(1,tick/replay.ticks),p=path.getPoint(u);camera.position.set(p.x,navigationHeight(p.x,p.z)+1.75,p.z);camera.lookAt(walkGaze(p.z));return;}
       if(replay.mode==='stationary'){camera.position.copy(replay.position);camera.quaternion.copy(replay.quaternion);return;}
       if(replay.mode==='continuity'){const distance=45*(1-Math.cos(tick/1440*Math.PI*2));camera.position.copy(replay.position);camera.position.x-=Math.sin(replay.yaw)*distance;camera.position.z-=Math.cos(replay.yaw)*distance;camera.quaternion.copy(replay.quaternion);camera.rotation.y+=.12*Math.sin(tick/1440*Math.PI*4);return;}
       if(replay.mode==='sky'){camera.position.copy(replay.position);camera.position.x+=80*Math.sin(tick/1440*Math.PI*2);camera.rotation.set(.28+.16*Math.sin(tick/1440*Math.PI*4),replay.yaw+tick/1440*Math.PI*2,0);return;}
@@ -224,7 +227,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
         if(replay.mode==='dpr'&&tick%180===179){capture('sky-stripe-audit',{result:auditSky()});evidenceReadback=true;}
         if(evidenceMode!=='timing'&&replay.clock!=='wall'&&jobsReady&&tick%180===0)capture('motion-frame',{image:canvas.toDataURL('image/png')});
         if (replay.clock!=='wall'&&jobsReady) tick++
-        if ((replay.clock==='wall'&&now()-replay.start>=replay.seconds*1000)||tick > (replay.ticks??720)) {
+        if ((replay.mode==='region'?groundFollower.status().complete:replay.clock==='wall'&&now()-replay.start>=replay.seconds*1000)||tick > (replay.ticks??720)) {
           if(diagnosticRepeat){tick=0;if(replay.clock==='wall')replay.start=now();setTime(60);samples=[];return;}
           diagnosticComplete=true;
           if(replay.mode==='region')lastRoute={...routeState(),progress:1,completed:Math.hypot(camera.position.x-plannedRoute.points.at(-1)[0],camera.position.z-plannedRoute.points.at(-1)[1])<.3,endErrorMetres:Math.hypot(camera.position.x-plannedRoute.points.at(-1)[0],camera.position.z-plannedRoute.points.at(-1)[1]),blockedFrames:samples.filter(f=>f.navigation?.constraints.blocked).length,wallMs:now()-replay.start,worldSeconds:thisTime()-60};
