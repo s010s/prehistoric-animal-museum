@@ -73,6 +73,7 @@ describe('README reference screenshot plan', () => {
     const sharedReadmeGraphics = new Set([
       'https://badges.leon-made-this.work/github-stars.svg',
       'https://atomgit.com/leonleung/prehistoric-animal-museum/star/new_badge.svg',
+      'https://api.hellogithub.com/v1/widgets/recommend.svg?rid=0987c257f4e541b49c80492161915f74&amp;claim_uid=I7P4vVbDKhkYRdB',
     ])
     const isAllowedReadmeImage = (source: string, hero: string) =>
       source === hero ||
