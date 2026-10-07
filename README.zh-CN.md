@@ -117,6 +117,7 @@ npm run test:e2e
 <p align="center">
   <sub>
     <a href="https://github.com/s010s/prehistoric-animal-museum"><strong>GitHub</strong></a> 是项目主仓与开发协作入口，Issue 和 Pull Request 请在 GitHub 提交。<br>
-    <a href="https://atomgit.com/leonleung/prehistoric-animal-museum"><strong>AtomGit</strong></a> 是面向中国大陆访问者的官方同步镜像。
+    <a href="https://atomgit.com/leonleung/prehistoric-animal-museum"><strong>AtomGit</strong></a> 是面向中国大陆访问者的官方同步镜像。<br>
+    本项目已获 <a href="https://hellogithub.com/repository/s010s/prehistoric-animal-museum"><strong>HelloGitHub 推荐</strong></a>。
   </sub>
 </p>

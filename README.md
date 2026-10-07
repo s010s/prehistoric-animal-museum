@@ -117,6 +117,7 @@ See the [licensing guide](LICENSING.md), [brand policy](BRAND_POLICY.md), [contr
 <p align="center">
   <sub>
     <a href="https://github.com/s010s/prehistoric-animal-museum"><strong>GitHub</strong></a> is the primary repository for development, Issues, and pull requests.<br>
-    <a href="https://atomgit.com/leonleung/prehistoric-animal-museum"><strong>AtomGit</strong></a> is the official mirror for visitors in Mainland China.
+    <a href="https://atomgit.com/leonleung/prehistoric-animal-museum"><strong>AtomGit</strong></a> is the official mirror for visitors in Mainland China.<br>
+    Featured on <a href="https://hellogithub.com/repository/s010s/prehistoric-animal-museum"><strong>HelloGitHub</strong></a>.
   </sub>
 </p>
