@@ -25,4 +25,3 @@ if(api){
 const result={schema:'island-reflection-range-offline-v1',scope:'CPU arrays and independent plane oracle; no browser/WebGL/GPU',cases,passed:cases.length>1&&cases.every(x=>x.passed)};
 if(process.argv[2]){const p=resolve(process.argv[2]);mkdirSync(dirname(p),{recursive:true});writeFileSync(p,JSON.stringify(result,null,2)+'\n');}
 console.log(JSON.stringify({passed:result.passed,cases:cases.length,failed:cases.filter(x=>!x.passed)}));if(!result.passed)process.exitCode=1;
-

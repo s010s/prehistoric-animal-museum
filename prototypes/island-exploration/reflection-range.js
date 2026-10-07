@@ -35,4 +35,3 @@ export function reflectionDrawStart(range,plane) {
   while(lo<hi){const mid=(lo+hi)>>>1;if(range.heights[mid]<threshold)lo=mid+1;else hi=mid;}
   return range.starts[lo]??0;
 }
-
