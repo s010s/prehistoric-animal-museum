@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {REGION_ROUTE,REGION_VERSION} from './sample-region.js';
 import {WALK_ROUTE} from './regional-walk.js';
+import {measurementPrefixAnchors} from './motion-observation.js';
 import {makeRegionalFollower} from './regional-follow.js';
 import {makeReviewRecorder} from './review-recorder.js';
 import {trailX} from './habitat.js';
@@ -25,10 +26,10 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
   let videoUrl=null, evidenceMode='normal', diagnosticRepeat=false, diagnosticComplete=false;let suite = null; let replay = null, tick = 0, settled = 0, samples = [], lastSignature = '', current = params.get('place') || 'forest'
   let path=new T.CurvePath(),plannedRoute=null,groundFollower=null;
   const walkGaze=z=>{const stops=[[-714,-2051,-720,31],[-700,-2044,-710,28],[-675,-2004,-675,17],[-605,-1949,-605,26],[-560,-1969,-560,25]];for(let i=1;i<stops.length;i++)if(z<=stops[i][0]){const a=stops[i-1],b=stops[i],t=T.MathUtils.smoothstep(z,a[0],b[0]);return new T.Vector3(T.MathUtils.lerp(a[1],b[1],t),T.MathUtils.lerp(a[3],b[3],t),T.MathUtils.lerp(a[2],b[2],t));}return new T.Vector3(-1969,25,-560);};
-  let lastRoute=null;
+  let lastRoute=null,realtimeScope=null;
   let terminal=false,lastSafeState=null;
   const readState=()=>terminal?lastSafeState:getState();
-  const routeState=()=>replay?.mode==='region'?{id:WALK_ROUTE.id,version:WALK_ROUTE.version,geographyVersion:REGION_VERSION,clock:replay.clock,durationSeconds:replay.seconds,clip:Boolean(replay.clip),progress:groundFollower.status().progress,walk:groundFollower.status(),distanceMetres:path.getLength(),coordinates:plannedRoute.points,plan:plannedRoute,speed:1.55,constraints:'ordinary-ground-navigation'}:lastRoute;
+  const routeState=()=>replay?.mode==='region'?{id:realtimeScope?.id??WALK_ROUTE.id,version:realtimeScope?.version??WALK_ROUTE.version,geographyVersion:REGION_VERSION,scope:realtimeScope,clock:replay.clock,durationSeconds:replay.seconds,clip:Boolean(replay.clip),progress:groundFollower.status().progress,walk:groundFollower.status(),distanceMetres:path.getLength(),coordinates:plannedRoute.points,plan:plannedRoute,speed:1.55,constraints:'ordinary-ground-navigation'}:lastRoute;
   const thisTime=()=>!replay?getWorldTime():replay.clock==='wall'?60+(now()-replay.start)/1000:60+tick/60;
   const records = [], errors = []; let interrupted = null, pendingCapture = false, evidenceReadback = false
   addEventListener('error', e => errors.push(e.message))
@@ -178,10 +179,13 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
       if(resumeScene()!==true){cancel('capture resume blocked');return false;}
       return true;
     },
-    startRealtime({capture:video=false,seconds=null,repeat=false,clip=false}={}) {
+    startRealtime({capture:video=false,seconds=null,repeat=false,clip=false,timing=false,prefixMetres=null}={}) {
       if(terminal||videoRecorder.pending)return false;
-      stop();suite=null;reset('side-spring');evidenceMode=video?'video':'normal';diagnosticRepeat=repeat;diagnosticComplete=false;lastRoute=null;
-      plannedRoute=planRegion();if(!plannedRoute.passed){capture('route-blocked',{passed:false,plan:plannedRoute});return;}
+      stop();suite=null;reset('side-spring');evidenceMode=video?'video':timing?'timing':'normal';diagnosticRepeat=repeat;diagnosticComplete=false;lastRoute=null;realtimeScope=null;
+      if(prefixMetres!==null&&(!timing||video||!clip))throw Error('Performance prefix requires an explicit unrecorded timing clip');
+      const prefix=prefixMetres===null?null:measurementPrefixAnchors(WALK_ROUTE.anchors,prefixMetres);
+      plannedRoute=prefix?planRegion(prefix.anchors):planRegion();if(!plannedRoute.passed){if(evidenceMode!=='timing')capture('route-blocked',{passed:false,plan:plannedRoute});return false;}
+      if(prefix){if(plannedRoute.length<prefixMetres)throw Error('Validated performance prefix is too short');realtimeScope={id:'side-spring-performance-prefix',version:WALK_ROUTE.version+'-performance-prefix-v1',sourceRouteId:WALK_ROUTE.id,kind:'validated-anchor-prefix',requestedPrefixMetres:prefixMetres,requestedAnchors:prefix.anchors,sourceAnchorCount:prefix.sourceAnchorCount,plannedLengthMetres:plannedRoute.length,fullOriginalRoutePlanned:false};}
       path=new T.CurvePath();for(let i=1;i<plannedRoute.points.length;i++){const a=plannedRoute.points[i-1],b=plannedRoute.points[i];path.add(new T.LineCurve3(new T.Vector3(a[0],0,a[1]),new T.Vector3(b[0],0,b[1])));}
       groundFollower=makeRegionalFollower(plannedRoute.points,navigateGround);
       seconds??=plannedRoute.seconds;
@@ -254,7 +258,7 @@ export function makeBenchmark({ params, camera, canvas, landmarks, go, stop, get
           const clean=samples.filter(s=>!s.afterEvidenceReadback).map(s=>s.frameMs).sort((a,b)=>a-b);
           if(evidenceMode!=='timing')capture(replay.clip?'motion-clip':replay.mode==='shore'?'shore-cycle':replay.mode==='walk'?'trail-walk':replay.mode==='sky'?'sky-orbit':replay.mode==='dpr'?'dpr-matrix':replay.mode==='continuity'?'continuity':'replay', { completed: true, ...(replay.mode==='region'?{route:lastRoute,worldSeconds:thisTime()-60}:{}), renderingFrameMs:{p50:clean[Math.floor(clean.length*.5)],p95:clean[Math.floor(clean.length*.95)],max:clean.at(-1)},evidenceReadbackFrames:samples.filter(s=>s.afterEvidenceReadback).length, startPosition: replay.position.toArray(), endPosition: camera.position.toArray(), wallMs: now() - replay.start, frameMs: { p50: ordered[Math.floor(ordered.length * .5)], p95: ordered[Math.floor(ordered.length * .95)], max: ordered.at(-1) }, samples })
           const hadCapture=videoRecorder.pending;videoRecorder.stop(replay.clip?'clip complete':'route complete');
-          if(replay.clip||hadCapture)pauseScene();
+          if((replay.clip||hadCapture)&&evidenceMode!=='timing')pauseScene();
           if(replay?.mode==='dpr')setReviewDpr(replay.previousDpr);
           syncPose?.(); replay = null; $('benchmark-replay').textContent = '横移往返 · 12 秒'
         }

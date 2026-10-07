@@ -62,27 +62,38 @@ export async function makeSky(sunDirection,budget){
  const sameConfig=config=>configKeys.every(k=>{const v=uniforms[k].value,c=config[k];return v?.isTexture?v===c.texture&&v.version===c.version:v?.equals?v.equals(c):v===c});
  const applyConfig=config=>{for(const k of configKeys){const v=uniforms[k].value,c=config[k];if(v?.isTexture)uniforms[k].value=c.texture;else if(v?.copy)v.copy(c);else uniforms[k].value=c}};
  let inputState=null,revision=0,shadowRevision=-1,lastSkyTime=-Infinity,invalidations=0,lastInvalidation=null,compatibleHistory=false;
+ let lastCameraPosition=null,cameraStepMetres=0,temporaryFallback=null;
+ const validHistoryMetadata=()=>{const o=uniforms.cloudPublishedOrigin.value,p=uniforms.cloudPublishedPhase.value;return !!published&&Number.isFinite(o.x)&&Number.isFinite(o.y)&&Number.isFinite(o.z)&&Number.isFinite(p.x)&&Number.isFinite(p.y)};
  const updateLighting=(renderer,t,camera,diagnostics)=>{
  raysLastFrame=0;if(frozen&&published)return;
+ cameraStepMetres=lastCameraPosition?lastCameraPosition.distanceTo(camera.position):0;
+ if(lastCameraPosition)lastCameraPosition.copy(camera.position);else lastCameraPosition=camera.position.clone();
  let forceFull=false,invalidated=false;
  if(stateCache){
   let reason=null;const changed=!inputState||!sameConfig(inputState),rewound=t<lastSkyTime;
   if(changed){if(inputState){revision++;reason='lighting-inputs'}inputState=captureConfig()}
   if(rewound){revision++;reason??='time-reset'}
-  const cut=panoJob?panoJob.position.distanceTo(camera.position)>200:published&&lastPanoPosition.distanceTo(camera.position)>200;
+  // Accumulated travel over a 48-stripe job is not a camera cut. At 150m/s
+  // it exceeds 200m before publication and used to cancel every replacement.
+  const cut=cameraStepMetres>200;
+  if(!reason&&uniforms.cloudPanoramaReady.value===1&&!validHistoryMetadata()){revision++;reason='invalid-history-metadata'}
   if(reason||cut){
-   // Cloud time is horizontal wind translation. Unchanged inputs can reuse the
-   // published image through the existing phase reprojection in either direction.
-   compatibleHistory=!!(rewound&&!changed&&!cut&&published&&sameConfig(published.config));
-   forceFull=!compatibleHistory;invalidated=true;invalidations++;lastInvalidation=reason??'camera-cut';diagnostics?.event('skyCacheInvalidated',{revision,reason:lastInvalidation,inFlight:!!panoJob,reusedCompatibleWind:compatibleHistory});panoJob=null;
-   if(!compatibleHistory)uniforms.cloudPanoramaReady.value=0;
-   if(compatibleHistory){previousPanorama=panorama;uniforms.cloudPrevious.value=panorama.texture;uniforms.cloudPreviousOrigin.value.copy(uniforms.cloudPublishedOrigin.value);uniforms.cloudPreviousPhase.value.copy(uniforms.cloudPublishedPhase.value);blendStart=t-1}
+   // Keep only a complete texture with finite slab/phase metadata visible.
+   // A changed weather snapshot is an explicit temporary fallback, never a claim
+   // that the old radiance belongs to the new revision. New stripes remain hidden.
+   const historySafe=validHistoryMetadata();
+   compatibleHistory=!!(historySafe&&!changed&&sameConfig(published.config));
+   forceFull=!compatibleHistory;invalidated=true;invalidations++;lastInvalidation=reason??'camera-cut';
+   temporaryFallback=historySafe?(compatibleHistory?'reprojected-compatible':'previous-weather'):'warming';
+   diagnostics?.event('skyCacheInvalidated',{revision,reason:lastInvalidation,inFlight:!!panoJob,reusedCompatibleWind:compatibleHistory,temporaryFallback,cameraStepMetres});panoJob=null;
+   uniforms.cloudPanoramaReady.value=historySafe?1:0;
+   if(historySafe){previousPanorama=panorama;uniforms.cloudPrevious.value=panorama.texture;uniforms.cloudPreviousOrigin.value.copy(uniforms.cloudPublishedOrigin.value);uniforms.cloudPreviousPhase.value.copy(uniforms.cloudPublishedPhase.value);blendStart=t-1}
   }
   lastSkyTime=t;
  }
  uniforms.cloudBlend.value=T.MathUtils.smoothstep(t-blendStart,0,.45);
  const shadowDirty=Math.abs(t-shadowTime)>=.2||(stateCache&&shadowRevision!==revision),panoDirty=Math.abs(t-panoTime)>=.65||lastPanoPosition.distanceTo(camera.position)>16;
- if(!panoJob&&(panoDirty||invalidated))panoJob={index:0,time:t,position:camera.position.clone(),target:panoramas.find(p=>p!==panorama&&p!==previousPanorama),phase:uniforms.cloudPhase.value.clone(),cut:forceFull||lastPanoPosition.distanceTo(camera.position)>200,config:stateCache?inputState:null,revision};
+ if(!panoJob&&(panoDirty||invalidated))panoJob={index:0,time:t,position:camera.position.clone(),target:panoramas.find(p=>p!==panorama&&p!==previousPanorama),phase:uniforms.cloudPhase.value.clone(),cut:!published||forceFull,config:stateCache?inputState:null,revision};
  if(!shadowDirty&&!panoJob)return;
  const target=renderer.getRenderTarget(),auto=renderer.autoClear;renderer.autoClear=true;
  try{
@@ -102,7 +113,7 @@ export async function makeSky(sunDirection,budget){
     job.target.scissor.copy(scissor);job.target.scissorTest=scissorTest;
    }
    if(++job.index>=Math.ceil(height/rows)){
-    published={position:job.position.clone(),phase:job.phase.clone(),time:job.time,config:job.config,revision:job.revision,cut:job.cut};compatibleHistory=false;completed++;previousPanorama=panorama;uniforms.cloudPrevious.value=previousPanorama.texture;uniforms.cloudPreviousOrigin.value.copy(uniforms.cloudPublishedOrigin.value);uniforms.cloudPreviousPhase.value.copy(uniforms.cloudPublishedPhase.value);
+    published={position:job.position.clone(),phase:job.phase.clone(),time:job.time,config:job.config,revision:job.revision,cut:job.cut};compatibleHistory=false;temporaryFallback=null;completed++;previousPanorama=panorama;uniforms.cloudPrevious.value=previousPanorama.texture;uniforms.cloudPreviousOrigin.value.copy(uniforms.cloudPublishedOrigin.value);uniforms.cloudPreviousPhase.value.copy(uniforms.cloudPublishedPhase.value);
     panorama=job.target;uniforms.cloudPublishedOrigin.value.copy(job.position);uniforms.cloudPublishedPhase.value.copy(job.phase);blendStart=t;uniforms.cloudBlend.value=0;
     if(job.cut){previousPanorama=panorama;uniforms.cloudPrevious.value=panorama.texture;uniforms.cloudPreviousOrigin.value.copy(job.position);uniforms.cloudPreviousPhase.value.copy(job.phase);blendStart=t-1;uniforms.cloudBlend.value=1}
     uniforms.cloudPanorama.value=panorama.texture;uniforms.cloudPanoramaReady.value=1;panoTime=job.time;lastPanoPosition.copy(job.position);panoJob=null;
@@ -144,8 +155,8 @@ cloudVolumeReads=0.;vec4 b=traceCloudSkyCore(cloudViewOrigin,d,skyGradient(d),ve
   }finally{if(stateCache){applyConfig(config);uniforms.skyTime.value=time}uniforms.cloudViewOrigin.value.copy(origin);uniforms.cloudPhase.value.copy(phase);renderer.setRenderTarget(target);renderer.autoClear=auto;reference.dispose();}
  };
  return {mesh,uniforms,updateLighting,audit,auditDensity,setFrozen:value=>frozen=Boolean(value),
- setQuality(fine){const w=fine?budget.width:768,h=fine?budget.height:192,steps=fine?budget.steps:80;if(w===width&&h===height)return;width=w;height=h;rows=Math.max(1,Math.floor(budget.raysPerFrame/width));uniforms.cloudStepCount.value=steps;panoramas.forEach(p=>p.setSize(width,height));published=panoJob=null;inputState=null;uniforms.cloudPanoramaReady.value=0;revision++;shadowRevision=-1;},
+ setQuality(fine){const w=fine?budget.width:768,h=fine?budget.height:192,steps=fine?budget.steps:80;if(w===width&&h===height)return;width=w;height=h;rows=Math.max(1,Math.floor(budget.raysPerFrame/width));uniforms.cloudStepCount.value=steps;panoramas.forEach(p=>p.setSize(width,height));published=panoJob=null;inputState=null;temporaryFallback='warming';uniforms.cloudPanoramaReady.value=0;revision++;shadowRevision=-1;},
  resources:()=>[...panoramas.map((t,i)=>['cloudPanorama'+i,t]),['cloudShadow',shadowTarget]],
  dispose(){panoramas.forEach(p=>p.dispose());shadowTarget.dispose();volume.dispose();weather.dispose();for(const s of [panoScene,shadowScene])for(const o of s.children){o.geometry.dispose();o.material.dispose();}mesh.geometry.dispose();material.dispose();},
- status:()=>({width,height,steps:uniforms.cloudStepCount.value,raysPerFrame:budget.raysPerFrame,raysLastFrame,totalRays,frozen,ready:uniforms.cloudPanoramaReady.value===1,versionedInputs:stateCache,revision,publishedRevision:published?.revision??null,shadowRevision,invalidations,lastInvalidation,compatibleHistory,blend:uniforms.cloudBlend.value,continuousReprojection:true,completed,pending:!!panoJob,stripe:panoJob?.index??null,lastRefresh:'bounded-stripes'}),update:t=>{uniforms.skyTime.value=t;uniforms.cloudPhase.value.set(t*5,t*1.7)}};
+ status:()=>({width,height,steps:uniforms.cloudStepCount.value,raysPerFrame:budget.raysPerFrame,raysLastFrame,totalRays,frozen,ready:uniforms.cloudPanoramaReady.value===1,versionedInputs:stateCache,revision,publishedRevision:published?.revision??null,shadowRevision,invalidations,lastInvalidation,compatibleHistory,temporaryFallback,cameraStepMetres,inFlightTravel:panoJob?panoJob.position.distanceTo(lastCameraPosition):0,blend:uniforms.cloudBlend.value,continuousReprojection:true,completed,pending:!!panoJob,stripe:panoJob?.index??null,lastRefresh:'bounded-stripes'}),update:t=>{uniforms.skyTime.value=t;uniforms.cloudPhase.value.set(t*5,t*1.7)}};
 }

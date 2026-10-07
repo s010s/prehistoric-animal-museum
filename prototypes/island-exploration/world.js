@@ -5,6 +5,7 @@ import * as T from 'three'
 import {habitatGLSL} from './habitat.js'
 import {shoreResources,shoreGLSL} from './shore.js'
 import {surfaceToneGLSL,grassRange} from './surface-tone.js'
+import {attachGrassGroundStability} from './grass-stability.js'
 import {SIZE,landmarks,smooth,terrainHeight} from './field.js'
 export * from './field.js'
 export async function groundMaterial(){
@@ -19,7 +20,8 @@ export async function groundMaterial(){
  const tx=new T.DataArrayTexture(data,size,size,indices.length);tx.wrapS=tx.wrapT=T.RepeatWrapping;tx.minFilter=T.LinearMipmapLinearFilter;tx.magFilter=T.LinearFilter;tx.generateMipmaps=true;tx.anisotropy=4;if(srgb)tx.colorSpace=T.SRGBColorSpace;tx.needsUpdate=true;return tx;}
  const albedo=textureArray([0,3,6,9,12],true),linear=textureArray([1,2,4,5,7,8,10,11,13,14],false);textures.forEach(t=>t.dispose());
  const debugGround=new URLSearchParams(location.search).has('ground');
- const m=new T.MeshStandardMaterial({roughness:1});m.onBeforeCompile=s=>{
+ const m=new T.MeshStandardMaterial({roughness:1});m.defines={ISLAND_SHADOW_GROUND:1};m.onBeforeCompile=s=>{
+ attachGrassGroundStability(s);
  Object.assign(s.uniforms,shore,{regionTrailDistance:{value:pathDistance},canopyLighting,habitatCover:{value:cover},groundGrassRange:grassRange});
  s.uniforms.groundAlbedo={value:albedo};s.uniforms.groundLinear={value:linear};s.uniforms.groundDebug={value:debugGround?1:0}
  s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float landShade;attribute float coastalInfluence;varying float localCoast;attribute float waterHeight;varying float localWater;attribute float seepWet;varying float localSeep;varying float bakedShade;attribute vec3 surfaceBlend;varying vec3 landP,landN,landW;').replace('#include <begin_vertex>','#include <begin_vertex>\nlocalSeep=seepWet;localWater=waterHeight;localCoast=coastalInfluence;landP=(modelMatrix*vec4(position,1.)).xyz;landN=normalize(transpose(mat3(viewMatrix))*normalMatrix*normal);landW=surfaceBlend;bakedShade=landShade;')
@@ -52,7 +54,7 @@ export async function groundMaterial(){
  float bladePresence=1.-smoothstep(groundGrassRange.x,groundGrassRange.y,viewDistance);
  float pixelMetres=max(length(dFdx(p)),length(dFdy(p)));
  float clumpResolved=1.-smoothstep(.9,3.2,pixelMetres);
- float tussock=nn(p/2.7+vec2(nn(p/11.))*1.3)*.65+nn(p/.95)*.35;
+ float tussock=grassGroundNoise(nn(p/2.7+vec2(nn(p/11.))*1.3),pixelMetres/2.7)*.65+grassGroundNoise(nn(p/.95),pixelMetres/.95)*.35;
  float grassHabitat=smoothstep(.12,.42,max(habitat.g,habitat.b))*smoothstep(localWater+.12,localWater+.6,landP.y);
  vec2 canopy=texture2D(canopyLighting,p/20480.+.5).rg;
  float forestFloor=habitat.r*(1.-smoothstep(0.82,.97,w.x));
@@ -90,7 +92,7 @@ export async function groundMaterial(){
  float loose=smoothstep(.55,.79,nn(p*2.9))*(1.-smoothstep(.82,1.,path));
  trailSoil=mix(trailSoil,tile(groundAlbedo,1.,p/1.2)*vec3(.64,.59,.47),loose*.5);
  grass=mix(grass,trailSoil,path*.93);
- float pathGrain=nn(p*4.)*.7+nn(p*11.)*.3;grass*=mix(1.,.88+pathGrain*.24,path); }
+ float pathGrain=grassGroundNoise(nn(p*4.),pixelMetres*4.)*.7+grassGroundNoise(nn(p*11.),pixelMetres*11.)*.3;grass*=mix(1.,.88+pathGrain*.24,path); }
 
  float marsh=1.-smoothstep(.78,1.13,length((p-vec2(3600.,5400.))/vec2(2250.,1500.)));
  float wet=1.-smoothstep(localWater+.15,localWater+1.2,landP.y);
@@ -105,7 +107,7 @@ export async function groundMaterial(){
  ground*=mix(vec3(1.),vec3(.71,.78,.73),dampSeep);
  float recentWater=shoreWet(p);ground*=mix(1.,.55,recentWater);
  ground*=mix(.63,1.,smoothstep(localWater+.05,localWater+1.5,landP.y));diffuseColor.rgb*=ground*bakedShade;`)
- s.fragmentShader=s.fragmentShader.replace('#include <lights_fragment_end>','#include <lights_fragment_end>\nreflectedLight.directSpecular*=mix(1.,.025,w.z*(1.-wet));reflectedLight.indirectSpecular*=mix(1.,.025,w.z*(1.-wet));reflectedLight.indirectDiffuse*=mix(1.,.69,canopy.g);reflectedLight.directDiffuse*=mix(1.,mix(.28,1.,canopy.r),smoothstep(65.,100.,viewDistance));');
+ s.fragmentShader=s.fragmentShader.replace('#include <lights_fragment_end>','#include <lights_fragment_end>\nreflectedLight.directSpecular*=mix(1.,.025,w.z*(1.-wet));reflectedLight.indirectSpecular*=mix(1.,.025,w.z*(1.-wet));reflectedLight.indirectDiffuse*=mix(1.,.69,canopy.g);if(shadowBudgetEnabled<.5)reflectedLight.directDiffuse*=mix(1.,mix(.28,1.,canopy.r),smoothstep(65.,100.,viewDistance));');
  s.fragmentShader=s.fragmentShader.replace('#include <roughnessmap_fragment>',`vec3 arm=vec3(1.,.91,0.);
  if(w.y>.01)arm=mix(arm,tile(groundLinear,3.,p/2.8),w.y);
  if(w.z>.01)arm=mix(arm,mix(tile(groundLinear,7.,p/2.6),tile(groundLinear,5.,p/2.3),litter),w.z);
@@ -114,7 +116,7 @@ export async function groundMaterial(){
  s.fragmentShader=s.fragmentShader.replace('#include <normal_fragment_maps>',`float detailWeight=1.-smoothstep(100.,520.,length(vViewPosition));
  float swardWeight=grassHabitat*(1.-forestFloor)*(1.-path)*w.z*clumpResolved;
  float swardHeight=(tussock-.5)*.38*swardWeight;
- float detailHeight=(structure*2.1-strataEdge*strataBreak*.17-joint*.06)*w.x+nn(landP.xz*2.)*.045*w.y+nn(landP.xz*3.)*.023*w.z+(nn(p*9.)*.018+nn(p*1.7)*.035)*path;
+ float detailHeight=(structure*2.1-strataEdge*strataBreak*.17-joint*.06)*w.x+nn(landP.xz*2.)*.045*w.y+grassGroundNoise(nn(landP.xz*3.),pixelMetres*3.)*.023*w.z+(grassGroundNoise(nn(p*9.),pixelMetres*9.)*.018+grassGroundNoise(nn(p*1.7),pixelMetres*1.7)*.035)*path;
  vec3 swardN=surfaceGradient(landP,normalize(landN),swardHeight);
  vec3 detailedN=surfaceGradient(landP,swardN,detailHeight);
  if(w.x>.05&&detailWeight>.01)detailedN=normalize(mix(detailedN,rockDetail(landP/6.1,normalize(landN)),w.x*.7));

@@ -10,8 +10,14 @@ export async function bakeTreeAtlas(renderer,templates,waitForWork){
   await waitForWork('tree-atlas-clear');renderer.setRenderTarget(targets[pass]);renderer.clear();
   for(let species=0;species<templates.length;species++){
    const tree=templates[species],meshes=tree.parts.map(part=>{
-    const m=new T.MeshBasicMaterial({map:part.material.map,color:part.material.color,vertexColors:part.material.vertexColors,alphaTest:part.material.alphaTest,side:T.DoubleSide,toneMapped:false});
-    if(pass){m.onBeforeCompile=s=>{s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 atlasN;').replace('#include <begin_vertex>','#include <begin_vertex>\natlasN=normal;');s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 atlasN;').replace('#include <opaque_fragment>','outgoingLight=normalize(atlasN)*.5+.5;\n#include <opaque_fragment>');};m.customProgramCacheKey=()=> 'template-normal-atlas';}
+    const m=new T.MeshBasicMaterial({map:part.material.map,color:part.material.color,vertexColors:part.material.vertexColors,alphaTest:part.material.alphaTest,side:T.DoubleSide,toneMapped:false,blending:T.NoBlending});
+    if(pass){m.onBeforeCompile=s=>{
+     s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 atlasN;varying float atlasDepth;').replace('#include <begin_vertex>','#include <begin_vertex>\natlasN=normal;').replace('#include <project_vertex>','#include <project_vertex>\natlasDepth=clamp((20.+mvPosition.z)/1.4+.5,0.,1.);');
+     // Keep the original template-normal RGB (including its ordinary mipmap
+     // average). A stores surface depth; the matching colour fetch supplies
+     // coverage, so no additional target, texture fetch or normal packing.
+     s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 atlasN;varying float atlasDepth;')
+      .replace('#include <opaque_fragment>','outgoingLight=normalize(atlasN)*.5+.5;\n#include <opaque_fragment>\ngl_FragColor.a=atlasDepth;');};m.customProgramCacheKey=()=> 'template-normal-depth-atlas';}
     const compile=m.onBeforeCompile;m.onBeforeCompile=s=>{compile(s);s.fragmentShader=s.fragmentShader.replace('#include <opaque_fragment>','diffuseColor.a=1.;\n#include <opaque_fragment>');};m.customProgramCacheKey=()=>`opaque-cutout-atlas-${pass}`;
     const mesh=new T.Mesh(part.geometry,m);mesh.scale.setScalar(1/tree.height);scene.add(mesh);return mesh;
    });

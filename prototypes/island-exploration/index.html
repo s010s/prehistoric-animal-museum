@@ -5,7 +5,7 @@
 <button id="map-button" aria-label="打开海岛地图"><canvas id="minimap" width="180" height="180"></canvas><span>地图与地点</span></button>
 <div id="encounter-actions"><span id="discovery">沿溪探索 · 寻找林间的巨影</span><button id="observe" hidden>停下来观察 · 迷惑龙</button></div>
 <div id="status" aria-live="off">准备海岛…</div>
-<div id="loading" role="status"><span class="spinner"></span><strong>正在准备一座海岛</strong><span id="load-detail">塑造山脊、海湾和河谷…</span></div>
+<div id="loading" role="status"><span class="spinner"></span><strong>正在准备一座海岛</strong><span id="load-detail">塑造山脊、海湾和河谷…</span><small id="load-resources"></small><small id="load-note">首次准备需要片刻；切换窗口会暂停加载。</small><div id="load-pause" hidden><strong>海岛准备已暂停</strong><span id="load-pause-detail">点击继续加载，即可进入海岛。</span><button id="load-resume">继续加载海岛</button></div></div>
 <div class="travel"><button id="walk-mode" aria-pressed="false">地面步行</button><button id="tour" aria-pressed="false">环岛导览</button><button id="cruise" aria-pressed="false">向前巡航</button><button id="speed">速度 · 漫游</button></div>
 <div id="joystick" aria-label="拖动摇杆移动" role="group"><span class="joystick-label">移动</span><div id="stick"></div></div>
 <div class="height-controls"><button id="up" aria-label="升高，按住持续上升">＋<span>升高</span></button><button id="down" aria-label="降低，按住持续下降">－<span>降低</span></button></div>

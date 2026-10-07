@@ -12,11 +12,12 @@ export function observationConditions(s) {
     drawSize:s.drawSize,viewport:s.viewport,pixelRatio:s.pixelRatio,effectivePixelRatio:s.effectivePixelRatio,
     quality:s.quality,variant:s.variant??null,look:s.look??null,fov:s.fov,exposure:s.exposure,regionVersion:s.regionVersion,
     framebuffer:s.defaultFramebuffer??null,
+    shadowBudget:s.shadow?.budget??null,shadowExtent:s.shadow?.extent??null,sunGlareEnabled:s.flow?.sunGlare?.enabled??false,
     targetFps:s.workload?.targetFps,maxPixels:s.workload?.maxPixels,maxDimension:s.workload?.maxDimension,
     fixed:s.workload?.fixed,desktopTier:s.workload?.desktopTier??null,cloudPolicy:s.workload?.cloud,
     cloud:[s.skyCache?.width,s.skyCache?.height,s.skyCache?.steps,s.skyCache?.raysPerFrame,s.skyCache?.frozen],
     composition:s.flow?.composition?.mode,waterDiagnostic:s.flow?.diagnostic,
-    grassDiagnostic:s.vegetation?.diagnosticGrass??false,atlasNormalDeferred:s.vegetation?.atlasNormalDeferred??true,
+    grassDiagnostic:s.vegetation?.diagnosticGrass??false,atlasNormalDeferred:s.vegetation?.atlasNormalDeferred??true,forestAtlasBudget:s.vegetation?.forestAtlasBudget??null,leafTransmissionEnabled:s.vegetation?.leafTransmissionEnabled??false,
     terrainRevision:s.terrain?.revision,reflectionTerrain:s.terrain?.reflection?.mode,
     resources:s.resources?.map(({name,width,height,type,format,samples,depthBuffer,colourSpace})=>({name,width,height,type,format,samples,depthBuffer,colourSpace})).sort((a,b)=>a.name.localeCompare(b.name)),
   };

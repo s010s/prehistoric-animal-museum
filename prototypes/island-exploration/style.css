@@ -12,3 +12,8 @@
 
 /* Pause stays usable while startup waits for its next bounded GPU slot. */
 .top-actions{z-index:100}
+
+/* A paused startup must not look like active loading or hide its resume action. */
+#loading.paused>.spinner,#loading.paused>strong,#loading.paused>#load-detail{display:none}#loading.paused>.spinner{animation:none}#load-pause{display:flex;align-items:center;flex-direction:column;gap:18px;text-align:center;padding:24px}#load-pause[hidden]{display:none}#load-pause-detail{font-size:12px}#load-resume{color:#f4f3e8}
+
+#loading.paused>#load-resources,#loading.paused>#load-note{display:none}#load-note,#load-resources{font-size:11px;opacity:.75}#load-resources:empty{display:none}
