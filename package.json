@@ -40,7 +40,8 @@
     "test:e2e": "playwright test",
     "validate:flight": "node scripts/flight/validate-assets.mjs && node scripts/flight/assets/validate-weather.mjs && node scripts/flight/assets/validate-landscape.mjs && node scripts/flight/assets/validate-ecology.mjs && node scripts/flight/assets/validate-static-review.mjs && node scripts/flight/validate-powered-flap.mjs && node scripts/flight/assets/validate-soundscape.mjs && node scripts/flight/assets/validate-companion.mjs && node scripts/flight/assets/validate-species-companions.mjs",
     "test:flight": "vitest run tests/flight",
-    "build:flight": "npm run validate:flight && MUSEUM_FLIGHT=1 npm run build:site && node scripts/flight/validate-build.mjs dist --enabled"
+    "build:flight": "npm run validate:flight && MUSEUM_FLIGHT=1 npm run build:site && node scripts/flight/validate-build.mjs dist --enabled",
+    "verify:model-optimization": "node scripts/verify-model-optimization.mjs && node scripts/verify-flight-optimization.mjs"
   },
   "dependencies": {
     "@fontsource-variable/fredoka": "5.3.0",
@@ -54,7 +55,9 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@gltf-transform/cli": "4.5.0",
+    "@gltf-transform/core": "4.5.0",
+    "@gltf-transform/extensions": "4.5.0",
+    "@gltf-transform/functions": "4.5.0",
     "@playwright/test": "1.62.0",
     "@testing-library/jest-dom": "7.0.0",
     "@testing-library/react": "16.3.2",
@@ -64,12 +67,16 @@
     "@types/react-dom": "19.2.3",
     "@types/three": "0.185.1",
     "@vitejs/plugin-react": "6.0.4",
+    "draco3dgltf": "1.5.7",
     "eslint": "10.8.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.3",
     "globals": "17.8.0",
+    "gltf-validator": "2.0.0-dev.3.10",
     "jsdom": "29.1.1",
-    "sharp": "0.35.4",
+    "keyframe-resample": "0.1.0",
+    "meshoptimizer": "1.2.0",
+    "sharp": "0.35.5",
     "tsx": "4.23.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.65.0",

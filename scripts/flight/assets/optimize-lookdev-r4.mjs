@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
-import { execFileSync } from 'node:child_process'
+import { dedup, weld, resample, prune, sparse, textureCompress, meshopt, unpartition } from '@gltf-transform/functions'
+import { ready as resampleReady, resample as resampleWASM } from 'keyframe-resample'
 import { createHash } from 'node:crypto'
 import { NodeIO } from '@gltf-transform/core'
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
@@ -18,11 +19,20 @@ for (const texture of document.getRoot().listTextures()) {
 }
 const sized = `${evidence}/sized.glb`
 await io.write(sized, document)
-execFileSync('node_modules/.bin/gltf-transform', ['optimize', sized, scratch, '--flatten', 'false', '--join', 'false', '--instance', 'false', '--simplify', 'false', '--palette', 'false', '--compress', 'meshopt', '--texture-compress', 'webp'], { stdio: 'inherit' })
+// Preserve the old optimize flags: no flatten/join/instance/simplify/palette.
+const optimized = await io.read(sized)
+for (const name of ['KHR_draco_mesh_compression', 'EXT_meshopt_compression']) optimized.disposeExtension(name)
+await optimized.transform(
+  dedup(), weld(), resample({ ready: resampleReady, resample: resampleWASM }),
+  prune({ keepAttributes: false, keepIndices: false, keepLeaves: false, keepSolidTextures: false }),
+  sparse(), textureCompress({ encoder: sharp, resize: [2048, 2048], targetFormat: 'webp' }),
+  meshopt({ encoder: MeshoptEncoder, level: 'high' }), unpartition(),
+)
+await io.write(scratch, optimized)
 await fs.copyFile(scratch, path)
 const bytes = await fs.readFile(path), manifestPath = `${base}/manifest.json`
 const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'))
 manifest.sha256 = createHash('sha256').update(bytes).digest('hex'); manifest.bytes = bytes.length
 manifest.textureRuntimePolicy = 'Tree/cliff base colour 1k; all other channels 512; selected high-to-low source bake 1k.'
-manifest.optimization = 'gltf-transform 4.4.2: dedup/prune, WebP, Meshopt; hierarchy/names and authored LOD geometry retained'
+manifest.optimization = 'glTF Transform SDK 4.5.0: dedup/prune, WebP, Meshopt; hierarchy/names and authored LOD geometry retained'
 await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n')

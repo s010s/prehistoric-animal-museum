@@ -11,12 +11,36 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execFileSync } from 'node:child_process'
+import { NodeIO } from '@gltf-transform/core'
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
+import { meshopt, textureCompress, unpartition } from '@gltf-transform/functions'
+import draco3d from 'draco3dgltf'
+import { validateBytes } from 'gltf-validator'
+import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer'
+import sharp from 'sharp'
 import { resampleCubicRotationTracks } from './resample-cubic-rotation-tracks.mjs'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const animalsRoot = join(repositoryRoot, 'src/content/animals')
-const cli = join(repositoryRoot, 'node_modules/.bin/gltf-transform')
+await MeshoptEncoder.ready
+const io = new NodeIO()
+  .registerExtensions(ALL_EXTENSIONS)
+  .registerDependencies({
+    'meshopt.decoder': MeshoptDecoder,
+    'meshopt.encoder': MeshoptEncoder,
+    'draco3d.decoder': await draco3d.createDecoderModule(),
+  })
+
+async function transformModel(inputPath, outputPath, transform) {
+  const document = await io.read(inputPath)
+  // Match the CLI's decode-before-transform behavior to avoid recompressing
+  // with stale compression settings.
+  for (const name of ['KHR_draco_mesh_compression', 'EXT_meshopt_compression']) {
+    document.disposeExtension(name)
+  }
+  await document.transform(transform, unpartition())
+  await io.write(outputPath, document)
+}
 
 function readGlbJson(buffer) {
   if (buffer.toString('ascii', 0, 4) !== 'glTF') {
@@ -64,18 +88,12 @@ for (const animalId of animalIds) {
   try {
     let meshoptInput = modelPath
     if (containsPng) {
-      execFileSync(
-        cli,
-        [
-          'webp',
-          modelPath,
-          webpPath,
-          '--formats',
-          'png',
-          '--lossless',
-        ],
-        { cwd: repositoryRoot, stdio: 'inherit' },
-      )
+      await transformModel(modelPath, webpPath, textureCompress({
+        encoder: sharp,
+        targetFormat: 'webp',
+        formats: /png/,
+        lossless: true,
+      }))
       meshoptInput = webpPath
     }
     const resampledTracks = await resampleCubicRotationTracks(
@@ -88,29 +106,18 @@ for (const animalId of animalIds) {
         `${animalId}: resampled ${resampledTracks} cubic rotation track(s) before Meshopt compression`,
       )
     }
-    execFileSync(
-      cli,
-      [
-        'meshopt',
-        meshoptInput,
-        optimizedPath,
-        '--level',
-        'high',
-        '--quantize-position',
-        '16',
-        '--quantize-normal',
-        '12',
-        '--quantize-texcoord',
-        '14',
-        '--quantize-weight',
-        '12',
-      ],
-      { cwd: repositoryRoot, stdio: 'inherit' },
-    )
-    execFileSync(cli, ['validate', optimizedPath], {
-      cwd: repositoryRoot,
-      stdio: 'inherit',
-    })
+    await transformModel(meshoptInput, optimizedPath, meshopt({
+      encoder: MeshoptEncoder,
+      level: 'high',
+      quantizePosition: 16,
+      quantizeNormal: 12,
+      quantizeTexcoord: 14,
+      quantizeWeight: 12,
+    }))
+    const validation = await validateBytes(new Uint8Array(await readFile(optimizedPath)))
+    if (validation.issues.numErrors > 0) {
+      throw new Error(`Model validation failed: ${JSON.stringify(validation.issues.messages)}`)
+    }
 
     const optimized = await readFile(optimizedPath)
     if (optimized.byteLength >= original.byteLength) {
