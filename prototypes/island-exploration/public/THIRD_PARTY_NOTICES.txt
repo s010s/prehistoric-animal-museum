@@ -65,6 +65,16 @@ forest-impostor.js: per-frame view-ray reprojection adapted from
 src/world/vegetation/Impostors.js; local azimuth/elevation atlas and GLSL port.
 Root-anchored vegetation wind and stable shadow projection studied from
 src/world/vegetation/VegMaterials.js and src/engine/render/Shadows.js.
+The experimental vegetation implementation also adapts leaf lighting-normal and shadow-gated
+transmission ideas from VegMaterials.js, VegNodes.js, and Impostors.js, with
+temporal LOD phase organization studied from src/materials/LODFade.js.
+The local temporal-resolve.js is a bounded WebGL camera-reprojection prototype;
+it does not port Tidewater's velocity-aware TemporalUpscale.js or upscale output.
+near-shadow.js adds an optional local stable near map while retaining the existing
+wide map; the extra near map is disabled in the current default candidate.
+sun-glare.js: solar-disc depth visibility and aperture-ghost organization studied
+from src/post/LensFlare.js. Local GLSL uses a 1x1 ping-pong visibility target and
+the existing cloud panorama/output pass, not the original WebGPU pipeline.
 Rock source: src/world/terrain/RockGeometry.js
 Fixed commit: 4811ba48d795197de5621985f404e765c0b7c0ef
 Surf lace: tools/bake-surf-lace.mjs is adapted from src/ocean/SurfFoam.js at
