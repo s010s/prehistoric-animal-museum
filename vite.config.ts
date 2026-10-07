@@ -30,6 +30,7 @@ const redistributableNotices = [
   'LICENSES/OFL-1.1.txt',
   'LICENSES/React-MIT.txt',
   'LICENSES/Three.js-MIT.txt',
+  'LICENSES/ScottieFox-caustic-volume-MIT.txt',
 ] as const
 
 const generatedRedistributableNotices = [

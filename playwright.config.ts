@@ -5,6 +5,8 @@ const port = 4187
 
 export default defineConfig({
   testDir: './e2e',
+  // Hardware-only ocean review uses its own Chrome/Metal configuration.
+  testIgnore: 'ocean-refracted.spec.ts',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
