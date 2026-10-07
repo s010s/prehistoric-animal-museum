@@ -108,6 +108,10 @@ See the [licensing guide](LICENSING.md), [brand policy](BRAND_POLICY.md), [contr
   <a href="https://atomgit.com/leonleung/prehistoric-animal-museum">
     <img src="https://atomgit.com/leonleung/prehistoric-animal-museum/star/new_badge.svg" height="54" alt="AtomGit G-Star">
   </a>
+  &nbsp;
+  <a href="https://hellogithub.com/repository/s010s/prehistoric-animal-museum">
+    <img src="https://api.hellogithub.com/v1/widgets/recommend.svg?rid=0987c257f4e541b49c80492161915f74&amp;claim_uid=I7P4vVbDKhkYRdB" width="250" height="54" alt="Featured｜HelloGitHub">
+  </a>
 </p>
 
 <p align="center">
