@@ -1,0 +1,19 @@
+{
+  "schema": "museum-original-textures-v1",
+  "assets": [
+    {
+      "path": "assets/needle-spray-v1.png",
+      "source": "prototypes/island-exploration/public/assets/needle-spray-v1.png",
+      "sha256": "5b8787f388e04cf44311d1a360da6d31aae986502736b46c7cecd290bd1c469a",
+      "bytes": 1900734,
+      "license": "Original AI-generated visual proxy, museum prototype 2026-09-28"
+    },
+    {
+      "path": "assets/fir-bark-albedo.webp",
+      "source": "prototypes/island-exploration/public/assets/fir-bark-albedo.webp",
+      "sha256": "964db444257df1e5bf68855f72b717a034d2a54d469eeb3b5721123bd8d277d8",
+      "bytes": 185198,
+      "license": "Poly Haven fir_tree_01, CC0; original project extraction without resampling"
+    }
+  ]
+}

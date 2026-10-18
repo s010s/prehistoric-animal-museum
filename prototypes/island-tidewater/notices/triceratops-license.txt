@@ -1,0 +1,18 @@
+Model license record
+====================
+
+Asset: Triceratops dinosaur
+Creator: wojciechmiedziocha
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License URL: https://creativecommons.org/licenses/by/4.0/
+Source URL: https://sketchfab.com/3d-models/triceratops-dinosaur-87527079bad44917ab1b98a456b46c7e
+Accessed: 2026-07-28
+
+Attribution:
+“Triceratops dinosaur” by wojciechmiedziocha, CC BY 4.0;
+modified for the Prehistoric Animal Museum.
+
+Project changes include normalization, a 10-bone Blender armature,
+deterministic skin weights, and an eight-second in-place head-and-tail Idle.
+The source title is retained verbatim for attribution; the project-facing
+animal name is “三角龙”.

@@ -1,0 +1,495 @@
+{
+  "schema": "museum-creek-export-v1",
+  "originalCandidate": "e002260f",
+  "sourceOrigin": [
+    -2000,
+    -650
+  ],
+  "relief": {
+    "id": "museum-relief-v1",
+    "shelfStrength": [
+      0.82,
+      0.1
+    ],
+    "buttressMetres": [
+      36,
+      16
+    ],
+    "fissureMetres": [
+      42,
+      22
+    ],
+    "protected": "sea/beach below 8m; river +20–55m; spring +8–26m; animal sites 30–60m; visitor paths"
+  },
+  "reliefAdapterSha256": "9e44e39257830f515666112eeddebf16c924e53d3e6a697eb95991eca8a5b354",
+  "sources": [
+    {
+      "path": "prototypes/island-exploration/field.js",
+      "sha256": "6fb2c6c9e6f1e0ccc7694a86b9a238b0be18bf498a2266a6fab655d530d81020"
+    },
+    {
+      "path": "prototypes/island-exploration/spring.js",
+      "sha256": "ba071b08790092a3c98bf03c38f7d5e3143f3c245a41190a4795833938381136"
+    },
+    {
+      "path": "prototypes/island-exploration/sample-region.js",
+      "sha256": "26e16be683e28f7010170ea75ebe71ece3acbb9da5dbd9db9a8e05b0a5dd3758"
+    },
+    {
+      "path": "prototypes/island-exploration/habitat.js",
+      "sha256": "574feda35817f4473e111fe66f3eba4788d2e2ee2dbcc00a283506b1f232a82c"
+    },
+    {
+      "path": "prototypes/island-exploration/hydrology.js",
+      "sha256": "cc7d16e545411eacf65b8ffd1a22a85e22507fe57756f13f41df73b14cf30ea2"
+    },
+    {
+      "path": "prototypes/island-exploration/erosion-field.js",
+      "sha256": "eec57c551e7cc1f5c7d4b266b88b6d228963cc638fe75326371a4a2248bcfd88"
+    },
+    {
+      "path": "prototypes/island-exploration/erosion-data.js",
+      "sha256": "81dd988fe821f644580afbcd53aef9152d61d720bb54d3602aad654293bd48ab"
+    },
+    {
+      "path": "src/flight-experience/world.ts",
+      "sha256": "0ef32fba4c25860b794aa3a5bce9822be92a1f593d0a9540ab04cfdd6a02b8d0"
+    },
+    {
+      "path": "src/flight-experience/hydrology/world-river.ts",
+      "sha256": "e3d8d2c55c58bab226dde4b4ae63efa6907105d8698cbbb8228860d469e26bb3"
+    },
+    {
+      "path": "src/flight-experience/hydrology/coastal-river-candidate.ts",
+      "sha256": "7f62bf7790825fef906a65157132ad140842d0a5ae239f3b30be9fb95833dbf9"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "assets/heights.bin",
+      "bytes": 4194304,
+      "sha256": "3443d8f142f0933269a87f63ed4a323f633613e71c5d8112df61afb61b43e7d3"
+    },
+    {
+      "path": "assets/water.bin",
+      "bytes": 16777216,
+      "sha256": "8315c2b6155608dff2413ddddcbb42c2f8e5a77ad85ac95e4bc74f21358a929a"
+    },
+    {
+      "path": "assets/masks.bin",
+      "bytes": 1048576,
+      "sha256": "9df31e65aa961e5345daeaad96b7c444f184dede2132528caa9d6af2f698da46"
+    },
+    {
+      "path": "assets/geography.json",
+      "bytes": 690716,
+      "sha256": "b310d68b760ea8996f7b26468073f9f73762834b61393b9da7555b64df639a89"
+    }
+  ],
+  "sourceBounds": [
+    -2512,
+    -1162,
+    -1488,
+    -138
+  ],
+  "coreWaterBounds": [
+    -2256,
+    -906,
+    -1744,
+    -394
+  ],
+  "trees": 3796,
+  "reference": [
+    {
+      "source": [
+        -2047,
+        -714
+      ],
+      "local": [
+        -47,
+        -64
+      ],
+      "height": 30.93035378993875,
+      "originalHeight": 30.93035378993875,
+      "water": 30.737253101194934
+    },
+    {
+      "source": [
+        -2047.5,
+        -721
+      ],
+      "local": [
+        -47.5,
+        -71
+      ],
+      "height": 31.1715028377638,
+      "originalHeight": 31.1715028377638,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -2045.2,
+        -719
+      ],
+      "local": [
+        -45.200000000000045,
+        -69
+      ],
+      "height": 31.173902348394268,
+      "originalHeight": 31.173902348394268,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -2037,
+        -709
+      ],
+      "local": [
+        -37,
+        -59
+      ],
+      "height": 20.91525921056179,
+      "originalHeight": 20.91525921056179,
+      "water": 14.91012574814815
+    },
+    {
+      "source": [
+        -2030,
+        -691
+      ],
+      "local": [
+        -30,
+        -41
+      ],
+      "height": 22.020055498045526,
+      "originalHeight": 22.020055498045526,
+      "water": 21.941784000945738
+    },
+    {
+      "source": [
+        -2012,
+        -676
+      ],
+      "local": [
+        -12,
+        -26
+      ],
+      "height": 14.795108266939014,
+      "originalHeight": 14.795108266939014,
+      "water": 15.039710924584098
+    },
+    {
+      "source": [
+        -2006,
+        -675
+      ],
+      "local": [
+        -6,
+        -25
+      ],
+      "height": 15.097342280859925,
+      "originalHeight": 15.097342280859925,
+      "water": 14.781669255872792
+    },
+    {
+      "source": [
+        -1994,
+        -675
+      ],
+      "local": [
+        6,
+        -25
+      ],
+      "height": 16.93708373787152,
+      "originalHeight": 16.93708373787152,
+      "water": 14.781669255872792
+    },
+    {
+      "source": [
+        -1989,
+        -668
+      ],
+      "local": [
+        11,
+        -18
+      ],
+      "height": 18.384761306216042,
+      "originalHeight": 18.384761306216042,
+      "water": 14.754748578916727
+    },
+    {
+      "source": [
+        -1990,
+        -651
+      ],
+      "local": [
+        10,
+        -1
+      ],
+      "height": 18.091211478702206,
+      "originalHeight": 18.091211478702206,
+      "water": 14.688706251851855
+    },
+    {
+      "source": [
+        -1981,
+        -625
+      ],
+      "local": [
+        19,
+        25
+      ],
+      "height": 19.663382201095033,
+      "originalHeight": 19.663382201095033,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -1979,
+        -586
+      ],
+      "local": [
+        21,
+        64
+      ],
+      "height": 20.485344150478497,
+      "originalHeight": 20.485344150478497,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -1983,
+        -564
+      ],
+      "local": [
+        17,
+        86
+      ],
+      "height": 20.96824094669904,
+      "originalHeight": 20.96824094669904,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -1978,
+        -549
+      ],
+      "local": [
+        22,
+        101
+      ],
+      "height": 20.96824094669904,
+      "originalHeight": 20.96824094669904,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -1964,
+        -546
+      ],
+      "local": [
+        36,
+        104
+      ],
+      "height": 20.96824094669904,
+      "originalHeight": 20.96824094669904,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -1957,
+        -566
+      ],
+      "local": [
+        43,
+        84
+      ],
+      "height": 20.96824094669904,
+      "originalHeight": 20.96824094669904,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -1968,
+        -590
+      ],
+      "local": [
+        32,
+        60
+      ],
+      "height": 21.44342860328689,
+      "originalHeight": 21.44342860328689,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -1989,
+        -625
+      ],
+      "local": [
+        11,
+        25
+      ],
+      "height": 19.016758946597548,
+      "originalHeight": 19.016758946597548,
+      "water": 14.58590560711189
+    },
+    {
+      "source": [
+        -1989,
+        -662
+      ],
+      "local": [
+        11,
+        -12
+      ],
+      "height": 18.523178674165514,
+      "originalHeight": 18.523178674165514,
+      "water": 14.731546499028251
+    },
+    {
+      "source": [
+        -1993,
+        -672
+      ],
+      "local": [
+        7,
+        -22
+      ],
+      "height": 17.76664920209716,
+      "originalHeight": 17.76664920209716,
+      "water": 14.770151444706554
+    },
+    {
+      "source": [
+        -1999,
+        -675
+      ],
+      "local": [
+        1,
+        -25
+      ],
+      "height": 15.056212091115562,
+      "originalHeight": 15.056212091115562,
+      "water": 14.781669255872792
+    },
+    {
+      "source": [
+        -2012,
+        -675
+      ],
+      "local": [
+        -12,
+        -25
+      ],
+      "height": 14.716870750784722,
+      "originalHeight": 14.716870750784722,
+      "water": 14.99068746625478
+    },
+    {
+      "source": [
+        -2028,
+        -681
+      ],
+      "local": [
+        -28,
+        -31
+      ],
+      "height": 18.6280557033864,
+      "originalHeight": 18.6280557033864,
+      "water": 14.804616284954209
+    },
+    {
+      "source": [
+        -2048,
+        -695
+      ],
+      "local": [
+        -48,
+        -45
+      ],
+      "height": 27.192855946449562,
+      "originalHeight": 27.192855946449562,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -2052,
+        -709
+      ],
+      "local": [
+        -52,
+        -59
+      ],
+      "height": 30.70807445841099,
+      "originalHeight": 30.70807445841099,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -2054,
+        -714
+      ],
+      "local": [
+        -54,
+        -64
+      ],
+      "height": 31.58686252274636,
+      "originalHeight": 31.58686252274636,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -2050,
+        -715
+      ],
+      "local": [
+        -50,
+        -65
+      ],
+      "height": 30.469056565155483,
+      "originalHeight": 30.469056565155483,
+      "water": 30.783891583094114
+    },
+    {
+      "source": [
+        -2047,
+        -714
+      ],
+      "local": [
+        -47,
+        -64
+      ],
+      "height": 30.93035378993875,
+      "originalHeight": 30.93035378993875,
+      "water": 30.737253101194934
+    },
+    {
+      "source": [
+        -1969.2741577194247,
+        -560
+      ],
+      "local": [
+        30.725842280575307,
+        90
+      ],
+      "height": 20.96824094669904,
+      "originalHeight": 20.96824094669904,
+      "water": -0.7
+    },
+    {
+      "source": [
+        -1949,
+        -605
+      ],
+      "local": [
+        51,
+        45
+      ],
+      "height": 24.77220407657311,
+      "originalHeight": 24.77220407657311,
+      "water": -0.7
+    }
+  ],
+  "waterProfile": "Original halfWidth + 25m physical ribbon, riverLevel and overlapping forestSpringRun maximum; no equal-level flattening."
+}

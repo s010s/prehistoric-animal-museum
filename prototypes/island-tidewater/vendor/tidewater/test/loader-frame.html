@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8" /><title>Loader in a phone-sized frame (dev)</title>
+<style>html, body { margin: 0; background: #222; } iframe { display: block; border: 0; }</style></head>
+<body>
+	<!-- Dev page: test/loader.html inside an iframe of a given size. ?w=390&h=844&<loader.html params> -->
+	<script>
+		const q = new URLSearchParams( location.search );
+		const f = document.createElement( 'iframe' );
+		f.width = q.get( 'w' ) || 390;
+		f.height = q.get( 'h' ) || 844;
+		q.delete( 'w' ); q.delete( 'h' );
+		f.src = 'loader.html?' + q.toString();
+		document.body.appendChild( f );
+	</script>
+</body>
+</html>

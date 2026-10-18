@@ -1,0 +1,21 @@
+Model license record
+====================
+
+Asset: Apatosaurus
+Creator: toro ardido modelos 3d
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License URL: https://creativecommons.org/licenses/by/4.0/
+Source URL: https://sketchfab.com/3d-models/apatosaurus-fecabec8e4ef42ef98b5480dbf50c57d
+Accessed: 2026-08-04
+Rights confirmed by product owner: 2026-08-05
+
+Attribution:
+“Apatosaurus” by toro ardido modelos 3d, CC BY 4.0;
+modified for the Prehistoric Animal Museum.
+
+Project changes include removing the source rig and inert animation, welding
+exactly coincident vertices while preserving UV corners, retaining the
+accepted source base colour, authoring new ORM and tangent-space normal maps,
+normalizing scale and ground contact, creating an eight-second in-place
+morph-target Idle, validating deformation safety, and applying browser-delivery
+compression. The project-facing animal name is “迷惑龙”.

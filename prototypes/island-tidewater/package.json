@@ -1,0 +1,1 @@
+{"name":"museum-tidewater-native-study","private":true,"type":"module","scripts":{"prepare:animals":"node tools/prepare-animals.mjs","build":"node build.mjs","dev":"vite --config vite.config.mjs"}}

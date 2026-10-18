@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Loader states (dev)</title>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" href="/src/ui/ui.css" />
+</head>
+<body>
+	<!-- Dev page: the real #loader markup from index.html in a given state.
+	     ?p=0.5&s=Compiling%20shaders…&until=0.95&done=120&total=380&hide=1&err=msg -->
+	<script type="module">
+		const html = await ( await fetch( '/index.html' ) ).text();
+		const doc = new DOMParser().parseFromString( html, 'text/html' );
+		const L = doc.getElementById( 'loader' );
+		const img = L.querySelector( '.loader-art' );
+		for ( const a of [ 'src', 'srcset' ] ) img.setAttribute( a, img.getAttribute( a ).replace( /(^|[\s,])ui\//g, '$1/ui/' ) );
+		document.body.appendChild( document.adoptNode( L ) );
+		const art = document.querySelector( '.loader-art' );
+		if ( art.complete ) art.classList.add( 'is-in' );
+		else art.addEventListener( 'load', () => art.classList.add( 'is-in' ) );
+		const { UI } = await import( '/src/ui/UI.js' );
+		const ui = new UI();
+		const q = new URLSearchParams( location.search );
+		if ( q.has( 'err' ) ) ui.setLoadingError( q.get( 'err' ) );
+		else ui.setLoading( Number( q.get( 'p' ) || 0 ), q.get( 's' ) || 'Starting WebGPU…', q.has( 'until' ) ? Number( q.get( 'until' ) ) : undefined );
+		if ( q.has( 'total' ) ) ui.setLoadingDetail( Number( q.get( 'done' ) ), Number( q.get( 'total' ) ) );
+		if ( q.has( 'hide' ) ) setTimeout( () => ui.hideLoader(), 1500 );
+		// ?probe: report the tips' and the art's computed opacity in the title (for headless checks)
+		if ( q.has( 'probe' ) ) setTimeout( () => {
+
+			const o = [ ...document.querySelectorAll( '.loader-tip' ) ].map( ( t ) => Number( getComputedStyle( t ).opacity ).toFixed( 2 ) ).join( ',' );
+			const d = document.createElement( 'div' );
+			d.style.cssText = 'position:fixed;top:0;left:0;z-index:2000;background:#fff;color:#000;font:24px monospace;padding:6px';
+			document.body.appendChild( d );
+			d.textContent = document.title = 'tips ' + o + ' art ' + getComputedStyle( document.querySelector( '.loader-art' ) ).opacity + ' ' + document.querySelector( '.loader-art' ).currentSrc.split( '/' ).pop();
+
+		}, Number( q.get( 'probe' ) ) || 3000 );
+		// ?frame=390x844: show the page in an iframe of that size (headless Chrome has a minimum window width)
+	</script>
+</body>
+</html>

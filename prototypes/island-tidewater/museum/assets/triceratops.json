@@ -1,0 +1,42 @@
+{
+  "id": "triceratops",
+  "metres": 8.5,
+  "bounds": {
+    "min": [
+      -0.7555096160718524,
+      -0.0018471896818829103,
+      -2.5152066165340976
+    ],
+    "max": [
+      0.7555096160718524,
+      1.8215379780373837,
+      2.070475059839228
+    ]
+  },
+  "boundsMethod": "rest-pose weighted jointWorld * inverseBind, matching native SkinnedModel",
+  "dimensions": [
+    1.5110192321437048,
+    1.8233851677192665,
+    4.5856816763733255
+  ],
+  "scale": 1.853595735568455,
+  "originalSha256": "e51eeb1c3b9c890cdef1f78c65a74179f2da6d4ed899b32e8833b87d2777cf33",
+  "node": {
+    "translation": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  }
+}

@@ -1,0 +1,249 @@
+{
+	"vertexFloats": 9,
+	"vertexCount": 40587,
+	"indexCount": 131850,
+	"indexByteOffset": 1461132,
+	"layers": [
+		"wooden_crate_02_0",
+		"wooden_crate_01_0",
+		"wooden_bucket_01_0",
+		"fish_knife_0",
+		"wooden_cutting_board_0",
+		"lifebuoy_0",
+		"wooden_lantern_01_0",
+		"wooden_lantern_01_1",
+		"fishermans_hat_0",
+		"WoodenTable_03_0",
+		"metal_jerrycan_green_0",
+		"plastic_jerrycan_0",
+		"life_jacket_0",
+		"metal_toolbox_0",
+		"wooden_display_shelves_01_0"
+	],
+	"props": {
+		"wooden_crate_02": {
+			"vOff": 0,
+			"vCount": 2769,
+			"iOff": 0,
+			"iCount": 10491,
+			"min": [
+				-0.2646,
+				-0.0099,
+				-0.5833
+			],
+			"max": [
+				0.2646,
+				0.4541,
+				0.583
+			]
+		},
+		"wooden_crate_01": {
+			"vOff": 2769,
+			"vCount": 2910,
+			"iOff": 10491,
+			"iCount": 10491,
+			"min": [
+				-0.4122,
+				-0.0079,
+				-0.1959
+			],
+			"max": [
+				0.4122,
+				0.3417,
+				0.2129
+			]
+		},
+		"wooden_bucket_01": {
+			"vOff": 5679,
+			"vCount": 2753,
+			"iOff": 20982,
+			"iCount": 8991,
+			"min": [
+				-0.1843,
+				-0.0001,
+				-0.1696
+			],
+			"max": [
+				0.1825,
+				0.55,
+				0.1723
+			]
+		},
+		"fish_knife": {
+			"vOff": 8432,
+			"vCount": 1648,
+			"iOff": 29973,
+			"iCount": 4494,
+			"min": [
+				-0.0145,
+				-0.1103,
+				-0.0081
+			],
+			"max": [
+				0.0145,
+				0.1055,
+				0.0081
+			]
+		},
+		"wooden_cutting_board": {
+			"vOff": 10080,
+			"vCount": 1213,
+			"iOff": 34467,
+			"iCount": 4497,
+			"min": [
+				-0.2242,
+				0.0001,
+				-0.1232
+			],
+			"max": [
+				0.2257,
+				0.0413,
+				0.1234
+			]
+		},
+		"lifebuoy": {
+			"vOff": 11293,
+			"vCount": 2135,
+			"iOff": 38964,
+			"iCount": 10500,
+			"min": [
+				-0.3904,
+				-0.4622,
+				-0.0706
+			],
+			"max": [
+				0.3926,
+				0.379,
+				0.0844
+			]
+		},
+		"wooden_lantern_01": {
+			"vOff": 13428,
+			"vCount": 4104,
+			"iOff": 49464,
+			"iCount": 11994,
+			"min": [
+				-0.1105,
+				-0.0104,
+				-0.1106
+			],
+			"max": [
+				0.1105,
+				0.5185,
+				0.124
+			]
+		},
+		"fishermans_hat": {
+			"vOff": 17532,
+			"vCount": 2406,
+			"iOff": 61458,
+			"iCount": 9000,
+			"min": [
+				-0.1624,
+				-0.0346,
+				-0.1721
+			],
+			"max": [
+				0.1613,
+				0.0897,
+				0.1777
+			]
+		},
+		"WoodenTable_03": {
+			"vOff": 19938,
+			"vCount": 3264,
+			"iOff": 70458,
+			"iCount": 6894,
+			"min": [
+				-0.6587,
+				0,
+				-0.2809
+			],
+			"max": [
+				0.6681,
+				0.8301,
+				0.2944
+			]
+		},
+		"metal_jerrycan_green": {
+			"vOff": 23202,
+			"vCount": 3248,
+			"iOff": 77352,
+			"iCount": 10491,
+			"min": [
+				-0.1881,
+				0,
+				-0.0859
+			],
+			"max": [
+				0.1724,
+				0.4999,
+				0.0859
+			]
+		},
+		"plastic_jerrycan": {
+			"vOff": 26450,
+			"vCount": 2612,
+			"iOff": 87843,
+			"iCount": 9000,
+			"min": [
+				-0.1347,
+				-0.0001,
+				-0.1665
+			],
+			"max": [
+				0.1333,
+				0.3183,
+				0.1741
+			]
+		},
+		"life_jacket": {
+			"vOff": 29062,
+			"vCount": 3175,
+			"iOff": 96843,
+			"iCount": 12000,
+			"min": [
+				-0.354,
+				-0.4631,
+				-0.0889
+			],
+			"max": [
+				0.3421,
+				0.53,
+				0.0953
+			]
+		},
+		"metal_toolbox": {
+			"vOff": 32237,
+			"vCount": 5522,
+			"iOff": 108843,
+			"iCount": 13485,
+			"min": [
+				-0.2,
+				0,
+				-0.1567
+			],
+			"max": [
+				0.2,
+				0.3054,
+				0.114
+			]
+		},
+		"wooden_display_shelves_01": {
+			"vOff": 37759,
+			"vCount": 2828,
+			"iOff": 122328,
+			"iCount": 9522,
+			"min": [
+				-0.1858,
+				0.0004,
+				-0.5389
+			],
+			"max": [
+				0.1858,
+				1.5566,
+				0.5389
+			]
+		}
+	}
+}

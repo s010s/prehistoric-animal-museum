@@ -1,0 +1,122 @@
+{
+  "schema": "museum-whole-island-v1",
+  "sourceOrigin": [
+    -2000,
+    -650
+  ],
+  "reliefAdapterSha256": "9e44e39257830f515666112eeddebf16c924e53d3e6a697eb95991eca8a5b354",
+  "sources": [
+    {
+      "path": "prototypes/island-exploration/field.js",
+      "sha256": "6fb2c6c9e6f1e0ccc7694a86b9a238b0be18bf498a2266a6fab655d530d81020"
+    },
+    {
+      "path": "prototypes/island-exploration/spring.js",
+      "sha256": "ba071b08790092a3c98bf03c38f7d5e3143f3c245a41190a4795833938381136"
+    },
+    {
+      "path": "prototypes/island-exploration/sample-region.js",
+      "sha256": "26e16be683e28f7010170ea75ebe71ece3acbb9da5dbd9db9a8e05b0a5dd3758"
+    },
+    {
+      "path": "prototypes/island-exploration/habitat.js",
+      "sha256": "574feda35817f4473e111fe66f3eba4788d2e2ee2dbcc00a283506b1f232a82c"
+    },
+    {
+      "path": "prototypes/island-exploration/hydrology.js",
+      "sha256": "cc7d16e545411eacf65b8ffd1a22a85e22507fe57756f13f41df73b14cf30ea2"
+    },
+    {
+      "path": "prototypes/island-exploration/erosion-field.js",
+      "sha256": "eec57c551e7cc1f5c7d4b266b88b6d228963cc638fe75326371a4a2248bcfd88"
+    },
+    {
+      "path": "prototypes/island-exploration/erosion-data.js",
+      "sha256": "81dd988fe821f644580afbcd53aef9152d61d720bb54d3602aad654293bd48ab"
+    },
+    {
+      "path": "src/flight-experience/world.ts",
+      "sha256": "0ef32fba4c25860b794aa3a5bce9822be92a1f593d0a9540ab04cfdd6a02b8d0"
+    },
+    {
+      "path": "src/flight-experience/hydrology/world-river.ts",
+      "sha256": "e3d8d2c55c58bab226dde4b4ae63efa6907105d8698cbbb8228860d469e26bb3"
+    },
+    {
+      "path": "src/flight-experience/hydrology/coastal-river-candidate.ts",
+      "sha256": "7f62bf7790825fef906a65157132ad140842d0a5ae239f3b30be9fb95833dbf9"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "assets/island-island-heights.bin",
+      "bytes": 16777216,
+      "sha256": "a3c354c3a85b81f8070a19eefefac45bd86c9521c7df1cf1309ef681eca9f998"
+    },
+    {
+      "path": "assets/island-north-heights.bin",
+      "bytes": 16777216,
+      "sha256": "19676cf9722e9b04991982c4b2157c39a09e9844c423a82d3eaf45757289ceb3"
+    },
+    {
+      "path": "assets/island-east-heights.bin",
+      "bytes": 16777216,
+      "sha256": "4b7b32171861c145e61277e6a325ef3fab372b2a918f6478ca43cfbbeaff1002"
+    },
+    {
+      "path": "assets/island-source-heights.bin",
+      "bytes": 1048576,
+      "sha256": "634e67276c6ee4f1f5713a027fcb7670331ff42e9040dd9cef2dd178af83b37e"
+    },
+    {
+      "path": "assets/island-habitat.bin",
+      "bytes": 4194304,
+      "sha256": "f335b9eeed2c8dea949f38e5d6e75e5995b277232e22ddcf0077b0f2f81be29b"
+    },
+    {
+      "path": "assets/island-source-water.bin",
+      "bytes": 4194304,
+      "sha256": "c6c1ffa7ccd3e9d7bc93411a23f29709dfc38b7c35ecd8a12860a5883f408b2b"
+    },
+    {
+      "path": "assets/island-layout.json",
+      "bytes": 13023941,
+      "sha256": "6885b58a9f0d06341ce54ad8140debb67720fdcbb17247ccc5dfa4370f55c91e"
+    }
+  ],
+  "trees": 71466,
+  "grids": [
+    {
+      "id": "island",
+      "size": 32768,
+      "res": 2048,
+      "texel": 16,
+      "min": -90.00000000000003,
+      "max": 1206.7068417247324
+    },
+    {
+      "id": "north",
+      "size": 8192,
+      "res": 2048,
+      "texel": 4,
+      "min": -90,
+      "max": 1024.2292317016254
+    },
+    {
+      "id": "east",
+      "size": 8192,
+      "res": 2048,
+      "texel": 4,
+      "min": -90,
+      "max": 656.3677223835743
+    },
+    {
+      "id": "source",
+      "size": 256,
+      "res": 512,
+      "texel": 0.5,
+      "min": 204.14104924127005,
+      "max": 412.5397511501793
+    }
+  ]
+}

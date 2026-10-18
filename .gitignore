@@ -36,6 +36,13 @@ prototypes/
 prototypes/*
 !prototypes/island-exploration/
 !prototypes/island-exploration/**
+# User-authorized standalone native island snapshot; review evidence stays local.
+!prototypes/island-tidewater/
+!prototypes/island-tidewater/**
+prototypes/island-tidewater/node_modules/
+prototypes/island-tidewater/.review-dist/
+prototypes/island-tidewater/.review-baselines/
+prototypes/island-tidewater/patches/
 prototypes/island-exploration/.source/
 prototypes/island-exploration/.review-dist/
 prototypes/island-exploration/.r*-source/

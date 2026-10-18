@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="/"><title>岛屿布局与生态展区 · 史前天地</title><link rel="stylesheet" href="/island/style.css"></head>
+<body><main>
+<header><a class="back" href="/creek/">← 返回溪谷</a><span class="edition">史前天地 / 岛屿布局 02</span><h1>岛屿布局与生态展区</h1><p>保留地形与水系的联系，让森林、草原、湿地、高地和浅海各有自己的样子。</p></header>
+<section class="atlas" aria-label="岛屿总布局">
+<div class="map-column"><div class="map-heading"><h2>全岛总图</h2><div class="layers" aria-label="地图图层"><button data-layer="terrain" aria-pressed="true">地形</button><button data-layer="habitat" aria-pressed="false">生态</button></div></div>
+<div class="map" id="map"><div class="map-surface"><canvas id="terrain" width="512" height="512" role="img" aria-label="根据现有岛屿地形绘制的总图；九个可游览的生态区域"></canvas><svg id="map-overlay" viewBox="0 0 512 512" aria-hidden="true"></svg><div id="markers" aria-label="选择地图上的生态展区"></div></div></div>
+<p id="map-status" role="status">正在读取岛屿地形…</p><p class="map-note">九处生态区域位于同一座岛。点击进入可步行、游泳、下潜或自由飞行。</p></div>
+<aside><p class="kicker">生态展区 / 选择一处查看</p><nav id="region-list" aria-label="生态展区"></nav><article id="region-detail" aria-live="polite"><div class="detail-title"><h2 id="region-name"></h2><span id="region-stage"></span></div><p id="region-landform"></p><dl><dt>植物组合</dt><dd id="region-plants"></dd><dt>水际体验</dt><dd id="region-water"></dd><dt>怎么游览</dt><dd id="region-experience"></dd></dl><div id="swatches" class="swatches" aria-label="环境色调"></div><div id="region-visits" class="visits"></div></article></aside>
+</section>
+<section class="character"><div class="section-intro"><p class="kicker">共同的视觉语言</p><h2>环境有差异，质感保持连贯。</h2><p>共用自然光、空气透视和风化材质。变化来自树冠轮廓、植被疏密、地表湿度和岩石形态，不给每个展区套一层不同的滤镜。</p></div><div id="plant-forms" class="plant-forms"></div><p class="small">高针叶、疏冠、扇叶、矮林与巨木形成不同群落。植物形态尚未等同为有年代与地域依据的物种复原。</p></section>
+<section class="sequence"><div><p class="kicker">观览顺序</p><h2>从林间走向山海。</h2><p>可从任一区域进入，也可沿地形、水道连续探索。飞行有近看、巡游、快速和跨岛四档。</p></div><ol id="phases"></ol></section>
+<details class="scope"><summary>场景范围与科学表达</summary><p>溪谷、西岸、巨木林、山间长湖、高草甸、湿地、寒凉高地、背风旱谷与东湾均已接入，可在同一场景连续探索。</p><p>总图取自原方案约 20.48 公里的坐标域，不代表一次性精细制作全部范围。核心溪谷和源头保留精细地形，其他区域按距离分配细节。草木和小动物只在附近维持细节，远处保留山体、水面与林冠。</p><p>这些是博物馆生态展区；动物与植物的时代、地域和生活环境会随内容接入逐项校核。</p></details>
+<footer><span>博物馆自有岛屿布局与内容</span><span>场景渲染基于 <a href="https://github.com/dgreenheck/tidewater" target="_blank" rel="noreferrer">Tidewater（MIT）</a></span><a href="/creek/">进入当前世界 →</a></footer>
+<details class="diagnostic"><summary>本地布局信息</summary><pre id="island-state"></pre></details>
+</main><script type="module" src="/island/main.js"></script></body></html>
