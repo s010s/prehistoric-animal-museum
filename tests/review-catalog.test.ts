@@ -56,7 +56,7 @@ describe('local collection review catalog', () => {
     )
   })
 
-  it('keeps all twenty-four production animals in the accepted collection order', () => {
+  it('keeps all thirty-six production animals in the accepted collection order', () => {
     expect(localReviewAnimals.map(({ id }) => id)).toEqual([
       'stegosaurus',
       'pteranodon',
@@ -82,6 +82,18 @@ describe('local collection review catalog', () => {
       'archaeopteryx',
       'carnotaurus',
       'anomalocaris',
+      'tullimonstrum',
+      'hallucigenia',
+      'parasaurolophus',
+      'ammonite',
+      'dimetrodon',
+      'gallimimus',
+      'ankylosaurus',
+      'styxosaurus',
+      'livyatan',
+      'opabinia',
+      'allosaurus-pandras',
+      'xiphactinus',
     ])
     expect(
       localReviewAnimals.every(({ status }) => status === 'published'),

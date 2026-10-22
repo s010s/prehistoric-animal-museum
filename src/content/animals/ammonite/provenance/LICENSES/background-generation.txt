@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 1830841
+Original PNG SHA-256: 315a8cf9dc995e24067a9e9ea2d7b00901aa7a6ddba6ccee65bf032ce405c2a1
+Runtime bytes: 84992
+Runtime SHA-256: 1feaf58fc763d1a7e1f433616aaf091f12a6c84268f88cb3482b9f7c710753c5
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Mesozoic continental shelf underwater, clear periwinkle-blue water, pale limestone sand and a few rounded violet-grey limestone boulders restricted to lower corners, faint distant continental shelf visible low in frame. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one LANDSCAPE 16:9 wide image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 1872250
+Original PNG SHA-256: 01b2d56682e778b340b7984bb1ccda20d620eabd42f5145fcddd472450c332fc
+Runtime bytes: 84098
+Runtime SHA-256: 8d1190f5052cab8c87e51d54227836e211ee40d90e34c7832561e979e9bbb5ed
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Mesozoic continental shelf underwater, clear periwinkle-blue water, pale limestone sand and a few rounded violet-grey limestone boulders restricted to lower corners, faint distant continental shelf visible low in frame. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

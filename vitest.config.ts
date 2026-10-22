@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
+import { canonicalAnimalCatalog } from './scripts/canonical-catalog'
 import { scaleEncounterGlacierAssetUrls } from './scripts/scale-encounter-glacier-assets'
 
 const localReviewOnlyTests = [
@@ -10,8 +11,12 @@ const localReviewOnlyTests = [
   'tests/review-server-security.test.ts',
 ]
 
-export default defineConfig({
-  plugins: [react(), scaleEncounterGlacierAssetUrls('review')],
+export default defineConfig(async () => ({
+  plugins: [
+    react(),
+    (await canonicalAnimalCatalog('test')).plugin,
+    scaleEncounterGlacierAssetUrls('review'),
+  ],
   resolve: {
     alias: {
       'virtual:flight-experience-entry': fileURLToPath(new URL('./src/flight-experience/entry-enabled.ts', import.meta.url)),
@@ -47,4 +52,4 @@ export default defineConfig({
       reporter: ['text', 'html'],
     },
   },
-})
+}))

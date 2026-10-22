@@ -31,6 +31,8 @@ import {
 import type { Group } from 'three'
 import type { AtmosphereKind } from '../content/types'
 import type { Locale } from '../i18n/locale'
+import { observeExpansionNarrationMedia } from '../review/expansion-narration-audio'
+import { observeCandidateNarrationMedia } from '../audio/candidate-media-observation'
 import type { ViewerController } from '../viewer/ViewerController'
 import {
   SCALE_ENCOUNTER_DEFINITIONS,
@@ -1009,6 +1011,8 @@ export function DirectScaleEncounter({
       const audio = new Audio()
       audio.preload = 'none'
       audio.src = source
+      observeExpansionNarrationMedia(audio, source, { animalId: animal.id, locale, phase: kind })
+      observeCandidateNarrationMedia(audio, source, { animalId: animal.id, locale, phase: kind })
       bank.set(kind, audio)
     }
     return () => {
@@ -1019,7 +1023,7 @@ export function DirectScaleEncounter({
       }
       bank.clear()
     }
-  }, [content.audio])
+  }, [animal.id, content.audio, locale])
 
   useEffect(() => {
     document.body.classList.add('scale-encounter-open')
@@ -1276,6 +1280,8 @@ export function DirectScaleEncounter({
         audio = new Audio()
         audio.preload = 'none'
         audio.src = content.audio[kind]
+        observeExpansionNarrationMedia(audio, content.audio[kind], { animalId: animal.id, locale, phase: kind })
+        observeCandidateNarrationMedia(audio, content.audio[kind], { animalId: animal.id, locale, phase: kind })
         audioBankRef.current.set(kind, audio)
       }
       audio.preload = 'auto'
@@ -1311,7 +1317,7 @@ export function DirectScaleEncounter({
         void audio.play().catch(handleFailure)
       })
     },
-    [content.audio, content.copy, content.narrationAvailable, restoreAmbientVolume],
+    [animal.id, content.audio, content.copy, content.narrationAvailable, locale, restoreAmbientVolume],
   )
 
   const startPovSequence = useCallback(async () => {

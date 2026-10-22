@@ -1,0 +1,13 @@
+Model source and derivation
+
+Title: Livyatan melvillei
+Author: majorgalah
+Direct source: https://sketchfab.com/models/8313bd7fde514b108c9ef469817b62ba
+Accessed: 2026-10-20
+Source variant bytes: 1435168
+Source variant SHA-256: 8dcb2f2f471897e638a07c62eb66b972d64ffa8f49ae8278b3bab6b658cbf6f0
+Runtime bytes: 5588140
+Runtime SHA-256: 74d0c2f720cc16ad3427a906f111a7da70c1ad877740e9183e6b772dfd239452
+
+- Prepared a self-contained budgeted derivative with a smooth body surface and a repaired mouth/jaw deformation chain.
+- Authored a closed eight-second in-place Idle with clearly visible paired pectoral strokes and increased vertical tail motion, preserving the other animation clips.

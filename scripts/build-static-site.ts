@@ -10,10 +10,10 @@ import type { InitialAppState } from '../src/app-bootstrap'
 import { staticAnimalDetailIds } from '../src/content/static-animal-details'
 
 const projectRoot = resolve(import.meta.dirname, '..')
-const outputDirectory = resolve(projectRoot, 'dist')
-const serverOutputDirectory = resolve(projectRoot, '.prerender-ssr')
 const modeIndex = process.argv.indexOf('--mode')
 const mode = modeIndex === -1 ? 'production' : (process.argv[modeIndex + 1] ?? 'production')
+const outputDirectory = resolve(projectRoot, mode === 'release-candidate' ? 'dist-release-candidate' : 'dist')
+const serverOutputDirectory = resolve(projectRoot, mode === 'release-candidate' ? '.prerender-ssr-release-candidate' : '.prerender-ssr')
 
 async function writeAnimalSocialImages(): Promise<void> {
   for (const animalId of staticAnimalDetailIds) {
@@ -42,6 +42,7 @@ async function writeAnimalSocialImages(): Promise<void> {
 
 try {
   await build({
+    build: { outDir: outputDirectory },
     configFile: resolve(projectRoot, 'vite.config.ts'),
     mode,
     root: projectRoot,

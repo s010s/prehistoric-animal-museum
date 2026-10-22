@@ -119,13 +119,13 @@ describe('explicit looping collection', () => {
     expect(wrapCollectionIndex(7, 3)).toBe(1)
   })
 
-  it('loops the twenty-four-animal production collection in its explicit order', () => {
-    expect(previousAnimalId(mainCollection, 'stegosaurus')).toBe('anomalocaris')
+  it('loops the thirty-six-animal production collection in its explicit order', () => {
+    expect(previousAnimalId(mainCollection, 'stegosaurus')).toBe('xiphactinus')
     expect(nextAnimalId(mainCollection, 'stegosaurus')).toBe(
       'pteranodon',
     )
     expect(stepCollection(mainCollection, 'stegosaurus', 1_001)).toBe(
-      'mosasaurus',
+      'gallimimus',
     )
   })
 })

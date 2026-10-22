@@ -1,0 +1,35 @@
+Offline AI narration
+
+License: CC BY-NC-SA 4.0 project content
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Generated offline; no runtime AI service.
+
+Model licence: Apache-2.0
+Model terms: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/blob/85e237c12c027371202489a0ec509ded67b5e4b5/README.md
+Voice: Serena, supplied with the CustomVoice model.
+
+Chinese (zh-CN)
+Language: Chinese
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 691244
+Raw source SHA-256: 97c7dc617e8396a45fbba40e3fe261e1b0d175ec4608637f5237e525035a590a
+Runtime bytes: 91005
+Runtime SHA-256: 403cfe73e43d59858b7f2a642a236e78a5495d3fe9bf62d278de65e95facae43
+Script: 塔利怪物的两只眼睛伸向身体两边，像一根小横杆的两头。
+你能在眼睛前面，找到那条细长的吻部吗？
+
+English (en)
+Language: English
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 662444
+Raw source SHA-256: 994aa2c86cd3716ff0a9a966a9eaf2e3492e00ee4ccac43cab96e911b4c28026
+Runtime bytes: 87165
+Runtime SHA-256: 48226d94e825d92f6c1b22cd97a6f795c60bed986d3ce84a92d5978b7721db35
+Script: The Tully monster’s eyes stuck out to the sides, like the ends of a little bar.
+Can you find the long snout stretching out in front of them?

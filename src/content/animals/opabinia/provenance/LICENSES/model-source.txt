@@ -1,0 +1,13 @@
+Model source and derivation
+
+Title: Cambrian Alien - Alien weekly challenge
+Author: billionlioe
+Direct source: https://sketchfab.com/models/d2111e360cdc4243aac23871836c49f5
+Accessed: 2026-10-20
+Source variant bytes: 1808432
+Source variant SHA-256: 1a551cb9939a9723b32ddf1e2ec8e3befaea4f9259b651674fd7f1cbcd55f434
+Runtime bytes: 1444496
+Runtime SHA-256: fb511c5c844507782e3a686ab0afedeb1b7792fd0b3301050e95d37a65ca0b62
+
+- Prepared a self-contained budgeted derivative preserving existing segmentation and appendages.
+- Authored a closed eight-second Idle with a clearly visible tail-fan sweep, retaining the segmented body and appendage motion.

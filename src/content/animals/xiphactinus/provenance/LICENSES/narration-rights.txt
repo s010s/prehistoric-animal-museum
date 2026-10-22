@@ -1,0 +1,35 @@
+Offline AI narration
+
+License: CC BY-NC-SA 4.0 project content
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Generated offline; no runtime AI service.
+
+Model licence: Apache-2.0
+Model terms: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/blob/85e237c12c027371202489a0ec509ded67b5e4b5/README.md
+Voice: Serena, supplied with the CustomVoice model.
+
+Chinese (zh-CN)
+Language: Chinese
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 846764
+Raw source SHA-256: 73f20c7bb07582a80b4cc8cc5eff46610251ef1d9a4c4dd15137e2e65a4e751a
+Runtime bytes: 112125
+Runtime SHA-256: 28fdc1cca0714cba6d55eb150277a164bbdf8d2af8bf4597d9f32827743431e6
+Script: 剑射鱼生活在古代海洋里，嘴巴里有很大的牙齿。
+有的从头到尾超过五米，这样的大鱼装得进小小的鱼缸吗？
+
+English (en)
+Language: English
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 702764
+Raw source SHA-256: ee2537877e3e8710c141ac01673122100ba5c03f18b1d02bbe4596c1639bd25a
+Runtime bytes: 93165
+Runtime SHA-256: 678d49fdea7eff54cc3bc02de171a3161efa2557bf8d4eedf3a8ac4cddd82369
+Script: Xiphactinus had large teeth, and some individuals were over five metres long.
+Could a fish that big fit inside a tiny fish tank?

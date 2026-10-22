@@ -1,0 +1,16 @@
+Model source and modifications
+
+Title: Allosaurus
+Author: PAndras (PusztaiAndras)
+Direct source: https://sketchfab.com/3d-models/allosaurus-6c5142e093a147bdb86e0eeb837b476c
+Accessed: 2026-10-20
+Original filename: source-1k.glb
+Original bytes: 14596260
+Original SHA-256: a96163810429c8d35719d381b27f8faeb09e87a0cd6d16e0ff5bac06ab0ba546
+Runtime bytes: 9604028
+Runtime SHA-256: 265e4d435674defcf29fa01283051d1a2f025e768c240605d6200b2ead1922d3
+
+Modification chain
+- Prepared a neutral, non-morph glTF derivative with corrected knee skinning and project armature while retaining source geometry, materials and textures.
+Gentle display movement, colours and soft tissue are artistic reconstruction, not observations of a living animal.
+- Authored an eight-second standing Idle with a larger tail sweep and conspicuous paired foreclaw movement; preserved the Walk clip.

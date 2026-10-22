@@ -1,0 +1,25 @@
+Offline AI narration
+
+Tool: Qwen3-TTS CustomVoice
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Model revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Model licence: Apache-2.0
+Model: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Speaker: Serena (built-in voice)
+Output licence: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Scripts were reviewed by humans and synthesized offline with AI. No runtime synthesis occurs.
+
+Locale: zh-CN
+Language: Chinese
+Runtime bytes: 89325
+Runtime SHA-256: ccee4ec257444f18f7ca9c2a792099a4bec5747711d89f619ec264f11dbe9a32
+Duration: 8860 ms
+Script: 张开嘴巴笑一笑，你的牙齿露出来了吗？似鸡龙有长长的腿和像鸟一样的喙，嘴巴里面没有牙齿。
+
+Locale: en
+Language: English
+Runtime bytes: 108525
+Runtime SHA-256: 3ef39685fc7c8319185995f55710d4c20bad5a7e98e6d612fb372c495e7f266d
+Duration: 10799 ms
+Script: Give a big smile and show your teeth, if you like. Gallimimus had long legs and a bird-like beak, with no teeth inside.

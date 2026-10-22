@@ -1,0 +1,35 @@
+Offline AI narration
+
+License: CC BY-NC-SA 4.0 project content
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Generated offline; no runtime AI service.
+
+Model licence: Apache-2.0
+Model terms: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/blob/85e237c12c027371202489a0ec509ded67b5e4b5/README.md
+Voice: Serena, supplied with the CustomVoice model.
+
+Chinese (zh-CN)
+Language: Chinese
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 800684
+Raw source SHA-256: c70e16ee37cc7b94215a8413333c78cb90574321ee47b2d5aa4cd03115dce88c
+Runtime bytes: 105405
+Runtime SHA-256: 234056d71e72a0a77c04e16c576fc5c3bc363ef4ebc242a7b6344cdac8beb548
+Script: 这只菊石有卷成螺旋的壳，壳里的身体很柔软。
+用眼睛沿着螺旋慢慢往里走，一直找到最里面的那一圈。
+
+English (en)
+Language: English
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 904364
+Raw source SHA-256: 9904c4db9b697f1c938dc35ed1e299771c6cad0b8d6f3d515a8f8cab921e5510
+Runtime bytes: 119085
+Runtime SHA-256: 38e0852fb5fa866f12ed3d93e1a2cbbe79ce818989dd1983327dc6271e79aab9
+Script: This ammonite has a shell curled into a spiral, with a soft body inside.
+Follow the curling path with your eyes, slowly, all the way to the very middle.

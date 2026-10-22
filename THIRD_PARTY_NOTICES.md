@@ -35,6 +35,253 @@ content, contributions, and Brand Assets follow the separate scopes in
   and encoded as Ogg Vorbis. Runtime SHA-256:
   `79d427b3d82a6d73b560eb01f3b62ba1b014b718b2ff68724aee446e7d1c497d`.
 
+## 异特龙 (`allosaurus-pandras`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Allosaurus English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated English narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `55ab22975f69d3a91643b82a4269972d0bfbf48972fa5bc1a696f0a4161b1ce8`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Allosaurus Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated Chinese narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `6fa478428dfde6253983854b55778907ba3979d3c99e0c703e4c1032fb81e9f6`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Allosaurus habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `bda60c1aba3f561a40f6021427b886bb867e0bcf78c5d14e462796390d910bef`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Allosaurus habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `75d451663a7fc3f5fea395f7da34d28087da71153605e0deac4dabd2ed5495e5`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Allosaurus transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Allosaurus” by PAndras (PusztaiAndras), CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `a0b800e4ac0bb61ce35680469ad4163dc8f883c5523a8feb044451893d87ab4d`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Allosaurus transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Allosaurus” by PAndras (PusztaiAndras), CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `02784c6bcf573e16f16c9bd6187c8eb96cf55052467886201de784546d6f71ce`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Allosaurus collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Allosaurus” by PAndras (PusztaiAndras), CC BY 4.0; modified for the Prehistoric Animal Museum. Background art is project-generated and licensed separately under CC BY-NC-SA 4.0.
+- Runtime SHA-256: `71e38db4a4020c2a14e1eea90ca646bc7362bddc3eadc5f1e5da9d7065b58136`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Allosaurus](https://sketchfab.com/3d-models/allosaurus-6c5142e093a147bdb86e0eeb837b476c) by PAndras (PusztaiAndras)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Allosaurus” by PAndras (PusztaiAndras), CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `265e4d435674defcf29fa01283051d1a2f025e768c240605d6200b2ead1922d3`
+- Modifications:
+  - Prepared a neutral, non-morph glTF derivative with corrected knee skinning and project armature while retaining source geometry, materials and textures.
+  - Authored an eight-second standing Idle with a larger tail sweep and conspicuous paired foreclaw movement; preserved the Walk clip.
+## 菊石类 (`ammonite`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: 菊石类 English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `38e0852fb5fa866f12ed3d93e1a2cbbe79ce818989dd1983327dc6271e79aab9`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: 菊石类 Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `234056d71e72a0a77c04e16c576fc5c3bc363ef4ebc242a7b6344cdac8beb548`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: 菊石类 empty habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `1feaf58fc763d1a7e1f433616aaf091f12a6c84268f88cb3482b9f7c710753c5`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: 菊石类 empty habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `8d1190f5052cab8c87e51d54227836e211ee40d90e34c7832561e979e9bbb5ed`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: 菊石类 transparent portrait model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “菊石类” by Emil van Dam, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `5f0eff126f81b3bfe298b457fd79a221d41a41a66e848212cc3cf449b15fd33b`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: 菊石类 transparent landscape model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “菊石类” by Emil van Dam, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `a518e2fc84e2f35d39f524d6850cc92d45b2f0cc6eb1c1541683e2b5f8ef88da`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: 菊石类 scene collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “菊石类” by Emil van Dam, CC BY 4.0; modified for the Prehistoric Animal Museum. Background artwork: CC BY-NC-SA 4.0; underlying model render: CC BY 4.0, with component licences retained.
+- Runtime SHA-256: `4b6b723f5de2308a4ff5b018e5b666a7bbb45f8100fee59cd7673a06ef361041`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [菊石类](https://sketchfab.com/3d-models/ammonite-6f835b20078e4d7fbfa42d1dfe6797ba) by Emil van Dam
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “菊石类” by Emil van Dam, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `72b099427fc277500ae38f9291f2e46ddbfe25342faa05394cfed4797dd02d04`
+- Modifications:
+  - Prepared a self-contained budgeted derivative and retained shell, textures and existing arm structure.
+  - Authored gentle closed eight-second water-driven arm motion with slight lateral variation while keeping the shell stable.
+  - Preserved the existing closed eight-second tentacle Idle; the animal has no vertebrate tail.
+## 甲龙 (`ankylosaurus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Ankylosaurus English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated English narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `3d7ae55ade3aa7b45dc0e1a657909babf9b22dff8b67d7d8e8abf09515bf3fdc`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Ankylosaurus Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated Chinese narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `18b6d034e7bcfecaf5d8791b0924aff532796204c8ce1a51f559c6b167be7769`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Ankylosaurus habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `79557bbd9ddc61045ddc8362be09be09b6e5e716cd51d96e44d133850c7fb9d0`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Ankylosaurus habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `033a59af04bc13a4063215435f0c4515c0f56f60d8fe691dbd2983d68d63fcf2`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Ankylosaurus transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “甲龙” by pikabobalex, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `d1ae09eb6939f3560f8c6976cbd626ce5bb893c14cd0ef761088b8a1d15ab214`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Ankylosaurus transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “甲龙” by pikabobalex, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `316bf8b1f03ba3596e931ae46acff5f5d06a3333835cb958ee859ad577004f3d`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Ankylosaurus collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “甲龙” by pikabobalex, CC BY 4.0; modified for the Prehistoric Animal Museum. Background art is project-generated and licensed separately under CC BY-NC-SA 4.0.
+- Runtime SHA-256: `b68960bb1d63dd54a6104a7ba947d89f0d31fa4758ddffbd17093dc8ec0fa6cc`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [甲龙](https://sketchfab.com/3d-models/dino-ankylosaurus-55b9adcbcf7846e8a833bfc77eaf3d3f) by pikabobalex
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “甲龙” by pikabobalex, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `7447dc70cba8321b85e40356ae5f92477f319b3bc01ea309917d2b7927455b75`
+- Modifications:
+  - Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
+  - Authored an eight-second standing Idle with a conspicuous tail-club sweep using a common tail-root pivot and retained segment follow-through; preserved the Walk clip.
 ## 奇虾 (`anomalocaris`)
 
 ### `audio/narration.en.mp3`
@@ -535,6 +782,170 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Export one traceable, closed-loop, in-place project Idle. Operation: replace-runtime-animation.
   - Authored and validator-checked one closed eight-second land-breathe-tail Idle for the shared museum viewer.
   - Included the human-reviewed curated-components partial mouth relaxation in the same Idle loop.
+## 异齿龙 (`dimetrodon`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Dimetrodon English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated English narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `631c006baf89d3fdccc9cb0140f6ef24fb0dd8982967a43321f9604b16f98119`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Dimetrodon Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated Chinese narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `23675dc953aef513be90e7d453e904be3d8f7df55c2b5cd488790102b63360ab`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Dimetrodon habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `a438c13d26203898bc3e23d37b9a6b96267a145079363d6580e9c4d77e3fc48d`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Dimetrodon habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `ca7bdd0b2872e25e1c055fc46f9a8d7ba14bc9baff3f97a164a2262d6be53fa1`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Dimetrodon transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “异齿龙” by cp4096, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `683e3af93dc376d8795b28065a797616538a3a84d7e8f7157f8b0df65ec16fbd`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Dimetrodon transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “异齿龙” by cp4096, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `d4467106b46e70ae8c899561bb824b4eb8815d8e6143796f98a18ddbfb6b7b44`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Dimetrodon collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “异齿龙” by cp4096, CC BY 4.0; modified for the Prehistoric Animal Museum. Background art is project-generated and licensed separately under CC BY-NC-SA 4.0.
+- Runtime SHA-256: `8468422d43e77787c6da58004ea47d04ccacc1976d52d56a4334ac25be17ea0e`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [异齿龙](https://sketchfab.com/3d-models/dimetrodon-3ac7c6aada5e4c03849f9544bbc1afed) by cp4096
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “异齿龙” by cp4096, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `5843890d9a33da3cbdedc84c30763881c347264c96af67340bdb8e11e1216b3c`
+- Modifications:
+  - Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
+  - Authored an eight-second standing Idle with a larger flexible tail sway and compatible tail-follow joints; preserved the complete Walk deformation and original skin weights.
+## 似鸡龙 (`gallimimus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Gallimimus English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated English narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `3ef39685fc7c8319185995f55710d4c20bad5a7e98e6d612fb372c495e7f266d`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Gallimimus Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated Chinese narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `ccee4ec257444f18f7ca9c2a792099a4bec5747711d89f619ec264f11dbe9a32`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Gallimimus habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `69ca5cd322a7a6e50c9da4f3196ed9b7f3cacc7df6a44863cacd79d0d6c55192`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Gallimimus habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `ec39e5b27af8267b9b19fe7cc4ba33d00a17025369854fc47041b7cb5a070b3c`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Gallimimus transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “似鸡龙” by htqj寒潭秋镜, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `f269b332e50712114226f103ccfde636fd23e1fa156de1e4df7fb0ffc5a7253d`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Gallimimus transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “似鸡龙” by htqj寒潭秋镜, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `9ad1ff4e5aa7d8f59d3d0a55047ef80921acc60b7d90d2f152761beaff57c294`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Gallimimus collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “似鸡龙” by htqj寒潭秋镜, CC BY 4.0; modified for the Prehistoric Animal Museum. Background art is project-generated and licensed separately under CC BY-NC-SA 4.0.
+- Runtime SHA-256: `777150445ddb071191ab6b05336c3d6538f2f6285563f0462c4b8c4d86ca3e23`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [似鸡龙](https://sketchfab.com/3d-models/gallimimus-3694e4706ca844549ce9a6d57c555091) by htqj寒潭秋镜
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “似鸡龙” by htqj寒潭秋镜, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `d6f28eccc1a91b432b4a5fcc2364d69c024fd42eb1b7377b46ebb9782a8d348a`
+- Modifications:
+  - Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
+  - Authored an eight-second standing Idle with a larger flexible tail sway; preserved the Walk clip and planted feet.
 ## 巨盗龙 (`gigantoraptor`)
 
 ### `audio/narration.en.mp3`
@@ -621,6 +1032,88 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Injected 29 rotation-only channels for the torso, neck, head, jaw, arms, and tail into the normalized base GLB while preserving its original mesh and skin hierarchy.
   - Kept the root, hips, and legs stationary to avoid foot sliding.
   - Validated and reviewed the self-contained derivative.
+## 怪诞虫 (`hallucigenia`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: 怪诞虫 English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `57253cde3fcd079b05d0ac8c86a0d1c7edd0a0365e6b9d919d83e93054e72b17`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: 怪诞虫 Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `0ddc48020733fe47d22bded2c8adfdf560f03f9329dee0debfd6ca367bff878c`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: 怪诞虫 empty habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `5304af7ec93c61c5e20881fc4843cd092b1a5bd43dc09500c84f60d8ea1261ec`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: 怪诞虫 empty habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `e0e93e17281dc27b3e5f0f623f13653b3f4b2519564bd2b73584aadf141dd33f`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: 怪诞虫 transparent portrait model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “怪诞虫” by huykhoi2407, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `579f12ed7961e139b07520ed912d8b5795601db456a40f1e5da85c72ec423750`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: 怪诞虫 transparent landscape model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “怪诞虫” by huykhoi2407, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `90af50b61d30fa6f7e19362799c77965232b3f057779ce0aac53d109f3690fcd`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: 怪诞虫 scene collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “怪诞虫” by huykhoi2407, CC BY 4.0; modified for the Prehistoric Animal Museum. Background artwork: CC BY-NC-SA 4.0; underlying model render: CC BY 4.0, with component licences retained.
+- Runtime SHA-256: `844802c01912b326654899a1ec2b127f1b62679273e8a336d76e7d7876ff80c5`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [怪诞虫](https://sketchfab.com/3d-models/hallucigenia-cambrian-animal-fad8306e863a4960b48e49c16c3806cf) by huykhoi2407
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “怪诞虫” by huykhoi2407, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `2f1c725ab3410bc0b650ee442d7028555e63b51288fb8a6531997941dc8daa1e`
+- Modifications:
+  - Prepared a self-contained budgeted derivative with a segmented appendage rig.
+  - Authored a closed eight-second Idle with visible staggered motion through all twenty segmented appendage chains, including the terminal support-leg sections; kept the spine-bearing roots stable.
 ## 鱼龙类 (`ichthyosaur`)
 
 ### `audio/narration.en.mp3`
@@ -709,6 +1202,88 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Shifted the Idle to begin at exactly zero seconds, made every rotation track close on the same quaternion, and periodically smoothed the head, neck, and body tracks so loop wraparound cannot produce a sudden head shake.
   - Cleared stale normalized flags after promoting repaired quaternion accessors to floating point so the runtime GLTF loader receives spec-valid animation data.
   - Normalized the derivative to one closed-loop Idle, repacked it, validated it with zero Khronos errors and warnings before runtime compression, and reviewed it in the shared museum viewer.
+## 梅氏利维坦鲸 (`livyatan`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: 梅氏利维坦鲸 English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `d87a0f431d0a10aa7eca07ba7c7f1fa751d840a7f53e7aa787cc8493a4feb497`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: 梅氏利维坦鲸 Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `a45d110e83663f4e60b55da89084cae2b5e2487875dc7fe286b3c88b4bda4fa9`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: 梅氏利维坦鲸 empty habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `c359fa37efc1917c2de3dbbe01a8c20dda44a1d717e9b69122dd0bb50da53762`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: 梅氏利维坦鲸 empty habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `1e8d7ec89e41e004f147c35c9931afd402ca9812580a63cd27dfc6ede48a3773`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: 梅氏利维坦鲸 transparent portrait model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Livyatan melvillei” by majorgalah, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `167a8557f0f70e986316e31209dce4b05c4203954ebe661522cb792edae61604`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: 梅氏利维坦鲸 transparent landscape model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Livyatan melvillei” by majorgalah, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `c1e317e9dae1a631b9f27cc4646f21cc13e3914452caba0ba76edc915c367c99`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: 梅氏利维坦鲸 scene collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Livyatan melvillei” by majorgalah, CC BY 4.0; modified for the Prehistoric Animal Museum. Background artwork: CC BY-NC-SA 4.0; underlying model render: CC BY 4.0, with component licences retained.
+- Runtime SHA-256: `652d4efbe8d6d20b61b2b981fcb906cded8a8913cacf72811a9c73fd9b8f5c5d`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Livyatan melvillei](https://sketchfab.com/models/8313bd7fde514b108c9ef469817b62ba) by majorgalah
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Livyatan melvillei” by majorgalah, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `74d0c2f720cc16ad3427a906f111a7da70c1ad877740e9183e6b772dfd239452`
+- Modifications:
+  - Prepared a self-contained budgeted derivative with a smooth body surface and a repaired mouth/jaw deformation chain.
+  - Authored a closed eight-second in-place Idle with clearly visible paired pectoral strokes and increased vertical tail motion, preserving the other animation clips.
 ## 水龙兽 (`lystrosaurus`)
 
 ### `audio/narration.en.mp3`
@@ -1223,6 +1798,88 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Included the human-reviewed source-rig partial mouth relaxation in the same Idle loop.
   - Replaced the source tail morph's sign-reversing S curve with two mirrored, length-preserving single-curvature arc targets. Each stroke now begins at the muscular tail root, increases continuously toward the tip, and returns through a neutral straight pose without folding back on itself; retained the symmetric four-flipper swimming targets.
   - Cleared stale normalized flags after promoting repaired morph and animation accessors to floating point so the runtime GLTF loader receives spec-valid data.
+## 欧巴宾虫 (`opabinia`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: 欧巴宾虫 English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `91c8af6a19c468d1d71e44295d7a9100fc4f72d971053647f2ac9b24c037fe01`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: 欧巴宾虫 Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `528344c72187ab7caf30097241afa68ac0ef2a427bbac70eb49da3e75a218f00`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: 欧巴宾虫 empty habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `3cd9048248f15ae01f01e543670e3a26c0a134a75395f917f39cf3693d6b4a9d`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: 欧巴宾虫 empty habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `85b72eef8d6bbc23185e34286580c274cc75ed8268ce1e1db78dee7884c26848`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: 欧巴宾虫 transparent portrait model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Cambrian Alien - Alien weekly challenge” by billionlioe, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `4184ac7a29854605f23beb27fe55e9f9bdbb69ff5e3921b8232e4eb172bd6a34`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: 欧巴宾虫 transparent landscape model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Cambrian Alien - Alien weekly challenge” by billionlioe, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `a8a07693d693cda455c7f8d466bb2a4b3e9435aa571436bdc7062f153eca1db0`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: 欧巴宾虫 scene collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Cambrian Alien - Alien weekly challenge” by billionlioe, CC BY 4.0; modified for the Prehistoric Animal Museum. Background artwork: CC BY-NC-SA 4.0; underlying model render: CC BY 4.0, with component licences retained.
+- Runtime SHA-256: `587a5ded8fd72ac9c8ab778ba2316f45907a8acb96619a1ba0e88d598d13ecb6`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Cambrian Alien - Alien weekly challenge](https://sketchfab.com/models/d2111e360cdc4243aac23871836c49f5) by billionlioe
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Cambrian Alien - Alien weekly challenge” by billionlioe, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `fb511c5c844507782e3a686ab0afedeb1b7792fd0b3301050e95d37a65ca0b62`
+- Modifications:
+  - Prepared a self-contained budgeted derivative preserving existing segmentation and appendages.
+  - Authored a closed eight-second Idle with a clearly visible tail-fan sweep, retaining the segmented body and appendage motion.
 ## 肿头龙 (`pachycephalosaurus`)
 
 ### `audio/narration.en.mp3`
@@ -1307,6 +1964,88 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Converted legacy material data to metallic/roughness.
   - Cleared zero-weight joint indices and retained the presentation-safe Idle clip.
   - Deduplicated, pruned, repacked, validated, and reviewed the derivative.
+## 副栉龙 (`parasaurolophus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Parasaurolophus English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated English narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `5fbe2b8e6a97768249b662f15420c558cd2efa0bbcc3736a40abf2456d7105da`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Parasaurolophus Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated Chinese narration, reviewed by humans and synthesized offline using Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `07c3e874b1777ff69cc5d569418df828bc946d77eaa2e03434085336812fd197`
+- Modifications:
+  - Generated offline from the exact two-sentence script using the built-in Serena voice.
+  - Normalised to 48 kHz mono MP3; copied without re-encoding.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Parasaurolophus habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `fc1e9a3d0a9c84ba919159797c56a6167aa405e41e519d7ad7486cea9f7c04db`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Parasaurolophus habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International — project-authored content](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat art created with OpenAI ImageGen.
+- Runtime SHA-256: `02332acc77068869f5e76c214e9e8d5ee93e7668751fc84994789c59874a2627`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Parasaurolophus transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “副栉龙” by htqj寒潭秋镜, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `686b98623e957c32687e24ddcd7d1587a87586a5420aaef62886e5bf6ddf1d9b`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Parasaurolophus transparent model poster, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “副栉龙” by htqj寒潭秋镜, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `7d7927ddb6e90c68d5fa0cb5daf9243701ca307a1f75688e01e7615d2f6cac41`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Parasaurolophus collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “副栉龙” by htqj寒潭秋镜, CC BY 4.0; modified for the Prehistoric Animal Museum. Background art is project-generated and licensed separately under CC BY-NC-SA 4.0.
+- Runtime SHA-256: `1cc94fc37f9b9f985e416b19419d18e9b0e547c1f5adac2edf9639d1f480cb24`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [副栉龙](https://sketchfab.com/3d-models/parasaurolophus-0f25fa4a55ba48c88adef066161f5e83) by htqj寒潭秋镜
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “副栉龙” by htqj寒潭秋镜, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `c1290e59f4ce65246ee964dbf4b435ec49df5fb6d4b2d222bb54f4527d3b438e`
+- Modifications:
+  - Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
+  - Authored an eight-second standing Idle with a larger continuous-chain tail sway, retained the existing head-look and breathing, and preserved the Walk clip.
 ## 蛇颈龙类 (`plesiosaurus`)
 
 ### `audio/narration.en.mp3`
@@ -1817,6 +2556,88 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Cleared zero-weight joint indices.
   - Retained IdleA only, renamed it Idle, pruned unused data, and repacked the GLB.
   - Corrected the project-facing animal name from “Stegasaurus” to “Stegosaurus”.
+## 冥河龙 (`styxosaurus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: 冥河龙 English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `b87c6669899d06bcb628b8ece95b1acd6e7332947a51b1b1ab3e920f8afd4276`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: 冥河龙 Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `421c2258d2a98ccb19edac370dfda0fe9e28579269b3f9cf5c979bf933492b05`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: 冥河龙 empty habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `05f304807f9ff1dcad96c8229141dc25f0d967420e6e10d08f663eff9d5e36e1`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: 冥河龙 empty habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `b7491c9c94c15c77c9bbb22891d5c80edaf837f317583c9ed5470b7108e8fa25`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: 冥河龙 transparent portrait model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Styxosaurus snowii” by Julian Johnson-Mortimer, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `63ba330cc7d9f9ad94b1e5b7f7c24a3199adaf5ab21074006b678fb88ec1a257`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: 冥河龙 transparent landscape model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Styxosaurus snowii” by Julian Johnson-Mortimer, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `4ab96c5386e018d0c6cd88add5f909a3fdbf91896a6efa16bb4598d21c1421e7`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: 冥河龙 scene collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Styxosaurus snowii” by Julian Johnson-Mortimer, CC BY 4.0; modified for the Prehistoric Animal Museum. Background artwork: CC BY-NC-SA 4.0; underlying model render: CC BY 4.0, with component licences retained.
+- Runtime SHA-256: `cf65e5b1c327485140032f1770fb297b291660b520961711ca44107454c4028d`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Styxosaurus snowii](https://sketchfab.com/models/c0ee838a9345458b91ef2cca3ba94542) by Julian Johnson-Mortimer
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Styxosaurus snowii” by Julian Johnson-Mortimer, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `04afc983026c3a72ba72715276301d29c8a522bb7117cec98558463981270251`
+- Modifications:
+  - Prepared a self-contained budgeted derivative while preserving source appearance and the original Swim clip.
+  - Authored a closed eight-second in-place Idle with clearly visible strokes of all four flippers and a larger tail follow-through, preserving the other animation clips.
 ## 三角龙 (`triceratops`)
 
 ### `audio/narration.en.mp3`
@@ -1903,6 +2724,88 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Authored an eight-second in-place Idle with an approximately 11-degree side-to-side head turn, a subtle nod, and a progressive distal tail wave while the tail root remains stationary over the hips.
   - Repaired the rear-leg and tail-root junction after close-up owner review by extending the stationary pelvis weights through the disconnected skin overlap.
   - Normalized the Blender export to one closed-loop Idle clip with four rotation-only channels, then validator-checked and reviewed the derivative in the shared museum viewer.
+## 塔利怪物 (`tullimonstrum`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: 塔利怪物 English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `48226d94e825d92f6c1b22cd97a6f795c60bed986d3ce84a92d5978b7721db35`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: 塔利怪物 Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `403cfe73e43d59858b7f2a642a236e78a5495d3fe9bf62d278de65e95facae43`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: 塔利怪物 empty habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `50402a48c0899aee29f6e5f1382753b32aeb140789a66e35c534732b11f095d1`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: 塔利怪物 empty habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `fe4ee6a36aefc265b68652d6df566a2b82fb551dd978a6c313ba81c2a7f16237`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: 塔利怪物 transparent portrait model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “塔利怪物” by huykhoi2407, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `eefd46d236d01c39fdce6f5183afc3a4f72f4f8e56c52bb34b9c009a95f6dd1b`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: 塔利怪物 transparent landscape model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “塔利怪物” by huykhoi2407, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `174d70271401cb25e91412c379ad287109c218d3865afcdecb204096113eb649`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: 塔利怪物 scene collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “塔利怪物” by huykhoi2407, CC BY 4.0; modified for the Prehistoric Animal Museum. Background artwork: CC BY-NC-SA 4.0; underlying model render: CC BY 4.0, with component licences retained.
+- Runtime SHA-256: `2394a2b5cb9dd1d08b6f2633c9919de221b2acfa0257333012790c376ad2f2e7`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [塔利怪物](https://sketchfab.com/3d-models/tully-monster-tullimonstrum-48e46fb0c1ba436a88a4b9e5bda693ee) by huykhoi2407
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “塔利怪物” by huykhoi2407, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `89c10f5b4ac2846d1be41b5103dcc1cdf4647037073a19fd532aba370e35fec6`
+- Modifications:
+  - Prepared a self-contained budgeted derivative while retaining source mesh, textures and rig structure.
+  - Authored a closed eight-second Idle with clearly visible tail-stem and tail-fin movement while preserving the existing proboscis motion and other animation clips.
 ## 古神翼龙 (`tupandactylus`)
 
 ### `audio/narration.en.mp3`
@@ -2080,3 +2983,149 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Reweighted the integrated outer lower-jaw skin and split the shared mouth lining between head and jaw, with smooth hinge and mouth-edge transitions so the skin, lower teeth, and tongue remain together throughout both opening-and-closing pulses.
   - Matched both 33-vertex hip seam rings to the torso spine weights, then blended each upper leg back to its stationary leg bone over 0.16 model units so the hips remain closed while both feet stay planted.
   - Normalized the Blender export to one closed-loop Idle clip with ten rotation-only channels, then validator-checked and reviewed the derivative in the shared museum viewer.
+## 剑射鱼 (`xiphactinus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: 剑射鱼 English narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `678d49fdea7eff54cc3bc02de171a3161efa2557bf8d4eedf3a8ac4cddd82369`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: 剑射鱼 Chinese narration, generated with Qwen3-TTS CustomVoice on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project narration written for the museum and synthesized offline with Qwen3-TTS 0.6B CustomVoice, Serena.
+- Runtime SHA-256: `28fdc1cca0714cba6d55eb150277a164bbdf8d2af8bf4597d9f32827743431e6`
+- Modifications:
+  - Synthesized offline from the reviewed two-sentence text with context-specific pronunciation controls.
+  - Normalized the complete narration to a 48 kHz mono MP3; no runtime synthesis.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: 剑射鱼 empty habitat — landscape, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `619fad5069ffd488f4e16964e78e0972600a9ae6446e9756bb87f679830e1899`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: 剑射鱼 empty habitat — portrait, generated with built-in image_gen on 2026-10-22
+- License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+- Runtime SHA-256: `b310e62439b2a6179d2231523aee7e42a1fa8782d55178f29eeebc399f5bef6c`
+- Modifications:
+  - Converted this animal’s independently generated composition to compact WebP.
+  - Kept the central display area empty for the separate 3D animal; landscape and portrait are separate ImageGen outputs.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: 剑射鱼 transparent portrait model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Xiphactinus” by Julian Johnson-Mortimer, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `2bd2f27bf6c6854e8204b1934037d37b4acc9246f98076d0b7d0f09c9e3a8dab`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: 剑射鱼 transparent landscape model still, derived on 2026-10-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Xiphactinus” by Julian Johnson-Mortimer, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `d9065dbc63994e67ac1a0dadc8037cfa7cad223fbed555abc3006746082b0a4a`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: 剑射鱼 scene collection thumbnail, derived on 2026-10-22
+- License: [CC BY 4.0 model render; CC BY-NC-SA 4.0 background (component licences retained)](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Xiphactinus” by Julian Johnson-Mortimer, CC BY 4.0; modified for the Prehistoric Animal Museum. Background artwork: CC BY-NC-SA 4.0; underlying model render: CC BY 4.0, with component licences retained.
+- Runtime SHA-256: `8228a4012a4342c468a44944e61d22082434d38f7d41ec677cfca1c5bd17845c`
+- Modifications:
+  - Preserved the complete animal silhouette and source materials.
+  - Verified the final model’s initial pose and renderer presentation before deriving or retaining the static image.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Xiphactinus](https://sketchfab.com/3d-models/xiphactinus-4deb7371eed84a8ab539bb0072384198) by Julian Johnson-Mortimer
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Xiphactinus” by Julian Johnson-Mortimer, CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `c884219f70e83b88cdfd439505eee42cb3c505d29b4565ab2f8702c2a34af417`
+- Modifications:
+  - Prepared a self-contained budgeted derivative, repairing the mouth interior and avoiding duplicate exterior head surfaces.
+  - Preserved body alpha MASK cutoff 0.2 and the 192-triangle mouth lining.
+  - Authored a closed eight-second in-place Idle with conspicuous fin strokes, a larger tail sweep, and visible lower-jaw opening and closing with local deformation correction; preserved the other animation clips.
+
+# Additional comparison narration rights
+
+These48tracks form eight bilingual comparison guides. Each animal-locale guide was synthesized as one continuous master, normalized once, then cut at natural pauses into intro, transition and arrival.
+
+The original scripts and generated narration are project content, synthesized offline with Qwen3-TTS. No runtime synthesis occurs.
+
+- Engine: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice, revision85e237c12c027371202489a0ec509ded67b5e4b5.
+- Voice: built-in Serena; Chinese for zh-CN and English for en.
+- Runtime:48kHz mono80kbps MP3; full-master tempo1.04x, no pitch shift.
+- Model terms: [Apache2.0 model card](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/blob/85e237c12c027371202489a0ec509ded67b5e4b5/README.md). Model weights are not bundled.
+- Project writing and generated narration remain subject to [CC BY-NC-SA4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), the project licensing guide and applicable third-party terms.
+
+| File | SHA-256 | Continuous master SHA-256 |48k sample range |
+| --- | --- | --- | --- |
+| `parasaurolophus-intro.zh-CN.mp3` | `ab526b0320918c19259471ad3572063d808ab571cd2fb41a69778a3060676c4e` | `c894835ab9361bc5d771a6859752a77de62576393821fe38d00f53a07af1b67f` | 0–484277 |
+| `parasaurolophus-transition.zh-CN.mp3` | `62e50c7bb4d1c5a88e8f7a47992aedcd7a169d0f446e0c4f0cb3dfd20f2589d3` | `c894835ab9361bc5d771a6859752a77de62576393821fe38d00f53a07af1b67f` | 484277–979995 |
+| `parasaurolophus-arrival.zh-CN.mp3` | `15850fff683fcfe6c403d033e25651dbff38edc8025c5f416c6a2e47f6dca7f4` | `c894835ab9361bc5d771a6859752a77de62576393821fe38d00f53a07af1b67f` | 979995–1574620 |
+| `parasaurolophus-intro.en.mp3` | `ddb68de0c44bfbe1c0ce1b36aeacfb5d40f2f7d30a192edecf276baf754f400c` | `712b85616f978ac8beae6e9cab4086d5b537a2c511d1e95b7cd65cae9d28c429` | 0–537083 |
+| `parasaurolophus-transition.en.mp3` | `2a0075bd71bb458440abc99f917d8c3e655665dbedd6b6401f021c028851c718` | `712b85616f978ac8beae6e9cab4086d5b537a2c511d1e95b7cd65cae9d28c429` | 537083–1042786 |
+| `parasaurolophus-arrival.en.mp3` | `7b56a82365941c60337820d2736d0fe79e453cdaad9845e0628a122ee41d4da5` | `712b85616f978ac8beae6e9cab4086d5b537a2c511d1e95b7cd65cae9d28c429` | 1042786–1758080 |
+| `dimetrodon-intro.zh-CN.mp3` | `9091456bbcb27867631f2d8c55b501185ef9128ab001dd25ce822961c2244751` | `cf86c4afc092ca8f779354acab7bad6a01c0a8c957d28200c65673c001551ba3` | 0–536525 |
+| `dimetrodon-transition.zh-CN.mp3` | `b63170d97ef5fe21c91eff4d76f3b854b8fdbed4714b04b4d09183f2ab874f75` | `cf86c4afc092ca8f779354acab7bad6a01c0a8c957d28200c65673c001551ba3` | 536525–947905 |
+| `dimetrodon-arrival.zh-CN.mp3` | `0eddaa3d248865bb09d156ffe1786424a41d23650a896dfdf8a3d0f2ae88d1ec` | `cf86c4afc092ca8f779354acab7bad6a01c0a8c957d28200c65673c001551ba3` | 947905–1470568 |
+| `dimetrodon-intro.en.mp3` | `2f1040845fa16104ee66d3ef2c17180142256f87aa498493d58f6f1d8406620b` | `e8657c3642ece6d324ba9807270945d7dd809f8f8f880432a7f1395d9d0e1255` | 0–614444 |
+| `dimetrodon-transition.en.mp3` | `c7b58fb52f7ac576ef069ce4349945b8bd4ad1ce583924970b9741b2e938acef` | `e8657c3642ece6d324ba9807270945d7dd809f8f8f880432a7f1395d9d0e1255` | 614444–1047434 |
+| `dimetrodon-arrival.en.mp3` | `944aad4d713b5723ab61cac18edeca329a5debe7fdd5843dbf007b80d3bdbdbb` | `e8657c3642ece6d324ba9807270945d7dd809f8f8f880432a7f1395d9d0e1255` | 1047434–1712560 |
+| `gallimimus-intro.zh-CN.mp3` | `4896f44853c894d67cb70eacad58f789e7d73d750c45873fccd0ff86d858d182` | `b9f8b2ec8bc3d180359af746b475da01bf890ffcc68fc80e2cefae40c47872be` | 0–594282 |
+| `gallimimus-transition.zh-CN.mp3` | `37df9af3087d60356cbac52a0f6dd8d1528dcf8a6585ae2932310acfe4c7ddce` | `b9f8b2ec8bc3d180359af746b475da01bf890ffcc68fc80e2cefae40c47872be` | 594282–1043584 |
+| `gallimimus-arrival.zh-CN.mp3` | `a816bf2d3a44b79695f91934285bb5f34d858ab45d191036bd7da3df048f867a` | `b9f8b2ec8bc3d180359af746b475da01bf890ffcc68fc80e2cefae40c47872be` | 1043584–1595622 |
+| `gallimimus-intro.en.mp3` | `47f20f68f678e02b7de42cc2051cd4c718960ee9e20dbe39d2e011beeb79d4f0` | `4717afce090bc0acf027b2017cc79858317becc5b60d1eabbdf8d000af69d5f4` | 0–718616 |
+| `gallimimus-transition.en.mp3` | `845865ea0b2dc5ac4678ed068de8020451e5f2f4c887f16343a0641e69acc392` | `4717afce090bc0acf027b2017cc79858317becc5b60d1eabbdf8d000af69d5f4` | 718616–1222206 |
+| `gallimimus-arrival.en.mp3` | `ca270e4b9393a70cb63f23741284ae624465a2c495436ca33274154d1333daa6` | `4717afce090bc0acf027b2017cc79858317becc5b60d1eabbdf8d000af69d5f4` | 1222206–1890864 |
+| `ankylosaurus-intro.zh-CN.mp3` | `6cafa6c20d9a23f9cb0161a4784a1f8e60d99eab967334dec1fb8724404aea9e` | `072735899dfe62c09a504ec771245b7d7590f97c1bade86c3bff61c6ca280c33` | 0–500991 |
+| `ankylosaurus-transition.zh-CN.mp3` | `699b01809f31d9cd6b96efe55a27ebbdd1432a919342ab65688b079c15611fa8` | `072735899dfe62c09a504ec771245b7d7590f97c1bade86c3bff61c6ca280c33` | 500991–918576 |
+| `ankylosaurus-arrival.zh-CN.mp3` | `74f63a92aff334b06a044e88aa47f9a0bebd5c71c7bd514acec0e04b5f2859dd` | `072735899dfe62c09a504ec771245b7d7590f97c1bade86c3bff61c6ca280c33` | 918576–1489982 |
+| `ankylosaurus-intro.en.mp3` | `1544ab7833cd8df5f4ea452f1031d4c37cc40a9efdce405f978c90613643d59a` | `8d4be860c076f1759f424fa32e5199257b2e3330b57e54a5483ee88fabae24a6` | 0–496194 |
+| `ankylosaurus-transition.en.mp3` | `be418f7abc85bc630ec54965097ca8cb2710a99f9fa3abd5ea87eb35bf401c8c` | `8d4be860c076f1759f424fa32e5199257b2e3330b57e54a5483ee88fabae24a6` | 496194–952291 |
+| `ankylosaurus-arrival.en.mp3` | `816edcaf2b735e30a28db99abe7041cdbfc11a259ac8446725235401155172b5` | `8d4be860c076f1759f424fa32e5199257b2e3330b57e54a5483ee88fabae24a6` | 952291–1611614 |
+| `styxosaurus-intro.zh-CN.mp3` | `cf4c0e563f984febf4cdc5c99879c34ff0f8d13e71527025978e51d848a3d271` | `86e30ef40c1df6eda73d4da582298a6ee012bcc69134c04cb253264f0c85a4c6` | 0–505220 |
+| `styxosaurus-transition.zh-CN.mp3` | `c91b7cfb6f092920b6c79921126bb3b827703f0aa2259a1303e4417744067c78` | `86e30ef40c1df6eda73d4da582298a6ee012bcc69134c04cb253264f0c85a4c6` | 505220–881846 |
+| `styxosaurus-arrival.zh-CN.mp3` | `3eb580438bd8326e575032051175082081a13e1fa1727919085191fa94d35a92` | `86e30ef40c1df6eda73d4da582298a6ee012bcc69134c04cb253264f0c85a4c6` | 881846–1340520 |
+| `styxosaurus-intro.en.mp3` | `c39929a064b2b1f1711e96afdeaa2a86efd4f2dfc65abf8980dcfbbde05e9a80` | `29a3f18e20002d48ad8a8d2a2c4f3b9a1d207c76a46a4c2b866190f6078934a4` | 0–584781 |
+| `styxosaurus-transition.en.mp3` | `8375c0c4b9e5a639d48a3eee6756a9a0a6ff22ca1814a490b7e16881d3f0595b` | `29a3f18e20002d48ad8a8d2a2c4f3b9a1d207c76a46a4c2b866190f6078934a4` | 584781–1078297 |
+| `styxosaurus-arrival.en.mp3` | `987857ba105643191d8afbee7b9a96ec95178c335bc3ddb317a47f15b86fc558` | `29a3f18e20002d48ad8a8d2a2c4f3b9a1d207c76a46a4c2b866190f6078934a4` | 1078297–1631366 |
+| `livyatan-intro.zh-CN.mp3` | `7387b918695c5197d17f93c2ed71e0a1a1ce7d6fe8866a84f38dcbb9e89a8ed1` | `b6dfea892490590af819a81498b81b2b1c790f71d23d2059f7194e6b14075b07` | 0–506297 |
+| `livyatan-transition.zh-CN.mp3` | `040cbcd46abc422192bffd4486d34a59da333377d02fabad6bdbf584e441f563` | `b6dfea892490590af819a81498b81b2b1c790f71d23d2059f7194e6b14075b07` | 506297–871529 |
+| `livyatan-arrival.zh-CN.mp3` | `eb13ebf47daad1822ee8fc403186d2f3a410f52b31d7475c827dd775ecf3e217` | `b6dfea892490590af819a81498b81b2b1c790f71d23d2059f7194e6b14075b07` | 871529–1376206 |
+| `livyatan-intro.en.mp3` | `5a937892ff02668772c55c23314e686a11ba6e0e465d7268b986a7cdc06f19e1` | `ee1fd0d7300828e8663b6dfadb12c2630cf7cace746d6780d45aa83840340856` | 0–672055 |
+| `livyatan-transition.en.mp3` | `a283591e8c2f91bf3d6feb0fcb3c6710ce86f588e49c7839dd261f8bfd52350c` | `ee1fd0d7300828e8663b6dfadb12c2630cf7cace746d6780d45aa83840340856` | 672055–1164439 |
+| `livyatan-arrival.en.mp3` | `cdd30b2bb0aee7d67281733a822cf2517b700dbaacf61ef66b4a61f2ab99c909` | `ee1fd0d7300828e8663b6dfadb12c2630cf7cace746d6780d45aa83840340856` | 1164439–1812422 |
+| `allosaurus-pandras-intro.zh-CN.mp3` | `652da507ac41e4e979faacebab8bff2ddbef5587d882409f3f03162f099732c4` | `f217b48d2a23d830d3f65edcb5a392c1257bcadd87c30195b9208d7e3a9bb7a5` | 0–514712 |
+| `allosaurus-pandras-transition.zh-CN.mp3` | `562183fa61f87dc3d6cce4f472680b8f4bfcebf726b3a142af8bec14983749df` | `f217b48d2a23d830d3f65edcb5a392c1257bcadd87c30195b9208d7e3a9bb7a5` | 514712–925187 |
+| `allosaurus-pandras-arrival.zh-CN.mp3` | `73ce6796392fb450727ace3e2fec5ffeab51772b48b9a22e0fa9a465108fe94f` | `f217b48d2a23d830d3f65edcb5a392c1257bcadd87c30195b9208d7e3a9bb7a5` | 925187–1516856 |
+| `allosaurus-pandras-intro.en.mp3` | `0e1c64e1662f8d732012138df0ef6b59355351b925df53b46c21740b745329cf` | `bc97d05cf228ecc969b39aab96a85f3c160f9931b938d8845ee395a6f88e0114` | 0–630892 |
+| `allosaurus-pandras-transition.en.mp3` | `07aa3e302759f8b195c458fb7a9d3db27ae7100a438f4497d585cf998e95ff3e` | `bc97d05cf228ecc969b39aab96a85f3c160f9931b938d8845ee395a6f88e0114` | 630892–1104362 |
+| `allosaurus-pandras-arrival.en.mp3` | `2d87243d7e7043e17b16b9a6d32b0cd8847d4e18acadc126b477af893e80e98c` | `bc97d05cf228ecc969b39aab96a85f3c160f9931b938d8845ee395a6f88e0114` | 1104362–1823734 |
+| `xiphactinus-intro.zh-CN.mp3` | `d8f50d7181ff0be015bf133aaeb8b805a098698be217a0f8f672f448705a4b34` | `ffa6225536631adcf8b1563e082ee2ec4fb10a65d5aa4e0c0bf92c1070d356c4` | 0–498104 |
+| `xiphactinus-transition.zh-CN.mp3` | `eb9c549f539ba155c0bc0932a553a840d8b326786a937fc6640774d2450e56f2` | `ffa6225536631adcf8b1563e082ee2ec4fb10a65d5aa4e0c0bf92c1070d356c4` | 498104–870902 |
+| `xiphactinus-arrival.zh-CN.mp3` | `93b64e856eac0b4f89fab6f1eba64a398ecc6ace25e1b8e99c7e2cffa562987b` | `ffa6225536631adcf8b1563e082ee2ec4fb10a65d5aa4e0c0bf92c1070d356c4` | 870902–1451794 |
+| `xiphactinus-intro.en.mp3` | `a040f3975d43bd9bea93923c67ae3026d275b94048f7cad99a3f137debfd89b4` | `149e90daa4535078ac04bd56de44980cbe61afc79b96064872c68a6bb8885ca5` | 0–600569 |
+| `xiphactinus-transition.en.mp3` | `dcb6bfce5146474879dd8db1f358e35547df7f9554f9afb882a33d07f4aba5a3` | `149e90daa4535078ac04bd56de44980cbe61afc79b96064872c68a6bb8885ca5` | 600569–1055478 |
+| `xiphactinus-arrival.en.mp3` | `5ccc9363eae5d4ebd07ab148c9da239da6a6a3a4c6db5f63453c4dcc832198cf` | `149e90daa4535078ac04bd56de44980cbe61afc79b96064872c68a6bb8885ca5` | 1055478–1821188 |

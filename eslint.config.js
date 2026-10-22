@@ -8,6 +8,9 @@ export default tseslint.config(
   {
     ignores: [
       'dist',
+      'dist-release-candidate',
+      '.prerender-ssr',
+      '.prerender-ssr-release-candidate',
       'dist-model-still',
       'cloudflare-dist',
       'coverage',

@@ -1,0 +1,25 @@
+Offline AI narration
+
+Tool: Qwen3-TTS CustomVoice
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Model revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Model licence: Apache-2.0
+Model: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Speaker: Serena (built-in voice)
+Output licence: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Scripts were reviewed by humans and synthesized offline with AI. No runtime synthesis occurs.
+
+Locale: zh-CN
+Language: Chinese
+Runtime bytes: 85725
+Runtime SHA-256: 23675dc953aef513be90e7d453e904be3d8f7df55c2b5cd488790102b63360ab
+Duration: 8518 ms
+Script: 异齿龙背上的大帆高高竖起，像背着一座小山。它生活得比恐龙还早，和今天的哺乳动物有亲缘关系。
+
+Locale: en
+Language: English
+Runtime bytes: 104925
+Runtime SHA-256: 631c006baf89d3fdccc9cb0140f6ef24fb0dd8982967a43321f9604b16f98119
+Duration: 10432 ms
+Script: Dimetrodon’s tall sail rose above its back like a little hill. It lived before dinosaurs and was a distant relative of today’s mammals.

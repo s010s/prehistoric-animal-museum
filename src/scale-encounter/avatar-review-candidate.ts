@@ -1066,7 +1066,7 @@ export function createReviewCandidateAvatarLoader(
           if (motion.kind === 'walk') {
             return Math.min(
               1.2,
-              Math.max(0.72, motion.speedMetersPerSecond / 1.4),
+              Math.max(import.meta.env.MODE === 'review' ? 0.01 : 0.72, motion.speedMetersPerSecond / 1.4),
             )
           }
           if (motion.kind === 'run') {

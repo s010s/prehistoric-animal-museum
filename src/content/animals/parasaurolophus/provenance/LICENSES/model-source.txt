@@ -1,0 +1,16 @@
+Model source and modifications
+
+Title: 副栉龙
+Author: htqj寒潭秋镜
+Direct source: https://sketchfab.com/3d-models/parasaurolophus-0f25fa4a55ba48c88adef066161f5e83
+Accessed: 2026-10-20
+Original filename: parasaurolophus.fbx
+Original bytes: 1083820
+Original SHA-256: 742140088e06e28602fd1454a67aee9ff6b13ade9600f528f9b05b0126107016
+Runtime bytes: 2396824
+Runtime SHA-256: c1290e59f4ce65246ee964dbf4b435ec49df5fb6d4b2d222bb54f4527d3b438e
+
+Modification chain
+- Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
+Gentle display movement, colours and soft tissue are artistic reconstruction, not observations of a living animal.
+- Authored an eight-second standing Idle with a larger continuous-chain tail sway, retained the existing head-look and breathing, and preserved the Walk clip.

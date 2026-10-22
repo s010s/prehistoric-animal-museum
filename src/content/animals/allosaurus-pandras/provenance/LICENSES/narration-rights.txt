@@ -1,0 +1,25 @@
+Offline AI narration
+
+Tool: Qwen3-TTS CustomVoice
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Model revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Model licence: Apache-2.0
+Model: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Speaker: Serena (built-in voice)
+Output licence: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Scripts were reviewed by humans and synthesized offline with AI. No runtime synthesis occurs.
+
+Locale: zh-CN
+Language: Chinese
+Runtime bytes: 94845
+Runtime SHA-256: 6fa478428dfde6253983854b55778907ba3979d3c99e0c703e4c1032fb81e9f6
+Duration: 9414 ms
+Script: 异特龙的两只小手，每只都有三根带爪的手指。张开你的小手和它比一比，再找找它眼睛上方的小突起。
+
+Locale: en
+Language: English
+Runtime bytes: 81405
+Runtime SHA-256: 55ab22975f69d3a91643b82a4269972d0bfbf48972fa5bc1a696f0a4161b1ce8
+Duration: 8087 ms
+Script: Allosaurus had three clawed fingers on each hand. Open your own hand to compare, then look for the little bumps above its eyes.

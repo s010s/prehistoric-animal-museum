@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2641925
+Original PNG SHA-256: f2986131b75be53f46d19ae2579d284febb8201e15d14a2ed35ed2d6a0ac7342
+Runtime bytes: 235994
+Runtime SHA-256: a438c13d26203898bc3e23d37b9a6b96267a145079363d6580e9c4d77e3fc48d
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Early Permian red-bed wetland margin, broad level brick-red and pale tan damp silt foreground, still narrow pool far back on right, tall horsetails and seed ferns behind far left margin, dry rust cliffs very distant, no flowering plants or grass. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one LANDSCAPE 16:9 wide image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2815969
+Original PNG SHA-256: 0446df5bc5e92a0bc96240dd338df02e6b9699f5341d4c48f969758ed3be08f4
+Runtime bytes: 254296
+Runtime SHA-256: ca7bdd0b2872e25e1c055fc46f9a8d7ba14bc9baff3f97a164a2262d6be53fa1
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Early Permian red-bed wetland margin, broad level brick-red and pale tan damp silt foreground, still narrow pool far back on right, tall horsetails and seed ferns behind far left margin, dry rust cliffs very distant, no flowering plants or grass. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

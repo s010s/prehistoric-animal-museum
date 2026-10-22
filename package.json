@@ -41,7 +41,12 @@
     "validate:flight": "node scripts/flight/validate-assets.mjs && node scripts/flight/assets/validate-weather.mjs && node scripts/flight/assets/validate-landscape.mjs && node scripts/flight/assets/validate-ecology.mjs && node scripts/flight/assets/validate-static-review.mjs && node scripts/flight/validate-powered-flap.mjs && node scripts/flight/assets/validate-soundscape.mjs && node scripts/flight/assets/validate-companion.mjs && node scripts/flight/assets/validate-species-companions.mjs",
     "test:flight": "vitest run tests/flight",
     "build:flight": "npm run validate:flight && MUSEUM_FLIGHT=1 npm run build:site && node scripts/flight/validate-build.mjs dist --enabled",
-    "verify:model-optimization": "node scripts/verify-model-optimization.mjs && node scripts/verify-flight-optimization.mjs"
+    "verify:model-optimization": "node scripts/verify-model-optimization.mjs && node scripts/verify-flight-optimization.mjs",
+    "build:release-candidate": "node --import tsx scripts/build-release-candidate.ts",
+    "validate:release-candidate": "node --import tsx scripts/release-candidate-quality.ts",
+    "validate:release-bindings": "node --import tsx scripts/release-candidate-quality.ts --bindings-only",
+    "release:prepare": "node --import tsx scripts/prepare-canonical-release.ts",
+    "release:promote": "node --import tsx scripts/promote-canonical-release.ts"
   },
   "dependencies": {
     "@fontsource-variable/fredoka": "5.3.0",

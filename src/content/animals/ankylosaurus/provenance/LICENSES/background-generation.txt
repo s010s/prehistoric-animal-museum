@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 3270709
+Original PNG SHA-256: 0ad6327bb67434a3b4f44406971416e822165e7364e2668a9ca3c5d4c712540a
+Runtime bytes: 384156
+Runtime SHA-256: 79557bbd9ddc61045ddc8362be09be09b6e5e716cd51d96e44d133850c7fb9d0
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Cretaceous woodland clearing, broad flat muted brown leaf-litter earth foreground, tall dark green conifers grouped only at side edges, distant open forest softened by cool mist, a modest patch of low fern foliage at lower right; dappled soft light. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one LANDSCAPE 16:9 wide image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 3078205
+Original PNG SHA-256: 96887bc71c43ec3c5356b4a02b859db82d2140b9ef927b487c164cb0548d2e7a
+Runtime bytes: 327252
+Runtime SHA-256: 033a59af04bc13a4063215435f0c4515c0f56f60d8fe691dbd2983d68d63fcf2
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Cretaceous woodland clearing, broad flat muted brown leaf-litter earth foreground, tall dark green conifers grouped only at side edges, distant open forest softened by cool mist, a modest patch of low fern foliage at lower right; dappled soft light. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

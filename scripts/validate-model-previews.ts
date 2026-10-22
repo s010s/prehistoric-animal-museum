@@ -1,3 +1,5 @@
+import { mainCollection } from '../src/content/collections/main'
+import { releaseCandidateEnabled } from '../src/content/release-candidate'
 import { access, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -97,7 +99,7 @@ const productionDefinitions = (await loadAnimalDefinitions()).map(
 )
 const publishedProductionById = new Map(
   productionDefinitions
-    .filter(({ status }) => status === 'published')
+    .filter(({ status, id }) => status === 'published' || (releaseCandidateEnabled && mainCollection.animalIds.includes(id)))
     .map((definition) => [definition.id, definition]),
 )
 

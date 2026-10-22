@@ -1,0 +1,25 @@
+Offline AI narration
+
+Tool: Qwen3-TTS CustomVoice
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Model revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Model licence: Apache-2.0
+Model: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Speaker: Serena (built-in voice)
+Output licence: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Scripts were reviewed by humans and synthesized offline with AI. No runtime synthesis occurs.
+
+Locale: zh-CN
+Language: Chinese
+Runtime bytes: 96045
+Runtime SHA-256: 07c3e874b1777ff69cc5d569418df828bc946d77eaa2e03434085336812fd197
+Duration: 9531 ms
+Script: 副栉龙的头冠，从头顶向后伸出。用手指跟着它的轮廓画一画，头冠里面还有弯弯曲曲的通道。
+
+Locale: en
+Language: English
+Runtime bytes: 105645
+Runtime SHA-256: 5fbe2b8e6a97768249b662f15420c558cd2efa0bbcc3736a40abf2456d7105da
+Duration: 10495 ms
+Script: Draw the shape of Parasaurolophus’s crest in the air with one finger. It stretched back from the top of its head, with winding passages hidden inside.

@@ -1,17 +1,34 @@
-import { Vector3 } from 'three'
-import { convexGroundFootprint } from './scale-encounter-ground-footprint'
+import { motionFootprints } from 'virtual:canonical-comparison-extension'
+import { Vector3, type Object3D } from 'three'
+import { convexGroundFootprint, createAnimalGroundFootprint } from './scale-encounter-ground-footprint'
 import footprints from './scale-encounter-motion-footprints.json'
 import type { ScaleEncounterDefinition } from './scale-encounter'
+
+export interface ReviewMotionFootprint {
+  readonly modelSha256: string
+  readonly clip: string
+  readonly duration: number
+  readonly sampleCount: number
+  readonly points: readonly (readonly [number, number])[]
+}
+const reviewFootprints = new Map<string, ReviewMotionFootprint>()
+export function registerReviewMotionFootprint(id: string, footprint: ReviewMotionFootprint): void {
+  if ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE !== 'review' || !id.startsWith('expansion-')) throw new Error('Private review footprint only')
+  reviewFootprints.set(id, footprint)
+}
 
 /** A fixed swept area prevents an idle tail from entering a stationary child.
  * The bake uses calibrated world metres, including the authored animal offset.
  * Padding covers interpolation between offline animation samples. */
-export function createEncounterMotionFootprint(definition: ScaleEncounterDefinition): readonly Vector3[] {
-  const entry = footprints[definition.id as keyof typeof footprints]
-  if (!entry || entry.modelSha256 !== definition.calibratedModelSha256) {
+export function createEncounterMotionFootprint(definition: ScaleEncounterDefinition, staticReviewModel?: Object3D): readonly Vector3[] {
+  const entry = reviewFootprints.get(definition.id) ?? motionFootprints[definition.id] ?? footprints[definition.id as keyof typeof footprints]
+  const staticReview = (import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE === 'review' && definition.id.startsWith('expansion-') && staticReviewModel
+  if (!staticReview && (!entry || entry.modelSha256 !== definition.calibratedModelSha256)) {
     throw new Error(`Rebake encounter motion footprint for ${definition.id}`)
   }
-  const hull = convexGroundFootprint(entry.points.map(([x, z]) => new Vector3(x, 0, z)))
+  const hull = staticReview
+    ? createAnimalGroundFootprint(staticReviewModel)
+    : convexGroundFootprint(entry.points.map(([x, z]) => new Vector3(x, 0, z)))
   // Bound collision work independently of source vertex count. Supporting
   // lines circumscribe the sampled hull; they never cut across a tail tip.
   const sides = 48

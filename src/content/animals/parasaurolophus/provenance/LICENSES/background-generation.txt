@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2416367
+Original PNG SHA-256: 232a01f9e575860ef76b2f551b0f8dfc585c3fc892ad8b980efb4907f9af34ac
+Runtime bytes: 200164
+Runtime SHA-256: fc1e9a3d0a9c84ba919159797c56a6167aa405e41e519d7ad7486cea9f7c04db
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Cretaceous river floodplain, warm cream sandy ground across foreground, curving blue-grey river well behind the display ground, distant tall narrow conifers on left bank and low fern beds at far right; pale sky and soft morning light. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one LANDSCAPE 16:9 wide image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2592506
+Original PNG SHA-256: fc798e48b96bbc3b74d1b420bbc04070ea775041b9aadadd7b570efb8b5eb87e
+Runtime bytes: 209440
+Runtime SHA-256: 02332acc77068869f5e76c214e9e8d5ee93e7668751fc84994789c59874a2627
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Cretaceous river floodplain, warm cream sandy ground across foreground, curving blue-grey river well behind the display ground, distant tall narrow conifers on left bank and low fern beds at far right; pale sky and soft morning light. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

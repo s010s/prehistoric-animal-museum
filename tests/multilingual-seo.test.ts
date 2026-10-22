@@ -356,7 +356,7 @@ describe('multilingual SEO artifacts', () => {
     },
   )
 
-  it('emits exactly one localized detail artifact for all 24 animals', () => {
+  it('emits exactly one localized detail artifact for all 36 animals', () => {
     const expectedDetailArtifacts = detailCases
       .map(
         ({ animalId, locale }) =>

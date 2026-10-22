@@ -14,6 +14,7 @@ import {
 import {
   REVIEW_SCALE_ENCOUNTER_ANIMAL_IDS,
   SCALE_ENCOUNTER_ANIMAL_IDS,
+  selectedScaleEncounterAnimalIds,
 } from '../src/scale-encounter/types'
 import {
   SCALE_ENCOUNTER_DEFINITIONS,
@@ -56,12 +57,12 @@ const expansionAnimalIds = [
   'anomalocaris',
 ] as const
 
-describe('complete twenty-four-animal scale encounter catalog', () => {
-  it('keeps the published collection exact with no local-only animals', () => {
-    expect(SCALE_ENCOUNTER_ANIMAL_IDS).toEqual(mainCollection.animalIds)
+describe('legacy twenty-four-animal scale encounter compatibility', () => {
+  it('keeps legacy collection order and current definitions with no local-only animals', () => {
+    expect(SCALE_ENCOUNTER_ANIMAL_IDS).toEqual(mainCollection.animalIds.slice(0, 24))
     expect(REVIEW_SCALE_ENCOUNTER_ANIMAL_IDS).toEqual([])
     expect(Object.keys(SCALE_ENCOUNTER_DEFINITIONS)).toHaveLength(
-      SCALE_ENCOUNTER_ANIMAL_IDS.length,
+      selectedScaleEncounterAnimalIds.length,
     )
   })
 

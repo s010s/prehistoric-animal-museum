@@ -21,6 +21,7 @@ export type Sha256 = string
 export type IsoDate = string
 
 export type AnimalSizeFact =
+  | { readonly kind: 'unknown'; readonly note: string }
   | {
       readonly kind: 'body-length' | 'shoulder-height' | 'wingspan'
       readonly minMeters: number
@@ -298,6 +299,7 @@ export interface PublishedAnimalAssets {
 }
 
 export interface DraftAnimalAssets {
+  readonly posterPortrait?: string
   readonly model?: string
   /** Exact encoded byte length of the runtime GLB at `model`, when present. */
   readonly modelBytes?: number
@@ -341,6 +343,16 @@ export interface DraftAnimalPackage extends AnimalPackageCommon {
   readonly narration: DraftNarrationPlans
   readonly assets: DraftAnimalAssets
   readonly draftNotes: readonly [string, ...string[]]
+}
+
+/** Complete renderable draft; this type never grants production approval. */
+export type ReleaseCandidateAnimalPackage = Omit<PublishedAnimalPackage, 'status'> & {
+  readonly status: 'draft'
+  readonly draftNotes: readonly [string, ...string[]]
+}
+
+export type CompleteAnimalDefinition = Omit<PublishedAnimalDefinition, 'status'> & {
+  readonly status: AnimalStatus
 }
 
 export type AnimalPackage = PublishedAnimalPackage | DraftAnimalPackage

@@ -2,7 +2,9 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
@@ -10,7 +12,9 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "vite.config.ts",
@@ -22,6 +26,8 @@
     "eslint.config.js",
     "scripts/**/*.ts",
     "e2e/**/*.ts",
-    "review-e2e/**/*.ts"
+    "review-e2e/**/*.ts",
+    "src/content/canonical-catalog.d.ts",
+    "src/scale-encounter/canonical-virtual.d.ts"
   ]
 }

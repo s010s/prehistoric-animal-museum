@@ -1,0 +1,13 @@
+Model source and derivation
+
+Title: 塔利怪物
+Author: huykhoi2407
+Direct source: https://sketchfab.com/3d-models/tully-monster-tullimonstrum-48e46fb0c1ba436a88a4b9e5bda693ee
+Accessed: 2026-10-20
+Source variant bytes: 3918124
+Source variant SHA-256: 2af53e6f4d544e0950e41d372c22139ffd6a5fc2e6980f1edec0722418452b0e
+Runtime bytes: 4482112
+Runtime SHA-256: 89c10f5b4ac2846d1be41b5103dcc1cdf4647037073a19fd532aba370e35fec6
+
+- Prepared a self-contained budgeted derivative while retaining source mesh, textures and rig structure.
+- Authored a closed eight-second Idle with clearly visible tail-stem and tail-fin movement while preserving the existing proboscis motion and other animation clips.

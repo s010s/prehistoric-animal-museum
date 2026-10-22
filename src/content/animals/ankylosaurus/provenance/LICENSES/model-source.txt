@@ -1,0 +1,16 @@
+Model source and modifications
+
+Title: 甲龙
+Author: pikabobalex
+Direct source: https://sketchfab.com/3d-models/dino-ankylosaurus-55b9adcbcf7846e8a833bfc77eaf3d3f
+Accessed: 2026-10-20
+Original filename: source.glb
+Original bytes: 4269096
+Original SHA-256: 425757980754dd37447b4e20942000c202bbbf43327f7a269b1e4e11ab5e5338
+Runtime bytes: 4334176
+Runtime SHA-256: 7447dc70cba8321b85e40356ae5f92477f319b3bc01ea309917d2b7927455b75
+
+Modification chain
+- Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
+Gentle display movement, colours and soft tissue are artistic reconstruction, not observations of a living animal.
+- Authored an eight-second standing Idle with a conspicuous tail-club sweep using a common tail-root pivot and retained segment follow-through; preserved the Walk clip.

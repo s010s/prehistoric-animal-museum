@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2187745
+Original PNG SHA-256: 121abae1ad0a35fea0721d00122645fe641c30d4fdbc5345624f35023d5006a1
+Runtime bytes: 131834
+Runtime SHA-256: 3cd9048248f15ae01f01e543670e3a26c0a134a75395f917f39cf3693d6b4a9d
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Cambrian marine plain underwater, powder-blue water and muted rose-grey mud, small dark fractured shale slabs only along far lower-right edge, tiny low sponge mounds at opposite edge, diffuse lateral light; clean central water with no reef. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one LANDSCAPE 16:9 wide image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 1974619
+Original PNG SHA-256: 85157ff2a4b036b93e006bc59352c6ebd4b348d94212d30d83646732a8ae61d9
+Runtime bytes: 76674
+Runtime SHA-256: 85b72eef8d6bbc23185e34286580c274cc75ed8268ce1e1db78dee7884c26848
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Cambrian marine plain underwater, powder-blue water and muted rose-grey mud, small dark fractured shale slabs only along far lower-right edge, tiny low sponge mounds at opposite edge, diffuse lateral light; clean central water with no reef. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

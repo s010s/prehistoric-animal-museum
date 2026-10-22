@@ -1,43 +1,20 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 
 import sharp from 'sharp'
 import type { Plugin } from 'vite'
 
+import { loadAnimalDefinitions } from './content-data'
 import { animalSeoDescription } from '../src/content/animal-seo'
-import { animalDefinition as apatosaurusDefinition } from '../src/content/animals/apatosaurus/package'
-import { animalDefinition as anomalocarisDefinition } from '../src/content/animals/anomalocaris/package'
-import { animalDefinition as archaeopteryxDefinition } from '../src/content/animals/archaeopteryx/package'
-import { animalDefinition as baryonyxDefinition } from '../src/content/animals/baryonyx/package'
-import { animalDefinition as carnotaurusDefinition } from '../src/content/animals/carnotaurus/package'
-import { animalDefinition as dilophosaurusDefinition } from '../src/content/animals/dilophosaurus/package'
-import { animalDefinition as gigantoraptorDefinition } from '../src/content/animals/gigantoraptor/package'
-import { animalDefinition as ichthyosaurDefinition } from '../src/content/animals/ichthyosaur/package'
-import { animalDefinition as lystrosaurusDefinition } from '../src/content/animals/lystrosaurus/package'
-import { animalDefinition as maiasauraDefinition } from '../src/content/animals/maiasaura/package'
-import { animalDefinition as mammothDefinition } from '../src/content/animals/mammoth/package'
-import { animalDefinition as megalodonDefinition } from '../src/content/animals/megalodon/package'
-import { animalDefinition as meganeuraDefinition } from '../src/content/animals/meganeura/package'
-import { animalDefinition as mosasaurusDefinition } from '../src/content/animals/mosasaurus/package'
-import { animalDefinition as pachycephalosaurusDefinition } from '../src/content/animals/pachycephalosaurus/package'
-import { animalDefinition as plesiosaurusDefinition } from '../src/content/animals/plesiosaurus/package'
-import { animalDefinition as pteranodonDefinition } from '../src/content/animals/pteranodon/package'
-import { animalDefinition as rhamphorhynchusDefinition } from '../src/content/animals/rhamphorhynchus/package'
-import { animalDefinition as sauropeltaDefinition } from '../src/content/animals/sauropelta/package'
-import { animalDefinition as spinosaurusDefinition } from '../src/content/animals/spinosaurus/package'
-import { animalDefinition as stegosaurusDefinition } from '../src/content/animals/stegosaurus/package'
-import { animalDefinition as triceratopsDefinition } from '../src/content/animals/triceratops/package'
-import { animalDefinition as tupandactylusDefinition } from '../src/content/animals/tupandactylus/package'
-import { animalDefinition as tyrannosaurusRexDefinition } from '../src/content/animals/tyrannosaurus-rex/package'
 import { mainCollection } from '../src/content/collections/main'
 import { staticAnimalDetailIds } from '../src/content/static-animal-details'
 import type {
   AnimalContent,
   Habitat,
   Locale,
-  PublishedAnimalDefinition,
+  CompleteAnimalDefinition,
 } from '../src/content/types'
 
 export type SeoPageLocale = 'x-default' | 'zh-CN' | 'en'
@@ -105,32 +82,15 @@ const defaultOptions = {
   notFoundReturnPath: '/prehistoric-animal-museum/',
 } satisfies Required<MultilingualSeoOptions>
 
-const canonicalAnimalDefinitions = [
-  anomalocarisDefinition,
-  apatosaurusDefinition,
-  archaeopteryxDefinition,
-  baryonyxDefinition,
-  carnotaurusDefinition,
-  dilophosaurusDefinition,
-  gigantoraptorDefinition,
-  ichthyosaurDefinition,
-  lystrosaurusDefinition,
-  maiasauraDefinition,
-  mammothDefinition,
-  megalodonDefinition,
-  meganeuraDefinition,
-  mosasaurusDefinition,
-  pachycephalosaurusDefinition,
-  plesiosaurusDefinition,
-  pteranodonDefinition,
-  rhamphorhynchusDefinition,
-  sauropeltaDefinition,
-  spinosaurusDefinition,
-  stegosaurusDefinition,
-  triceratopsDefinition,
-  tupandactylusDefinition,
-  tyrannosaurusRexDefinition,
-] as const satisfies readonly PublishedAnimalDefinition[]
+const selectedCatalogueIds = new Set<string>(mainCollection.animalIds)
+const canonicalAnimalDefinitions = (await loadAnimalDefinitions(mainCollection.animalIds))
+  .filter(({ definition }) => selectedCatalogueIds.has(definition.id))
+  .map(({ definition }) => {
+    if (!definition.content['zh-CN'] || !definition.content.en) {
+      throw new Error(`SEO requires both complete canonical locales: ${definition.id}`)
+    }
+    return definition as CompleteAnimalDefinition
+  })
 
 const canonicalAnimalDefinitionsById = new Map(
   canonicalAnimalDefinitions.map((definition) => [definition.id, definition]),
@@ -148,9 +108,9 @@ const staticAnimalDetailDefinitions = staticAnimalDetailIds.map((animalId) => {
 
 function createCatalogueEntries(
   animalIds: readonly string[],
-  definitions: readonly PublishedAnimalDefinition[],
+  definitions: readonly CompleteAnimalDefinition[],
 ): CatalogueEntry[] {
-  const definitionsById = new Map<string, PublishedAnimalDefinition>()
+  const definitionsById = new Map<string, CompleteAnimalDefinition>()
 
   for (const definition of definitions) {
     if (definitionsById.has(definition.id)) {
@@ -581,6 +541,7 @@ const animalPageCopy = {
 
 function formatAnimalSize(content: AnimalContent, locale: Locale): string {
   const size = content.facts.size
+  if (size.kind === 'unknown') return size.note
   const range =
     size.minMeters === size.maxMeters
       ? `${size.minMeters}`
@@ -598,7 +559,7 @@ function animalCanonicalUrl(
 }
 
 function renderAnimalDetailDocument(
-  definition: PublishedAnimalDefinition,
+  definition: CompleteAnimalDefinition,
   locale: Locale,
   options: ResolvedSeoOptions,
 ): string {
@@ -820,7 +781,7 @@ function renderAnimalDetailDocument(
 
 function renderHydratableAnimalDetailDocument(
   builtAppHtml: string,
-  definition: PublishedAnimalDefinition,
+  definition: CompleteAnimalDefinition,
   locale: Locale,
   options: ResolvedSeoOptions,
 ): string {
@@ -1134,13 +1095,16 @@ export function createMultilingualSeoArtifacts(
 
 export function multilingualSeoPlugin(
   options: MultilingualSeoOptions = {},
+  socialSourceDirectory?: string,
 ): Plugin {
   let isSsrBuild = false
+  let localCandidate = false
   return {
     name: 'multilingual-static-seo',
     apply: 'build',
     configResolved(config) {
       isSsrBuild = Boolean(config.build.ssr)
+      localCandidate = config.mode === 'release-candidate'
     },
     async writeBundle(outputOptions) {
       if (isSsrBuild) {
@@ -1149,12 +1113,20 @@ export function multilingualSeoPlugin(
       const outputDirectory = resolve(outputOptions.dir ?? 'dist')
       const indexPath = resolve(outputDirectory, 'index.html')
       const builtAppHtml = await readFile(indexPath, 'utf8')
-      const artifacts = createMultilingualSeoArtifacts(builtAppHtml, options)
+      const artifacts = new Map(createMultilingualSeoArtifacts(builtAppHtml, options))
+      if (localCandidate) artifacts.set('robots.txt', 'User-agent: *\nDisallow: /\n')
+      if (socialSourceDirectory) {
+        const expected = createSeoSocialCardManifest()
+        await mkdir(resolve(outputDirectory, 'social'), { recursive: true })
+        for (const name of ['manifest.json', ...Object.values(expected.cards).map(c => c.fileName)]) {
+          await copyFile(resolve(socialSourceDirectory, name), resolve(outputDirectory, 'social', name))
+        }
+      }
 
       for (const [fileName, source] of artifacts) {
         const outputPath = resolve(outputDirectory, fileName)
         await mkdir(dirname(outputPath), { recursive: true })
-        await writeFile(outputPath, source, 'utf8')
+        await writeFile(outputPath, localCandidate ? source.replaceAll('content="index, follow, max-image-preview:large"', 'content="noindex, nofollow"') : source, 'utf8')
       }
 
       const expectedManifest = createSeoSocialCardManifest()

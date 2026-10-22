@@ -1,8 +1,10 @@
 import { flightReviewTracePlugin } from './scripts/flight/review-trace-plugin'
+import { createHash } from 'node:crypto'
 import { createReadStream, readFileSync, statSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
+import { canonicalAnimalCatalog } from './scripts/canonical-catalog'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import {
@@ -18,6 +20,9 @@ import {
 import { multilingualSeoPlugin } from './scripts/multilingual-seo'
 import { scaleEncounterGlacierAssetUrls } from './scripts/scale-encounter-glacier-assets'
 import { availableFlightSpecies } from './src/flight-experience/species/profiles'
+import { expansionNarrationTracks, readExpansionReviewManifest } from './scripts/expansion-review'
+import { saveMotionReviewCapture } from './scripts/motion-review-capture'
+import { resolve } from 'node:path'
 
 const redistributableNotices = [
   'LICENSE',
@@ -47,6 +52,7 @@ const scaleEncounterEnabledModes = new Set([
   'development',
   'e2e',
   'production',
+  'release-candidate',
   'review',
   'test',
 ])
@@ -65,7 +71,7 @@ function viewerControllerEntryAlias(mode: string): string {
   return fileURLToPath(new URL(entryFile, import.meta.url))
 }
 
-function bundledNotices(flightEnabled = false): Plugin {
+function bundledNotices(flightEnabled = false, candidateNotices?: string): Plugin {
   return {
     name: 'bundled-notices',
     generateBundle() {
@@ -74,7 +80,9 @@ function bundledNotices(flightEnabled = false): Plugin {
         this.emitFile({
           type: 'asset',
           fileName,
-          source: readFileSync(new URL(fileName, import.meta.url), 'utf8'),
+          source: fileName === 'THIRD_PARTY_NOTICES.md' && candidateNotices
+            ? candidateNotices
+            : readFileSync(new URL(fileName, import.meta.url), 'utf8'),
         })
       }
       for (const notice of generatedRedistributableNotices) {
@@ -181,20 +189,41 @@ function streamReviewAsset(
   stream.pipe(response)
 }
 
-function localReview(enabled: boolean): Plugin {
+function localReview(enabled: boolean, expansion = false): Plugin {
+  const manifest = readExpansionReviewManifest(enabled && expansion)
+  // Freeze validated candidate bytes for this server session. Blender can
+  // continue writing the working files without changing a calibrated preview.
+  const candidateModels = new Map(manifest.animals.map((animal) => {
+    const bytes = readFileSync(resolve(manifest.files[animal.assets.model]))
+    const hash = createHash('sha256').update(bytes).digest('hex')
+    if (hash !== manifest.modelHashes[animal.id]) throw new Error(`Candidate changed during startup: ${animal.id}`)
+    return [animal.assets.model, { bytes, hash, loadedAt: new Date() }] as const
+  }))
+  const candidateAudio = new Map(expansionNarrationTracks(manifest).map((track) => {
+    const bytes = readFileSync(resolve(manifest.files[track.url]))
+    const hash = createHash('sha256').update(bytes).digest('hex')
+    if (hash !== track.sha256) throw new Error(`Candidate narration changed during startup: ${track.url}`)
+    return [track.url, { bytes, hash, loadedAt: new Date() }] as const
+  }))
+  const assetFiles = new Map(localReviewAssetFiles)
+  for (const [route, path] of Object.entries(manifest.files)) assetFiles.set(route, resolve(path))
   return {
     name: 'local-review-catalog',
     resolveId(id) {
+      if (id === 'virtual:expansion-manifest') return '\0virtual:expansion-manifest'
       return id === virtualReviewCatalog
         ? resolvedVirtualReviewCatalog
         : undefined
     },
     load(id) {
+      if (id === '\0virtual:expansion-manifest') {
+        return `export const expansionManifest = ${JSON.stringify(manifest)}`
+      }
       if (id !== resolvedVirtualReviewCatalog) {
         return undefined
       }
       return enabled
-        ? "export { localReviewAnimals } from '/src/review/catalog.ts'"
+        ? `export { localReviewAnimals } from '/src/review/${expansion ? 'expansion-catalog' : 'catalog'}.ts'`
         : 'export const localReviewAnimals = []'
     },
     configureServer(server) {
@@ -208,6 +237,10 @@ function localReview(enabled: boolean): Plugin {
           return
         }
         const pathname = new URL(requestUrl, 'http://localhost').pathname
+        if (expansion && pathname === '/__museum-motion-capture') {
+          void saveMotionReviewCapture(request, response, manifest.modelHashes, manifest.evidenceVersion, Object.fromEntries(manifest.animals.map(animal => [animal.id, animal.animation?.clip ?? ''])), manifest.clipDurations)
+          return
+        }
         if (!pathname.startsWith(`${localReviewAssetPrefix}/`)) {
           next()
           return
@@ -220,18 +253,19 @@ function localReview(enabled: boolean): Plugin {
           response.end('Local review assets are read-only.')
           return
         }
-        const absolutePath = localReviewAssetFiles.get(pathname)
+        const absolutePath = assetFiles.get(pathname)
         if (!absolutePath) {
           response.statusCode = 404
           response.end('Unknown local review asset.')
           return
         }
 
+        const candidate = candidateModels.get(pathname) ?? candidateAudio.get(pathname)
         let size: number
         let modifiedAt: Date
         let modifiedAtMs: number
         try {
-          const fileStat = statSync(absolutePath)
+          const fileStat = candidate ? { isFile: () => true, size: candidate.bytes.length, mtime: candidate.loadedAt, mtimeMs: candidate.loadedAt.getTime() } : statSync(absolutePath)
           if (!fileStat.isFile()) {
             throw new Error('Not a regular file.')
           }
@@ -246,7 +280,9 @@ function localReview(enabled: boolean): Plugin {
           return
         }
 
-        const etag = reviewAssetEtag(size, modifiedAtMs)
+        const etag = candidate ? `"${candidate.hash}"` : reviewAssetEtag(size, modifiedAtMs)
+        if (candidateModels.has(pathname)) response.setHeader('X-Model-Sha256', candidate!.hash)
+        if (candidateAudio.has(pathname)) response.setHeader('X-Audio-Sha256', candidate!.hash)
         response.setHeader('Cache-Control', reviewAssetCacheControl)
         response.setHeader('ETag', etag)
         response.setHeader('Last-Modified', modifiedAt.toUTCString())
@@ -283,7 +319,8 @@ function localReview(enabled: boolean): Plugin {
             response.end()
             return
           }
-          streamReviewAsset(absolutePath, response, { start, end })
+          if (candidate) response.end(candidate.bytes.subarray(start, end + 1))
+          else streamReviewAsset(absolutePath, response, { start, end })
           return
         }
 
@@ -293,7 +330,8 @@ function localReview(enabled: boolean): Plugin {
           response.end()
           return
         }
-        streamReviewAsset(absolutePath, response)
+        if (candidate) response.end(candidate.bytes)
+        else streamReviewAsset(absolutePath, response)
       })
     },
   }
@@ -319,15 +357,17 @@ function privateLocalMaterialGuard(): Plugin {
   }
 }
 
-export default defineConfig(({ command, mode }) => {
+export default defineConfig(async ({ command, mode }) => {
   assertReviewModeIsServeOnly(command, mode)
   const env = loadEnv(mode, process.cwd(), '')
   const allowedHosts = parseAllowedHosts(env.MUSEUM_ALLOWED_HOSTS)
   if(env.MUSEUM_FLIGHT_PUBLIC==='1' && env.MUSEUM_FLIGHT!=='1')throw new Error('Public flight mode requires MUSEUM_FLIGHT=1')
   if(env.MUSEUM_FLIGHT_PUBLIC==='1' && availableFlightSpecies('public').length===0)throw new Error('Public flight mode requires an explicitly approved species')
+  const canonicalCatalog = await canonicalAnimalCatalog(mode)
 
   return {
     base: './',
+    define: { __MUSEUM_RELEASE_CANDIDATE__: mode === 'release-candidate' },
     resolve: {
       alias: {
         'virtual:flight-experience-entry': fileURLToPath(new URL(
@@ -343,15 +383,17 @@ export default defineConfig(({ command, mode }) => {
     plugins: [
       react(),
       flightReviewTracePlugin(),
+      canonicalCatalog.plugin,
       scaleEncounterGlacierAssetUrls(
         scaleEncounterEnabledModes.has(mode) ? 'bundled' : 'disabled',
       ),
-      bundledNotices(mode === 'e2e' || env.MUSEUM_FLIGHT === '1'),
-      multilingualSeoPlugin(),
+      bundledNotices(mode === 'e2e' || env.MUSEUM_FLIGHT === '1', canonicalCatalog.notices),
+      multilingualSeoPlugin({}, mode === 'release-candidate' ? resolve('.handoff/expansion-12/release-fix/integration/candidate-social') : undefined),
       privateLocalMaterialGuard(),
       localReview(
         command === 'serve' &&
           (mode === 'review' || mode === 'development'),
+        mode === 'review' && process.env.MUSEUM_EXPANSION_REVIEW === '1',
       ),
     ],
     server: {
@@ -362,7 +404,7 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     build: {
-      manifest: mode === 'production',
+      manifest: mode === 'production' || mode === 'release-candidate',
       target: 'es2022',
       sourcemap: mode === 'e2e',
       rolldownOptions: {

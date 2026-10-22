@@ -48,3 +48,6 @@ tools/animal-onboarding/node_modules/
 .flight-evidence/
 docs/flight/
 src/flight-experience/README.md
+# Unapproved local release artifact and temporary SSR output
+dist-release-candidate/
+.prerender-ssr-release-candidate/

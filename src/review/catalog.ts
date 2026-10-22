@@ -1,6 +1,6 @@
 import { mainAnimals } from '../content/catalog'
 import { animal as stegosaurus } from '../content/animals/stegosaurus/animal'
-import type { PublishedAnimalPackage } from '../content/types'
+import type { PublishedAnimalPackage, ReleaseCandidateAnimalPackage } from '../content/types'
 import { reviewAssetUrl } from './assets'
 import { animal as apatosaurus } from './animals/apatosaurus/package'
 import { animal as gigantoraptor } from './animals/gigantoraptor/package'
@@ -128,7 +128,7 @@ const onboardingDrafts: readonly CompleteDraftAnimalPackage[] = [
 // appends the same ID; future drafts not yet promoted stay at the end of the
 // explicit local-only allowlist.
 export function buildLocalReviewCatalog(
-  productionAnimals: readonly PublishedAnimalPackage[],
+  productionAnimals: readonly (PublishedAnimalPackage | ReleaseCandidateAnimalPackage)[],
   publishedReviews: readonly DisplayableAnimalPackage[],
   drafts: readonly CompleteDraftAnimalPackage[],
 ): readonly DisplayableAnimalPackage[] {
@@ -139,6 +139,7 @@ export function buildLocalReviewCatalog(
   const productionIds = new Set(productionAnimals.map(({ id }) => id))
   return [
     ...productionAnimals.map((animal) => {
+      if (animal.status === 'draft') return animal
       const publishedReview = publishedReviewById.get(animal.id)
       if (publishedReview) {
         return mergePublishedReviewAnimal(animal, publishedReview)

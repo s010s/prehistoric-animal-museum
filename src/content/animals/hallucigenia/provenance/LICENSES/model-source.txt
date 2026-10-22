@@ -1,0 +1,13 @@
+Model source and derivation
+
+Title: 怪诞虫
+Author: huykhoi2407
+Direct source: https://sketchfab.com/3d-models/hallucigenia-cambrian-animal-fad8306e863a4960b48e49c16c3806cf
+Accessed: 2026-10-20
+Source variant bytes: 5860864
+Source variant SHA-256: afc0ca41e7069889c80711a5b04d0148b5c864eaf20a47d62e922b869620cd25
+Runtime bytes: 5640768
+Runtime SHA-256: 2f1c725ab3410bc0b650ee442d7028555e63b51288fb8a6531997941dc8daa1e
+
+- Prepared a self-contained budgeted derivative with a segmented appendage rig.
+- Authored a closed eight-second Idle with visible staggered motion through all twenty segmented appendage chains, including the terminal support-leg sections; kept the spine-bearing roots stable.

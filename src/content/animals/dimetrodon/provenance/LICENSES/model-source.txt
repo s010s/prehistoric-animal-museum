@@ -1,0 +1,16 @@
+Model source and modifications
+
+Title: 异齿龙
+Author: cp4096
+Direct source: https://sketchfab.com/3d-models/dimetrodon-3ac7c6aada5e4c03849f9544bbc1afed
+Accessed: 2026-10-20
+Original filename: source-1k.glb
+Original bytes: 4589688
+Original SHA-256: 1fea2d12d5d2fc88d1153c061b5faca8270333536db701cd8e830a780d7db251
+Runtime bytes: 6578256
+Runtime SHA-256: 5843890d9a33da3cbdedc84c30763881c347264c96af67340bdb8e11e1216b3c
+
+Modification chain
+- Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
+Gentle display movement, colours and soft tissue are artistic reconstruction, not observations of a living animal.
+- Authored an eight-second standing Idle with a larger flexible tail sway and compatible tail-follow joints; preserved the complete Walk deformation and original skin weights.

@@ -1,0 +1,55 @@
+{
+  "animalId": "gallimimus",
+  "contractVersion": 3,
+  "generatedAt": "2026-10-22T16:17:06.849Z",
+  "presentationSignature": "{\"contractVersion\":3,\"renderer\":{\"cameraFieldOfViewDegrees\":34,\"maxPixelRatio\":2},\"layout\":{\"coordinateSystem\":\"fixed-fullscreen-canvas+composition-frame-v1\",\"phonePortraitModelScale\":1.15,\"previewObjectFit\":\"contain\",\"referenceViewports\":[{\"key\":\"landscapeCompact\",\"width\":844,\"height\":390},{\"key\":\"desktopWide\",\"width\":1280,\"height\":720},{\"key\":\"phonePortraitCompact\",\"width\":360,\"height\":640},{\"key\":\"phonePortraitTall\",\"width\":390,\"height\":844},{\"key\":\"tabletPortrait\",\"width\":768,\"height\":1024},{\"key\":\"desktopStandard\",\"width\":1440,\"height\":900}]},\"animation\":{\"clip\":\"Idle\",\"loop\":\"repeat\",\"speed\":1},\"presentation\":{\"cameraLightScale\":1.05,\"horizontalOffset\":{\"landscape\":0,\"portrait\":0},\"initialYawDegrees\":-18,\"preciseBounds\":true,\"safeAreaPadding\":{\"landscape\":0.13,\"portrait\":0.18},\"shadow\":{\"depthOffset\":-0.25,\"depthScale\":0.9,\"horizontalOffset\":-0.9,\"opacity\":0.58,\"scale\":0.48,\"yOffset\":0},\"toneMappingExposure\":1,\"verticalOffset\":{\"landscape\":0,\"portrait\":0}}}",
+  "profiles": {
+    "landscapeCompact": {
+      "bytes": 110696,
+      "fileName": "preview-landscape-compact.webp",
+      "height": 650,
+      "sha256": "ea0a1004c9ae69429159375595f348cb3fcdd208b6600198a45affaa1985e7e9",
+      "width": 1250
+    },
+    "desktopWide": {
+      "bytes": 130192,
+      "fileName": "preview-desktop-wide.webp",
+      "height": 800,
+      "sha256": "5969bc88aa7efda978b457de11dcccb70f65ddfa96197c6a9e95c53b147a26be",
+      "width": 1200
+    },
+    "phonePortraitCompact": {
+      "bytes": 71074,
+      "fileName": "preview-phone-compact.webp",
+      "height": 1000,
+      "sha256": "1dfa567b7e06affb6fcb1ea1254aff81ea68a2993140822fd223f65ccaa59076",
+      "width": 875
+    },
+    "phonePortraitTall": {
+      "bytes": 46428,
+      "fileName": "preview-phone-tall.webp",
+      "height": 1000,
+      "sha256": "85cef13df274da338dfa12657bdddfc1ea3d3a0c275f12065e0e754fc60a6579",
+      "width": 640
+    },
+    "tabletPortrait": {
+      "bytes": 66926,
+      "fileName": "preview-tablet-portrait.webp",
+      "height": 960,
+      "sha256": "c86e5305addb13d0459a751fb75eb7a72663de23131165f7b872a6b383485d3f",
+      "width": 900
+    },
+    "desktopStandard": {
+      "bytes": 136786,
+      "fileName": "preview-desktop-standard.webp",
+      "height": 960,
+      "sha256": "40f01fed5d81c455d069b79bb94b4ba53c153cee51876c57ea14a7a624fb24bc",
+      "width": 1200
+    }
+  },
+  "sourceModel": {
+    "bytes": 3579240,
+    "sha256": "d6f28eccc1a91b432b4a5fcc2364d69c024fd42eb1b7377b46ebb9782a8d348a"
+  },
+  "target": "production"
+}

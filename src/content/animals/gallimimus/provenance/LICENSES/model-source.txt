@@ -1,0 +1,16 @@
+Model source and modifications
+
+Title: 似鸡龙
+Author: htqj寒潭秋镜
+Direct source: https://sketchfab.com/3d-models/gallimimus-3694e4706ca844549ce9a6d57c555091
+Accessed: 2026-10-20
+Original filename: Gallimimus.fbx
+Original bytes: 1786764
+Original SHA-256: 740e5d4adfaba6df8fff5e309e9c7a5afeb9e1e250d0a49e48cf3446b9868c9d
+Runtime bytes: 3579240
+Runtime SHA-256: d6f28eccc1a91b432b4a5fcc2364d69c024fd42eb1b7377b46ebb9782a8d348a
+
+Modification chain
+- Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
+Gentle display movement, colours and soft tissue are artistic reconstruction, not observations of a living animal.
+- Authored an eight-second standing Idle with a larger flexible tail sway; preserved the Walk clip and planted feet.

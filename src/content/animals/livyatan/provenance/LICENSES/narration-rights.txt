@@ -1,0 +1,35 @@
+Offline AI narration
+
+License: CC BY-NC-SA 4.0 project content
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Generated offline; no runtime AI service.
+
+Model licence: Apache-2.0
+Model terms: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/blob/85e237c12c027371202489a0ec509ded67b5e4b5/README.md
+Voice: Serena, supplied with the CustomVoice model.
+
+Chinese (zh-CN)
+Language: Chinese
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 921644
+Raw source SHA-256: 6ba5c30b9ac564f263112e75ebb48386226c16ce713b2f0e9b107836ca697370
+Runtime bytes: 121485
+Runtime SHA-256: a45d110e83663f4e60b55da89084cae2b5e2487875dc7fe286b3c88b4bda4fa9
+Script: 梅氏利维坦鲸的嘴里，上面有大牙齿，下面也有大牙齿。
+把它转到侧面，顺着嘴边慢慢找，上下两排你都发现了吗？
+
+English (en)
+Language: English
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 777644
+Raw source SHA-256: c50a33a0020a82baf0f1d0e7697916a5cbcb9b437a05a7d3bc61179a8cab3406
+Runtime bytes: 103005
+Runtime SHA-256: d87a0f431d0a10aa7eca07ba7c7f1fa751d840a7f53e7aa787cc8493a4feb497
+Script: Livyatan had large teeth in both its upper and lower jaws.
+Turn it to the side and see if you can find both rows along the edge of its mouth.

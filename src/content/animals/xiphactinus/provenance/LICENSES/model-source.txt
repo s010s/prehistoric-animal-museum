@@ -1,0 +1,14 @@
+Model source and derivation
+
+Title: Xiphactinus
+Author: Julian Johnson-Mortimer
+Direct source: https://sketchfab.com/3d-models/xiphactinus-4deb7371eed84a8ab539bb0072384198
+Accessed: 2026-10-20
+Source variant bytes: 34151204
+Source variant SHA-256: 71ea85f1dea53159766387312622e57eb1c072bc88c915070b3aaaad5b5bb912
+Runtime bytes: 9033624
+Runtime SHA-256: c884219f70e83b88cdfd439505eee42cb3c505d29b4565ab2f8702c2a34af417
+
+- Prepared a self-contained budgeted derivative, repairing the mouth interior and avoiding duplicate exterior head surfaces.
+- Preserved body alpha MASK cutoff 0.2 and the 192-triangle mouth lining.
+- Authored a closed eight-second in-place Idle with conspicuous fin strokes, a larger tail sweep, and visible lower-jaw opening and closing with local deformation correction; preserved the other animation clips.

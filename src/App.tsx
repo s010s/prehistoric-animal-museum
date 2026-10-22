@@ -55,11 +55,13 @@ import {
 import { ResponsiveAnimalTitle } from './components/ResponsiveAnimalTitle'
 import { SceneAtmosphere } from './components/SceneAtmosphere'
 import { ViewerStage } from './components/ViewerStage'
+const MotionReviewRecorder = import.meta.env.MODE === 'review'
+  ? lazy(() => import('./review/MotionReviewRecorder'))
+  : null
 import { mainAnimals } from './content/catalog'
 import { animalSeoDescription } from './content/animal-seo'
-import { credits } from './content/credits.generated'
+import { credits } from 'virtual:canonical-credits'
 import { staticAnimalDetailIds } from './content/static-animal-details'
-import type { PublishedAnimalPackage } from './content/types'
 import { I18nProvider, useI18n } from './i18n/I18nProvider'
 import { buildLocaleUrl, localeFromPath, type Locale } from './i18n/locale'
 import { updateLocalizedMetadata } from './i18n/metadata'
@@ -380,9 +382,8 @@ function RailThumbnail({
   )
 }
 
-const publishedMainAnimals = mainAnimals.filter(
-  (animal): animal is PublishedAnimalPackage => animal.status === 'published',
-)
+// Candidate mode admits only complete canonical drafts; status stays draft.
+const publishedMainAnimals = mainAnimals
 const defaultPackage = publishedMainAnimals[0]
 
 if (!defaultPackage) {
@@ -2245,6 +2246,7 @@ function MuseumApp({
 
   return (
     <div className="museum-page">
+      {MotionReviewRecorder && <Suspense fallback={null}><MotionReviewRecorder /></Suspense>}
       <main
       className={`museum-experience ${focusMode ? 'museum-experience--focus' : ''}${
         flightOpen ? ' museum-experience--flight' : scaleEncounterOpen ? ' museum-experience--scale-encounter' : ''

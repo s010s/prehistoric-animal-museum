@@ -181,17 +181,11 @@ const zhCN = {
     researchOverview: '研究摘要',
     researchSummary: ({
       animalName,
-      classification,
-      classificationNote,
-      diet,
       period,
       regions,
-      size,
-      sizeLabel,
-      sizeNote,
     }: ResearchSummaryInput) =>
-      `${animalName}属于${classification}。已知化石年代为${period}，发现地点包括${regions}。本馆采用的${sizeLabel}参考范围为${size}，食性归纳为${diet}。${sizeNote ? `${sizeNote}。` : ''}${classificationNote}`,
-    reconstructionLimits: '化石证据与复原边界',
+      `${animalName}生活在${period}，化石发现于${regions}。`,
+    reconstructionLimits: '从化石了解它',
     scientificSources: '科学来源',
     sourceAccessedOn: (date: string) => `查阅日期：${date}`,
     researchByline: (date: string) =>
@@ -392,17 +386,11 @@ const en = {
     researchOverview: 'Research summary',
     researchSummary: ({
       animalName,
-      classification,
-      classificationNote,
-      diet,
       period,
       regions,
-      size,
-      sizeLabel,
-      sizeNote,
     }) =>
-      `Classification used here: ${classification}. Fossils assigned to ${animalName} are known from ${period} and have been found in ${regions}. The museum uses ${size} as the reference ${sizeLabel.toLowerCase()} and describes the diet as ${diet.toLowerCase()}. ${sizeNote ? `${sizeNote}. ` : ''}${classificationNote}`,
-    reconstructionLimits: 'Fossil evidence and reconstruction limits',
+      `Fossils of ${animalName} date to the ${period} and have been found in ${regions}.`,
+    reconstructionLimits: 'Learning from fossils',
     scientificSources: 'Scientific sources',
     sourceAccessedOn: (date) => `Accessed ${date}`,
     researchByline: (date) =>
@@ -458,6 +446,9 @@ export function formatSizeFact(
   size: AnimalSizeFact,
   locale: Locale,
 ): { readonly label: string; readonly value: string } {
+  if (size.kind === 'unknown') {
+    return { label: locale === 'zh-CN' ? '体型' : 'Size', value: size.note }
+  }
   const same = size.minMeters === size.maxMeters
   const metres = same
     ? formatNumber(size.minMeters, locale)

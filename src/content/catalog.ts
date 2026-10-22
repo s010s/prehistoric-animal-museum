@@ -1,9 +1,12 @@
 import { mainCollection } from './collections/main'
+import { animalModules } from 'virtual:canonical-animal-catalog'
+import { releaseCandidateAnimalIds, releaseCandidateEnabled } from './release-candidate'
 import type {
   AnimalCollection,
   AnimalModule,
   AnimalPackage,
   PublishedAnimalPackage,
+  ReleaseCandidateAnimalPackage,
 } from './types'
 
 export interface DiscoveryOptions {
@@ -80,13 +83,36 @@ export function getCollectionAnimals(
   })
 }
 
-const discoveredModules = import.meta.glob<AnimalModule>(
-  './animals/*/animal.ts',
-  { eager: true },
-)
+const discoveredModules = animalModules
+
+function candidateCollectionAnimals(): (PublishedAnimalPackage | ReleaseCandidateAnimalPackage)[] {
+  const allowed = new Set<string>(releaseCandidateAnimalIds)
+  const index = createAnimalIndex(allAnimals)
+  return mainCollection.animalIds.map(id => {
+    const animal = index.get(id)
+    if (!animal) throw new Error(`Missing canonical release candidate: ${id}`)
+    if (animal.status === 'published') return animal
+    if (!allowed.has(id) || !animal.content['zh-CN'] || !animal.content.en ||
+        !animal.assets.model || !animal.assets.poster || !animal.assets.posterPortrait ||
+        !animal.assets.thumbnail || !animal.assets.backgrounds?.landscape || !animal.assets.backgrounds.portrait ||
+        !animal.draftNotes?.length || !animal.provenance.length) {
+      throw new Error(`Incomplete canonical release candidate: ${id}`)
+    }
+    for (const locale of ['zh-CN', 'en'] as const) {
+      const narration = animal.assets.narration?.[locale]
+      if (narration?.status !== 'ready' || !narration.url ||
+          !('humanReviewStatus' in narration) || narration.humanReviewStatus !== 'approved') {
+        throw new Error(`Unapproved narration in local candidate: ${id}/${locale}`)
+      }
+    }
+    // Completeness is checked above; status remains draft. Build validation also
+    // runs the full publication-quality content/asset contract without approval.
+    return animal as ReleaseCandidateAnimalPackage
+  })
+}
 
 export const allAnimals = discoverAnimalPackages(discoveredModules, {
-  includeDrafts: import.meta.env.DEV,
+  includeDrafts: releaseCandidateEnabled || import.meta.env.DEV,
 })
 
 export const publishedAnimals = filterPublishedAnimals(allAnimals)
@@ -94,10 +120,9 @@ export const productionAnimals = filterPublishedAnimals(
   discoverAnimalPackages(discoveredModules, { includeDrafts: false }),
 )
 export const animalById = createAnimalIndex(allAnimals)
-export const mainAnimals = getCollectionAnimals(
-  mainCollection,
-  productionAnimals,
-)
+export const mainAnimals = releaseCandidateEnabled
+  ? candidateCollectionAnimals()
+  : getCollectionAnimals(mainCollection, productionAnimals)
 
 export function getAnimalById(animalId: string): AnimalPackage | undefined {
   return animalById.get(animalId)

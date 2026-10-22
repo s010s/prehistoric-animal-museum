@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2025530
+Original PNG SHA-256: 125730a4a259c65d1713b11bf4fac198b8f2977c119caafb6c068453b18fa572
+Runtime bytes: 117594
+Runtime SHA-256: 619fad5069ffd488f4e16964e78e0972600a9ae6446e9756bb87f679830e1899
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Cretaceous open sea underwater, luminous aqua-cyan water, low diagonal pale marl seabed receding from left edge into distant right blue, subtle underwater limestone terraces confined to far left edge, soft bright high midday light; vast clear pelagic space, no reef. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one LANDSCAPE 16:9 wide image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2173394
+Original PNG SHA-256: 93be574a4dc432edb75c46cf7cc9c5768da888784b55e0e3e04f26821b007b02
+Runtime bytes: 137500
+Runtime SHA-256: b310e62439b2a6179d2231523aee7e42a1fa8782d55178f29eeebc399f5bef6c
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Cretaceous open sea underwater, luminous aqua-cyan water, low diagonal pale marl seabed receding from left edge into distant right blue, subtle underwater limestone terraces confined to far left edge, soft bright high midday light; vast clear pelagic space, no reef. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

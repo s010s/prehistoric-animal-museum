@@ -7,9 +7,11 @@ import {
   renderSocialCardPng,
 } from './multilingual-seo'
 
-const outputDirectory = fileURLToPath(
-  new URL('../public/social/', import.meta.url),
-)
+const outputIndex = process.argv.indexOf('--out')
+const outputDirectory = outputIndex >= 0
+  ? resolve(process.argv[outputIndex + 1] ?? '')
+  : fileURLToPath(new URL('../public/social/', import.meta.url))
+
 const manifest = createSeoSocialCardManifest()
 
 // librsvg/Pango share a process-wide font cache. Render in a fixed sequence so
@@ -26,4 +28,4 @@ await writeFile(
   'utf8',
 )
 
-console.log('Generated localized SEO social cards in public/social/.')
+console.log(`Generated localized SEO social cards in ${outputDirectory}.`)

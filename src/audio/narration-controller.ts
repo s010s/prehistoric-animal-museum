@@ -1,3 +1,6 @@
+import { observeExpansionNarrationMedia } from '../review/expansion-narration-audio'
+import { observeCandidateNarrationMedia } from './candidate-media-observation'
+
 export const NARRATION_UNAVAILABLE_LABEL = '介绍准备中'
 
 export type NarrationAvailability = 'missing' | 'available' | 'undecodable'
@@ -58,10 +61,12 @@ interface ActivePlay {
 
 type Listener = () => void
 
-function createBrowserMedia(source: string): NarrationMedia {
+function createBrowserMedia(source: string, animalId: string): NarrationMedia {
   const audio = new Audio(source)
   audio.autoplay = false
   audio.preload = 'auto'
+  observeExpansionNarrationMedia(audio, source)
+  observeCandidateNarrationMedia(audio, source, { animalId, phase: 'gallery' })
   return audio
 }
 

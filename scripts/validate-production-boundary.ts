@@ -13,13 +13,15 @@ import {
   scaleEncounterPrivateReviewMarkers,
 } from './production-boundary-markers'
 
-const distributionRoot = join(process.cwd(), 'dist')
+const candidate = process.argv.includes('--release-candidate')
+if (candidate && process.env.MUSEUM_RELEASE_CANDIDATE !== '1') throw new Error('Candidate boundary requires explicit candidate catalog selection.')
+const distributionRoot = join(process.cwd(), candidate ? 'dist-release-candidate' : 'dist')
 const forbiddenMarkers = [
   unprefixedRouteMarker(localReviewAssetPrefix),
   '.handoff/collection-review',
   ...scaleEncounterPrivateReviewMarkers,
-  'parasaurolophus',
-  '副栉龙',
+  ...(!mainCollection.animalIds.includes('parasaurolophus') ? ['parasaurolophus', '副栉龙'] : []),
+  ...(!candidate ? ['candidate-media-evidence'] : []),
 ]
 
 const findings: string[] = []
@@ -66,15 +68,19 @@ const narrationManifest = JSON.parse(
     'utf8',
   ),
 ) as { readonly tracks: readonly { readonly file: string }[] }
-const expectedScaleEncounterNarrationFiles = narrationManifest.tracks.filter(
+const additionsManifest = JSON.parse(await readFile(join(process.cwd(), 'src/scale-encounter/audio/additions-manifest.json'), 'utf8')) as { tracks: { file: string; animalId: string }[] }
+const selectedAdditions = additionsManifest.tracks.filter(t => mainCollection.animalIds.includes(t.animalId))
+const expectedScaleEncounterNarrationFiles = [...narrationManifest.tracks.filter(
   ({ file }) =>
     file.startsWith('view-switch-') ||
     mainCollection.animalIds.some((animalId) =>
       file.startsWith(`${animalId}-`),
     ),
-)
+), ...selectedAdditions]
+function selectedComparisonCount(): number { return 24 + new Set(selectedAdditions.map(t => t.animalId)).size }
 const expectedScaleEncounterNarrationCount =
   expectedScaleEncounterNarrationFiles.length
+if (candidate && (expectedAnimalAssetCount !== 36 || selectedComparisonCount() !== 32 || expectedScaleEncounterNarrationCount !== 196)) findings.push('Candidate requires exactly36gallery/32comparison/196comparison MP3.')
 const expectedDetailPaths = supportedLocales.flatMap((locale) =>
   mainCollection.animalIds.map(
     (animalId) => `${locale}/animals/${animalId}/index.html`,
@@ -174,6 +180,36 @@ if (distributionPaths.has('.vite/manifest.json')) {
   const expectedNarrationSources = expectedScaleEncounterNarrationFiles
     .map(({ file }) => `src/scale-encounter/audio/${file}`)
 
+  const canonicalAssets = mainCollection.animalIds.flatMap(id => [
+    'model/model.glb', 'images/poster.webp', 'images/poster-portrait.webp', 'images/thumbnail.webp',
+    'backgrounds/landscape.webp', 'backgrounds/portrait.webp',
+    'audio/narration.zh-CN.mp3', 'audio/narration.en.mp3',
+  ].map(asset => `src/content/animals/${id}/${asset}`))
+  const emittedScripts = await Promise.all(files.filter(p => extname(p) === '.js').map(p => readFile(p, 'utf8')))
+  for (const id of mainCollection.animalIds) {
+    if (!emittedScripts.some(script => script.includes(`${id}:model/model.glb`))) {
+      findings.push(`parent drawer model credit missing from runtime catalog: ${id}`)
+    }
+  }
+  for (const sourcePath of [...canonicalAssets, ...expectedNarrationSources]) {
+    const entry = Object.entries(viteManifest).find(([key, entry]) => key === sourcePath || entry.src === sourcePath)?.[1]
+    const sourceBytes = await readFile(join(process.cwd(), sourcePath))
+    if (!entry?.file) {
+      // Vite legitimately inlines small images. Require the complete exact
+      // data URL payload, rather than silently skipping a missing manifest key.
+      const mime = sourcePath.endsWith('.webp') ? 'image/webp' : sourcePath.endsWith('.png') ? 'image/png' : undefined
+      const exactInline = mime && sourceBytes.length <= 4096
+        ? `data:${mime};base64,${sourceBytes.toString('base64')}` : undefined
+      if (!exactInline || !emittedScripts.some(script => script.includes(exactInline))) {
+        findings.push(`canonical runtime source missing from manifest or exact inline payload: ${sourcePath}`)
+      }
+      continue
+    }
+    const runtimeBytes = await readFile(join(distributionRoot, entry.file))
+    if (createHash('sha256').update(sourceBytes).digest('hex') !== createHash('sha256').update(runtimeBytes).digest('hex')) {
+      findings.push(`canonical runtime source hash mismatch: ${sourcePath}`)
+    }
+  }
   for (const sourcePath of [
     ...expectedRuntimeSources,
     ...expectedNarrationSources,
@@ -194,6 +230,6 @@ if (findings.length > 0) {
   process.exitCode = 1
 } else {
   console.log(
-    `Production boundary: ${files.length} artifact(s) scanned, ${actualDetailPaths.length} animal detail HTML files, ${expectedSocialImagePaths.length} animal social images, ${glbFiles.length} GLBs, ${mp3Files.length} MP3s, 0 source maps, 0 private source marker(s).`,
+    `${candidate ? 'Local release-candidate' : 'Production'} boundary: ${files.length} artifact(s) scanned, ${actualDetailPaths.length} animal detail HTML files, ${expectedSocialImagePaths.length} animal social images, ${glbFiles.length} GLBs, ${mp3Files.length} MP3s, 0 source maps, 0 private source marker(s).`,
   )
 }

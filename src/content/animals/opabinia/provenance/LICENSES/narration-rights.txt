@@ -1,0 +1,35 @@
+Offline AI narration
+
+License: CC BY-NC-SA 4.0 project content
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Generated offline; no runtime AI service.
+
+Model licence: Apache-2.0
+Model terms: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/blob/85e237c12c027371202489a0ec509ded67b5e4b5/README.md
+Voice: Serena, supplied with the CustomVoice model.
+
+Chinese (zh-CN)
+Language: Chinese
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 783404
+Raw source SHA-256: 8786e93788c1a71fa132ee819055b6a0fda8dace730a1e9622f492902e703c34
+Runtime bytes: 103485
+Runtime SHA-256: 528344c72187ab7caf30097241afa68ac0ef2a427bbac70eb49da3e75a218f00
+Script: 伸出五根手指，和欧巴宾虫头上的五只眼睛比一比。
+再沿着它细长的吻部往前找，最前端还有一对小爪子。
+
+English (en)
+Language: English
+Speaker: Serena
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Generated: 2026-10-22
+Raw source bytes: 639404
+Raw source SHA-256: 30c6e119b813b4cd994f35a1e36cf248fda6645999b903d07ccaa340bf1c9190
+Runtime bytes: 84045
+Runtime SHA-256: 91c8af6a19c468d1d71e44295d7a9100fc4f72d971053647f2ac9b24c037fe01
+Script: Hold up five fingers for the five eyes on Opabinia’s head.
+Then follow its long snout to the pair of tiny claws at the tip.

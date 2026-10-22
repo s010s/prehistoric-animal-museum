@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2173936
+Original PNG SHA-256: 98a2e6aa1c68db04aef79d9f90163f7668aa29d1bfe96ad1277053f0135226b6
+Runtime bytes: 148516
+Runtime SHA-256: 50402a48c0899aee29f6e5f1382753b32aeb140789a66e35c534732b11f095d1
+Prompt: Use case: historical-scene. Asset: NEW LANDSCAPE 16:9 background for the Tullimonstrum exhibit in a preschool 3D natural history museum. An EMPTY Carboniferous brackish estuary seen underwater: luminous warm amber-green water, low silty ochre bottom at lowest 18%, one submerged weathered branch confined to far right edge, distant dark root silhouettes at far left. Broad quiet clear water in central 75% for a separately rendered animal. Soft naturalistic hand-painted gouache, calm inviting daylight, readable midtones, subtle natural texture. A distinct estuary identity rather than a blue ocean. No animal, fish, shells, coral, modern plants, people, text, logos, watermark, UI, bubbles, particles, platform or baked animal shadow. Independently compose as a wide landscape, not a collage. Output full image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2094363
+Original PNG SHA-256: 4477d5174b6c6c9ad5b694f448450bbf29ce050242dac92a173a1b65419adf20
+Runtime bytes: 118306
+Runtime SHA-256: fe4ee6a36aefc265b68652d6df566a2b82fb551dd978a6c313ba81c2a7f16237
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Carboniferous brackish estuary underwater, warm amber-green water and ochre silt, sparse submerged woody roots confined to edge, no blue ocean. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

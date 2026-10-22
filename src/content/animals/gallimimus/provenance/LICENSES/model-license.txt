@@ -1,0 +1,7 @@
+Model license
+
+SPDX: CC-BY-4.0
+Name: Creative Commons Attribution 4.0 International
+URL: https://creativecommons.org/licenses/by/4.0/
+Redistribution allowed: true under the source licence; project publication approval is separate.
+Attribution: “似鸡龙” by htqj寒潭秋镜, CC BY 4.0; modified for the Prehistoric Animal Museum.

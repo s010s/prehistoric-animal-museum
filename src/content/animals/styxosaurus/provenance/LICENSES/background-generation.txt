@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 1780149
+Original PNG SHA-256: b44564b655360bed1c1966a171dbee925ca39ea3476e2cebe3ac64f8622251b8
+Runtime bytes: 76928
+Runtime SHA-256: 05f304807f9ff1dcad96c8229141dc25f0d967420e6e10d08f663eff9d5e36e1
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Cretaceous Western Interior Seaway underwater, luminous clear azure open-water column filling central and upper frame, a very distant sloping white chalk seafloor low on right, broad thin pale light bands near surface; open and expansive with no reef. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one LANDSCAPE 16:9 wide image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 1848625
+Original PNG SHA-256: 721f8e5a23478460380e92947c8d4f1e64b4f6d9725a881bf8b55949251b4aa1
+Runtime bytes: 82322
+Runtime SHA-256: b7491c9c94c15c77c9bbb22891d5c80edaf837f317583c9ed5470b7108e8fa25
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Cretaceous Western Interior Seaway underwater, luminous clear azure open-water column filling central and upper frame, a very distant sloping white chalk seafloor low on right, broad thin pale light bands near surface; open and expansive with no reef. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

@@ -1,3 +1,4 @@
+import { comparisonMetadata } from 'virtual:canonical-comparison-extension'
 export const SCALE_ENCOUNTER_ANIMAL_IDS = [
   'stegosaurus',
   'pteranodon',
@@ -38,10 +39,27 @@ export type ProductionScaleEncounterAnimalId =
   (typeof SCALE_ENCOUNTER_ANIMAL_IDS)[number]
 
 export type ReviewScaleEncounterAnimalId =
-  (typeof REVIEW_SCALE_ENCOUNTER_ANIMAL_IDS)[number]
+  | 'expansion-parasaurolophus'
+  | 'expansion-dimetrodon'
+  | 'expansion-gallimimus'
+  | 'expansion-ankylosaurus'
+  | 'expansion-styxosaurus'
+  | 'expansion-livyatan'
+  | 'expansion-allosaurus-pandras'
+  | 'expansion-xiphactinus'
+
+export type CanonicalAddedScaleEncounterAnimalId =
+  | 'parasaurolophus' | 'dimetrodon' | 'gallimimus' | 'ankylosaurus'
+  | 'styxosaurus' | 'livyatan' | 'allosaurus-pandras' | 'xiphactinus'
 
 export type ScaleEncounterAnimalId =
-  ProductionScaleEncounterAnimalId
+  | ProductionScaleEncounterAnimalId
+  | CanonicalAddedScaleEncounterAnimalId
+  | ReviewScaleEncounterAnimalId
+
+export const selectedScaleEncounterAnimalIds = [
+  ...SCALE_ENCOUNTER_ANIMAL_IDS, ...Object.keys(comparisonMetadata),
+] as readonly ScaleEncounterAnimalId[]
 
 export type ScaleEncounterEnvironmentTheme =
   | 'forest'
@@ -65,9 +83,17 @@ export type ChildProfile = {
   readonly heightCm: number
 }
 
-const SCALE_ENCOUNTER_ANIMAL_ID_SET: ReadonlySet<string> = new Set(
-  [...SCALE_ENCOUNTER_ANIMAL_IDS, ...REVIEW_SCALE_ENCOUNTER_ANIMAL_IDS],
+const SCALE_ENCOUNTER_ANIMAL_ID_SET = new Set<string>(
+  [...selectedScaleEncounterAnimalIds, ...REVIEW_SCALE_ENCOUNTER_ANIMAL_IDS],
 )
+
+/** Called only after a local candidate has a definition and calibrated model. */
+export function registerReviewScaleEncounterAnimal(id: ReviewScaleEncounterAnimalId): void {
+  if ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE !== 'review' || !/^expansion-[a-z0-9-]+$/.test(id)) {
+    throw new Error('Candidate comparison registration is local-review only.')
+  }
+  SCALE_ENCOUNTER_ANIMAL_ID_SET.add(id)
+}
 
 const PRODUCTION_SCALE_ENCOUNTER_ANIMAL_ID_SET: ReadonlySet<string> = new Set(
   SCALE_ENCOUNTER_ANIMAL_IDS,

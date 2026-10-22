@@ -1,6 +1,6 @@
 ---
 name: prehistoric-animal-onboarding
-description: Prepare, repair, review, approve, or promote prehistoric-animal-museum 3D animal assets through a portable staged workflow with source-rights intake, requirements contracts, L0-L3 risk routing, Blender normalization, exact model budgets and eight-second Idle, collector-attested headed capture with hash/state integrity checks, independent agent visual review, owner model locks, derivative generation, bilingual Qwen narration, and atomic promotion. Use for new animals and for defects such as wrong limbs, detached teeth, static tails or appendages, wing clipping/flicker, wrong initial camera distance, invisible motion, floating feet, stale screenshots, or silent contract exceptions. Parallel L3 work is allowed when explicitly accepted and isolated per animal; automated or agent passes never become owner approval.
+description: Onboard or repair licensed 3D animals for prehistoric-animal-museum, from source and risk contracts through believable Idle motion, parent-facing bilingual copy and narration, headed runtime evidence, derivatives and atomic promotion. Use for new animal packages or defects in anatomy, motion visibility, grounding, speech, stale assets or review bindings. Keep machine checks, actual visual and listening review, and scoped owner authorization distinct.
 ---
 
 # Prehistoric Animal Onboarding
@@ -22,6 +22,10 @@ Keep these states separate:
 
 A model lock authorizes derivative and narration work for one GLB SHA. It does
 not authorize publication. Production approval remains a later separate record.
+Use explicit authorization already given for the current final packet. Record
+its scope accurately and proceed; do not ask the owner to confirm the same
+model, listening review or publication decision again. Narration-only approval
+does not imply approval of unrelated model or release changes.
 
 ## Load only what the task needs
 
@@ -30,6 +34,11 @@ Always read `references/workflow-contract.md` before running commands.
 Also read `references/failure-regressions.md` when repairing an existing asset,
 handling L2/L3 work, defining a review contract, or explaining a budget/Idle
 deviation. Reuse its regression checks rather than relying on memory.
+
+Read [references/experience-quality.md](references/experience-quality.md) when
+writing public copy or speech, repairing motion visibility, finishing a batch,
+or verifying a release and its authorized cleanup. It covers producer listening,
+comparison phases, actual camera projection and stale-runtime evidence.
 
 The tracked tool and this Skill are the portable source of truth. Do not depend
 on ignored `docs/specification/` files or another worktree's local scripts.
@@ -100,6 +109,8 @@ presentation facts before their respective gates can pass.
    cannot be labelled as continuous video. For L3, use an agent/task other than
    the model author and the capture collector. Record both reviewer name and
    reviewer task identity; the machine rejects reuse of the collector task.
+   The producer first checks its own complete motion and speech outputs;
+   independent review adds a second check and does not replace producer review.
 7. **Owner model lock.** Generate the one-page owner packet only after machine
    and agent checks pass. Owner preparation reruns strict model-only QA into
    `owner-model-qa.json` and shows measured budgets, warnings, L3 acceptance,
@@ -111,7 +122,8 @@ presentation facts before their respective gates can pass.
 8. **Finishing lock.** After the model lock, generate landscape/portrait
    backgrounds, poster, portrait poster, thumbnail, localized editorial records
    and independent `zh-CN`/`en` Qwen3-TTS Serena narration. Run complete QA and
-   prepare the promotion manifest.
+   prepare the promotion manifest. Apply the audience, voice, phase-continuity
+   and distinct-background rules in `references/experience-quality.md`.
 9. **Publication lock.** Record final approval only after the owner accepts
    science, visual quality, motion, both complete narration listening reviews
    and public distribution. Dry-run the whole batch, promote atomically, then
@@ -128,10 +140,15 @@ Use the target, normal review and absolute exception budgets from
 requires a metric-scoped `budgetException` with reason, risk owner and date, and
 may never exceed the absolute ceiling.
 
-Every animated runtime has exactly one self-contained `Idle` lasting eight
-seconds at 24 fps, continuous at 0/8 seconds and without root drift. Retiming a
-7.5-second clip is mandatory; it is not a budget exception. Clip metadata alone
-does not prove visible or natural motion.
+The default onboarding executor checks a self-contained, single `Idle` lasting
+eight seconds at 24 fps, continuous at 0/8 seconds and without root drift.
+Retiming a 7.5-second clip is mandatory; it is not a budget exception. During a
+preservation repair, retain existing Walk, Swim or other required clips exactly;
+use the dedicated processing and validation route for that clip set rather than
+deleting them to satisfy the single-clip normalizer. Clip metadata, joint angles
+and world-space motion metrics alone do not prove visible or natural motion.
+Review the default gallery and the actual phone comparison camera through the
+complete loop, including each relevant foot, tail, fin, foreclaw and mouth.
 
 For mouth motion, use `source-rig` only with a verified weighted jaw/tongue
 chain, or `curated-components` with an exact per-model hinge and bounded vertex
@@ -161,3 +178,6 @@ Give the owner one compact packet per animal with:
 
 Say “machine pass”, “agent visual pass”, “model locked for finishing”, or
 “owner-approved for promotion” precisely. Never collapse them into “approved”.
+After a successful release, perform process-file cleanup only within the user's
+authorized scope. Preserve formal assets, required provenance and shared model
+caches; follow the release/cleanup section of `references/experience-quality.md`.

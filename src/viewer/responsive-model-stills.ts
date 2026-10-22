@@ -1,11 +1,4 @@
-const modelPreviewModules = import.meta.glob<string>(
-  '../content/animals/*/images/preview-*.webp',
-  {
-    eager: true,
-    import: 'default',
-    query: '?url',
-  },
-)
+import { modelPreviewModules } from 'virtual:canonical-model-previews'
 
 export function modelPreviewFor(
   animalId: string,

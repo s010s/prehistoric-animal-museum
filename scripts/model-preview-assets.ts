@@ -1,5 +1,6 @@
+import { mainCollection } from '../src/content/collections/main'
 import { createHash } from 'node:crypto'
-import { readdir, readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 import { localReviewAssetFiles, localReviewAssetPrefix } from './review-assets'
@@ -33,21 +34,18 @@ export function requestedAnimalIds(
   return arguments_.filter((argument) => !argument.startsWith('--'))
 }
 
-export async function modelPreviewAnimalIds(
+export function modelPreviewAnimalIds(
   target: ModelPreviewTarget,
 ): Promise<string[]> {
   if (target === 'review') {
-    return [...localReviewAssetFiles.keys()]
+    return Promise.resolve([...localReviewAssetFiles.keys()]
       .filter((route) => route.endsWith('/model.glb'))
       .map((route) => route.split('/').at(-2) ?? '')
       .filter(Boolean)
-      .sort()
+      .sort())
   }
 
-  return (await readdir(productionAnimalRoot, { withFileTypes: true }))
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
+  return Promise.resolve([...mainCollection.animalIds].sort())
 }
 
 export function modelPreviewOutputDirectory(

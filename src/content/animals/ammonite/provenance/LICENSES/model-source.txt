@@ -1,0 +1,14 @@
+Model source and derivation
+
+Title: 菊石类
+Author: Emil van Dam
+Direct source: https://sketchfab.com/3d-models/ammonite-6f835b20078e4d7fbfa42d1dfe6797ba
+Accessed: 2026-10-20
+Source variant bytes: 6257476
+Source variant SHA-256: 4081fae37646e2c2f64dd4b6c7ac3cd4f2c1245e37fc49c6959d6c7b917b922a
+Runtime bytes: 3629608
+Runtime SHA-256: 72b099427fc277500ae38f9291f2e46ddbfe25342faa05394cfed4797dd02d04
+
+- Prepared a self-contained budgeted derivative and retained shell, textures and existing arm structure.
+- Authored gentle closed eight-second water-driven arm motion with slight lateral variation while keeping the shell stable.
+- Preserved the existing closed eight-second tentacle Idle; the animal has no vertebrate tail.

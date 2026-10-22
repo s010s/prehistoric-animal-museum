@@ -3,7 +3,16 @@ import {ExperienceWarmup} from './experience-warmup'
 import { createExperienceGpuTimer, type ExperienceGpuTimer } from './experience-gpu-timer'
 import { stopAfterAnimationFrame } from './deferred-loop-stop'
 import { rendererStateLease, type ExternalExperience, type ExperienceLease } from './external-experience'
+import { createExpansionWorldWalk, advanceExpansionWorldWalk, translateExpansionPlacement, disposeExpansionWorldWalk, type ExpansionWorldWalk } from '../review/expansion-world-walk'
+import { installExpansionWalkContacts, updateExpansionWalkContacts } from '../review/expansion-walk-contacts'
 import { createEncounterMotionFootprint } from './scale-encounter-motion-footprint'
+import { installExpansionFootContacts } from '../review/expansion-foot-contacts'
+import { comparisonMetadata as canonicalComparisonMetadata } from 'virtual:canonical-comparison-extension'
+import {
+  installPublicIdleContacts,
+  publicIdleContactEntry,
+  updatePublicIdleContacts,
+} from './public-idle-contacts'
 import { clearsAnimalGroundFootprint, projectOutsideAnimalGroundFootprint } from './scale-encounter-ground-footprint'
 import {
   ACESFilmicToneMapping,
@@ -280,6 +289,7 @@ export interface ViewerControllerOptions {
 }
 
 export interface StagedViewerModel {
+  readonly loadedModelSha256?: string
   readonly animalId: string
   readonly descriptor: ViewerModelDescriptor
   readonly loadSource: ModelLoadSource
@@ -287,7 +297,8 @@ export interface StagedViewerModel {
   readonly modelRoot: Group
   readonly bounds: Box3
   readonly mixer: AnimationMixer | null
-  readonly action: AnimationAction | null
+  action: AnimationAction | null
+  readonly reviewClips?: readonly AnimationClip[]
   disposed: boolean
 }
 
@@ -329,6 +340,7 @@ interface SavedScaleEncounterViewerState {
   readonly modelRootScale: Vector3
   readonly mixerTime: number | null
   readonly mixerTimeScale: number | null
+  readonly reviewAnimationTime: number | null
   readonly resumeRotationAt: number
   readonly toneMappingExposure: number
   readonly modelContactShadowVisible: boolean | null
@@ -361,6 +373,7 @@ interface ScaleEncounterCameraTransition {
 }
 
 interface ScaleEncounterRuntime {
+  reviewWalk: ExpansionWorldWalk | null
   animalPresence: AnimalPresence | null
   actionBoostActive: boolean
   actionBoostMultiplier: number
@@ -1717,7 +1730,12 @@ export class ViewerController {
       }
 
       return {
+        ...(import.meta.env.MODE === 'review' || canonicalComparisonMetadata[descriptor.id] ? {
+          loadedModelSha256: Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buffer)))
+            .map(byte => byte.toString(16).padStart(2, '0')).join(''),
+        } : {}),
         action,
+        ...(import.meta.env.MODE === 'review' ? { reviewClips: gltf.animations } : {}),
         animalId: descriptor.id,
         bounds,
         descriptor,
@@ -1830,6 +1848,26 @@ export class ViewerController {
     this.renderer.domElement.setAttribute('aria-label', label)
   }
 
+  private installAnimalFootContacts(
+    environment: ScaleEncounterEnvironment,
+    definition: ScaleEncounterDefinition,
+  ): void {
+    if (publicIdleContactEntry(definition.id)) {
+      const count = this.current?.action?.getClip().name === 'Idle'
+        ? installPublicIdleContacts(environment, definition, this.current.loadedModelSha256)
+        : 0
+      this.renderer.domElement.dataset.scaleEncounterFootContacts = String(count)
+      return
+    }
+    if (import.meta.env.MODE !== 'review') return
+    const count = installExpansionWalkContacts(environment, definition, this.current?.loadedModelSha256, this.current?.action?.getClip().name) || installExpansionFootContacts(
+      environment,
+      definition,
+      this.current?.loadedModelSha256,
+    )
+    this.renderer.domElement.dataset.scaleEncounterReviewFootContacts = String(count)
+  }
+
   setScaleEncounterEnvironmentVariant(
     variant: ScaleEncounterEnvironmentVariant,
   ): void {
@@ -1862,6 +1900,7 @@ export class ViewerController {
       },
     )
     if (encounter.environment) {
+      this.installAnimalFootContacts(encounter.environment, encounter.definition)
       this.scene.add(encounter.environment.root)
       syncScaleEncounterGroundContacts(
         encounter.environment,
@@ -1977,6 +2016,7 @@ export class ViewerController {
       },
     )
     if (replacement) {
+      this.installAnimalFootContacts(replacement, encounter.definition)
       this.scene.add(replacement.root)
       syncScaleEncounterGroundContacts(
         replacement,
@@ -2067,6 +2107,20 @@ export class ViewerController {
     }
 
     const definition = SCALE_ENCOUNTER_DEFINITIONS[current.animalId]
+    const canonicalCalibration = canonicalComparisonMetadata[current.animalId]
+    if (canonicalCalibration &&
+        (current.loadedModelSha256 !== canonicalCalibration.modelSha256 ||
+          current.loadedModelSha256 !== definition.calibratedModelSha256 ||
+          current.action?.getClip().name !== current.descriptor.animation?.clip)) {
+      this.setScaleEncounterUnavailable('model-calibration-mismatch')
+      return false
+    }
+    if (import.meta.env.MODE === 'review' && current.animalId.startsWith('expansion-') &&
+        (current.loadedModelSha256 !== definition.calibratedModelSha256 ||
+          current.action?.getClip().name !== current.descriptor.animation?.clip)) {
+      this.setScaleEncounterUnavailable('review-model-calibration-mismatch')
+      return false
+    }
     const normalizedProfile = normalizeScaleEncounterProfile(profile)
     const saved = this.captureScaleEncounterViewerState(current)
     let avatar: ScaleEncounterAvatar | null = null
@@ -2077,6 +2131,10 @@ export class ViewerController {
     let oceanAvatarGrade: OceanSubjectGradeLease | null = null
 
     try {
+      // A gallery still must not freeze a comparison journey. Restore it with
+      // the saved viewer state when leaving, including failed setup paths.
+      this.reviewAnimationTime = null
+      delete this.renderer.domElement.dataset.reviewAnimationTime
       this.controls.enabled = false
       this.controls.enableDamping = false
       this.controls.enablePan = false
@@ -2134,6 +2192,14 @@ export class ViewerController {
         definition.animalPosition.z - rawCentre.z * metersPerUnit,
       )
       this.restoreScaleEncounterAnimationState(current, saved)
+      if (saved.reviewAnimationTime !== null && current.mixer && current.action) {
+        // Calibration restores the gallery clock as well as its pose. The
+        // saved still remains suspended for the whole comparison, including
+        // its eventual Idle; diagnostics must reflect real mixer playback.
+        current.mixer.timeScale = 1
+        current.action.paused = false
+        current.action.setEffectiveTimeScale(1)
+      }
       current.group.updateMatrixWorld(true)
 
       const worldBounds = computeModelBounds(current.modelRoot, true)
@@ -2152,7 +2218,7 @@ export class ViewerController {
         worldBounds.min,
         worldBounds.max,
         groundedEyeHeight,
-        definition.habitat === 'land' ? createEncounterMotionFootprint(definition) : undefined,
+        definition.habitat === 'land' ? createEncounterMotionFootprint(definition, current.action ? undefined : current.modelRoot) : undefined,
       )
       avatar.root.rotation.y = placement.avatarYawRadians
       if (
@@ -2197,6 +2263,7 @@ export class ViewerController {
         },
       )
       if (environment) {
+        this.installAnimalFootContacts(environment, definition)
         this.scene.add(environment.root)
         syncScaleEncounterGroundContacts(
           environment,
@@ -2245,6 +2312,7 @@ export class ViewerController {
         definition,
         placement,
         saved,
+        reviewWalk: import.meta.env.MODE === 'review' && current.mixer && current.action ? createExpansionWorldWalk(current.animalId, current.loadedModelSha256, current.mixer, current.action, current.reviewClips ?? [], current.modelRoot, environment) : null,
         rawSpanUnits,
         metersPerUnit,
         profile: normalizedProfile,
@@ -2419,7 +2487,7 @@ export class ViewerController {
       worldBounds.min,
       worldBounds.max,
       groundedEyeHeight,
-      encounter.definition.habitat === 'land' ? createEncounterMotionFootprint(encounter.definition) : undefined,
+      encounter.definition.habitat === 'land' ? createEncounterMotionFootprint(encounter.definition, current.action ? undefined : current.modelRoot).map(point => encounter.reviewWalk ? point.applyMatrix4(encounter.reviewWalk.matrix) : point) : undefined,
     )
     replacement.root.rotation.y = placement.avatarYawRadians
     const sceneReplacement =
@@ -3499,6 +3567,8 @@ export class ViewerController {
       return
     }
     this.resetScaleEncounterContextAction()
+    if (encounter.reviewWalk && this.current) this.current.action = disposeExpansionWorldWalk(encounter.reviewWalk)
+    for (const key of Object.keys(this.renderer.domElement.dataset)) if (key.startsWith('locomotion')) delete this.renderer.domElement.dataset[key]
     const captureDisposalEvidence =
       import.meta.env.MODE === 'e2e' || import.meta.env.MODE === 'review'
     const disposedEnvironmentRoot = encounter.environment?.root ?? null
@@ -3523,6 +3593,10 @@ export class ViewerController {
     encounter.environment?.root.removeFromParent()
     disposeScaleEncounterEnvironment(encounter.environment)
     disposeScaleEncounterAvatar(encounter.avatar, this.renderer)
+    delete this.renderer.domElement.dataset.scaleEncounterFootContacts
+    if (import.meta.env.MODE === 'review') {
+      delete this.renderer.domElement.dataset.scaleEncounterReviewFootContacts
+    }
     const current = this.current
     this.scaleEncounter = null
     this.scaleEncounterDistanceSnapshotUpdatedAt = Number.NEGATIVE_INFINITY
@@ -3934,6 +4008,7 @@ export class ViewerController {
       modelRootScale: current.modelRoot.scale.clone(),
       mixerTime: current.mixer?.time ?? null,
       mixerTimeScale: current.mixer?.timeScale ?? null,
+      reviewAnimationTime: this.reviewAnimationTime,
       resumeRotationAt: this.resumeRotationAt,
       toneMappingExposure: this.renderer.toneMappingExposure,
       modelContactShadowVisible:
@@ -3946,6 +4021,12 @@ export class ViewerController {
     current: StagedViewerModel,
     saved: SavedScaleEncounterViewerState,
   ): void {
+    this.reviewAnimationTime = saved.reviewAnimationTime
+    if (saved.reviewAnimationTime === null) {
+      delete this.renderer.domElement.dataset.reviewAnimationTime
+    } else {
+      this.renderer.domElement.dataset.reviewAnimationTime = String(saved.reviewAnimationTime)
+    }
     current.modelRoot.position.copy(saved.modelRootPosition)
     current.modelRoot.quaternion.copy(saved.modelRootQuaternion)
     // The exhibit package owns the canonical left/right presentation. Never
@@ -4713,6 +4794,35 @@ export class ViewerController {
     )
   }
 
+  private advanceReviewWorldWalk(seconds: number): void {
+    const encounter = this.scaleEncounter, current = this.current
+    if (!encounter?.reviewWalk || !current?.mixer) return
+    const walk = encounter.reviewWalk
+    const result = advanceExpansionWorldWalk(walk, current.mixer, seconds)
+    current.action = result.action
+    const delta = new Vector3(result.deltaX, 0, 0)
+    current.group.position.add(delta)
+    encounter.placement = translateExpansionPlacement(encounter.placement, delta)
+    encounter.avatar.root.position.add(delta)
+    this.camera.position.add(delta); this.controls.target.add(delta)
+    for (const keyframe of encounter.transition?.keyframes ?? []) {
+      keyframe.position.add(delta); keyframe.focusTarget?.add(delta)
+    }
+    current.group.updateMatrixWorld(true); encounter.avatar.root.updateMatrixWorld(true)
+    const data = this.renderer.domElement.dataset
+    data.locomotionPhase = walk.phase
+    data.locomotionDistanceMeters = walk.distance.toFixed(6)
+    data.locomotionSpeedMetersPerSecond = result.speed.toFixed(6)
+    data.locomotionElapsedSeconds = walk.elapsed.toFixed(4)
+    data.locomotionDurationSeconds = walk.duration.toFixed(4)
+    data.locomotionAnimationSeconds = walk.animationSeconds.toFixed(6)
+    data.locomotionTerrainMaxErrorMeters = walk.terrainMaxError.toFixed(8)
+    data.locomotionTerrainSampleCount = String(walk.terrainSampleCount)
+    data.locomotionAnimalPosition = current.group.position.toArray().map(n => n.toFixed(6)).join(',')
+    data.locomotionCameraPosition = this.camera.position.toArray().map(n => n.toFixed(6)).join(',')
+    data.locomotionContactTime = walk.contactTime.toFixed(6)
+  }
+
   private updateScaleEncounterAvatarMotion(deltaSeconds: number): void {
     const encounter = this.scaleEncounter
     if (!encounter) return
@@ -4731,7 +4841,7 @@ export class ViewerController {
       travelDirection.y = 0
     }
     const measuredSpeedMetersPerSecond =
-      encounter.view === 'pov' && deltaSeconds > 0
+      (encounter.view === 'pov' || !!encounter.reviewWalk) && deltaSeconds > 0
         ? travelDirection.length() / deltaSeconds
         : 0
     const speedMetersPerSecond = Number.isFinite(measuredSpeedMetersPerSecond)
@@ -4770,7 +4880,7 @@ export class ViewerController {
       speedMetersPerSecond,
     )
     if (encounter.definition.habitat === 'land') {
-      motionKind =
+      motionKind = encounter.reviewWalk && moving ? 'walk' :
         encounter.view !== 'pov'
           ? 'idle'
           : (encounter.landMotionIntent ?? 'idle')
@@ -5481,6 +5591,7 @@ export class ViewerController {
   private applyPresentationSettings(staged: StagedViewerModel): void {
     if (import.meta.env.MODE === 'review') {
       this.renderer.domElement.dataset.activeAnimalId = staged.animalId
+      this.renderer.domElement.dataset.loadedModelSha256 = staged.loadedModelSha256 ?? ''
       this.renderer.domElement.dataset.initialYawDegrees = String(
         staged.descriptor.presentation.initialYawDegrees,
       )
@@ -5653,7 +5764,9 @@ export class ViewerController {
         this.updateAutoRotation(time)
       }
       if (this.current?.mixer && this.current.action) {
-        if (this.reviewAnimationTime === null) {
+        if (this.scaleEncounter?.reviewWalk && this.reviewAnimationTime === null) {
+          this.advanceReviewWorldWalk(deltaSeconds)
+        } else if (this.reviewAnimationTime === null) {
           if (!holdingInitialPose) {
             this.current.mixer.update(deltaSeconds)
           }
@@ -5672,6 +5785,18 @@ export class ViewerController {
         this.updateScaleEncounterDistance(deltaSeconds, time)
         this.updateScaleEncounterOrbit(deltaSeconds, time)
         this.applyScaleEncounterReviewOrbit()
+        if (import.meta.env.MODE === 'review' && this.current?.action) {
+          updateExpansionWalkContacts(this.scaleEncounter.environment, this.scaleEncounter.definition.id, this.current.loadedModelSha256, this.scaleEncounter.reviewWalk?.contactTime ?? this.current.action.time, this.scaleEncounter.reviewWalk?.matrix, this.scaleEncounter.reviewWalk ? 'Walk' : this.current.action.getClip().name)
+        }
+        if (this.current?.action?.getClip().name === 'Idle' &&
+            publicIdleContactEntry(this.scaleEncounter.definition.id)) {
+          updatePublicIdleContacts(
+            this.scaleEncounter.environment,
+            this.scaleEncounter.definition.id,
+            this.current.loadedModelSha256,
+            this.current.action.time,
+          )
+        }
         this.updateScaleEncounterAvatarMotion(deltaSeconds)
         updateScaleEncounterAvatarIdle(
           this.scaleEncounter.avatar,
@@ -5713,6 +5838,12 @@ export class ViewerController {
       }
       if (import.meta.env.MODE === 'review') {
         const action = this.current?.action
+        if (this.scaleEncounter?.reviewWalk) {
+          this.renderer.domElement.dataset.locomotionCameraPosition = this.camera.position.toArray().map(n => n.toFixed(6)).join(',')
+          this.renderer.domElement.dataset.locomotionObserverPosition = this.scaleEncounter.avatar.eyeAnchor.getWorldPosition(new Vector3()).toArray().map(n => n.toFixed(6)).join(',')
+        }
+        this.renderer.domElement.dataset.animationClip = action?.getClip().name ?? ''
+        this.renderer.domElement.dataset.animationDuration = action ? action.getClip().duration.toFixed(4) : ''
         this.renderer.domElement.dataset.animationTime = action
           ? action.time.toFixed(4)
           : ''
@@ -5756,6 +5887,9 @@ export class ViewerController {
       }
       this.updateCameraLighting()
       this.renderer.render(this.scene, this.camera)
+      if (import.meta.env.MODE === 'review' && this.renderer.domElement.dataset.motionRecording === 'true') {
+        this.renderer.domElement.dispatchEvent(new Event('museum-review-frame'))
+      }
       this.publishScaleEncounterPerformanceDiagnostics(time)
     })
   }

@@ -5,6 +5,7 @@ import {
 import {
   REVIEW_SCALE_ENCOUNTER_ANIMAL_IDS,
   SCALE_ENCOUNTER_ANIMAL_IDS,
+  selectedScaleEncounterAnimalIds,
 } from '../src/scale-encounter/types'
 
 const expansionAnimalIds = [
@@ -17,9 +18,9 @@ const expansionAnimalIds = [
 ] as const
 
 describe('scale encounter content', () => {
-  it('enables all twenty-four published animals from one catalog', () => {
-    expect(SCALE_ENCOUNTER_ANIMAL_IDS).toHaveLength(24)
-    for (const animalId of SCALE_ENCOUNTER_ANIMAL_IDS) {
+  it('enables all thirty-two published comparison scenes from one catalog', () => {
+    expect(selectedScaleEncounterAnimalIds).toHaveLength(32)
+    for (const animalId of selectedScaleEncounterAnimalIds) {
       expect(isScaleEncounterAnimal(animalId)).toBe(true)
     }
     expect(isScaleEncounterAnimal('not-an-animal')).toBe(false)

@@ -1,3 +1,4 @@
+import { comparisonMetadata } from 'virtual:canonical-comparison-extension'
 import {
   Box3,
   Matrix4,
@@ -9,6 +10,8 @@ import {
   type Object3D,
 } from 'three'
 import type {
+  ProductionScaleEncounterAnimalId,
+  ReviewScaleEncounterAnimalId,
   ScaleEncounterApproach,
   ScaleEncounterAnimalId,
   ScaleEncounterAvatarPresentationProfile,
@@ -263,8 +266,8 @@ export function disposeScaleEncounterAvatar(
   disposeObject3D(avatar.root, renderer)
 }
 
-export const SCALE_ENCOUNTER_DEFINITIONS: Readonly<
-  Record<ScaleEncounterAnimalId, ScaleEncounterDefinition>
+const productionScaleEncounterDefinitions: Readonly<
+  Record<ProductionScaleEncounterAnimalId, ScaleEncounterDefinition>
 > = {
   stegosaurus: {
     id: 'stegosaurus',
@@ -940,8 +943,49 @@ export const SCALE_ENCOUNTER_DEFINITIONS: Readonly<
   },
 }
 
+// Only canonical entries selected by the build catalog are present here.
+for (const [id, item] of Object.entries(comparisonMetadata)) {
+  const water = item.habitat === 'water'
+  Object.defineProperty(productionScaleEncounterDefinitions, id, { enumerable: true,
+    value: Object.freeze({
+      id: id as ScaleEncounterAnimalId, habitat: item.habitat,
+      environmentTheme: water ? 'ocean' : 'forest', avatarProfile: water ? 'water-diver' : 'land-explorer',
+      avatarMotionPolicy: water ? 'swim' : 'adaptive-land', calibratedModelSha256: item.modelSha256,
+      displayedMeters: item.meters, scaleConfidence: 'representative', measurement: 'body-length',
+      measurementAxis: 'x', modelYawRadians: item.modelYawRadians, support: water ? 'centre' : 'ground',
+      animalPosition: new Vector3(water ? 0.8 : 2.2, water ? 1.25 : 0, 0),
+      defaultDistance: Math.max(3, item.meters * .65), minimumDistance: Math.max(1.2, item.meters * .25),
+      maximumDistance: Math.max(12, item.meters * 3), overviewFieldOfView: 36, povFieldOfView: 58,
+      overviewDirection: new Vector3(0, .035, 1).normalize(), overviewUp: new Vector3(0, 1, 0),
+      guidedTransitionDurationMs: 4500, referenceAnimationTimeSeconds: 0,
+    } satisfies ScaleEncounterDefinition),
+  })
+}
+
 const AIR_RAIL_DIRECTION = new Vector3(0, 0, 1)
 const WATER_RAIL_DIRECTION = new Vector3(-0.82, -0.34, 0.46).normalize()
+// Review entries are installed before their IDs become eligible. Production
+// keeps its existing 24 definitions and never imports candidate metadata.
+export const SCALE_ENCOUNTER_DEFINITIONS =
+  productionScaleEncounterDefinitions as Readonly<
+    Record<ScaleEncounterAnimalId, ScaleEncounterDefinition>
+  >
+
+export function registerReviewScaleEncounterDefinition(
+  definition: ScaleEncounterDefinition & { readonly id: ReviewScaleEncounterAnimalId },
+): void {
+  if ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE !== 'review') {
+    throw new Error('Candidate calibration is local-review only.')
+  }
+  if (!/^[a-f0-9]{64}$/.test(definition.calibratedModelSha256) ||
+      !Number.isFinite(definition.displayedMeters) || definition.displayedMeters <= 0) {
+    throw new Error('Candidate comparison needs a model hash and positive measured scale.')
+  }
+  Object.defineProperty(productionScaleEncounterDefinitions, definition.id, {
+    value: Object.freeze(definition), enumerable: true, configurable: true,
+  })
+}
+
 const PLESIOSAUR_FACE_RAIL_DIRECTION = new Vector3(
   -0.45,
   -0.25,

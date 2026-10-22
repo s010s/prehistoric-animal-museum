@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2779587
+Original PNG SHA-256: 26209908a8059d0c5553d976d167d015f27f03a1e774bbc8af8c127a70b6baca
+Runtime bytes: 262328
+Runtime SHA-256: bda60c1aba3f561a40f6021427b886bb867e0bcf78c5d14e462796390d910bef
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Jurassic Morrison floodplain, level pale ochre alluvial earth foreground, broad distant shallow river curving behind, layered burnt-orange sandstone mesas on far left horizon, scattered low cycads and umbrella conifers far right, clear late afternoon cream sky. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one LANDSCAPE 16:9 wide image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2681111
+Original PNG SHA-256: 3d31b51d8fd301ead472855882877a67e3963c145a930b65f0549270922d2c6f
+Runtime bytes: 230300
+Runtime SHA-256: 75d451663a7fc3f5fea395f7da34d28087da71153605e0deac4dabd2ed5495e5
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Late Jurassic Morrison floodplain, level pale ochre alluvial earth foreground, broad distant shallow river curving behind, layered burnt-orange sandstone mesas on far left horizon, scattered low cycads and umbrella conifers far right, clear late afternoon cream sky. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

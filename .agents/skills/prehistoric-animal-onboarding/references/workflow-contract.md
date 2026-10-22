@@ -102,7 +102,7 @@ final route must say `canStart: true` before model work begins.
 ## 3. Model candidate
 
 ```sh
-/opt/homebrew/bin/blender --background --factory-startup \
+blender --background --factory-startup \
   --python tools/animal-onboarding/blender/normalize_animal.py -- \
   --profile <profile.json>
 
@@ -166,8 +166,10 @@ The model budget contract is:
 
 Targets produce optimisation warnings. A requested ceiling above the normal
 column requires a `model.budgetException` naming exactly the affected metrics,
-reason, `acceptedBy` and `acceptedOn`. The absolute column and the exact one-
-clip, eight-second Idle are not waivable.
+reason, `acceptedBy` and `acceptedOn`. The absolute column and the executor's
+eight-second Idle contract are not waivable. The shared executor expects a
+single-clip output; preservation repairs with required Walk, Swim or other clips
+need the dedicated processing/validation route described in `SKILL.md`.
 
 ## 4. Headed-browser evidence
 
@@ -177,6 +179,13 @@ captures five initial viewport frames, 0/2/4/6/8 at every declared primary and
 auxiliary angle, and declared interaction states. It avoids the much larger
 viewport × angle × time Cartesian product. Use `exhaustive` only for a focused
 investigation.
+
+Include the actual default gallery and phone fixed side-view comparison when
+those modes exist. Judge local motion in their rendered projection, including
+all relevant feet, tail, fins, foreclaws and mouth components. See the motion
+section of [experience-quality.md](experience-quality.md). Check any proposed
+capture/preview command before execution; a legacy screenshot helper may still
+launch a prohibited headless browser.
 
 For known alpha flicker or feather overlap, make the transparency evidence
 requirement `fullCycle: true`, declare at least two camera perspectives, and
@@ -211,6 +220,11 @@ unchanged closest-view pixels and camera metadata that does not reflect the
 declared zoom/orbit/pan. Include a passing global production baseline; the plan
 schema requires it and binds its digest. Never launch a browser process from
 this tool.
+
+Verify that the server and the actual loaded model both serve the final SHA.
+Restart review servers that snapshot catalogs or buffers at startup, and replace
+stale automation expectations before recording. A new filename or a successful
+save cannot close a version mismatch. Preserve rejected captures separately.
 
 Browser/Chrome control currently emits no cryptographically signed capture
 receipt. Therefore `capture ingest` verifies file/hash/metadata/state integrity
@@ -314,7 +328,9 @@ publication approval.
 ## 6. Finishing and complete review
 
 Only after the model lock, generate backgrounds, posters, thumbnail, localized
-content and narration. Narration must use the pinned Qwen3-TTS 0.6B CustomVoice
+content and narration. Apply [experience-quality.md](experience-quality.md) to
+family-facing copy, distinct landscape/portrait compositions and synchronized
+thumbnails. Narration must use the pinned Qwen3-TTS 0.6B CustomVoice
 Serena chain independently for `zh-CN`/Chinese and `en`/English, with two byte-
 identical seeded raw runs per locale. System TTS and cross-language fallback
 hard-fail.
@@ -325,7 +341,7 @@ node --import tsx tools/animal-onboarding/src/cli.ts derive backgrounds \
 node --import tsx tools/animal-onboarding/src/cli.ts derive images \
   <profile.json> --desktop <clean-desktop-capture.png> \
   --portrait <clean-phone-capture.png> --bounds <x,y,width,height>
-../../.runtime/qwen3-tts/venv/bin/python \
+<qwen-venv-python> \
   tools/animal-onboarding/audio/generate_narration.py <profile.json>
 node --import tsx tools/animal-onboarding/src/cli.ts review prepare \
   <profile.json>
@@ -336,15 +352,23 @@ node --import tsx tools/animal-onboarding/src/cli.ts promote \
 The derivative and narration commands require the current model lock. They use
 deterministic local processing and never launch a browser.
 
+The producer listens to complete final encoded files in both locales and records
+actual listening against their SHAs; ASR is a supporting check. Resolve awkward
+name spacing, polyphonic readings and prosody before owner review. For animals
+with comparison mode, follow the guide's continuous-master protocol for
+`intro`/`transition`/`arrival`, then verify actual App registration, locale,
+play/pause/resume and phase timing. A populated manifest is insufficient.
+
 `review prepare` requires a current model lock, complete derivative assets,
 headed-browser validation and all automated gates. Pre-approval dry-run exit
 code 3 is expected.
 
 ## 7. Final approval and atomic promotion
 
-Run only from an explicit owner decision covering scientific identity, visual
+Use an explicit owner decision covering scientific identity, visual
 quality, motion/child comfort, complete listening in both locales and public
-distribution:
+distribution. When the owner has already approved this final packet and action,
+record that existing decision and proceed without another confirmation:
 
 ```sh
 node --import tsx tools/animal-onboarding/src/cli.ts approval record \
@@ -382,6 +406,16 @@ Promotion validates the batch before writing, stages full packages, exposes
 `animal.ts` last, updates the collection once and rolls back the batch on
 failure. Same-hash reruns are idempotent; differing partial targets fail.
 
+## 8. Post-release cleanup when requested
+
+Verify the installed release before deleting its process artifacts. Inventory
+only the authorized animal/batch intermediates, stop their local consumers and
+check that active product references use formal assets. Preserve the released
+packages, required source/licence records, unrelated work and shared model/TTS
+caches. Follow [experience-quality.md](experience-quality.md) for scope and
+reporting; existing cleanup authorization does not require another permission
+round.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -394,12 +428,17 @@ failure. Same-hash reruns are idempotent; differing partial targets fail.
 
 ## Repository verification
 
+During development, run the targeted validators for the changed stage. Run the
+applicable complete verification once after the final package is frozen; do not
+repeat a full suite for routine edits. Inspect commands for prohibited browser
+launches before executing them.
+
 ```sh
 npm --prefix tools/animal-onboarding run typecheck
 npm --prefix tools/animal-onboarding test
-/opt/homebrew/bin/blender --background --factory-startup \
+blender --background --factory-startup \
   --python tools/animal-onboarding/tests/test_motion_profiles.py
-/opt/homebrew/bin/blender --background --factory-startup \
+blender --background --factory-startup \
   --python tools/animal-onboarding/tests/test_normalization_strategy.py
 npm run lint
 npm run typecheck

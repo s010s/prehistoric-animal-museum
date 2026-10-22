@@ -1,4 +1,4 @@
 interface:
   display_name: "史前动物资产工厂"
-  short_description: "把史前动物从风险路由推进到全循环证据、模型锁与原子晋升"
-  default_prompt: "Use $prehistoric-animal-onboarding to route this animal by risk, prepare hash-bound machine and visual evidence, ask me only for the model-lock or publication decision, and never infer owner approval."
+  short_description: "完成史前动物的动作、双语口播、真实画面验收与发布准备"
+  default_prompt: "Use $prehistoric-animal-onboarding to prepare or repair this animal, verify actual motion and final speech with exact-version evidence, respect my existing scoped authorization, and ask only for a genuinely missing decision."

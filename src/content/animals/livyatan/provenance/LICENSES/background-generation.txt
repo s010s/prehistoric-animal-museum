@@ -1,0 +1,23 @@
+Project-generated exhibit backgrounds
+
+License: CC BY-NC-SA 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Each animal has its own environment. Landscape and portrait were generated independently.
+
+landscape
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 1951886
+Original PNG SHA-256: 0bbd4e3b1f0df43fc4f5281efa1fb6e93b961edaba1ad5c59338798ad36eb274
+Runtime bytes: 89106
+Runtime SHA-256: c359fa37efc1917c2de3dbbe01a8c20dda44a1d717e9b69122dd0bb50da53762
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Miocene Pacific coastal underwater scene, deep luminous teal water, distant submerged charcoal volcanic ridge on left edge descending into clean central blue, lowest part fine dark sand, soft cool overhead daylight; no giant kelp, reef or modern coastal structures. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one LANDSCAPE 16:9 wide image.
+
+portrait
+Generated: 2026-10-22
+Tool: built-in image_gen
+Original PNG bytes: 2109308
+Original PNG SHA-256: 32f3d74904530d8c8ff0910a337c043957bdcb21cb8e144376f94531284fbffe
+Runtime bytes: 107858
+Runtime SHA-256: 1e8d7ec89e41e004f147c35c9931afd402ca9812580a63cd27dfc6ede48a3773
+Prompt: Use case: historical-scene. Asset: a new environment background for a calm preschool 3D natural history museum. Scene: Miocene Pacific coastal underwater scene, deep luminous teal water, distant submerged charcoal volcanic ridge on left edge descending into clean central blue, lowest part fine dark sand, soft cool overhead daylight; no giant kelp, reef or modern coastal structures. Soft naturalistic hand-painted gouache, convincing landscape depth with subtle natural textures, inviting readable midtones. Empty environment only. Keep central 75% visually quiet for a separately rendered animal and upper corners uncluttered for controls. For underwater scenes keep seabed in lowest 18% and a large clear middle water volume. For land scenes foreground must be one continuous level ground surface across full width with no ledge/platform/ridge or trench; horizon near upper third. No animals, fish, birds, humans, skeletons, shells, fossils, modern lawns/flowers, text, logos, UI, watermarks, floating particles, baked animal shadows, spotlit plinths or collage. Independently compose one PORTRAIT 9:16 tall image, with ample empty vertical space. This is a fresh tall composition, not a crop of a wide scene.

@@ -1,4 +1,5 @@
 import { readdir } from 'node:fs/promises'
+import { tsImport } from 'tsx/esm/api'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -35,14 +36,14 @@ function isAnimalDefinitionModule(
   )
 }
 
-export async function loadAnimalDefinitions(): Promise<
+export async function loadAnimalDefinitions(onlyIds?: readonly string[]): Promise<
   LoadedAnimalDefinition[]
 > {
   const directoryEntries = await readdir(animalsRoot, {
     withFileTypes: true,
   })
   const directoryNames = directoryEntries
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && (!onlyIds || onlyIds.includes(entry.name)))
     .map((entry) => entry.name)
     .sort()
 
@@ -50,7 +51,7 @@ export async function loadAnimalDefinitions(): Promise<
     directoryNames.map(async (directoryName) => {
       const directoryPath = join(animalsRoot, directoryName)
       const moduleUrl = pathToFileURL(join(directoryPath, 'package.ts')).href
-      const loadedModule = (await import(moduleUrl)) as unknown
+      const loadedModule = (await tsImport(moduleUrl, { parentURL: import.meta.url })) as unknown
 
       if (!isAnimalDefinitionModule(loadedModule)) {
         throw new Error(

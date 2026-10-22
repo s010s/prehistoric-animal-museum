@@ -1,0 +1,13 @@
+Derived model images
+
+Posters and responsive stills retain the complete model silhouette from the headed museum renderer at Idle frame zero. Updated models were checked vertex by vertex for equivalent initial geometry, normals, materials and presentation.
+The 320×320 thumbnail was freshly composited over this animal’s separately generated landscape background.
+
+Model render component: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Attribution: “甲龙” by pikabobalex, CC BY 4.0; modified for the Prehistoric Animal Museum.
+
+Background component: Creative Commons Attribution-NonCommercial-ShareAlike4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Attribution: Project-generated habitat artwork created offline with OpenAI ImageGen.
+Component licences are retained.

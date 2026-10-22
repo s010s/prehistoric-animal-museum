@@ -217,22 +217,12 @@ function incompletePublicContentPaths(value: Record<string, unknown>): string[] 
   }
   const size = isRecord(facts.size) ? facts.size : {}
   const sizeKind = readString(size.kind)
-  if (
-    ![
-      'body-length',
-      'shoulder-height',
-      'wingspan',
-      'group-range',
-    ].includes(sizeKind ?? '') ||
-    !isPositiveFiniteNumber(size.minMeters) ||
-    !isPositiveFiniteNumber(size.maxMeters) ||
-    (isPositiveFiniteNumber(size.minMeters) &&
-      isPositiveFiniteNumber(size.maxMeters) &&
-      size.maxMeters < size.minMeters) ||
-    (sizeKind === 'group-range' && !isNonEmptyString(size.note))
-  ) {
-    paths.push('facts.size')
-  }
+  const validUnknownSize = sizeKind === 'unknown' && isNonEmptyString(size.note)
+  const validMeasuredSize = ['body-length', 'shoulder-height', 'wingspan', 'group-range'].includes(sizeKind ?? '') &&
+    isPositiveFiniteNumber(size.minMeters) && isPositiveFiniteNumber(size.maxMeters) &&
+    size.maxMeters >= size.minMeters && (sizeKind !== 'group-range' || isNonEmptyString(size.note))
+  if (!validUnknownSize && !validMeasuredSize) paths.push('facts.size')
+
 
   const sources = readArray(value.sources)
   if (
@@ -931,9 +921,10 @@ function validateContentFields(
     )
     return issues
   }
-  if (
-    content.facts.size.minMeters <= 0 ||
-    content.facts.size.maxMeters < content.facts.size.minMeters
+  const size = content.facts.size
+  if (size.kind === 'unknown'
+    ? !isNonEmptyString(size.note)
+    : !isPositiveFiniteNumber(size.minMeters) || !isPositiveFiniteNumber(size.maxMeters) || size.maxMeters < size.minMeters
   ) {
     issues.push(
       issue('error', 'INVALID_SIZE_RANGE', '体型数值范围无效。', context),

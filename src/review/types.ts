@@ -11,6 +11,7 @@ import type {
   PublishedNarrationAssets,
   PublishedNarrationPlans,
   PublishedAnimalPackage,
+  ReleaseCandidateAnimalPackage,
 } from '../content/types'
 
 export interface LocalReviewInfo {
@@ -75,6 +76,7 @@ export type LegacyLocalReviewAnimalPackage = Omit<
 }
 
 export type DisplayableAnimalPackage =
+  | (ReleaseCandidateAnimalPackage & { readonly review?: LocalReviewInfo })
   | (PublishedAnimalPackage & { readonly review?: LocalReviewInfo })
   | LegacyLocalReviewAnimalPackage
 

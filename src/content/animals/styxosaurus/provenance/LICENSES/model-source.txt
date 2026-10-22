@@ -1,0 +1,13 @@
+Model source and derivation
+
+Title: Styxosaurus snowii
+Author: Julian Johnson-Mortimer
+Direct source: https://sketchfab.com/models/c0ee838a9345458b91ef2cca3ba94542
+Accessed: 2026-10-20
+Source variant bytes: 7405456
+Source variant SHA-256: c5d9d785893a93289cd7ba8a10fc726a2bd52d96d34f6cf9bf2d022dbce40e89
+Runtime bytes: 12549080
+Runtime SHA-256: 04afc983026c3a72ba72715276301d29c8a522bb7117cec98558463981270251
+
+- Prepared a self-contained budgeted derivative while preserving source appearance and the original Swim clip.
+- Authored a closed eight-second in-place Idle with clearly visible strokes of all four flippers and a larger tail follow-through, preserving the other animation clips.

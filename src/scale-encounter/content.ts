@@ -1,10 +1,13 @@
+import { comparisonMetadata, comparisonAudio } from 'virtual:canonical-comparison-extension'
 import type { Locale } from '../i18n/locale'
 import narrationScripts from './audio/narration-scripts.json'
 import transitionDurations from './audio/transition-durations.json'
+import type { ExpansionComparisonNarration } from '../review/expansion-manifest'
 import {
   isProductionScaleEncounterAnimal,
   NARRATED_REVIEW_SCALE_ENCOUNTER_ANIMAL_IDS,
   type ProductionScaleEncounterAnimalId,
+  type ReviewScaleEncounterAnimalId,
   type ScaleEncounterAnimalId,
 } from './types'
 
@@ -273,7 +276,7 @@ type AuthoredScaleEncounterContent = Omit<
 >
 
 const zhCN: Readonly<
-  Record<ScaleEncounterAnimalId, AuthoredScaleEncounterContent>
+  Record<ProductionScaleEncounterAnimalId, AuthoredScaleEncounterContent>
 > = {
   stegosaurus: {
     animalId: 'stegosaurus',
@@ -798,7 +801,7 @@ function sharedEnCopy() {
 }
 
 const en: Readonly<
-  Record<ScaleEncounterAnimalId, AuthoredScaleEncounterContent>
+  Record<ProductionScaleEncounterAnimalId, AuthoredScaleEncounterContent>
 > = {
   stegosaurus: {
     animalId: 'stegosaurus',
@@ -1177,14 +1180,85 @@ const en: Readonly<
   },
 }
 
+const localReviewCopy = new Map<ReviewScaleEncounterAnimalId, Record<Locale, AuthoredScaleEncounterContent>>()
+const localReviewNarration = new Map<ReviewScaleEncounterAnimalId, ExpansionComparisonNarration>()
+
+export function registerReviewScaleEncounterCopy(
+  id: ReviewScaleEncounterAnimalId,
+  names: Record<Locale, string>,
+  measurements: Record<Locale, string>,
+  narration?: ExpansionComparisonNarration,
+): void {
+  if (import.meta.env.MODE !== 'review') throw new Error('Local review only.')
+  if (narration) localReviewNarration.set(id, narration)
+  localReviewCopy.set(id, {
+    'zh-CN': {
+      animalId: id, sceneLabel: `${names['zh-CN']} · 比一比预览`,
+      transitionDurationMs: 4500,
+      copy: { ...sharedZhCNCopy(), title: `和${names['zh-CN']}比一比`,
+        measurement: measurements['zh-CN'], intro: measurements['zh-CN'],
+        transition: '慢慢靠近，看看身体各个部分的大小。', arrival: '可以绕着观察，或切换到小朋友视角。' },
+    },
+    en: {
+      animalId: id, sceneLabel: `${names.en} · comparison preview`,
+      transitionDurationMs: 4500,
+      copy: { ...sharedEnCopy(), title: `Compare with ${names.en}`,
+        measurement: measurements.en, intro: measurements.en,
+        transition: 'Approach gently and look at the animal.', arrival: 'Look around or switch to the child’s viewpoint.' },
+    },
+  })
+}
+
 export function scaleEncounterContentFor(
   animalId: ScaleEncounterAnimalId,
   locale: Locale,
 ): ScaleEncounterContent {
-  const localized = locale === 'zh-CN' ? zhCN[animalId] : en[animalId]
+  const canonical = comparisonMetadata[animalId]
+  if (canonical) {
+    const tracks = comparisonAudio[animalId]?.[locale]
+    if (!tracks) throw new Error(`Missing canonical comparison narration: ${animalId}/${locale}`)
+    const shared = locale === 'zh-CN' ? sharedZhCNCopy() : sharedEnCopy()
+    return {
+      animalId, sceneLabel: canonical.names[locale], narrationAvailable: true,
+      transitionDurationMs: tracks.transition.durationMs,
+      copy: { ...shared, title: locale === 'zh-CN' ? `和${canonical.names[locale]}比一比` : `Compare with ${canonical.names[locale]}`,
+        measurement: canonical.measurements[locale], intro: tracks.intro.script,
+        transition: tracks.transition.script, arrival: tracks.arrival.script },
+      audio: { intro: tracks.intro.url, transition: tracks.transition.url, arrival: tracks.arrival.url,
+        ...viewSwitchAudioUrls[locale] },
+    }
+  }
+  const localized = isProductionScaleEncounterAnimal(animalId)
+    ? (locale === 'zh-CN' ? zhCN[animalId] : en[animalId])
+    : localReviewCopy.get(animalId as ReviewScaleEncounterAnimalId)?.[locale]
+  if (!localized) throw new Error(`No comparison copy registered for ${animalId}.`)
   const sceneLabel = localized.sceneLabel
     .replace(' · 小朋友眼睛视角', '')
     .replace(' · child eye level', '')
+
+  const reviewNarration = !isProductionScaleEncounterAnimal(animalId)
+    ? localReviewNarration.get(animalId as ReviewScaleEncounterAnimalId)?.[locale]
+    : undefined
+  if (reviewNarration) {
+    return {
+      ...localized,
+      sceneLabel,
+      narrationAvailable: true,
+      transitionDurationMs: reviewNarration.transition.durationMs,
+      copy: {
+        ...localized.copy,
+        intro: reviewNarration.intro.script,
+        transition: reviewNarration.transition.script,
+        arrival: reviewNarration.arrival.script,
+      },
+      audio: {
+        intro: reviewNarration.intro.url,
+        transition: reviewNarration.transition.url,
+        arrival: reviewNarration.arrival.url,
+        ...viewSwitchAudioUrls[locale],
+      },
+    }
+  }
 
   if (!isNarratedScaleEncounterAnimal(animalId)) {
     return {
