@@ -1,6 +1,5 @@
 import { readdir } from 'node:fs/promises'
-import { tsImport } from 'tsx/esm/api'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import type {
@@ -8,7 +7,7 @@ import type {
   AnimalPackageDefinition,
 } from '../src/content/types'
 
-export const repositoryRoot = fileURLToPath(new URL('../', import.meta.url))
+export const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const animalsRoot = join(repositoryRoot, 'src/content/animals')
 
 export interface LoadedAnimalDefinition {
@@ -36,7 +35,10 @@ function isAnimalDefinitionModule(
   )
 }
 
-export async function loadAnimalDefinitions(onlyIds?: readonly string[]): Promise<
+export async function loadAnimalDefinitions(
+  onlyIds?: readonly string[],
+  importDefinition: (moduleUrl: string) => Promise<unknown> = (moduleUrl) => import(moduleUrl),
+): Promise<
   LoadedAnimalDefinition[]
 > {
   const directoryEntries = await readdir(animalsRoot, {
@@ -51,7 +53,7 @@ export async function loadAnimalDefinitions(onlyIds?: readonly string[]): Promis
     directoryNames.map(async (directoryName) => {
       const directoryPath = join(animalsRoot, directoryName)
       const moduleUrl = pathToFileURL(join(directoryPath, 'package.ts')).href
-      const loadedModule = (await tsImport(moduleUrl, { parentURL: import.meta.url })) as unknown
+      const loadedModule = await importDefinition(moduleUrl)
 
       if (!isAnimalDefinitionModule(loadedModule)) {
         throw new Error(

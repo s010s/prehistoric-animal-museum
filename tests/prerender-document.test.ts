@@ -196,7 +196,7 @@ describe('localized museum prerender document', () => {
         })),
       )
 
-      expect(localizedDetails).toHaveLength(48)
+      expect(localizedDetails).toHaveLength(locales.length * mainCollection.animalIds.length)
       for (const { animalId, locale, source } of localizedDetails) {
         const animal = animalsById.get(animalId)
         if (!animal) {
@@ -259,12 +259,12 @@ describe('localized museum prerender document', () => {
           document.querySelector('.research-disclosure')?.textContent,
         ).toContain(content.facts.period)
         expect(
-          document.querySelector('.research-disclosure')?.textContent,
+          document.querySelector('.fact-grid')?.textContent,
         ).toContain(content.parentClassificationNote)
         if (content.facts.size.kind === 'group-range') {
           const researchText =
             document.querySelector('.research-disclosure')?.textContent ?? ''
-          expect(researchText).toContain(content.facts.size.note)
+          expect(document.querySelector('.fact-grid')?.textContent).toContain(content.facts.size.note)
           expect(researchText).not.toContain(
             locale === 'zh-CN'
               ? `参考范围为${content.facts.size.note}`

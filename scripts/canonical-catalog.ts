@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite'
+import { tsImport } from 'tsx/esm/api'
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { loadAnimalDefinitions } from './content-data'
@@ -12,7 +13,7 @@ export async function canonicalAnimalCatalog(mode: string): Promise<{
 }> {
   const candidate = mode === 'release-candidate'
   const allowed = new Set<string>(releaseCandidateAnimalIds)
-  const packages = (await loadAnimalDefinitions(mainCollection.animalIds)).filter(({ definition }) =>
+  const packages = (await loadAnimalDefinitions(mainCollection.animalIds, moduleUrl => tsImport(moduleUrl, { parentURL: import.meta.url }))).filter(({ definition }) =>
     definition.status === 'published' || (candidate && allowed.has(definition.id)),
   )
   if (candidate && (process.env.MUSEUM_RELEASE_CANDIDATE !== '1' ||

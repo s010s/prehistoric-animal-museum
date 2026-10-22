@@ -49,5 +49,5 @@ export const animalDefinition = {
 },
   content: { 'zh-CN': zhCN, en },
   narration,
-  provenance: [provenance[0]!, ...provenance.slice(1)] as const,
+  provenance: [provenance[0], ...provenance.slice(1)] as const,
 } as const satisfies PublishedAnimalDefinition

@@ -9,6 +9,7 @@ Speaker: Serena (built-in voice)
 Output licence: CC BY-NC-SA 4.0
 https://creativecommons.org/licenses/by-nc-sa/4.0/
 Scripts were reviewed by humans and synthesized offline with AI. No runtime synthesis occurs.
+Human listening review: approved by the project owner.
 
 Locale: zh-CN
 Language: Chinese

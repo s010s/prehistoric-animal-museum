@@ -1,5 +1,7 @@
 Offline AI narration
 
+Human listening review: approved by the project owner.
+
 License: CC BY-NC-SA 4.0 project content
 https://creativecommons.org/licenses/by-nc-sa/4.0/
 Generated offline; no runtime AI service.

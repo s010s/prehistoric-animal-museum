@@ -1157,10 +1157,10 @@ describe('App', () => {
     await user.click(within(dialog).getByText('剑龙研究资料'))
     expect(researchDisclosure).toHaveAttribute('open')
     expect(
-      within(dialog).getByText(/剑龙属于剑龙类恐龙。已知化石年代为晚侏罗世/),
+      within(dialog).getByText('剑龙生活在晚侏罗世，化石发现于北美洲西部。'),
     ).toBeVisible()
     expect(
-      within(dialog).getByText('化石证据与复原边界'),
+      within(dialog).getByText('从化石了解它'),
     ).toBeVisible()
     expect(
       within(dialog).getByText(

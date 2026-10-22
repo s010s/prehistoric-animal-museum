@@ -25,8 +25,8 @@ describe('museum server rendering', () => {
     expect(html).toContain('Prehistoric Animal Museum')
     expect(html).toContain('Stegosaurus')
     expect(html).toContain('Research notes about Stegosaurus')
-    expect(html).toContain('Classification used here: Stegosaur dinosaur')
-    expect(html).toContain('Fossil evidence and reconstruction limits')
+    expect(html).toContain('Stegosaurus belonged to the stegosaurs')
+    expect(html).toContain('Learning from fossils')
     expect(html).toContain('https://leon-made-this.work/museum/en/')
     expect(html).toContain('https://leon-made-this.work/')
     expect(html.match(/data-animal-detail-link=""/g)).toHaveLength(

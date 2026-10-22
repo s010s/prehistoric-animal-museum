@@ -92,7 +92,7 @@ export function promotedPackage(sourceText: string): string {
       if (sourceText[end]===',') end++
       edits.push({start:property.getFullStart(),end,text:''})
     }
-    if (name==='provenance') edits.push({start:property.getStart(source),end:property.end,text:'provenance: [provenance[0]!, ...provenance.slice(1)] as const'})
+    if (name==='provenance') edits.push({start:property.getStart(source),end:property.end,text:'provenance: [provenance[0], ...provenance.slice(1)] as const'})
   }
   if (!edits.some(e=>e.text==="'published'")) throw new Error('Draft status property missing.')
   let next=sourceText

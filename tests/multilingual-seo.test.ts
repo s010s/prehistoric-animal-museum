@@ -495,7 +495,7 @@ describe('multilingual SEO artifacts', () => {
     ].sort()
 
     expect(sitemapUrls).toEqual(expectedSitemapUrls)
-    expect(sitemapUrls).toHaveLength(50)
+    expect(sitemapUrls).toHaveLength(locales.length * (mainCollection.animalIds.length + 1))
     expect(sitemapUrls).not.toContain('https://example.test/museum/')
 
     const notFound = parseHtml(artifactSource(artifacts, '404.html'))
