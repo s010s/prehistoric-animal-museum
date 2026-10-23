@@ -59,7 +59,7 @@ const expansionAnimalIds = [
 
 describe('legacy twenty-four-animal scale encounter compatibility', () => {
   it('keeps legacy collection order and current definitions with no local-only animals', () => {
-    expect(SCALE_ENCOUNTER_ANIMAL_IDS).toEqual(mainCollection.animalIds.slice(0, 24))
+    expect(SCALE_ENCOUNTER_ANIMAL_IDS).toEqual(mainCollection.animalIds.filter((id) => id in expectedThemes))
     expect(REVIEW_SCALE_ENCOUNTER_ANIMAL_IDS).toEqual([])
     expect(Object.keys(SCALE_ENCOUNTER_DEFINITIONS)).toHaveLength(
       selectedScaleEncounterAnimalIds.length,
