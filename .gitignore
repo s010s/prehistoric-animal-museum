@@ -31,6 +31,15 @@ docs/handoff/
 docs/research/
 docs/specification/
 prototypes/
+# Publish only the bounded island experiment; keep unrelated prototype trees local.
+!prototypes/
+prototypes/*
+!prototypes/island-exploration/
+!prototypes/island-exploration/**
+prototypes/island-exploration/.source/
+prototypes/island-exploration/.review-dist/
+prototypes/island-exploration/.r*-source/
+prototypes/island-exploration/geology-study/
 spikes/
 tools/*
 !tools/animal-onboarding/
