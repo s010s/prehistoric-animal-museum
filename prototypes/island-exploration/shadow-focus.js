@@ -1,7 +1,7 @@
 import { Vector3 } from 'three'
 
-// Keep the existing 280 m coverage, light direction, bias and map budget.
-// Only the projection's translation changes. Based on the production world's
+// Snap the active projection extent without changing light direction or map budget.
+// Based on the production world's
 // sun-tangent-plane snapping (environment-scene.ts).
 export function makeShadowFocus(direction) {
   const vertical = new Vector3(0, Math.abs(direction.y) > .999 ? 0 : 1, Math.abs(direction.y) > .999 ? 1 : 0)
@@ -36,7 +36,7 @@ export function makeShadowFocus(direction) {
       const c = light.shadow.camera
       const texel = [(c.right - c.left) / light.shadow.mapSize.x, (c.top - c.bottom) / light.shadow.mapSize.y]
       const grid = [focus.dot(right) / texel[0], focus.dot(up) / texel[1]]
-      return { focus: focus.toArray(), texel, gridError: grid.map(v => Math.abs(v - Math.round(v))), mapSize: light.shadow.mapSize.toArray(), extent: [c.right - c.left, c.top - c.bottom] }
+      return { focus: focus.toArray(), texel, gridError: grid.map(v => Math.abs(v - Math.round(v))), mapSize: light.shadow.mapSize.toArray(), extent: [c.right - c.left, c.top - c.bottom], liveInteriorExtent: (c.right-c.left)*.64, transitionMetres: (c.right-c.left)*.17, normalBias: light.shadow.normalBias, depthInterval: [c.near,c.far] }
     },
   }
 }

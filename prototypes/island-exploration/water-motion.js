@@ -32,7 +32,7 @@ export function oceanGeometry(){
  const axis=t=>Math.sign(t)*(Math.abs(t)*600+Math.pow(Math.abs(t),7)*60000);
  for(let z=0;z<=n;z++)for(let x=0;x<=n;x++)p.push(axis(x/n*2-1),-.7,axis(z/n*2-1));
  for(let z=0;z<n;z++)for(let x=0;x<n;x++){const i=z*(n+1)+x;idx.push(i,i+n+1,i+1,i+1,i+n+1,i+n+2)}
- const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setIndex(idx);return g;
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setIndex(idx);g.userData.waterGrid={cols:n,rows:n};return g;
 }
 export function makeRockSpray(rocks,uniforms){
  const p=[],seed=[],motion=[];

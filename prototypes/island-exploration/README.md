@@ -1,5 +1,11 @@
 # Bounded island world experiment
 
+> **Review status — 2026-10-08: unresolved.** The user still reports grass flicker around the creek encounter, abrupt/darker tree transitions on approach, and nearby wind-shadow flicker after the P8 revision. Prior partial measurements do not establish a complete cause or a successful repair. This branch is a diagnostic handoff, not a merge-ready visual/performance fix. Cloud disappearance and the canvas-alpha leaf-edge issue were separately reported resolved.
+
+The current ordinary entry enables the P8 vegetation candidate. Use `?place=encounter&quality=high` for 溪畔的巨影; append `&vegetation=baseline` for the same-build baseline, or `&temporal=off` to isolate history. The baseline disables candidate flags; it is not a byte-identical historical renderer. Ordinary preview remains capped at 30 FPS and 0.92 MP. A separate bounded 60 FPS trial measured 54.41 FPS for baseline and 50.63 FPS for P8 on one creek route; neither passed. The local stable-grid history has no object velocities or upscaling, and the extra near shadow map is off by default.
+
+For repeatable local evidence, run `python3 prototypes/island-exploration/tools/gpu-review-server.py --port 4394 --results docs/research/perceptual-budget/results --directory prototypes/island-exploration/.review-dist` after the build. Add `&workloadReview=1&perceptualReview=1&gpuScope=none` and use the P8 grass/ground isolation, dry wind-shadow isolation, fixed-image bursts and same-tree approach controls. These controls save local PNG/JSON/video and pause afterward. Keep timing separate from capture. Results remain ignored private local files; another checkout must regenerate them. Use a headed browser. A loading pause after focus loss requires clicking “继续加载海岛”.
+
 This prototype is a research workspace for the next-generation bounded island world. Its current purpose is visual and architectural evaluation, not production integration. The scene is a standalone Three.js environment with free flight and a guided island tour; it includes life-size Apatosaurus and Triceratops encounters and does not alter the production museum experience.
 
 ## Run locally
@@ -29,9 +35,9 @@ This prototype is intended to support continued world-layout, water, geology, ve
 
 ## Repeatable visual review
 
-Add `?quality=high&place=side-spring&benchmark=1&gpuScope=none` to the preview URL. Review mode freezes the world at 60 seconds, records the camera pose and source/assets hashes, and provides a thirteen-place runtime tour, a 12-second lateral camera replay, a recorded ground-level trail walk and a 42-second shore cycle. Export includes original canvas frames and timing; passing runtime checks is not a visual verdict. `pose=x,y,z,yaw,pitch` restores a custom camera on initial load.
+Add `?quality=high&place=side-spring&benchmark=1&gpuScope=none` to the preview URL. Review UI preserves the workload budget and uses normal animation time; only the new explicit `fixedBenchmark=1` freezes an idle review. It records the camera pose and source/assets hashes, and provides a thirteen-place runtime tour, a 12-second lateral camera replay, a recorded ground-level trail walk and a 42-second shore cycle. Export includes original canvas frames and timing; passing runtime checks is not a visual verdict. `pose=x,y,z,yaw,pitch` restores a custom camera on initial load.
 
-Terrain ecology uses the same path mask for ground, trees and undergrowth. `tools/bake-light.mjs` generates the horizon and habitat fields after terrain changes; run it with `node --import tsx prototypes/island-exploration/tools/bake-light.mjs`. Rebuild afterward. `tools/bake-shore.mjs` updates the coast field when coastal terrain changes. The tree atlas uses the same branch geometry as nearby trees; the 45–90 metre stochastic handover should be assessed in movement.
+Terrain ecology uses the same path mask for ground, trees and undergrowth. `tools/bake-light.mjs` generates the horizon and habitat fields after terrain changes; run it with `node --import tsx prototypes/island-exploration/tools/bake-light.mjs`. Rebuild afterward. `tools/bake-shore.mjs` updates the coast field when coastal terrain changes. The tree atlas uses the same branch geometry as nearby trees; the 80–112 metre stochastic handover should be assessed in movement.
 
 
 The water material uses two mipmapped spectral slope fields (64 quadrature modes, not an FFT), depth-dependent extinction and scattering, shared sky radiance and a bounded planar reflection for nearby land. Its surf lace generator is adapted from Tidewater's MIT-licensed `SurfFoam.js`; attribution is retained in the generator and notices. It does not implement Tidewater's FFT ocean or full shoreline fluid simulation. `tools/extract-fir-bark.mjs` extracts the existing CC0 tree asset's albedo, normal and roughness maps without resampling. Private comparison captures and source archives live outside the prototype in the product's ignored research directory.
@@ -40,20 +46,106 @@ The review UI includes repeatable ground-level forest walking, a close rock-shor
 
 Cloud weather is generated independently of shape noise with `node prototypes/island-exploration/tools/bake-cloud-weather.mjs`. The periodic 1024² linear data map uses Tidewater’s two FBM profiles and coverage offset. Cloud panorama alpha carries transmittance to occlude the sun. Panorama strips use render-target texel coordinates, so fractional canvas pixel ratios cannot leave stale rows.
 
-With `?benchmark=1&reviewDpr=1.6`, the highland sky view, 24-second recorded orbit and pixel-ratio switching checks are available. The stripe check compares all 9,437,184 half-float channels of the last published panorama to an independent full-frame render at its frozen camera and weather phase. The ratio sequence includes 0.73, 1, 1.6 and 2. This checks cache correctness; visual quality still requires reviewing the captured world views and motion.
+With `?benchmark=1&reviewDpr=1.6`, the highland sky view, 24-second recorded orbit and pixel-ratio switching checks are available. The explicit stripe check now compares one bounded stripe of the published panorama against the same camera and weather phase. It does not claim a full-image comparison. The ratio sequence includes 0.73, 1, 1.6 and 2. This checks cache correctness; visual quality still requires reviewing the captured world views and motion.
 
 The authored shore uses centimetre-scale swash films with horizontal front distances, draining backwash and a refracted thin-film absorption path. Carrier triangles extend past the analytic front, keeping the leading edge independent of the two-metre grid. The review UI can isolate reflection, foam, normal and water-body shading. Distant sea haze integrates the same altitude-dependent extinction as the visible water to avoid a separate dark horizon belt.
 
 ### Continuous-motion review
 
-The review UI also records a 24-second, 90-metre forward/backward route with a small turn, and provides ground-clearance, spring and marsh viewpoints. JSON samples include visible-triangle clearance, fixed daylight exposure, and cloud cache blend state. Navigation sweeps the actual rendered terrain triangles and a near-plane footprint. Clouds reproject continuously between three protected panorama targets; reflections refresh each rendered frame, using the matching tree atlas in the bounded mirror while the main view and shadows retain near branch geometry. Tree representations share a 45–90 m stochastic transition and stable view-independent foliage normals.
+The review UI also records a 24-second, 90-metre forward/backward route with a small turn, and provides ground-clearance, spring and marsh viewpoints. JSON samples include visible-triangle clearance, fixed daylight exposure, and cloud cache blend state. Navigation sweeps the actual rendered terrain triangles and a near-plane footprint. Clouds reproject continuously between three protected panorama targets; reflections refresh each rendered frame, using the matching tree atlas in the bounded mirror while the main view and shadows retain near branch geometry. Tree representations share an 80–112 m stochastic transition; the current candidate applies view-facing foliage normals and a small view bend in both representations. Their lighting and depth remain approximations, and the user still reports transition discontinuities.
 
 The shore height atlas covers the east bay and estuary using their own sampled terrain. Regenerate with `node --import tsx prototypes/island-exploration/tools/bake-shore.mjs`. Water uses a bounded spectral quadrature, refracted absorption path and dual-phase local flow; this is not a full fluid simulation. A complete review must include motion recordings: still images and runtime checks cannot establish temporal stability.
 
 ### Side-spring desktop sample
 
-The side spring at z≈−720 and northern source at z≈−4023 have separate destination IDs, `side-spring` and `north-source`. The default entry is the side spring. `sample-region.js` owns the local terrain envelope, shared path mask and versioned `side-spring-loop` route. The continuous 457.29 m loop approaches the upper pool, short fall, woodland and both animals, rounds the Apatosaurus clearing, crosses the shallow ford twice and returns around the plunge pool to its shallow upper lip. It follows visible ground and takes 225 wall seconds after initial warmup. It advances through pending worker updates and records those frames. Legacy diagnostic replays retain their fixed tick clock.
+The side spring at z≈−720 and northern source at z≈−4023 have separate destination IDs, `side-spring` and `north-source`. The default entry is the side spring. `sample-region.js` owns the local terrain envelope, shared path mask and versioned `side-spring-loop` route. The v3 review walk keeps the v2 geography and ecology mask fixed. It joins creek and animal viewpoints using a bounded ground search, then uses the same visible-terrain, rock, slope, deep-water and animal constraints as ordinary walking. Its duration is derived from the planned distance at 1.55 m/s, rather than speeding up a fixed-duration movie. It advances through pending worker updates and records those frames; a deviation or missed endpoint fails the route. Legacy diagnostic replays retain their fixed tick clock.
 
-Use `gpuScope=none` for this review. It creates no GPU timer-query sample. Timing and video are separate runs; frame evidence includes route identity, version, world/wall time, position, pending state and source/assets hashes. Automatic benchmark routes bypass ordinary animal collision, so ordinary WASD/joystick navigation must also be checked. The measurement UI and still checks do not establish visual quality.
+Use `gpuScope=none` for this review. It creates no GPU timer-query sample. Timing and video are separate runs; frame evidence includes route identity, version, world/wall time, position, pending state and source/assets hashes. The ground walk shares ordinary animal collision; legacy diagnostic flight routes bypass it. Ordinary WASD/joystick navigation must also be checked. The measurement UI and still checks do not establish visual quality.
 
-Water keeps the opaque/depth image and bounded reflection independent. Current opaque shadows are rendered before reflection; AO, water and spray compose into a separate half-float linear target, then a single fullscreen output applies exposure and display conversion. The target resizes with the actual drawing buffer and is disposed/recreated with its owner. No temporal AA, screen-space reflection or dependency upgrade is included.
+Water keeps the opaque/depth image and bounded reflection independent. Current opaque shadows are rendered before reflection; AO, water and spray compose into a separate half-float linear target, then a single fullscreen output applies exposure and display conversion. The target resizes with the actual drawing buffer and is disposed/recreated with its owner. The current candidate inserts stable-grid camera-reprojected HDR history before output. It has no object velocities or temporal upscaling. No screen-space reflection or dependency upgrade is included.
+
+
+### GPU investigation protection (new)
+
+Ordinary and historical review URLs now default to at most 921,600 canvas pixels,
+longest edge 1280, and 30 submitted frames per active second. This is a temporary
+quality reduction, including 1536×384 / 120-step cloud caches and a 128-face PMREM;
+it is not final desktop visual acceptance. Low quality also reduces the cloud cache.
+`benchmark=1` enables UI only. `fixedBenchmark=1` explicitly fixes idle world time.
+`pixelBudget` can lower the pixel ceiling; `reviewDpr` cannot bypass it.
+The new `highLoad=1` explicitly enables a bounded 2.4MP / 60 FPS override with a
+20-active-second deadline and visible label. Do not use it for fault investigation.
+
+Pause 3D remains available during loading. Pausing, opening a dialog, hiding the
+page or pagehide stops new GPU work, including cache rebuilds and worker-result
+installation. Resume discards pacing backlog and excludes paused time from the
+world and wall-clock review route. Context restoration leaves the original page
+paused, with an exportable failure record and a sanitized low-quality fallback
+URL. It does not automatically reload or resume the invalid caches.
+
+`workloadReview=1&gpuScope=none` is a new lightweight, explicitly enabled local
+E2E/short-sample panel. It wraps public render calls, never GL uploads or GPU timer
+queries. Its freeze/cheap variants are diagnostics, never product optimizations.
+Timing lasts 12 seconds and auto-pauses. Stills request one bounded frame and are
+separate from timing. JSON and PNG evidence can be saved with the local-only
+`tools/gpu-review-server.py`; results default to ignored `docs/research/`.
+`build-meta.json` identifies the actual served source and assets, including dirtiness.
+
+The explicit local workload review also auto-pauses after 20 active idle seconds,
+including while browser control is delayed. Starting a short sample or pressing
+Continue rearms this bound. Explicit bounded routes retain their own timeout.
+Ordinary preview remains continuous.
+
+
+### Cloud and water work removal
+
+The density bounds use the actual linear UNORM noise range to skip samples only
+when density is provably zero or both erosion smoothsteps are already one.
+`验证云优化等价` compares the original and bounded march in an explicit 64×64 GPU
+job (8192 rays total, at the same step count), reports radiance error and executed
+volume fetches, then pauses. It is separate from timing and uses synchronous
+readback only on that explicit action. Old stripe audits also use the frame gate.
+
+Static water bodies use conservative bounds; long rivers and spring runs retain
+their exact shared vertices and triangle order in smaller index ranges. The moving
+ocean remains exempt from static culling. Planar texture taps are skipped only at
+zero contribution and use explicit level zero on the non-mipmapped linear texture.
+Reflection still refreshes every rendered frame. Its 4x MSAA is now explicit.
+The fullscreen display framebuffer has no AA/depth allocation; the opaque HDR
+buffer retains 4x/2x MSAA. This is independent of the temporary pixel/FPS reduction.
+Canvas dimensions are physical integer pixels; `effectivePixelRatio` records the
+CSS-to-buffer ratio separately. Tree atlas viewports always use target texels.
+
+Record the regional ground walk at its distance-derived duration separately from short timing, then use
+`保存游览与资源` to save its route, clearance, pending-work samples, video limit
+status and resource snapshot. The optional all-destination inspection runs once at
+final delivery. Review recordings use bounded Blob URLs rather than duplicating
+large video buffers as base64; they are never started by ordinary preview.
+
+Explicit localhost workload-review recordings also stream their bounded Blob to the
+local review sink on completion. Binary video is saved in the ignored results directory;
+this does not run for ordinary preview or send data to any external host.
+
+The legacy `dry` direct-render diagnostic retains its default framebuffer AA/depth;
+their removal applies only to the fullscreen composite path. Atlas clears also
+wait for a startup submission slot. The explicit override deadline covers startup.
+
+The mirror alone uses a fixed 32 m terrain proxy away from water. Sources, river corridors, water-contact cells and their stitching halo retain the original grid, materials and surface attributes. Main terrain, navigation, vegetation and animals retain their original geometry. The mirror still refreshes every submitted frame after the current shadow pass. `reflectionTerrain=full` is a diagnostic comparison, not the default. The review panel can compare both terrain representations at identical canvas, cloud and frame budgets.
+
+Desktop restoration is explicit: `desktopTier=pace` raises the submission target to 60 at the protected pixel budget; `900` permits 1600×900; `1080` permits 1920×1080; `clouds` also restores 3072×768 / 240-step clouds. All tiers keep cloud jobs capped at 12,288 rays per submitted frame. `desktopTrial=1` pauses after 45 active seconds of main rendering, following the finite gated startup sequence. Normal previews remain protected unless a tier is selected. Recovery strips the tier and returns to conservative limits. The setting names describe workload targets, not a guarantee of measured FPS.
+
+Clarity and cadence can be chosen separately: `frameCap=30` keeps a selected desktop pixel tier at a 30 Hz submission target; omitted or other values keep the tier's 60 Hz ceiling. This does not raise the ordinary preview budget. A desktop selection is assessed by visual quality, frame-time distribution, stability and normal-time navigation; 60 FPS is an aim, not a required promotion threshold. Use one bounded observation per condition, retain adverse results, and distinguish a cadence/pixel tradeoff from algorithmic savings. Window blur pauses startup and rendering; focus alone does not resume it.
+
+A graphics-context interruption invalidates the active observation. Review mode retains the last safe state and partial sample without GL readback, with a localhost flush and session fallback. The original page stays paused even when a context is restored; it never automatically reloads. The recorded fallback URL strips diagnostic/desktop overrides and starts paused. A local export is available before startup completes. Fault injection is absent from normal review controls and requires the separate `contextLossTest=1` URL.
+
+The explicit “保护流程短验证” check runs a few seconds, pauses, then resumes at the same quality and pixel budget. It records renderer, cloud, mirror, spectral-wave and wet-memory counters plus active/world time. It does not switch quality, capture an image, record video or issue GPU queries.
+
+Reflection terrain uses dedicated, once-built height-ordered indices. The current mirror camera's actual near plane, including oblique clip bias, sets a conservative draw range before its render list is built. Only faces wholly outside that plane are omitted; main/collision indices, crossing faces, materials, mirror samples and update frequency are preserved. The reflection E2E checks excluded vertices against the actual plane independently and verifies restored main draw ranges. Index storage and construction increase; renderer counts do not measure VRAM. CPU range checks are in `tools/reflection-range.test.mjs`.
+
+The v7 regional review path chooses each anchor's closest reachable node within 6 m and closes at its actual starting point. It retains the existing local search bounds, slope limit and rock/water/foot constraints; cached bidirectional 5 cm edge probes catch lips that coarse grid probes can miss. This changes the review path, while the region's v2 geography and ecology remain fixed. `tools/ground-plan.test.mjs` checks the bounded planner with CPU fixture terrain; only a real normal-time walk can accept the museum route. A final chord blocked by the local search box can return over the finite graph of already traversed edges. One successful plan is reused only while the installed rock-obstacle revision and anchors match. The follower traverses every checked edge through ordinary movement in at most 5 cm steps, caps navigation delta at 0.1 seconds and never consumes pause or late-frame backlog. World animation retains normal active time. A ground obstruction cancels the route, retains partial evidence and pauses the scene.
+
+Short fixed-camera windows also record per-frame workload conditions and evidence activity. Pause, camera movement, resource errors, changed pixel/cloud/RT settings, missing submissions, or concurrent routes, screenshots or video invalidate the window while retaining its raw numbers. Reflection comparisons require valid full/proxy arms with matching source, assets, pose, world phase and workload. These checks establish measurement conditions, not GPU timing or desktop acceptance.
+
+Context interruption stops the visual-review collector and recording tracks. Cancelling a regional walk and exporting its partial evidence use the last safe snapshot; neither rereads GL after loss. A recorder that fails to start also releases its capture stream. Offline CPU/DOM checks are available through `tools/short-observation.test.mjs` and `node --import tsx tools/benchmark-context.test.mjs`; they do not launch a browser or establish real context recovery, motion quality or performance.
+
+The separately enabled legacy E00 observer also becomes terminal on context loss: unfinished queries stay null, queued batches cannot restart after a save acknowledgement, and resource snapshots stop reading GL. Its partial record joins the recovery export and uses the E00 localhost sink when that server is configured. RT metadata distinguishes a requested/MAX_SAMPLES ceiling from unmeasured actual samples. Contract probes use the same submission gate; a paused or lost page does not run them. `tools/diagnostics-context.test.mjs` checks these observer transitions with Node stubs only.
