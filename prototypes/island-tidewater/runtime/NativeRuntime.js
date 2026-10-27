@@ -4,6 +4,8 @@ import { FrameTimer } from './FrameTimer.js';
 import {RegionMap} from '../creek/RegionMap.js';
 import buildInfo from './build-info.json';
 import {bindSceneReport} from './SceneReport.js';
+import {bindSampleInspection,sampleState} from './SampleInspection.js';
+import {bindRevisionRoutes,prepareRevisionRoute,applyRevisionTick} from './RevisionRoutes.js';
 
 const quantile = (a, q) => { const v = a.slice().sort((a, b) => a - b); return v.length ? v[Math.floor((v.length - 1) * q)] : null; };
 const pause = ms => new Promise(r => setTimeout(r, ms));
@@ -16,6 +18,8 @@ export class NativeRuntime {
     this.cpu = {}; this.lastFrame = null; this.cancelled = false; this.lost = false;
     this.loaderStarted = performance.now();
     bindSceneReport(this,buildInfo);
+    bindSampleInspection(this,buildInfo);
+    bindRevisionRoutes(this);
     const reportError = console.error.bind(console);
     console.error = (...args) => { reportError(...args); this.fail(args.map(x => x?.message ?? String(x)).join(' ')); };
     const hudToggle=document.querySelector('#hud-toggle');if(hudToggle)hudToggle.onclick=()=>{const collapsed=document.body.classList.toggle('hud-collapsed');hudToggle.textContent=collapsed?'展开导览':'收起导览';hudToggle.setAttribute('aria-expanded',String(!collapsed));hudToggle.setAttribute('aria-label',collapsed?'展开导览面板':'收起导览面板');};
@@ -47,6 +51,7 @@ export class NativeRuntime {
     const inlandBedLegacy=document.querySelector('#inland-bed-legacy');if(inlandBedLegacy)inlandBedLegacy.onchange=()=>{app.terrain.review.fields.inlandBedLegacy.value=inlandBedLegacy.checked?1:0;this.resetHistory();this.resume();this.publish();};
     const bedDebug=document.querySelector('#bed-debug');if(bedDebug)bedDebug.onchange=()=>{app.terrain.review.fields.bedDebug.value=Number(bedDebug.value);this.resetHistory();this.resume();this.publish();};
     const hillShadow=document.querySelector('#hill-shadow-visible');if(hillShadow)hillShadow.onchange=()=>{app.terrainGPU.hillShadowEnabled=hillShadow.checked;app.terrainGPU.uSunBaked.value=hillShadow.checked?1:0;this.resetHistory();this.resume();this.publish();};
+    for(const id of ['review-terrain-visible','review-sample-landmarks','review-breaker-lips']){const e=document.querySelector('#'+id);if(e)e.onchange=()=>{const object=id==='review-terrain-visible'?app.terrain?.mesh:id==='review-sample-landmarks'?app.sampleDetails:app.breakers?.mesh;if(object){if(id==='review-sample-landmarks')object.reviewVisible=e.checked;else if(id==='review-breaker-lips')app.reviewBreakerLips=e.checked;else object.visible=e.checked;}this.resetHistory();this.resume();this.event('geometry-isolation',{id,visible:e.checked});this.publish();};}
     const terrainShadow=document.querySelector('#terrain-shadow-cast');if(terrainShadow)terrainShadow.onchange=()=>{app.terrain.mesh.castShadow=terrainShadow.checked;this.resetHistory();this.resume();this.publish();};
     const habitatLegacy=document.querySelector('#habitat-legacy-water');if(habitatLegacy)habitatLegacy.onchange=()=>{app.creekData.appearance.review.fields.legacyWater.value=habitatLegacy.checked?1:0;this.resetHistory();this.resume();this.publish();};
     for(const id of ['ground-snow','ground-bump','ground-filtered']){const e=document.querySelector('#'+id);if(e)e.onchange=()=>{const key=id.slice(7);if(app.terrain?.review)app.terrain.review.fields[key].value=e.checked?1:0;this.resetHistory();this.resume();this.publish();};}
@@ -137,6 +142,7 @@ export class NativeRuntime {
   ready() {
     if (this.errors.length || this.cancelled) throw Error('Native initialization failed; inspect saved errors');
     this.phase = 'ready'; this.loadedAt = performance.now(); this.attachDevice();
+    this.restoreSampleComparison?.();
     this.app.engine.domElement.addEventListener('click', () => {
       if (this.recording || this.measuring || this.walkingSample) return;
       if (!this.running) { this.clearInput(); this.event('canvas-reenter'); this.resume(); }
@@ -230,6 +236,7 @@ export class NativeRuntime {
     callback.submitted = true;
     const row = { t, frame: GPU.frame, interval, dt, worldTime: G.time.value, camera: this.app.camera.position.toArray(), quaternion: this.app.camera.quaternion.toArray(), cpuFrameMs: performance.now() - start, cpu: { ...this.cpu } };
     this.lastFrame = row;
+    if(this.videoRouteFrames)this.videoRouteFrames.push({elapsedMs:this.videoRouteTick*1000/30,tick:this.videoRouteTick,frame:GPU.frame,camera:row.camera,quaternion:row.quaternion,ground:this.app.terrainData?.heightAt(row.camera[0],row.camera[2])??null});
     if (this.recording) this.frames.push(row);
     if (!this.lastHUD || t - this.lastHUD > 500) { this.lastHUD = t; this.publish(); }
     row.cpuCallbackMs = performance.now() - callbackStart;
@@ -261,6 +268,7 @@ export class NativeRuntime {
       loadMs: this.loadedAt === null ? null : this.loadedAt - this.loaderStarted,
       adapter: GPU.adapter?.info ? { vendor: GPU.adapter.info.vendor, architecture: GPU.adapter.info.architecture, device: GPU.adapter.info.device, description: GPU.adapter.info.description } : null,
       timestampSupported: GPU.hasTimestamp, pendingQueries: this.timer.pending.size, scheduler: { targetFps: this.targetFps, timestampToleranceMs: this.frameToleranceMs, gate: 'elapsed-since-last-submission', maximumInFlight: 2, currentInFlight: this.inFlight },
+      sample:a.creekData?sampleState(a):null,
       slice: a.sliceState?.() ?? null,
       limitation: a.sliceState ? 'Connected museum island, nine habitats and native ocean/underwater chain. Inland SSR remains screen-limited; species-level palaeobotany, river caustics, marine gameplay and long-duration thermal stability need separate validation.' : 'Reference island with native museum animal compatibility; original museum creek, vegetation and inland water not migrated. Submitted frames do not measure compositor presentation.',
     };
@@ -273,7 +281,7 @@ export class NativeRuntime {
     const fly=document.querySelector('#fly');if(fly){fly.textContent=state.camera?.freeCam?'退出升空 · F':'自由升空 · F';fly.setAttribute('aria-pressed',String(!!state.camera?.freeCam));}
     const sound=document.querySelector('#sea-sound');if(sound&&this.app.audio){const a=this.app.audio;sound.textContent=!a.choice?'自然声：已关闭 · 点击开启':a.paused?'自然声：已暂停':a.enabled?'自然声：已开启':'自然声：点击恢复';sound.setAttribute('aria-pressed',String(a.choice));}
     const entry=document.querySelector('#scene-entry');if(entry)entry.hidden=this.phase!=='ready'||this.running||this.measuring||this.walkingSample||this.recording;
-    if (this.phase === 'ready' && this.running) document.querySelector('#status').textContent = this.recordingVideo?'正在保存 12 秒动态画面 · 可正常行走':state.remainingSeconds===null?'持续观察中 · 可随时暂停':`观察中 · ${Math.ceil(state.remainingSeconds)} 秒后暂停`;
+    if (this.phase === 'ready' && this.running) document.querySelector('#status').textContent = this.recordingVideo?'正在保存动态画面':state.remainingSeconds===null?'持续观察中 · 可随时暂停':`观察中 · ${Math.ceil(state.remainingSeconds)} 秒后暂停`;
   }
   async measure() {
     if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample || this.recordingVideo || this.recordingAudio || this.lost) return;
@@ -319,7 +327,7 @@ export class NativeRuntime {
     if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample || this.recordingAudio || this.recordingVideo) return;
     this.walkingSample = true;
     try {
-      if (this.app.showLandmark) this.app.showLandmark('entrance');
+      if (this.app.showLandmark) this.app.showLandmark(this.app.currentLandmark?.startsWith('sample-')?this.app.currentLandmark:'entrance');
       else { this.app.animals?.lookAt('apatosaurus'); this.app.freeCam = false; this.app.dropPlayerAtCamera(); }
       this.resetHistory(); this.resume();
       const before = this.state(), points = [];
@@ -346,36 +354,49 @@ export class NativeRuntime {
     if(!canvas.captureStream||typeof MediaRecorder==='undefined')throw Error('浏览器不支持画布录像');
     const mimeType=['video/webm;codecs=vp9','video/webm;codecs=vp8'].find(t=>MediaRecorder.isTypeSupported(t));
     if(!mimeType)throw Error('浏览器没有可用的 WebM 编码器');
+    const motion=document.querySelector('#motion-route')?.value??'none',motionPoints=[];
+    const revisionRoute=prepareRevisionRoute(this,motion),durationMs=revisionRoute?.durationMs??12000;
+    if(motion==='dive'&&(this.app.freeCam||this.app.player.mode!=='swim'))throw Error('请先进入水下观察，再记录上浮下潜');
+    if(motion==='catchment'&&!this.app.creekData.field.continuousSample)throw Error('原版无样板水系航拍路线');
     const button=document.querySelector('#record-video'),stream=canvas.captureStream(30),chunks=[];
     this.recordingVideo=true;this.videoResult={status:'recording'};button.disabled=true;document.querySelector('#inspection')?.removeAttribute('open');
+    if(['turn','pitch','aerial','approach','catchment'].includes(motion)&&!this.app.freeCam)this.app.setFreeCam(true);
+    if(motion==='walk'&&this.app.freeCam){this.app.freeCam=false;this.app.dropPlayerAtCamera();}
     this.resume();const before=this.state(),start=performance.now();
-    const motion=document.querySelector('#motion-route')?.value??'none',motionPoints=[];this.motionSpeedBefore=this.app.fly?.speed;if(motion==='aerial'||motion==='approach')this.app.fly.speed=this.app.currentLandmark==='review-cove-boundary'?48:12;
-    const turnYaw=this.app.fly?.yaw;
-    if(motion==='turn'){this.clearInput();this.app.fly.velocity.set(0,0,0);this.videoMotion=now=>{const t=Math.max(0,Math.min(1,(now-start-2000)/8000));this.app.fly.yaw=turnYaw+Math.sin(t*Math.PI*2)*Math.PI/18;};}
+    this.motionSpeedBefore=this.app.fly?.speed;if(motion==='aerial'||motion==='approach')this.app.fly.speed=this.app.currentLandmark==='review-cove-boundary'?48:12;
+    const turnYaw=this.app.fly?.yaw,turnPitch=this.app.fly?.pitch;
+    if(revisionRoute){this.videoRouteFrames=[];this.videoRouteTick=0;this.videoMotion=now=>applyRevisionTick(this,revisionRoute,now-start);}
+    if(motion==='turn'||motion==='pitch'){this.clearInput();this.app.fly.velocity.set(0,0,0);this.videoMotion=now=>{const t=Math.max(0,Math.min(1,(now-start-2000)/8000)),offset=Math.sin(t*Math.PI*2);if(motion==='turn')this.app.fly.yaw=turnYaw+offset*Math.PI/18;else this.app.fly.pitch=Math.max(-1.45,Math.min(1.45,turnPitch+offset*.65));};}
+    if(motion==='catchment'){
+      const s=this.app.creekData.field.continuousSample,route=s.points;
+      this.videoMotion=now=>{const t=Math.max(0,Math.min(1,(now-start-1500)/9000)),distance=t*s.length;let i=1;while(i<route.length-1&&route[i].distance<distance)i++;const a=route[i-1],b=route[i],u=(distance-a.distance)/Math.max(.001,b.distance-a.distance),x=a.x+(b.x-a.x)*u,z=a.z+(b.z-a.z)*u,r=s.nearest(x,z),h=Math.max(this.app.terrainData.heightAt(x,z),s.sample(x,z)[0])+14;this.app.fly.setPose(this.app.camera.position.clone().set(x,h,z),Math.atan2(-r.dir[0],-r.dir[1]),-.48);this.app.fly.velocity.set(0,0,0);};
+    }
     const motionTimer=setInterval(()=>{
       const t=performance.now()-start,keys=this.app.input.keys;
-      if(motion!=='none'&&motion!=='turn'){keys.delete('KeyA');keys.delete('KeyD');keys.delete('KeyW');keys.delete('KeyS');if(t>2000&&t<10000&&this.running){keys.add(motion==='walk'?'KeyW':motion==='approach'?(t<6000?'KeyW':'KeyS'):t<6000?'KeyD':'KeyA');}}
+      if(['walk','approach','aerial'].includes(motion)){keys.delete('KeyA');keys.delete('KeyD');keys.delete('KeyW');keys.delete('KeyS');if(t>2000&&t<10000&&this.running){keys.add(motion==='walk'?'KeyW':motion==='approach'?(t<6000?'KeyW':'KeyS'):t<6000?'KeyD':'KeyA');}}
+      if(motion==='dive'){keys.delete('Space');keys.delete('KeyC');if(t>2000&&t<10000&&this.running)keys.add(t<6000?'Space':'KeyC');}
       const life=this.app.life;motionPoints.push({elapsedMs:t,camera:this.app.camera.position.toArray(),quaternion:this.app.camera.quaternion.toArray(),running:this.running,grove:this.app.vegetation?.giantWindow?.(this.app.camera.position),life:life?{fish:life.frameSight.fish.length,shrimp:life.frameSight.shrimp.length,birds:life.frameSight.birds.length,examples:Object.fromEntries(Object.entries(life.frameSight).map(([k,v])=>[k,v.slice(0,2)]))}:null});
     },100);
-    const recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:4000000});
+    const recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:revisionRoute?6000000:4000000});
     const onHide=()=>{if(recorder.state!=='inactive')recorder.stop();};
     window.addEventListener('pagehide',onHide,{once:true});
     try {
       await new Promise((resolve,reject)=>{
         recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
         recorder.onstop=resolve;recorder.onerror=e=>reject(e.error??Error('录像编码失败'));
-        recorder.start(1000);this.videoDeadline=setTimeout(onHide,12000);
+        recorder.start(1000);this.videoDeadline=setTimeout(onHide,durationMs);
       });
       const blob=new Blob(chunks,{type:mimeType}),bytes=new Uint8Array(await blob.arrayBuffer());
-      if(bytes.length>24000000)throw Error('录像超过本地体积限制');
+      if(bytes.length>32000000)throw Error('录像超过本地体积限制');
       let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
-      const saved=await this.save('video',{before,after:this.state(),motion,motionPoints,events:this.events,elapsedMs:performance.now()-start,mimeType,videoBase64:btoa(binary),captureFps:30,performanceEvidence:false});
+      const saved=await this.save('video',{before,after:this.state(),motion,motionPoints,revisionRoute,routeFrames:this.videoRouteFrames??null,events:this.events,elapsedMs:performance.now()-start,mimeType,videoBase64:btoa(binary),captureFps:30,performanceEvidence:false});
       this.videoResult={status:'saved',artifact:saved.artifact,bytes:bytes.length,motion};
       document.querySelector('#status').textContent='动态画面已保存 · 性能另行计时';
     } finally {
-      clearTimeout(this.videoDeadline);clearInterval(motionTimer);this.videoMotion=null;if(motion==='turn')this.app.fly.yaw=turnYaw;if(motion==='aerial'||motion==='approach')this.app.fly.speed=this.motionSpeedBefore;for(const k of ['KeyA','KeyD','KeyW','KeyS'])this.app.input.keys.delete(k);window.removeEventListener('pagehide',onHide);
+      clearTimeout(this.videoDeadline);clearInterval(motionTimer);this.videoMotion=null;if(motion==='turn')this.app.fly.yaw=turnYaw;if(motion==='pitch')this.app.fly.pitch=turnPitch;if(motion==='aerial'||motion==='approach')this.app.fly.speed=this.motionSpeedBefore;for(const k of ['KeyA','KeyD','KeyW','KeyS','Space','KeyC'])this.app.input.keys.delete(k);window.removeEventListener('pagehide',onHide);
       if(recorder.state!=='inactive')recorder.stop();stream.getTracks().forEach(t=>t.stop());
       this.recordingVideo=false;button.disabled=false;this.publish();
+      this.videoRouteFrames=null;
     }
   }
   async saveObservation() {

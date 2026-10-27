@@ -13,6 +13,7 @@ export function bindSceneReport(runtime,build){
   const p=c.getWorldPosition(new Vector3()),q=c.quaternion.toArray(),v=c.getWorldDirection(new Vector3()),e=new Euler().setFromQuaternion(c.quaternion,'YXZ');
   const grass=a.vegetation?.grass,gs=grass?.stats(),ground=a.terrainData?.heightAt(p.x,p.z);
   const packet={schema:'museum-scene-report-v1',id:'M-'+Date.now().toString(36),capturedAt:new Date().toISOString(),sourceHash:build.sourceHash,upstreamCommit:build.upstreamCommit,
+   worldSample:a.creekData?{id:'west-fissure-to-sea-v1',enabled:!!a.creekData.field.continuousSample}:null,
    place:{arrivalId:a.currentLandmark,title:document.querySelector('#place-title')?.textContent,nearby:a.regionMap?.stats().label},
    camera:{position:p.toArray(),quaternion:q,headingDegrees:(Math.atan2(v.x,-v.z)*180/Math.PI+360)%360,pitchDegrees:Math.asin(Math.max(-1,Math.min(1,v.y)))*180/Math.PI,eulerYXZRadians:[e.x,e.y,e.z],fov:c.fov,zoom:c.zoom,freeCam:!!a.freeCam,mode:a.freeCam?'fly':a.player?.mode??'unknown',groundHeight:ground,heightAboveGround:Number.isFinite(ground)?p.y-ground:null},
    frame:{gpu:runtime.lastFrame?.frame??null,worldTime:G.time.value,running:runtime.running,output:[a.engine.width,a.engine.height],internal:[a.sceneRenderer.sceneRT.width,a.sceneRenderer.sceneRT.height],renderScale:a.settings.renderScale,aaMode:a.post?.aaMode},

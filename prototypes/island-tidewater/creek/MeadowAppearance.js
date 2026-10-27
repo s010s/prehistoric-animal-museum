@@ -7,6 +7,7 @@ import {coveShadingWGSL} from './ShallowCove.js';
 import {groveModule,groveWeight,groveOpening,grovePathDistance,grovePatch} from './GroveDesign.js';
 import {terrainShadingModule,srgb} from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
 import {createGrassDistance} from './GrassDistance.js';
+import {sampleForestWeight,sampleForestWGSL} from './SampleForest.js';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 
 export function createMeadowAppearance(data,terrainGPU){
@@ -30,6 +31,7 @@ export function createMeadowAppearance(data,terrainGPU){
   const gw=groveWeight(x,z),gap=Math.max(groveOpening(x,z),1-smooth(1.5,3.4,grovePathDistance(x,z)));
   const keep=1-gw*(.92-gap*.30-smooth(.6,.9,grovePatch(x,z))*.30);
   for(let c=1;c<4;c++)mask.data[k+c]=Math.round(mask.data[k+c]*keep);
+  if(data.field.continuousSample){const sw=sampleForestWeight(x,z);mask.data[k+1]=Math.round(mask.data[k+1]*(1-sw*.88));mask.data[k+2]=Math.round(mask.data[k+2]*(1-sw*.7));mask.data[k+3]=Math.round(mask.data[k+3]*(1-sw*.35));}
   counts.meadow++;if(mask.data[k+2]>8)counts.upright++;if(mask.data[k+3]>8)counts.groundcover++;
  }
  const make=(label,res,bytes)=>{const t=new Texture({label,width:res,height:res,format:'rgba8unorm',data:bytes,mips:true,usage:['sample','copyDst'],sampler:'linearClamp'});t.getGPU();generateMipmaps(t);return t;};
@@ -45,10 +47,11 @@ export function createMeadowAppearance(data,terrainGPU){
  const review=new UniformBlock('MuseumHabitatReview',{legacyWater:['f32',0]});
  const module=new ShaderModule({name:'museumMeadow',deps:[terrainGPU.module,terrainShadingModule(),data.field.module,groveModule,distance.module],uniforms:review,uniformName:'museumHabitatReview',bindings:{museumFineCover:{texture:fine},museumOuterCover:{texture:coarse},museumFlora:{texture:density}},code:`
 ${coveShadingWGSL}
+${sampleForestWGSL}
 fn museumCover(p:vec2f,footprint:f32)->vec4f{
  let a=textureSampleLevel(museumFineCover,smpLinearClamp,(p+512.0)/1024.0,max(0.0,log2(max(footprint,0.001)/2.0)));
  let b=textureSampleLevel(museumOuterCover,smpLinearClamp,(p+16384.0)/32768.0,max(0.0,log2(max(footprint,0.001)/32.0)));
- var cover=mix(b,a,terrainFineWeight(p));cover.a=max(cover.a,museumGroveWeight(p)*.94);return cover;
+ var cover=mix(b,a,terrainFineWeight(p));cover.a=max(cover.a,max(museumGroveWeight(p)*.94,${data.field.continuousSample?'museumSampleForest(p)*.92':'0.0'}));return cover;
 }
 fn museumFloraAt(p:vec2f,footprint:f32)->vec4f{
  if(max(abs(p.x),abs(p.y))>16368.0){return vec4f(0.0);}
@@ -64,7 +67,14 @@ fn museumFloraAt(p:vec2f,footprint:f32)->vec4f{
  m.b=max(m.b,m.g*damp*.85);
  let grove=museumGroveFloor(p);let gk=1.0-grove.x*(.92-grove.y*.30-smoothstep(.6,.9,grove.z)*.30);
  // Fine reconstruction also observes the same world-fixed litter/opening field.
- m.g=mix(m.g,m.g*gk,terrainFineWeight(p));m.a*=1.0-grove.x*.75;m.gba*=1.0-museumSpringOutcrop(p);return m;
+ m.g=mix(m.g,m.g*gk,terrainFineWeight(p));m.a*=1.0-grove.x*.75;
+ ${data.field.continuousSample?`let sf=museumSampleField(p);if(sf.y<44.0){
+  // Sea-oat seed-head cards are a modern coastal template. This sample uses
+  // jointed wet-bank forms instead; bare wet margins share the same field.
+  m.b=0.0;let tidal=1.0-smoothstep(.4,3.0,sf.x);let margin=mix(.18,1.35,tidal);
+  let retreat=smoothstep(margin,margin+.9,h-sf.x);let support=1.0-smoothstep(2.0,8.0,sf.y);m.ga*=mix(1.0,retreat,support);
+ }`:''}
+ m.gba*=1.0-museumSpringOutcrop(p);return m;
 }
 fn museumMeadowAt(p:vec2f,footprint:f32)->MeadowTone{
  let a=mat2x2f(.764842187,.644217687,-.644217687,.764842187)*p/173.0;

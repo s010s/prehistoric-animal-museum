@@ -1,5 +1,6 @@
 // Museum visitor routes in one continuous world. Arrival points are checked
 // against the same physical terrain and inland water used for navigation.
+import {sampleVisits} from './SampleVisits.js';
 export function createIslandVisits(data){
  const t=data.terrain,field=data.field;
  const dryNear=(x,z,level,radius=100)=>{let best=null;for(let j=-radius;j<=radius;j+=4)for(let i=-radius;i<=radius;i+=4){const px=x+i,pz=z+j,h=t.heightAt(px,pz),f=field.sample(px,pz),s=Math.hypot(t.heightAt(px+2,pz)-t.heightAt(px-2,pz),t.heightAt(px,pz+2)-t.heightAt(px,pz-2))/4;if(h<level+.7||h>level+7||(f[1]<0&&h<f[0]+.35)||s>.6)continue;const score=Math.hypot(i,j)+Math.abs(h-level-2)*9+s*30;if(!best||score<best.score)best={p:[px,pz],score,h};}return best?.p??[x,z];};
@@ -45,6 +46,7 @@ export function createIslandVisits(data){
  for(const reef of data.reefObservations??[]){visits[reef.id]={...reef,title:({'reef-east':'东岸珊瑚浅礁','reef-south':'南岸砂槽与暗礁','reef-northeast':'东北岸珊瑚与碎礁'})[reef.id],note:'低饱和珊瑚团块、盘状群落与碎礁依附浅海床生长，砂槽留出游览空间。目前采用环境形态代理。',diveLevel:-.7,time:reef.id==='reef-northeast'?14.2:9.5};}
  const life=data.lifeObservations;if(life?.shrimp){const g=life.shrimp;let footing=null;for(let dz=-3;dz<=3;dz+=.25)for(let dx=-3;dx<=3;dx+=.25){const x=g.x+dx,z=g.z+dz,d=Math.hypot(dx,dz),h=t.heightAt(x,z),depth=g.h-h;if(d<.8||d>2.8||depth<-.1||depth>.6)continue;const score=Math.abs(d-1.4)+Math.abs(depth-.35);if(!footing||score<footing.score)footing={p:[x,z],score};}visits['creek-life']={id:'creek-life',title:'溪边浅石下的小生命',note:'站在浅水石边低头观察，约十厘米的小虾就在脚边。也能沿浅岸走近小鱼。',p:footing?.p??[g.x,g.z],gaze:[g.x,g.floor+.04,g.z],time:12.6};}
  if(life?.west){const g=life.west,c=data.coast.coast;visits['coast-birds']={id:'coast-birds',title:'浅湾海鸟掠岸',note:'留在岸边观察低空掠过岩湾的海鸟。开启自然声，可以听见来自实际鸟位的叫声。',p:[c.x+5,c.z],gaze:[c.x-45,7,c.z+7],time:10.7};visits['shore-life']={id:'shore-life',title:'浅湾潜水看鱼',note:'潜入砂槽，在清水中观察小鱼。WASD 游动，空格上浮，C 下潜；岸上的海鸟仍在飞行。',diveLevel:g.h,p:[g.x+4,g.z+1],gaze:[g.x,g.h-1,g.z],time:10.7};}
+ Object.assign(visits,sampleVisits(data));
  for(const v of Object.values(visits)){v.ground=t.heightAt(v.p[0],v.p.at(-1));v.waterAtArrival=field.sample(v.p[0],v.p.at(-1))[0];}
  return visits;
 }

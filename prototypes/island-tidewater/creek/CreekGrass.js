@@ -151,6 +151,7 @@ export class CreekGrass extends GrassField {
  }
  async auditGround(){
   const pts=[[7690.312686253738,-2002.8799280156782],[8319.441878239979,-2633.1065592216073],[7486.592,-1873.309],[3600,-5280],[4170,-5280],[2850,-1950],[3520,-1950],...Array.from({length:25},(_,i)=>[-46+i*4,-60]),...Array.from({length:13},(_,i)=>[-170+i*8,80]),[460,0],[480,0],[496,0],[-460,80],[-480,80],[-496,80],[-849,-32],[-88,18],[-88,16],[-84,74],[-84,78],[-84,82],[-36,-60]];
+  for(const p of this.coverData.field.continuousSample?.points.filter((_,i)=>i%37===0)??[]){const r=this.coverData.field.continuousSample.nearest(p.x,p.z);pts.push([p.x+r.dir[1]*(p.width+1),p.z-r.dir[0]*(p.width+1)]);}
   const input=new StorageBuffer({label:'Actual grass root audit points',count:pts.length,type:'vec4f',data:new Float32Array(pts.flatMap(p=>[...p,0,0]))});
   const output=new StorageBuffer({label:'Grass vs terrain root heights',count:pts.length,type:'vec4f'});
   const kernel=new ComputeKernel({label:'Museum grass startup integration audit',modules:[this.appearance.module],bindings:{grassAuditPoints:{storage:input,access:'read'},grassAuditHeights:{storage:output,access:'read_write'}},code:`

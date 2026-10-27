@@ -3,9 +3,11 @@
 import {createHeadwater} from './HeadwaterDesign.js';
 import {createTributarySource} from './TributarySource.js';
 import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
+import {createContinuousSample,sampleDisabledWGSL} from './ContinuousSample.js';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const num=n=>Number(n).toFixed(7);
 export function installIslandWater(field,world,headwater){
+ const continuous=field.continuousSample=new URLSearchParams(location.search).get('sample')==='baseline'?null:createContinuousSample();
  const head=field.headwater=createHeadwater(world.source);
  const east=field.tributarySource=createTributarySource(world);
  // The export enabled the wide main-river extent in one row at Z=-3280.
@@ -32,6 +34,9 @@ export function installIslandWater(field,world,headwater){
  const n=field.g.waterRes,W=1536,H=n+2,packed=new Float32Array(W*H*4),sg=world.source;
  for(let j=0;j<n;j++)packed.set(field.data.subarray(j*n*4,(j+1)*n*4),j*W*4);
  for(let j=0;j<512;j++)packed.set(headwater.subarray(j*512*4,(j+1)*512*4),(j*W+n)*4);
+ // The unused lower-right 512² tile fits the bounded coastal water field.
+ // Retain the same atlas dimensions and sampled bindings as the snapshot.
+ if(continuous)for(let j=0;j<512;j++)packed.set(continuous.bytes.subarray(j*512*4,(j+1)*512*4),((j+512)*W+1024)*4);
  packed.set(field.riverProfile,W*n*4);
  const start=field.riverProfile.length/4,trip=world.tributary.flat();packed.set(trip,(W*n+start)*4);
  const old=field.texture;field.texture=new Texture({label:'Museum inland-water atlas',width:W,height:H,format:'rgba32float',data:packed,usage:['sample','copyDst']});field.module.bindings.creekFieldTex.texture=field.texture;old.destroy();
@@ -45,6 +50,7 @@ fn creekRiverRow(i:i32)->vec4f{return textureLoad(creekFieldTex,vec2i(i%${W},${n
 fn creekRiverAt(z:f32)->vec4f{let f=(z-(${num(l.riverStart)}))/${num(l.riverStep)};if(f<0.0||f>=${num(l.riverCount-1)}){return vec4f(0.0,-90.0,-10000.0,0.0);}let i=i32(floor(f));return mix(creekRiverRow(i),creekRiverRow(i+1),fract(f));}
 fn islandTributary(z:f32)->vec4f{if(z>=1088.0&&z<=1536.0){return museumEastTributary(z);}let f=(z-(${num(T[0][3])}))/8.0;if(f<0.0||f>=${num(T.length-1)}){return vec4f(0.0,-90.0,-10000.0,0.0);}let i=i32(floor(f))+${start};return mix(creekRiverRow(i),creekRiverRow(i+1),fract(f));}
 fn creekFieldAt(p:vec2f)->vec4f{
+ let local=museumSampleField(p);if(local.y<44.0){return local;}
  if(max(abs(p.x),abs(p.y))<255.49){return creekFineFieldAt(p);}
  if(max(abs(p.x-${num(sg.center[0])}),abs(p.y-${num(sg.center[1])}))<127.49){return museumSourceField(p,islandWaterBilinear(p,vec2f(${sg.center.map(num).join(',')}),256.0,512.0,vec2i(1024,0)));}
  let r=creekRiverAt(p.y);let flow=normalize(vec2f(r.w,1.0))*.38;
@@ -56,6 +62,7 @@ fn creekFieldAt(p:vec2f)->vec4f{
  return best;
 }
 fn museumWaterOwner(p:vec2f)->f32{
+ if(museumSampleField(p).y<.05){return 7.0;}
  if(max(abs(p.x),abs(p.y))<255.49){return 0.0;}
  if(max(abs(p.x-${num(sg.center[0])}),abs(p.y-${num(sg.center[1])}))<127.49){return 3.0;}
  ${world.lakes.map(b=>`if(length((p-vec2f(${b.center.map(num).join(',')}))/vec2f(${num(b.rx)},${num(b.rz)}))<1.06){return 2.0;}`).join('\n')}
@@ -68,10 +75,11 @@ fn museumEstuaryOwns(p:vec2f)->bool{return creekContains(p)&&creekMeanAt(p)>fram
 fn museumInlandLightWeight(p:vec2f)->f32{let f=creekFieldAt(p);return smoothstep(0.0,1.5,f.x-frame.seaLevel)*(1.0-smoothstep(0.0,8.0,f.y));}
 fn museumEstuaryBlend(p:vec2f)->f32{let f=creekFieldAt(p);return smoothstep(0.0,.2,f.x-frame.seaLevel)*(1.0-smoothstep(1.0,3.0,f.x-frame.seaLevel))*(1.0-smoothstep(-1.0,0.0,f.y));}
 `;
- field.module.code=(fineCode+head.wgsl+east.wgsl+sample).replace('return creekFieldAt(p).y<0.05;','return creekFieldAt(p).y<0.05&&creekMeanAt(p)>frame.seaLevel+.5;');
+ field.module.code=(fineCode+(continuous?.wgsl??sampleDisabledWGSL)+head.wgsl+east.wgsl+sample).replace('return creekFieldAt(p).y<0.05;','return creekFieldAt(p).y<0.05&&creekMeanAt(p)>frame.seaLevel+.5;');
  field.height=(x,z)=>{const f=field.sample(x,z);return f[1]<.05&&f[0]>-.2?f[0]:-90;};
  const fineSample=field._fineSample,raw=(bytes,res,x,z,c,size,out)=>{const fx=(x-c[0]+size/2)/size*res-.5,fz=(z-c[1]+size/2)/size*res-.5;if(fx<0||fz<0||fx>=res-1||fz>=res-1){out[0]=0;out[1]=10000;out[2]=out[3]=0;return out;}const ix=Math.floor(fx),iz=Math.floor(fz),u=fx-ix,v=fz-iz,k=(iz*res+ix)*4;for(let q=0;q<4;q++)out[q]=(bytes[k+q]*(1-u)+bytes[k+4+q]*u)*(1-v)+(bytes[k+res*4+q]*(1-u)+bytes[k+(res+1)*4+q]*u)*v;return out;};
  field.sample=(x,z,out=[0,0,0,0])=>{
+  if(continuous&&x> -1536&&x< -512&&z> -672&&z<352){continuous.sample(x,z,out);if(out[1]<44)return out;}
   if(Math.max(Math.abs(x),Math.abs(z))<255.49)return fineSample(x,z,out);
   if(Math.max(Math.abs(x-sg.center[0]),Math.abs(z-sg.center[1]))<127.49)return head.sample(x,z,raw(headwater,512,x,z,sg.center,256,out));
   const r=field.riverAt(z);out[0]=r?.level??-90;out[1]=r?Math.abs(x-r.x)-r.width:10000;const norm=Math.hypot(r?.slope??0,1);out[2]=(r?.slope??0)/norm*.38;out[3]=1/norm*.38;

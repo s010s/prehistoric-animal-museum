@@ -35,6 +35,12 @@
 
 本次新增修改为解码压缩、浮点属性转换、WebP 解码像素转 PNG、迷惑龙 morph 数据提取与原生今／昨顶点形变适配、三角龙原生骨骼接入、米制与地面校准及原生 PBR 参数接入。原动物文件未覆盖，来源和转换文件 SHA-256 见 `museum/assets/conversion.json`。这里仍为本地评审版本；署名与许可记录不代表批准发布。
 
+## 连续样板自制几何与自然声
+
+`creek/assets/sample-fissure.json` 是本项目以米制在 Blender 制作并检查的闭合风化岩体，不是外部扫描或已测泉口。`ContinuousSample.js`、`SampleTerrain.js` 与样板林地/倒木为自有地貌与生态结构设计，采用现代类比，未把不同原始测绘的高程零点拼成实测复原。
+
+`creek/assets/sample-stream-nps.mp3` 为 **National Park Service / Muir Woods** 的现代溪流实录摘录，来自 [NPS Stream](https://www.nps.gov/subjects/sound/sounds-stream.htm) 及其 [原始 MP3](https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-StreamMUWO.mp3)。[NPS Sound Gallery](https://www.nps.gov/subjects/sound/gallery.htm) 将所链接录音列为公共领域并请求署名。运行时作 0.4 秒等功率交叉淡化循环、响度缩放和泉口空间衰减，经原生水下低通与总音量；不采集麦克风，不宣称史前声景复原。来源与原始文件 SHA-256 见 `creek/sample.lock.json`。
+
 ## 本项目原始针叶与树皮素材
 
 `creek/assets/needle-spray-v1.png` 为原博物馆 2026-09-28 的 AI 生成视觉代理贴图，保留原始字节；不把它作为植物学扫描或古植物复原证据。`creek/assets/fir-bark-albedo.webp` 来自原项目提取的 [Poly Haven fir_tree_01](https://polyhaven.com/a/fir_tree_01)，CC0，未重采样。二者的输入路径、字节数和 SHA-256 保存在 `creek/materials.lock.json`；构建会验证。

@@ -5,9 +5,9 @@ import {SoundScape} from '../vendor/tidewater/src/audio/SoundScape.js';
 import {Vector3} from '../vendor/tidewater/src/engine/index.js';
 const allowed=new Set(['surf_far','surf_crash','surf_wash','surf_backwash','under_reef','bird_forest','bird_dove','birds_dawn','gull','tern']);
 export class MuseumSeaSound extends SoundScape {
- constructor({shore,field,terrain,trees=[],seaLevel=-.7}){
+ constructor({shore,field,terrain,trees=[],seaLevel=-.7,sample=null}){
   super({shore:{shore,field,terrain:{size:terrain.size,origin:terrain.origin,heightAt:(x,z)=>terrain.heightAt(x,z)-seaLevel}}});
-  this.treeCells=new Map();for(const r of trees){const k=Math.floor(r.x/80)+','+Math.floor(r.z/80);let c=this.treeCells.get(k);if(!c)this.treeCells.set(k,c=[]);c.push(r);}
+  this.sample=sample;this.streamState={available:!!sample,loaded:false,position:[-651,53.1,-489],source:"NPS / Muir Woods, public domain; modern analogue"};this.treeCells=new Map();for(const r of trees){const k=Math.floor(r.x/80)+','+Math.floor(r.z/80);let c=this.treeCells.get(k);if(!c)this.treeCells.set(k,c=[]);c.push(r);}
   this.terrain=terrain;this.seaLevel=seaLevel;this.choice=false;this.paused=true;this.failures=[];this.contour=[];this._distanceAt=0;this._distance=1e4;this.peakRMS=0;
   this._swell={x:1,z:0};this.forward=new Vector3();this.up=new Vector3();this.birdEvents=[];this.birdPeakRMS=0;this.flock=[];
   try{this.savedChoice=localStorage.getItem('museum-natural-sound')??'off';}catch{this.savedChoice='off';}
@@ -38,19 +38,41 @@ export class MuseumSeaSound extends SoundScape {
  async toggle(){
   const recover=this.choice&&!this.paused&&!this.enabled;this.choice=recover||!this.choice;
   if(this.choice){this.paused=false;const ok=await super.resume();if(!ok&&this.ctx?.state!=='interrupted'){this.choice=false;this._warn('Audio output unavailable');}else{this._birdT=0;this._gullT=.5;this._ternT=2;for(const bank of ['bird_forest','bird_dove','gull','tern'])this._want(bank);}}
+  if(this.choice&&this.sample&&!this.streamSource)await this.startSampleStream().catch(e=>this._warn(e));
   await this._syncContext();try{this.savedChoice=this.choice?'on':'off';localStorage.setItem('museum-natural-sound',this.savedChoice);}catch{}this.onStateChange?.();return this.choice;
  }
  setPaused(paused){this.paused=paused;this.onStateChange?.();return this._syncContext();}
+ async startSampleStream(){
+  if(this.streamSource||!this.ctx||!this.sample)return;
+  const response=await fetch(new URL('./assets/sample-stream-nps.mp3',import.meta.url));if(!response.ok)throw Error('Sample stream recording missing');
+  const original=await this.ctx.decodeAudioData(await response.arrayBuffer()),fade=Math.min(Math.round(original.sampleRate*.4),Math.floor(original.length/4)),length=original.length-fade,buffer=this.ctx.createBuffer(original.numberOfChannels,length,original.sampleRate);
+  let square=0,peak=0;
+  for(let c=0;c<original.numberOfChannels;c++){
+   const input=original.getChannelData(c),out=buffer.getChannelData(c);
+   for(let i=0;i<length;i++){let value=input[i+fade];if(i>=length-fade){const t=(i-length+fade)/fade;value=value*Math.cos(t*Math.PI/2)+input[i-length+fade]*Math.sin(t*Math.PI/2);}out[i]=value;square+=value*value;peak=Math.max(peak,Math.abs(value));}
+  }
+  const rms=Math.sqrt(square/(length*original.numberOfChannels)),gain=this.ctx.createGain(),panner=this.ctx.createPanner(),source=this.ctx.createBufferSource();this.streamLevel=Math.min(1,.04/Math.max(.001,rms));gain.gain.value=0;this.streamGain=gain;
+  panner.panningModel='HRTF';panner.distanceModel='inverse';panner.refDistance=2;panner.maxDistance=55;panner.rolloffFactor=1.4;panner.positionX.value=-651;panner.positionY.value=53.1-this.seaLevel;panner.positionZ.value=-489;
+  source.buffer=buffer;source.loop=true;source.connect(gain).connect(panner).connect(this.above);source.start();this.streamSource=source;
+  this.streamState={...this.streamState,loaded:true,decodedSeconds:original.duration,loopSeconds:buffer.duration,channels:buffer.numberOfChannels,crossfadeSeconds:fade/original.sampleRate,sourceRMS:rms,sourcePeak:peak,gain:this.streamLevel,referenceMetres:2,maximumMetres:55,fadeMetres:[40,55],rolloff:1.4,underwater:'same native above-water lowpass and master',subjectiveListeningVerified:false};
+ }
  updateAt(dt,camera,h,timeOfDay=12.6){
   if(!this.choice||this.paused)return;
   this._distanceAt-=dt;const p=camera.position;
+  if(this.streamGain){
+   this.streamDistance=Math.hypot(p.x+651,p.y-53.1,p.z+489);
+   const t=Math.max(0,Math.min(1,(55-this.streamDistance)/15)),envelope=t*t*(3-2*t);
+   // Inverse-distance panning is not a finite audible radius. This world-space
+   // envelope fades the authored stream out without moving its HRTF emitter.
+   if(envelope!==this.streamEnvelope){this.streamGain.gain.setTargetAtTime(this.streamLevel*envelope,this.ctx.currentTime,.12);this.streamEnvelope=envelope;}
+  }
   if(this._distanceAt<=0){let d2=Infinity,nearest=null;for(const c of this.contour){const q=(p.x-c[0])**2+(p.z-c[1])**2;if(q<d2){d2=q;nearest=c;}}this._distance=Math.hypot(Math.sqrt(d2),Math.max(0,p.y-this.seaLevel-3));this._nearest=nearest;this._distanceAt=.4;}
   camera.getWorldDirection(this.forward);this.up.set(0,1,0).applyQuaternion(camera.quaternion);
   const depth=Math.max(0,h-p.y),u=Math.min(1,depth/.12);
   super.update(dt,{listener:{position:{x:p.x,y:p.y-this.seaLevel,z:p.z},forward:this.forward,up:this.up},underwater:u,depthBelowSurface:depth,distanceToShore:this._distance,coastDistance:(this.terrain.heightAt(p.x,p.z)>this.seaLevel?-1:1)*this._distance,windSpeed:3.2,surfIntensity:.65,timeOfDay});
   if(this._nearest){const x=this._nearest[0]-p.x,z=this._nearest[1]-p.z,l=Math.hypot(x,z)||1;this.env.shoreX=x/l;this.env.shoreZ=z/l;}
  }
- stats(){let rms=0,birdRMS=0;if(this.analyser&&this.enabled){this.analyser.getFloatTimeDomainData(this.waveform);rms=Math.sqrt(this.waveform.reduce((a,x)=>a+x*x,0)/this.waveform.length);this.peakRMS=Math.max(this.peakRMS,rms);this.birdAnalyser.getFloatTimeDomainData(this.birdWaveform);birdRMS=Math.sqrt(this.birdWaveform.reduce((a,x)=>a+x*x,0)/this.birdWaveform.length);this.birdPeakRMS=Math.max(this.birdPeakRMS,birdRMS);}return {requested:this.choice,context:this.ctx?.state??'not-created',paused:this.paused,savedChoice:this.savedChoice,unlock:'explicit sound-button gesture; cold load is silent, never restores sound without a gesture',volume:this.volume,decoded:[...this._buffers.keys()],shoreDistance:this._distance,stations:this._stations?.length??0,underwater:this.env.u,lowpassHz:this.muffle?.[0].frequency.value??null,outputRMS:rms,peakRMS:this.peakRMS,birdChannelRMS:birdRMS,birdChannelPeakRMS:this.birdPeakRMS,birdMeter:'post-HRTF/distance, before water filtering and master; total output measured post-limiter',birdEvents:this.birdEvents.slice(-24),voices:Object.fromEntries(Object.entries(this._voices).map(([k,v])=>[k,v.length])),failures:this.failures,source:'Tidewater CC0 audio/CREDITS.md',birdPerches:'actual nearest museum tree positions; sea calls use active, world-fixed rendered bird poses',singers:this._singers.map(s=>({x:s.x,y:s.y+this.seaLevel,z:s.z,bank:s.bank})),phase:'native ShoreWaves timing; positioned forest phrases and time-aware chorus'};}
+ stats(){let rms=0,birdRMS=0;if(this.analyser&&this.enabled){this.analyser.getFloatTimeDomainData(this.waveform);rms=Math.sqrt(this.waveform.reduce((a,x)=>a+x*x,0)/this.waveform.length);this.peakRMS=Math.max(this.peakRMS,rms);this.birdAnalyser.getFloatTimeDomainData(this.birdWaveform);birdRMS=Math.sqrt(this.birdWaveform.reduce((a,x)=>a+x*x,0)/this.birdWaveform.length);this.birdPeakRMS=Math.max(this.birdPeakRMS,birdRMS);}return {stream:{...this.streamState,distance:this.streamDistance??null,envelope:this.streamEnvelope??0,currentGain:this.streamGain?.gain.value??0},requested:this.choice,context:this.ctx?.state??'not-created',paused:this.paused,savedChoice:this.savedChoice,unlock:'explicit sound-button gesture; cold load is silent, never restores sound without a gesture',volume:this.volume,decoded:[...this._buffers.keys()],shoreDistance:this._distance,stations:this._stations?.length??0,underwater:this.env.u,lowpassHz:this.muffle?.[0].frequency.value??null,outputRMS:rms,peakRMS:this.peakRMS,birdChannelRMS:birdRMS,birdChannelPeakRMS:this.birdPeakRMS,birdMeter:'post-HRTF/distance, before water filtering and master; total output measured post-limiter',birdEvents:this.birdEvents.slice(-24),voices:Object.fromEntries(Object.entries(this._voices).map(([k,v])=>[k,v.length])),failures:this.failures,source:'Tidewater CC0 audio/CREDITS.md',birdPerches:'actual nearest museum tree positions; sea calls use active, world-fixed rendered bird poses',singers:this._singers.map(s=>({x:s.x,y:s.y+this.seaLevel,z:s.z,bank:s.bank})),phase:'native ShoreWaves timing; positioned forest phrases and time-aware chorus'};}
  async record(seconds=20,scope='mix'){
   if(!this.enabled||!this.choice||this.paused)throw Error('请先开启自然声并继续观察');
   const mimeType=['audio/webm;codecs=opus','audio/webm'].find(t=>MediaRecorder.isTypeSupported(t));if(!mimeType)throw Error('浏览器不支持本地声音记录');

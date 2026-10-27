@@ -14,20 +14,21 @@ export async function loadConiferTextures(){
   if(key==='needles')uploadNeedleMips(coniferTextures[key],image);
  }
 }
-export function coniferTemplate(seed=1,species=0,barkMaterial=null,needleMap=null){
+export function coniferTemplate(seed=1,species=0,barkMaterial=null,needleMap=null,lod=0){
  const h=15+hash(seed,7)*4,verts=[],uv=[],colors=[],normals=[],indices=[]
  const crownStart=h*[.28,.48,.55,.18][species],crownWidth=[4.4,6.2,4.6,3.4][species],tiers=[12,9,9,14][species],branches=[]
  const append=(center,along,side,length,width,shade)=>{
   const idx=verts.length/3;
   const outward=center.clone().setY(0).normalize();outward.y=.45;outward.normalize();
   // Bent sprays retain a rounded silhouette and leaf-cluster normals in close view.
-  for(let j=0;j<=2;j++)for(const v of [0,1]){
-   const u=j/2,p=center.clone().addScaledVector(along,(u-.5)*length).addScaledVector(side,(v-.5)*width);
+  const segments=lod?1:2;
+  for(let j=0;j<=segments;j++)for(const v of [0,1]){
+   const u=j/segments,p=center.clone().addScaledVector(along,(u-.5)*length).addScaledVector(side,(v-.5)*width);
    p.y+=Math.sin(u*Math.PI)*width*.17;
    const n=outward.clone().addScaledVector(side,(v-.5)*.28);n.y+=Math.sin(u*Math.PI)*.3;n.normalize();
    verts.push(p.x,p.y,p.z);colors.push(shade*.94,shade,shade*.88);uv.push(u,v);normals.push(n.x,n.y,n.z);
   }
-  for(let j=0;j<2;j++){const i=idx+j*2;indices.push(i,i+2,i+3,i,i+3,i+1);}
+  for(let j=0;j<segments;j++){const i=idx+j*2;indices.push(i,i+2,i+3,i,i+3,i+1);}
 
  }
  for(let tier=0;tier<tiers;tier++){
@@ -38,7 +39,7 @@ export function coniferTemplate(seed=1,species=0,barkMaterial=null,needleMap=nul
    const start=new T.Vector3(Math.sin(y*.14+seed)*.2,y+hash(tier+seed,arm)*.65,(seed%3-1)*y*.018)
    const dir=new T.Vector3(Math.cos(a),(species===2?.25:-.12)-(1-t)*.12+hash(tier,seed+arm)*.2,Math.sin(a)).normalize()
    const limb=species===2?2.6:1;
-   const tip=start.clone().addScaledVector(dir,r*.87),axis=tip.clone().sub(start),wood=new T.CylinderGeometry(.012*limb,(.07*(1-t)+.012)*limb,axis.length(),5,1);
+   const tip=start.clone().addScaledVector(dir,r*.87),axis=tip.clone().sub(start),wood=new T.CylinderGeometry(.012*limb,(.07*(1-t)+.012)*limb,axis.length(),lod?3:5,1);
    wood.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),axis.normalize()));wood.translate(...start.clone().add(tip).multiplyScalar(.5).toArray());branches.push(wood);
    // Each branch carries small offset shoots. No single card spans a limb.
    for(let k=0;k<4;k++){

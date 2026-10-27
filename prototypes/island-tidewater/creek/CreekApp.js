@@ -24,6 +24,7 @@ import { createCoastalOcean } from './CoastalOcean.js';
 import { TerrainGPU } from '../vendor/tidewater/src/world/TerrainGPU.js';
 import {IslandLife} from './IslandLife.js';
 import {LandscapeDetails} from './LandscapeDetails.js';
+import {SampleDetails} from './SampleDetails.js';
 import {MuseumColliders} from './MuseumColliders.js';
 import { LocalLights } from '../vendor/tidewater/src/materials/LocalLights.js';
 import { installGroundBounce } from '../vendor/tidewater/src/materials/GroundBounce.js';
@@ -36,6 +37,8 @@ import { updateCameraVelocity } from '../vendor/tidewater/src/post/CameraVelocit
 import { loadCreekData } from './CreekData.js';
 import { CreekTerrain } from './CreekTerrain.js';
 import { CreekForest } from './CreekForest.js';
+import {CANOPY_SHADOW_LAYER} from './CanopyShadows.js';
+import {installCreekShadowFilter} from './CreekShadowFilter.js';
 import { loadConiferTextures } from './ConiferGeometry.js';
 import {createMeadowAppearance} from './MeadowAppearance.js';
 import {ShoreHabitats} from './ShoreHabitats.js';
@@ -51,6 +54,7 @@ import { CreekRefraction, CreekUnderwater, clipCreekRefraction, createCreekWater
 export class CreekApp extends MuseumApp {
   constructor(){super();this.settings.timeOfDay=12.6;}
   async init(onProgress=()=>{}) {
+    installCreekShadowFilter();
     const progress=async(p,text)=>{onProgress(p,text);await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));};
     await progress(.02,'准备溪谷…');
     const engine=this.engine=new Engine(document.querySelector('#app'));await engine.init();
@@ -59,7 +63,7 @@ export class CreekApp extends MuseumApp {
     this.atmosphere=new Atmosphere(engine);this.sky=new Sky(this.atmosphere);
     this.clouds=new MuseumClouds(engine,this.atmosphere);await this.clouds.ready;this.sky.clouds=this.clouds;
     this.shadows=this.csm=new SunShadows({size:2048,splits:[10,60,400],lightMargin:200,normalBias:[.015,.06,.3],bias:.00002});
-    this.shadows.layerMask=(1<<LAYERS.OPAQUE)|(1<<LAYERS.TRANSPARENT);
+    this.shadows.layerMask=(1<<LAYERS.OPAQUE)|(1<<LAYERS.TRANSPARENT)|(1<<CANOPY_SHADOW_LAYER);
     this.environment=new Environment(engine,scene,this.sky);
     await progress(.10,'还原河床、岩壁与林间小径…');
     const data=this.creekData=await expandWholeIsland(await expandWatershed(await expandMuseumCoast(await loadCreekData())));this.geography=data.geography;this.terrainData=data.terrain;
@@ -75,7 +79,7 @@ export class CreekApp extends MuseumApp {
     data.appearance=createMeadowAppearance(data,this.terrainGPU);
     this.terrain=new CreekTerrain({scene,data,terrainGPU:this.terrainGPU});
     await progress(.17,'生长溪谷针叶林…');
-    await loadConiferTextures();this.vegetation=new CreekForest({scene,data,colliders:this.colliders,terrainGPU:this.terrainGPU});
+    await loadConiferTextures();this.vegetation=new CreekForest({scene,data,colliders:this.colliders,terrainGPU:this.terrainGPU,engine});
     this.groveDetails=new GroveDetails({scene,data,forest:this.vegetation,colliders:this.colliders});
     this.localLights=new LocalLights();
     this.sceneRenderer=new SceneRenderer(engine.meshRenderer,scene,camera);this.sceneRenderer.background=this.sky.background;
@@ -90,13 +94,14 @@ export class CreekApp extends MuseumApp {
     this.coveRocks=new CoveRocks({scene,terrain:{data:data.terrain,gpu:this.terrainGPU},colliders:this.colliders,seed:17615});
     this.shelfReef=new ShelfReef(this,data);
     this.marineSnow=new MuseumPlankton({fft:this.fft,query:{module:this.query.module},count:12000,box:8});this.marineSnow.opacity.value=.24;scene.add(this.marineSnow.mesh);
-    this.audio=new MuseumSeaSound({shore:this.shore,field:this.shoreField,terrain:data.terrain,trees:this.vegetation.records});
+    this.audio=new MuseumSeaSound({shore:this.shore,field:this.shoreField,terrain:data.terrain,trees:this.vegetation.records,sample:data.field.continuousSample});
     installCreekLighting(data.field,this.terrainGPU,this.clouds,this.underwaterLighting);installGroundBounce({terrain:this.terrainGPU,clouds:this.clouds});
     this.water=createCreekWater({scene,sky:this.sky,clouds:this.clouds,sceneRenderer:this.sceneRenderer,field:data.field,terrain:this.terrainGPU,refraction:this.refraction,query:this.query,foamTexture:this.foamTexture});
     this.surface=this.water.surface;this.waterMaterial=this.water.material;
     this.player=new CreekPlayer({camera,input:this.input,terrain:this.terrainData,colliders:this.colliders,query:this.query,boat:null});
     this.islandVisits=createIslandVisits(data);
     this.landscapeDetails=new LandscapeDetails({scene,data,colliders:this.colliders});
+    this.sampleDetails=await SampleDetails.create({scene,data,colliders:this.colliders});
     this.life=new IslandLife({app:this,data,visits:this.islandVisits});this.audio.life=this.life;
     this.airMotes=new ForestMotes({terrain:this.terrainGPU,clouds:this.clouds,csm:this.shadows},data.field,data.terrain);scene.add(this.airMotes.mesh);
     await progress(.24,'接入林缘的史前动物…');
@@ -230,10 +235,10 @@ export class CreekApp extends MuseumApp {
     // The FFT clock never pauses. Prewarm surf well before reaching the coast;
     // the opaque valley ridge hides the sea while these cached maps are idle.
     const c=this.camera.position;
-    this.airMotes?.update(dt,this.camera,h);this.life?.update(dt,this.camera);this.landscapeDetails?.update(this.camera);this.shoreHabitats.update(this.camera);this.coveRocks?.update(this.camera);this.shelfReef?.update(this.camera);this.marineSnow.opacity.value=h>1?.12:.42;this.marineSnow.update(this.camera,c.y<h+LENS_REACH&&h>-89);this.audio.updateAt(dt,this.camera,h,this.settings.timeOfDay);
+    this.airMotes?.update(dt,this.camera,h);this.life?.update(dt,this.camera);this.landscapeDetails?.update(this.camera);this.sampleDetails?.update(this.camera);this.shoreHabitats.update(this.camera);this.coveRocks?.update(this.camera);this.shelfReef?.update(this.camera);this.marineSnow.opacity.value=h>1?.12:.42;this.marineSnow.update(this.camera,c.y<h+LENS_REACH&&h>-89);this.audio.updateAt(dt,this.camera,h,this.settings.timeOfDay);
     const edge=Math.max(Math.abs(c.x),Math.abs(c.z));
     const active=this.engine.meshRenderer.precompiling||(this.coastalActive?(edge>340||c.y>100):(edge>420||c.y>120));
-    this.coastalActive=active;this.ocean.visible=active&&this.reviewOcean!==false;this.water.mesh.visible=this.reviewInland!==false;for(const m of this.water.extensions)m.visible=this.reviewInland!==false;this.breakers.mesh.visible=active&&this.reviewOcean!==false;this.spray.mesh.visible=active&&this.reviewOcean!==false;
+    this.coastalActive=active;this.ocean.visible=active&&this.reviewOcean!==false;this.water.mesh.visible=this.reviewInland!==false;for(const m of this.water.extensions)m.visible=this.reviewInland!==false;this.breakers.mesh.visible=active&&this.reviewOcean!==false&&this.reviewBreakerLips!==false;this.spray.mesh.visible=active&&this.reviewOcean!==false;
     if(active){this.caustics.update();this.shoreSim.update(this.camera);this.underwaterLighting.update(this.camera);this.breakers.update(this.camera);this.spray.update();this.oceanLOD.update(this.camera);}
     this.clouds.update(dt,this.camera);this.environment.update(dt);this.terrain.update(this.camera);this.vegetation.update(dt,this.camera);this.localLights.update(this.camera,dt);
     G.exposure.value=this.settings.exposure;updateCameraVelocity(this.camera);this.post.lens.update(dt,this.camera.position.y<h);

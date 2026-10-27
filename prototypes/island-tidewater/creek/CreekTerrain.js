@@ -32,7 +32,8 @@ export class CreekTerrain extends Terrain {
  var needleBed=mix(humus,moss,smoothstep(.52,.77,grove.z)*(1.0-grove.y)*.53);
  needleBed=mix(needleBed,${srgb(.29,.25,.18)}*(.85+d.y*.3),grove.y*.5);
  ground=mix(ground,needleBed,grove.x*.94);
- let wf=creekFieldAt(P.xz);let bank=(1.0-smoothstep(2.0,10.0,abs(wf.y)))*(1.0-smoothstep(0.6,2.2,P.y-wf.x));
+ let wf=creekFieldAt(P.xz);let sampleBank=museumSampleField(P.xz).y<12.0;
+ let bank=select(1.0-smoothstep(2.0,10.0,abs(wf.y)),1.0-smoothstep(.25,2.0,wf.y),sampleBank)*(1.0-smoothstep(0.6,2.2,P.y-wf.x));
  let gravel=mix(${srgb(.34,.34,.29)},${srgb(.43,.42,.35)},d.z*.65+m.w*.35);
  ground=mix(ground,gravel,bank*(1.0-cover.r*0.3));
  let channelStone=bank*smoothstep(.08,.4,1.0-N.y);

@@ -103,6 +103,7 @@ fn creekFieldAt(p:vec2f)->vec4f{
     // Startup-only readback of the exact terrain and raw creek-field modules. The hybrid
     // ocean/swim path is exercised independently through headed interaction. No diagnostic dispatch/readback in timed frames.
     const points=[...this.g.reference.map(p=>p.local),...Array.from({length:35},(_,i)=>[-30+i,0]),[-51.53,-70],[-220,220],[255.8,255.8],...[-496,-480,-460,-448,448,460,480,496].map(x=>[x,0]),[-864.4847,-32],[-889.4847,-32],[-1500,300],[2023.7,0]];
+    points.push(...(this.continuousSample?.auditPoints??[]));
     if(this.terrain.museumCove)for(const section of this.terrain.museumCove.sections)for(const transect of section.transects)for(const q of transect.samples)points.push(q.point);
     if(this.terrain.museumCove?.continuous)for(const transect of this.terrain.museumCove.continuous.summary.transects)for(const q of transect.samples)points.push(q.point);
     if(this.sourceExtentRepair)for(const z of [-3300,-3290,-3280.1,-3280,-3279.9,-3270,-3260])for(const x of [235,245,255,265,300])points.push([x,z]);
@@ -134,7 +135,7 @@ fn main(@builtin(global_invocation_id) gid:vec3u){
     input.destroy();output.destroy();waveOutput.destroy();
     const maxTerrainError=Math.max(...rows.map(r=>Math.abs(r.error[0]))),maxWaterError=Math.max(...rows.map(r=>Math.abs(r.error[1])));
     const passed=maxTerrainError<.002&&maxWaterError<.002&&rows.every(r=>r.sameWetMask&&r.gpu.every(Number.isFinite));
-    if(!passed)throw Error('Creek CPU/GPU geography consistency failed');
+    if(!passed)throw Error('Creek CPU/GPU geography consistency failed '+JSON.stringify({maxTerrainError,maxWaterError,failures:rows.filter(r=>!r.sameWetMask||Math.abs(r.error[0])>=.002||Math.abs(r.error[1])>=.002).slice(0,12)}));
     return {...this.audit(),waveField,gpu:{passed,phase:'startup-only',maxTerrainError,maxWaterError,rows}};
   }
 }

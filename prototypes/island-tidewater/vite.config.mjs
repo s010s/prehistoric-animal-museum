@@ -11,7 +11,7 @@ export default defineConfig({
     server.middlewares.use('/__native-review', (request, response) => {
       if (request.method !== 'POST' || request.headers.origin !== `http://${request.headers.host}` || !/^127\.0\.0\.1:\d+$/.test(request.headers.host ?? '')) { response.statusCode = 403; response.end(); return; }
       const chunks = []; let bytes = 0;
-      request.on('data', chunk => { bytes += chunk.length; if (bytes > 36000000) request.destroy(); else chunks.push(chunk); });
+      request.on('data', chunk => { bytes += chunk.length; if (bytes > 50000000) request.destroy(); else chunks.push(chunk); });
       request.on('end', async () => { try {
         const data = JSON.parse(Buffer.concat(chunks).toString());
         if (!/^(timing|observation|acceptance|video|audio|scene)$/.test(data.kind) || !/^[a-z-]+$/.test(data.app)) throw Error('Invalid evidence kind');
@@ -28,7 +28,7 @@ export default defineConfig({
         if(data.kind==='video'){
           if(!['video/webm;codecs=vp9','video/webm;codecs=vp8'].includes(data.data?.mimeType)||typeof data.data?.videoBase64!=='string')throw Error('Invalid video');
           const video=Buffer.from(data.data.videoBase64,'base64');
-          if(video.length>24000000||video.readUInt32BE(0)!==0x1a45dfa3)throw Error('Invalid WebM');
+          if(video.length>32000000||video.readUInt32BE(0)!==0x1a45dfa3)throw Error('Invalid WebM');
           await writeFile(`${folder}/walk.webm`,video);delete data.data.videoBase64;data.data.videoFile='walk.webm';data.data.videoBytes=video.length;
         }
         if(data.kind==='audio'){

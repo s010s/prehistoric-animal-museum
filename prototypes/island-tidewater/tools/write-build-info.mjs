@@ -44,6 +44,8 @@ export async function writeBuildInfo() {
   const watershed=JSON.parse(await readFile(new URL('creek/watershed.lock.json',root),'utf8'));
   for(const item of watershed.outputs){if(sha(await readFile(new URL('creek/'+item.path,root)))!==item.sha256)throw Error('Watershed data changed: '+item.path);}
   for(const item of [...coast.outputs,...materials.assets]){const bytes=await readFile(new URL('creek/'+item.path,root));if(sha(bytes)!==item.sha256)throw Error('Museum coast/material changed: '+item.path);}
+  const sample=JSON.parse(await readFile(new URL('creek/sample.lock.json',root),'utf8'));
+  for(const item of sample.assets){if(sha(await readFile(new URL('creek/'+item.path,root)))!==item.sha256)throw Error('Authored sample asset changed: '+item.path);}
   const info = { wholeIslandSha256:sha(Buffer.from(JSON.stringify(wholeIsland))),watershedSha256:sha(Buffer.from(JSON.stringify(watershed))),coastGeographySha256:sha(Buffer.from(JSON.stringify(coast))), originalMaterialsSha256:sha(Buffer.from(JSON.stringify(materials))), schema: 'museum-native-build-v1', sourceHash: source.digest('hex'), upstreamCommit: upstream.commit, upstreamFiles: upstream.files.length, upstreamUnmodified: true, dependencyLockSha256: sha(lock), animalConversionSha256: sha(Buffer.from(JSON.stringify(converted))), creekGeographySha256: sha(Buffer.from(JSON.stringify(creek))), sourceFiles: names };
   const text = JSON.stringify(info, null, 2) + '\n';
   const target = new URL('runtime/build-info.json', root);

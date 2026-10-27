@@ -20,15 +20,15 @@ fn museumSourceField(p:vec2f,old:vec4f)->vec4f{
 }
 fn museumSpringOutcrop(p:vec2f)->f32{
  let north=length((p-vec2f(${f(o.x)},${f(o.z-1.8)}))/vec2f(6.6,5.6));
- return max(museumTributaryOutcrop(p),1.0-smoothstep(.82,1.16,north));
+ return max(museumSampleOutcrop(p),max(museumTributaryOutcrop(p),1.0-smoothstep(.82,1.16,north)));
 }
 fn museumSourceWet(P:vec3f)->f32{
- let east=museumTributaryWet(P);
+ let east=max(museumTributaryWet(P),museumSampleWet(P));
  let d=P.xz-vec2f(${f(o.x)},${f(o.z)});if(abs(d.x)>7.0||d.y< -3.0||d.y>10.0){return east;}
  let f=creekFieldAt(P.xz);return max(east,(1.0-smoothstep(.1,1.6,f.y))*(1.0-smoothstep(.05,1.5,P.y-f.x)));
 }
 fn museumSpringWhitewater(P:vec3f,slope:f32)->vec2f{
- let east=museumTributaryWhitewater(P,slope);
+ let east=max(museumTributaryWhitewater(P,slope),museumSampleWhitewater(P,slope));
  let dz=P.z-${f(o.z)};if(abs(P.x-${f(o.x)})>7.0||dz< -1.5||dz>10.0){return east;}
  let wet=museumSourceWet(P);
  let rapid=wet*smoothstep(.22,.7,slope)*.36;

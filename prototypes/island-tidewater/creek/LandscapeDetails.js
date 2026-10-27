@@ -25,6 +25,9 @@ export class LandscapeDetails{
   for(const source of [F.headwater,F.tributarySource])for(let i=0;i<72;i++){
    const z=source.origin.z+4+random()*90,r=source.at(z);if(r)sites.push([r.x+(i%2?1:-1)*(r.width+.3+random()*2.8),z]);
   }
+  if(F.continuousSample)for(const p of F.continuousSample.points.filter((p,i)=>i%11===0&&i<780&&p.level>2.0)){
+   const q=F.continuousSample.nearest(p.x,p.z);for(const side of [-1,1])if(random()<.65){const d=p.width+.6+random()*1.9;sites.push([p.x+q.dir[1]*side*d,p.z-q.dir[0]*side*d]);}
+  }
   for(const [x,z] of sites){const outcrop=[F.headwater,F.tributarySource].some(s=>Math.hypot((x-s.origin.x)/6.6,(z-s.origin.z+1.8)/5.6)<1);if(outcrop)continue;const y=terrain.heightAt(x,z),f=F.sample(x,z),gap=y-f[0],s=Math.hypot(terrain.heightAt(x+1,z)-terrain.heightAt(x-1,z),terrain.heightAt(x,z+1)-terrain.heightAt(x,z-1))/2;if(gap<-.35||gap>1.25||s>.65||f[1]>12)continue;this.records.push({x,y:y-.045,z,s:(z>5600&&z<6400?1.12:.7)+random()*.45,sy:1,yaw:random()*6.283,seed:random(),H:2,la:0,l:0,qr:80});}
   const material=new Material({name:'Museum jointed wet-bank plants',side:'double',modules:[vegModule],attributes:{iPos:'vec4f',iDat:'vec4f',aFlex:'f32'},varyings:{vAge:'f32',vStem:'f32'},vertex:`
  let base=v.iPos.xyz;let p=(v.model*vec4f(v.position,1.0)).xyz;let flex=v.aFlex*v.aFlex*.085;let ph=base.x*.37+base.z*.19;

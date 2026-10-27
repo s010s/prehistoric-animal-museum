@@ -81,6 +81,22 @@ fn main(@builtin(global_invocation_id) gid:vec3u){
 }
 
 export class TravellingBreakers extends Breakers{
+ _buildMesh(){
+  super._buildMesh();
+  const mat=this.mesh.material;
+  const seam='let valid = c2.w > 0.5 && abs( mOther - c2.w ) < 0.5 && c0.w < 1.25 && bOther < 1.25;';
+  if(!mat.vertex.includes(seam))throw Error('Pinned breaker segment validity seam changed');
+  // Equal wave IDs alone do not imply a connected crest: stations on opposite
+  // banks of an inlet can follow the same wave at unrelated positions. Both
+  // ends evaluate these symmetric tests, so an invalid strip fully collapses.
+  mat.vertex=mat.vertex.replace(seam,`
+ let otherRoot=breakersCrest[eo].xyz;
+ let otherBack=breakersCrest[eo+1u].xyz;
+ let otherDir=breakersCrest[eo+2u].xy;
+ let connected=distance(c0.xyz,otherRoot)<${(this.spacing*6).toFixed(7)}&&distance(c1.xyz,otherBack)<${(this.spacing*8).toFixed(7)}&&dot(c2.xy,otherDir)>.90;
+ let valid=c2.w>.5&&abs(mOther-c2.w)<.5&&c0.w<1.25&&bOther<1.25&&connected;`);
+  mat.needsUpdate=true;
+ }
  constructor(renderer,options){super(renderer,options);if(this.NS<2)throw Error('Missing native breaker capacity');this.actualTerrain=options.actualTerrain;this.shelf=options.shelf;this.lastCamera=[1e9,1e9];this.recentres=0;this.validStations=0;this.coastQueries=0;}
  update(camera){
   const c=camera.position;

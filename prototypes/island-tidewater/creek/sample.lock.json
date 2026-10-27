@@ -1,0 +1,125 @@
+{
+  "schema": "museum-sample-authoring-v1",
+  "blender": "5.2.0 LTS",
+  "method": "closed native-scale weathered joint boulders, irregular multi-scale surface, explicit triangles and checked vertex normals; no external scan",
+  "scientificStatus": "authored granite/weathered-joint analogy; visible gap is an outcrop recess, not the measured underground fracture aperture",
+  "assets": [
+    {
+      "path": "assets/sample-fissure.json",
+      "sha256": "08a1b7fdac30ddf08e4339496c7d41524d86e2cce6d2e52d9990132f50111dd9",
+      "bytes": 418701
+    },
+    {
+      "path": "assets/sample-stream-nps.mp3",
+      "sha256": "4d55ce7e299b7d2d9ab50aee2d28233f05662886cbb57e792aa210d39dd73744",
+      "bytes": 63536,
+      "source": "https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-StreamMUWO.mp3",
+      "license": "Public domain, NPS audio gallery",
+      "credit": "NPS / Muir Woods",
+      "note": "Modern field recording, runtime 0.4s equal-power loop crossfade; not prehistoric sound reconstruction"
+    },
+    {
+      "path": "assets/mouth-bed-v2.json",
+      "sha256": "f1e6c1620b4f326c9dc23018f1db0757c84b906ccdaa0dc9e2aa9a01f242fdd2",
+      "bytes": 305480,
+      "kind": "museum-authored bounded coastal editing grid",
+      "note": "2m editable samples baked into the shared 1m runtime terrain; original catchment retained outside fixed support; not surveyed bathymetry"
+    }
+  ],
+  "objects": [
+    {
+      "name": "rounded left bank mass",
+      "vertices": 162,
+      "triangles": 320,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -4.001582622528076,
+          -0.5255606174468994,
+          -1.0511040687561035
+        ],
+        [
+          -0.23203086853027344,
+          3.9552907943725586,
+          1.7709441184997559
+        ]
+      ]
+    },
+    {
+      "name": "low right joint block",
+      "vertices": 162,
+      "triangles": 320,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -0.03486095741391182,
+          -0.5858723521232605,
+          -1.144803524017334
+        ],
+        [
+          2.234768867492676,
+          3.485058307647705,
+          0.999150276184082
+        ]
+      ]
+    },
+    {
+      "name": "buried slope head",
+      "vertices": 162,
+      "triangles": 320,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -2.9265851974487305,
+          1.128543734550476,
+          -0.47899654507637024
+        ],
+        [
+          1.8423844575881958,
+          6.275947093963623,
+          2.190734624862671
+        ]
+      ]
+    },
+    {
+      "name": "apron left fragment",
+      "vertices": 162,
+      "triangles": 320,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -2.1722185611724854,
+          -2.2391459941864014,
+          -0.7294816970825195
+        ],
+        [
+          -0.5601841807365417,
+          0.5598862171173096,
+          0.24481777846813202
+        ]
+      ]
+    },
+    {
+      "name": "apron right fragment",
+      "vertices": 162,
+      "triangles": 320,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          0.39792078733444214,
+          -2.0861809253692627,
+          -0.7828578948974609
+        ],
+        [
+          1.7060617208480835,
+          0.529045820236206,
+          0.10975772142410278
+        ]
+      ]
+    }
+  ],
+  "triangles": 1600,
+  "units": "metres",
+  "basis": "x,z,-y from Blender to native Y-up",
+  "copyright": "Museum-authored geometry; product AGPL-3.0"
+}

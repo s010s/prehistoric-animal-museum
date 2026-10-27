@@ -6,6 +6,7 @@ import {bedRelief} from './BedRelief.js';
 import {sculptShallowCove} from './ShallowCove.js';
 import {extendCoastalShelf} from './CoastalShelf.js';
 import {installIslandWater} from './IslandWaterField.js';
+import {applySampleTerrain} from './SampleTerrain.js';
 // Explicit URLs keep every generated file in the production asset graph.
 const islandAssets={
  'island-layout.json':new URL('./assets/island-layout.json',import.meta.url),
@@ -77,6 +78,7 @@ export async function expandWholeIsland(data){
  // The native grass pool only submits the neighbourhood of the camera. The
  // global occupancy grid is coarse; roots always sample the composed surface.
  const grass=new Uint8Array(masks.length);for(let i=0;i<masks.length;i+=4)grass[i+1]=masks[i+1];data.grass={res:world.maskRes,data:grass};data.coverTerrain=global;
+ applySampleTerrain(data);
  return data;
 }
 
@@ -85,42 +87,43 @@ export function installIslandTerrainGPU(gpu,data){
  layers.forEach((t,i)=>{heights.set(t.heights,i*N*N);normals.set(bakeTerrainMaps(t).normal,i*N*N*4);});
  const make=(label,n,depth,format,bytes,mips=false)=>{const t=new Texture({label,width:n,height:n,depth,dimension:'2d-array',format,data:bytes,mips,usage:['sample','copyDst']});t.getGPU();if(mips)generateMipmaps(t);return t;};
  const oldH=gpu.heightTexture,oldN=gpu.normalTexture;gpu.heightTexture=make('Museum multiresolution heights',N,4,'r32float',heights);gpu.normalTexture=make('Museum regional normals',N,4,'rgba8unorm',normals,true);
- const fine=[data.coreTerrain,data.sourceTerrain,data.eastSourceTerrain],FH=new Float32Array(1024*1024*3),FN=new Uint8Array(1024*1024*4*3);
+ const fine=[data.coreTerrain,data.sourceTerrain,data.eastSourceTerrain,...data.sampleTerrains],FH=new Float32Array(1024*1024*fine.length),FN=new Uint8Array(1024*1024*4*fine.length);
  fine.forEach((t,k)=>{const normal=bakeTerrainMaps(t).normal;for(let j=0;j<1024;j++)for(let i=0;i<1024;i++){
   const source=Math.min(j,t.res-1)*t.res+Math.min(i,t.res-1),target=k*1024*1024+j*1024+i;
   FH[target]=t.heights[source];FN.set(normal.subarray(source*4,source*4+4),target*4);
  }});
- const fineH=make('Museum fine creek and source',1024,3,'r32float',FH),fineN=make('Museum fine normals',1024,3,'rgba8unorm',FN,true),mod=gpu.module;
+ const fineH=make('Museum fine creek and source',1024,fine.length,'r32float',FH),fineN=make('Museum fine normals',1024,fine.length,'rgba8unorm',FN,true),mod=gpu.module;
+ const localFine=[data.sourceTerrain,data.eastSourceTerrain,...data.sampleTerrains].map((t,i)=>({...t,layer:i+1,inner:t.inner??112,outer:t.outer??124}));
+ const noFiner=t=>localFine.filter(p=>p.layer>t.layer).map(p=>`&&max(abs(p.x-(${p.center[0].toFixed(7)})),abs(p.y-(${p.center[1].toFixed(7)})))>=${p.outer.toFixed(1)}`).join('');
  mod.bindings.terrainHeightTex={texture:gpu.heightTexture,sampleType:'unfilterable-float'};mod.bindings.terrainNormalTex={texture:gpu.normalTexture};mod.bindings.terrainFineHeightTex={texture:fineH,sampleType:'unfilterable-float'};mod.bindings.terrainFineNormalTex={texture:fineN};gpu.retiredTerrainTextures=[oldH,oldN];
  mod.code=mod.code.replace(/fn terrainHeightAt\([\s\S]*?(?=\/\/ filtered normal)/,`fn terrainLayerHeight(p:vec2f,c:vec2f,size:f32,layer:i32)->f32{let f=clamp((p-c+size*.5)/size*2048.0-.5,vec2f(0.0),vec2f(2046.999));let q=vec2i(floor(f));let t=fract(f);return mix(mix(textureLoad(terrainHeightTex,q,layer,0).x,textureLoad(terrainHeightTex,q+vec2i(1,0),layer,0).x,t.x),mix(textureLoad(terrainHeightTex,q+vec2i(0,1),layer,0).x,textureLoad(terrainHeightTex,q+vec2i(1,1),layer,0).x,t.x),t.y);}
  fn terrainFineWeight(p:vec2f)->f32{return 1.0-smoothstep(448.0,496.0,max(abs(p.x),abs(p.y)));}
  fn terrainFineAt(p:vec2f,c:vec2f,size:f32,res:f32,layer:i32)->f32{let f=clamp((p-c+size*.5)/size*res-.5,vec2f(0.0),vec2f(res-1.001));let q=vec2i(floor(f));let t=fract(f);return mix(mix(textureLoad(terrainFineHeightTex,q,layer,0).x,textureLoad(terrainFineHeightTex,q+vec2i(1,0),layer,0).x,t.x),mix(textureLoad(terrainFineHeightTex,q+vec2i(0,1),layer,0).x,textureLoad(terrainFineHeightTex,q+vec2i(1,1),layer,0).x,t.x),t.y);}
  fn terrainHeightAtCoarse(p:vec2f)->f32{return terrainLayerHeight(p,vec2f(0.0),32768.0,0);}
  fn terrainHeightAt(p:vec2f)->f32{if(max(abs(p.x),abs(p.y))>16376.0){return -90.0;}if(max(abs(p.x),abs(p.y))<=448.0){return terrainFineAt(p,vec2f(0.0),1024.0,1024.0,0);}
- ${[data.sourceTerrain,data.eastSourceTerrain].map((t,i)=>`if(max(abs(p.x-(${t.center[0].toFixed(7)})),abs(p.y-(${t.center[1].toFixed(7)})))<=112.0){return terrainFineAt(p,vec2f(${t.center.map(x=>x.toFixed(7)).join(',')}),256.0,512.0,${i+1});}`).join('')}
+ ${[...localFine].reverse().map(t=>`if(max(abs(p.x-(${t.center[0].toFixed(7)})),abs(p.y-(${t.center[1].toFixed(7)})))<=${t.inner.toFixed(1)}${noFiner(t)}){return terrainFineAt(p,vec2f(${t.center.map(x=>x.toFixed(7)).join(',')}),${t.size.toFixed(1)},${t.res.toFixed(1)},${t.layer});}`).join('')}
  var h=terrainHeightAtCoarse(p);
  ${data.regionTerrains.map((p,i)=>`{let c=vec2f(${p.center.map(x=>x.toFixed(7)).join(',')});let w=1.0-smoothstep(3800.0,4080.0,max(abs(p.x-c.x),abs(p.y-c.y)));if(w>0.0){var rh=terrainLayerHeight(p,c,8192.0,${i+1});${i===0?'let f=terrainFineWeight(p);if(f>0.0){rh=mix(rh,terrainFineAt(p,vec2f(0.0),1024.0,1024.0,0),f);}':''}h=mix(h,rh,w);}}`).join('\n')}
- {let c=vec2f(${data.sourceTerrain.center.map(x=>x.toFixed(7)).join(',')});let w=1.0-smoothstep(112.0,124.0,max(abs(p.x-c.x),abs(p.y-c.y)));if(w>0.0){h=mix(h,terrainFineAt(p,c,256.0,512.0,1),w);}}
- {let c=vec2f(${data.eastSourceTerrain.center.map(x=>x.toFixed(7)).join(',')});let w=1.0-smoothstep(112.0,124.0,max(abs(p.x-c.x),abs(p.y-c.y)));if(w>0.0){h=mix(h,terrainFineAt(p,c,256.0,512.0,2),w);}}return h;}
+ ${localFine.map(t=>`{let c=vec2f(${t.center.map(x=>x.toFixed(7)).join(',')});let w=1.0-smoothstep(${t.inner.toFixed(1)},${t.outer.toFixed(1)},max(abs(p.x-c.x),abs(p.y-c.y)));if(w>0.0){h=mix(h,terrainFineAt(p,c,${t.size.toFixed(1)},${t.res.toFixed(1)},${t.layer}),w);}}`).join('\n')}return h;}
  `);
  // Explicit gradients permit skipping inactive maps without changing the
  // physical mip footprint. Previously every terrain pixel read every region.
  const normalBody=fragment=>{
   const sample=(tex,uv,layer,scale)=>fragment?`textureSampleGrad(${tex},smpLinearClamp,${uv},${layer},dx/${scale},dy/${scale})`:`textureSampleLevel(${tex},smpLinearClamp,${uv},${layer},l)`;
-  const fineSample=(c,layer)=>sample('terrainFineNormalTex',`clamp((p-vec2f(${c.map(x=>x.toFixed(7)).join(',')})+128.0)/512.0,vec2f(.0005),vec2f(.4995))`,layer,'512.0');
+  const fineSample=t=>sample('terrainFineNormalTex',`clamp((p-vec2f(${t.center.map(x=>x.toFixed(7)).join(',')})+${(t.size/2).toFixed(1)})/${(t.texel*1024).toFixed(1)},vec2f(.00048828125),vec2f(${((t.res-.5)/1024).toFixed(10)}))`,t.layer,(t.texel*1024).toFixed(1));
   const decode='return vec4f(s.xy*2.0-1.0,s.zw);';
   let code=fragment?'let dx=dpdx(p);let dy=dpdy(p);':'';
   code+=`if(max(abs(p.x),abs(p.y))<=448.0){let s=${sample('terrainFineNormalTex','(p+512.0)/1024.0',0,'1024.0')};${decode}}`;
-  for(const [i,t]of [data.sourceTerrain,data.eastSourceTerrain].entries())code+=`if(max(abs(p.x-(${t.center[0].toFixed(7)})),abs(p.y-(${t.center[1].toFixed(7)})))<=112.0){let s=${fineSample(t.center,i+1)};${decode}}`;
+  for(const t of [...localFine].reverse())code+=`if(max(abs(p.x-(${t.center[0].toFixed(7)})),abs(p.y-(${t.center[1].toFixed(7)})))<=${t.inner.toFixed(1)}${noFiner(t)}){let s=${fineSample(t)};${decode}}`;
   code+=`var s=${sample('terrainNormalTex','(p+16384.0)/32768.0',0,'32768.0')};`;
   for(const [i,t]of data.regionTerrains.entries())code+=`{let c=vec2f(${t.center.map(x=>x.toFixed(7)).join(',')});let w=1.0-smoothstep(3800.0,4080.0,max(abs(p.x-c.x),abs(p.y-c.y)));if(w>0.0){s=mix(s,${sample('terrainNormalTex','(p-c+4096.0)/8192.0',i+1,'8192.0')},w);}}`;
   code+=`let fw=terrainFineWeight(p);if(fw>0.0){s=mix(s,${sample('terrainFineNormalTex','(p+512.0)/1024.0',0,'1024.0')},fw);}`;
-  for(const [i,t]of [data.sourceTerrain,data.eastSourceTerrain].entries())code+=`{let w=1.0-smoothstep(112.0,124.0,max(abs(p.x-(${t.center[0].toFixed(7)})),abs(p.y-(${t.center[1].toFixed(7)}))));if(w>0.0){s=mix(s,${fineSample(t.center,i+1)},w);}}`;
+  for(const t of localFine)code+=`{let w=1.0-smoothstep(${t.inner.toFixed(1)},${t.outer.toFixed(1)},max(abs(p.x-(${t.center[0].toFixed(7)})),abs(p.y-(${t.center[1].toFixed(7)}))));if(w>0.0){s=mix(s,${fineSample(t)},w);}}`;
   return code+decode;
  };
  const normalCode=`fn terrainNormalRockLevel(p:vec2f,l:f32)->vec4f{${normalBody(false)}}
  fn terrainNormalRock(p:vec2f)->vec4f{${normalBody(true)}}
  `;
  mod.code=mod.code.replace(/fn terrainNormalRock\([\s\S]*?(?=fn terrainNormalAt)/,normalCode);
- gpu.fineCore={texelMetres:1,headwaterTexelMetres:.5,eastSourceTexelMetres:.5,fineLayers:3,regionalTexelMetres:4,outerTexelMetres:16,layers:4,sampledTextureBindingsUnchanged:true};return gpu;
+ gpu.fineCore={texelMetres:1,headwaterTexelMetres:.5,eastSourceTexelMetres:.5,fineLayers:fine.length,sampleLayers:data.sampleTerrains.map(t=>({id:t.id,texel:t.texel,size:t.size})),regionalTexelMetres:4,outerTexelMetres:16,layers:4,sampledTextureBindingsUnchanged:true};return gpu;
 }

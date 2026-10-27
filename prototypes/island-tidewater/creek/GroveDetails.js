@@ -54,7 +54,7 @@ export class GroveDetails{
    for(let j=0;j<p.count;j++){const h=p.getY(j)+H/2,angle=Math.atan2(p.getZ(j),p.getX(j)),px=x+p.getX(j),pz=z+p.getZ(j);let py=y+h;if(h<2)py+=(terrain.heightAt(px,pz)-y-.08)*(1-h/2);if(h>H-.1)py-=r*(.4+.35*Math.sin(angle*5+H));p.setXYZ(j,px,py,pz);uv.setXY(j,uv.getX(j),uv.getY(j)*H/4);}
    g.computeVertexNormals();add(g,3);colliders.addCylinder(x,z,r,y-.15,y+H,{tag:'old-growth standing dead wood'});this.snags.push({x,z,height:H,radius:r});
   }
-  for(const r of forest.records.filter(r=>r.variant===4&&(r.landmark||grovePathDistance(r.x,r.z)<18)).sort((a,b)=>(b.landmark?1:0)-(a.landmark?1:0)||grovePathDistance(a.x,a.z)-grovePathDistance(b.x,b.z)).slice(0,72)){
+  for(const r of forest.records.filter(r=>r.variant===4&&!r.sample&&(r.landmark||grovePathDistance(r.x,r.z)<18)).sort((a,b)=>(b.landmark?1:0)-(a.landmark?1:0)||grovePathDistance(a.x,a.z)-grovePathDistance(b.x,b.z)).slice(0,72)){
    for(let arm=0;arm<5;arm++){
     // Start inside the actual flared stem, keeping each outer tip fixed.
     // The old .65*s head could stick out above the narrower trunk surface.

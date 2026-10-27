@@ -118,6 +118,7 @@ export function createCreekWater({scene,sky,clouds,sceneRenderer,field,terrain,r
   const run=field.northRuns[0];for(let i=1;i<run.length;i++){const a=run[i-1],b=run[i],dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz,t=Math.max(0,Math.min(1,((end.x-a.x)*dx+(end.z-a.z)*dz)/L2)),d=Math.hypot(end.x-a.x-dx*t,end.z-a.z-dz*t);if(d<best){best=d;sourceTravelOffset=a._travel+(b._travel-a._travel)*t-end._travel;}}
  }
  const flowAt=(x,z)=>{
+  const local=field.continuousSample;if(local&&local.sample(x,z)[1]<44)return local.flowAt(x,z);
   const mi=Math.max(0,Math.min(runs[0].length-1,Math.round((z-runs[0][0].z)/.5))),p=field.riverAt(z)??runs[0][mi];
   let c=[x-p.x,z/.38,0,1.5],best=Infinity;
   const east=field.tributarySource?.at(z);
@@ -190,12 +191,22 @@ export function createCreekWater({scene,sky,clouds,sceneRenderer,field,terrain,r
   const t=field.island.tributary;
   for(let j=0;j<t.length-1;j++)for(let i=0;i<16;i++){const a=t[j],b=t[j+1],u=i/8-1,v=(i+1)/8-1,x=(a[0]+b[0])*.5+(u+v)*.25*(a[2]+b[2]),z=(a[3]+b[3])*.5,f=field.sample(x,z);if(f[1]>2||f[0]<=-.2||terrain.terrain.heightAt(x,z)>f[0]+1)continue;const A=vertexAt(a[0]+u*(a[2]+2),a[3],-5),B=vertexAt(a[0]+v*(a[2]+2),a[3],-5),C=vertexAt(b[0]+u*(b[2]+2),b[3],-5),D=vertexAt(b[0]+v*(b[2]+2),b[3],-5);indices.push(A,C,B,B,C,D);}
  }
+ if(field.continuousSample){
+  const route=field.continuousSample.points,crossings=20;let previous=null;
+  for(let j=0;j<route.length;j++){
+   const p=route[j],a=route[Math.max(0,j-1)],b=route[Math.min(route.length-1,j+1)],dx=b.x-a.x,dz=b.z-a.z,L=Math.hypot(dx,dz),nx=dz/L,nz=-dx/L,row=[];
+   for(let i=0;i<=crossings;i++){
+    const d=(i/crossings*2-1)*(p.width+1.5),x=p.x+nx*d,z=p.z+nz*d,k=positions.length/3,flow=field.continuousSample.flowAt(x,z);flow[2]=-7;positions.push(x,0,z);nodes.push(...flow);row.push(k);
+   }
+   if(previous)for(let i=0;i<crossings;i++)indices.push(previous[i],row[i],previous[i+1],previous[i+1],row[i],row[i+1]);previous=row;
+  }
+ }
  geometry.setAttribute('position',new Float32BufferAttribute(positions.slice(0,fineVertices*3),3));geometry.setAttribute('nodeData',new Float32BufferAttribute(nodes.slice(0,fineVertices*4),4));geometry.setIndex(indices.slice(0,fineTriangles*3));
  const params=new UniformBlock('CreekSurfaceParams',{slopeScale:['f32',.35],rippleScale:['f32',1]},{label:'Creek surface'});
  const flowMap=creekFlowMap(field);
  const module=new ShaderModule({name:'creekSurface',deps:[field.module,terrain.module],uniforms:params,uniformName:'waterSurface',bindings:{creekFoam:{texture:foamTexture},creekRapids:{texture:flowMap.texture}},code:`
 var<private> creekFlow:vec4f;
-fn creekSheetFlag()->f32{return select(max(creekFlow.z,0.0),1.0,abs(creekFlow.z+3.0)<.1||abs(creekFlow.z+6.0)<.1);}
+fn creekSheetFlag()->f32{return select(max(creekFlow.z,0.0),1.0,abs(creekFlow.z+3.0)<.1||abs(creekFlow.z+6.0)<.1||abs(creekFlow.z+7.0)<.1);}
 fn creekHash(p:vec2f)->f32{return fract(sin(dot(p,vec2f(127.1,311.7)))*43758.5453);}
 // Value noise and its analytic gradient; no screen derivatives inside branches.
 fn creekNoise(p:vec2f)->vec3f{
