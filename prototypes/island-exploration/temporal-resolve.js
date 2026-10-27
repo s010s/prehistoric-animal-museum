@@ -9,7 +9,7 @@ export function setTemporalChroma(enabled){temporalChromaEnabled.value=Boolean(e
 const fragmentShader=`
 uniform sampler2D currentColor,currentDepth,historyColorDepth;
 uniform mat4 inverseProjection,cameraWorld,previousView,previousProjection;
-uniform vec2 imageSize;
+uniform vec2 imageSize;uniform int debugMode;
 uniform float historyWeight,neutralHistoryWeight,waterHeight;
 uniform bool historyValid,waterGuard,cameraUnchanged,temporalChromaEnabled;
 varying vec2 vUv;
@@ -26,20 +26,20 @@ void main(){
  view/=view.w;
  float viewDepth=-view.z;
  bool validDepth=depth<.9999999&&depth>=0.&&viewDepth>0.&&viewDepth<65000.;
- vec3 result=current;
+ vec3 result=current;int rejectReason=historyValid?2:1;float acceptedWeight=0.,clipAmount=0.;
  if(historyValid&&validDepth){
-  vec4 world=cameraWorld*view;
+  rejectReason=3;vec4 world=cameraWorld*view;
   vec4 oldView=previousView*world,oldClip=previousProjection*oldView;
   float expectedDepth=-oldView.z;
   if(oldClip.w>0.&&expectedDepth>0.&&(!waterGuard||world.y>waterHeight+.2)){
-   vec3 ndc=oldClip.xyz/oldClip.w;
+   rejectReason=4;vec3 ndc=oldClip.xyz/oldClip.w;
    vec2 oldUv=ndc.xy*.5+.5,halfPixel=.5/imageSize;
    // Avoid floating-point matrix round trips moving a stationary sample off
    // its exact texel centre. Both histories use the unjittered output grid.
    if(cameraUnchanged){oldUv=vUv;expectedDepth=viewDepth;}
    if(all(greaterThanEqual(oldUv,halfPixel))&&all(lessThanEqual(oldUv,1.-halfPixel))&&ndc.z>=-1.&&ndc.z<=1.){
     // RGB is bilinear; depth is fetched at an exact history texel centre.
-    vec2 depthUv=(floor(oldUv*imageSize)+.5)/imageSize;
+    rejectReason=5;vec2 depthUv=(floor(oldUv*imageSize)+.5)/imageSize;
     float oldDepth=texture2D(historyColorDepth,depthUv).a;
     // RGBA16F depth quantization grows with distance; this remains a geometric
     // disocclusion test, not an object-motion estimate.
@@ -48,7 +48,7 @@ void main(){
      // Silhouettes have unreliable object correspondence without velocities.
      // Reject history at cardinal depth breaks, including transparent/sky
      // boundaries, rather than pulling foreground colour into a reveal.
-     bool depthContinuous=true;
+     rejectReason=6;bool depthContinuous=true;
      for(int i=0;i<4;i++){
       vec2 offset=i==0?vec2(-1.,0.):i==1?vec2(1.,0.):i==2?vec2(0.,-1.):vec2(0.,1.);
       vec2 uv=clamp(vUv+offset/imageSize,halfPixel,1.-halfPixel);
@@ -57,7 +57,7 @@ void main(){
       if(d>=.9999999||z<=0.||abs(z-viewDepth)>max(.12,.02*viewDepth))depthContinuous=false;
      }
      if(depthContinuous){
-     vec3 lower=current,upper=current,mean=current,second=current*current;
+     rejectReason=7;vec3 lower=current,upper=current,mean=current,second=current*current;
      for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){
       if(x!=0||y!=0){
        vec2 uv=clamp(vUv+vec2(float(x),float(y))/imageSize,halfPixel,1.-halfPixel);
@@ -88,6 +88,7 @@ void main(){
       weight=neutralHistoryWeight*(1.-smoothstep(.04,.15,chromaChange))*(1.-smoothstep(.7,.95,lumaChange));
      }
      vec3 history=clamp(rawHistory,lower,upper);
+     clipAmount=temporalMax(abs(rawHistory-history));acceptedWeight=weight;if(weight>0.)rejectReason=0;
      result=mix(current,history,weight);
      }
     }
@@ -95,21 +96,25 @@ void main(){
   }
  }
  // Alpha is a history-only depth payload. Final presentation MUST set alpha 1.
- gl_FragColor=vec4(result,validDepth?viewDepth:0.);
+ if(debugMode>0){
+  vec3 mask=rejectReason==0?vec3(0.,1.,0.):rejectReason==1?vec3(.2):rejectReason==2?vec3(1.,0.,1.):rejectReason==3?vec3(0.,0.,1.):rejectReason==4?vec3(0.,1.,1.):rejectReason==5?vec3(1.,0.,0.):rejectReason==6?vec3(1.,.5,0.):vec3(.5,0.,1.);
+  gl_FragColor=vec4(debugMode==1?vec3(acceptedWeight):debugMode==2?mask:vec3(min(1.,clipAmount)),1.);
+ }else gl_FragColor=vec4(result,validDepth?viewDepth:0.);
 }`;
 
 export function makeTemporalResolve({enabled=false,historyWeight=.8,maxPixels=921600,now=()=>performance.now()}={}){
  if(!Number.isFinite(historyWeight)||historyWeight<0||historyWeight>.85)throw Error('Temporal history weight must be within [0, .85]');
  if(!Number.isInteger(maxPixels)||maxPixels<1||maxPixels>921600)throw Error('Temporal target exceeds protected pixel budget');
+ let debugTarget=null,debugRequested=0;
  let active=null,targets=[],width=0,height=0,readIndex=0,valid=false,disposed=false,paused=false,appliedHistoryWeight=historyWeight;
  let lastTime=null,lastWall=null,lastColor=null,lastDepth=null,lastReset='initial',lastBypass=null,lastEligible=false,lastChroma=null;
  let frames=0,seedFrames=0,historyEligibleFrames=0,resets=0;
  const resetCounts={},previousProjection=new T.Matrix4(),previousView=new T.Matrix4(),previousPosition=new T.Vector3(),previousQuaternion=new T.Quaternion(),previousBaseProjection=new T.Matrix4();
- const uniforms={currentColor:{value:null},currentDepth:{value:null},historyColorDepth:{value:null},inverseProjection:{value:new T.Matrix4()},cameraWorld:{value:new T.Matrix4()},previousView:{value:previousView},previousProjection:{value:previousProjection},imageSize:{value:new T.Vector2()},historyWeight:{value:historyWeight},neutralHistoryWeight:{value:Math.min(historyWeight,.65)},temporalChromaEnabled,waterHeight:{value:0},historyValid:{value:false},waterGuard:{value:false},cameraUnchanged:{value:false}};
+ const uniforms={debugMode:{value:0},currentColor:{value:null},currentDepth:{value:null},historyColorDepth:{value:null},inverseProjection:{value:new T.Matrix4()},cameraWorld:{value:new T.Matrix4()},previousView:{value:previousView},previousProjection:{value:previousProjection},imageSize:{value:new T.Vector2()},historyWeight:{value:historyWeight},neutralHistoryWeight:{value:Math.min(historyWeight,.65)},temporalChromaEnabled,waterHeight:{value:0},historyValid:{value:false},waterGuard:{value:false},cameraUnchanged:{value:false}};
  const material=new T.ShaderMaterial({uniforms,depthTest:false,depthWrite:false,transparent:false,blending:T.NoBlending,toneMapped:false,vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',fragmentShader});
  const geometry=new T.PlaneGeometry(2,2),scene=new T.Scene(),quad=new T.Mesh(geometry,material),screenCamera=new T.OrthographicCamera(-1,1,1,-1,0,1);
  quad.frustumCulled=false;scene.add(quad);
- const releaseTargets=()=>{targets.forEach(target=>target.dispose());targets=[];width=height=0;uniforms.historyColorDepth.value=null;};
+ const releaseTargets=()=>{debugTarget?.dispose();debugTarget=null;targets.forEach(target=>target.dispose());targets=[];width=height=0;uniforms.historyColorDepth.value=null;};
  function endFrame(camera){
   if(!active)return;
   if(camera&&camera!==active.camera)throw Error('Temporal frame camera ownership mismatch');
@@ -176,20 +181,21 @@ export function makeTemporalResolve({enabled=false,historyWeight=.8,maxPixels=92
   const oldTarget=renderer.getRenderTarget(),oldAuto=renderer.autoClear,oldXr=renderer.xr.enabled;
   const eligible=valid;
   try{
-   renderer.xr.enabled=false;renderer.autoClear=false;renderer.setRenderTarget(write);renderer.render(scene,screenCamera);
+   renderer.xr.enabled=false;renderer.autoClear=false;renderer.setRenderTarget(write);uniforms.debugMode.value=0;renderer.render(scene,screenCamera);
+   if(debugRequested){if(!debugTarget)debugTarget=new T.WebGLRenderTarget(width,height,{depthBuffer:false});debugTarget.setSize(width,height);uniforms.debugMode.value=debugRequested;renderer.setRenderTarget(debugTarget);renderer.render(scene,screenCamera);uniforms.debugMode.value=0;}
   }catch(error){valid=false;lastEligible=false;lastReset='resolve failed';throw error;}
   finally{renderer.setRenderTarget(oldTarget);renderer.autoClear=oldAuto;renderer.xr.enabled=oldXr;}
   previousProjection.copy(camera.projectionMatrix);previousBaseProjection.copy(active.baseProjection);previousView.copy(camera.matrixWorldInverse);
   previousPosition.copy(camera.position);previousQuaternion.copy(camera.quaternion);
   lastTime=time;lastWall=active.wall;lastColor=color;lastDepth=depth;lastChroma=temporalChromaEnabled.value;readIndex=writeIndex;valid=true;lastEligible=eligible;
   frames++;if(eligible)historyEligibleFrames++;else seedFrames++;
-  return write.texture;
+  return debugRequested&&debugTarget?debugTarget.texture:write.texture;
  }
  temporalResolveEnabled.value=false;setEnabled(enabled);
- return {beginFrame,resolve,endFrame,reset,setEnabled,
+ return {beginFrame,resolve,endFrame,reset,setEnabled,setDebug(value){if(![0,1,2,3].includes(value))throw Error('Invalid history diagnostic');debugRequested=value;if(!value){debugTarget?.dispose();debugTarget=null;}},readDebug(renderer){if(!debugTarget)throw Error('History diagnostic not rendered');const pixels=new Uint8Array(width*height*4);renderer.readRenderTargetPixels(debugTarget,0,0,width,height,pixels);return {width,height,pixels};},
   setPaused(value){const next=Boolean(value);if(next!==paused){paused=next;reset(next?'paused':'resumed');}},
-  resources:()=>targets.map((target,i)=>['temporalHDRDepth'+i,target]),
-  status:()=>({enabled:temporalResolveEnabled.value,mode:'stable-grid-history',reactivity:temporalChromaEnabled.value?'chroma-neutral-cap':'raw-radiance-rgb',temporalChromaEnabled:temporalChromaEnabled.value,neutralHistoryCap:.65,appliedNeutralHistoryWeight:uniforms.neutralHistoryWeight.value,projectionJitter:false,paused,disposed,historyValid:valid,lastHistoryEligible:lastEligible,phase:0,nextPhase:0,jitterPixels:[0,0],width,height,targets:targets.length,estimatedTargetBytes:width*height*16,extraPasses:temporalResolveEnabled.value?1:0,maxTextureSamplesPerPixel:16,historyWeight,appliedHistoryWeight,weightReferenceHz:60,frames,seedFrames,historyEligibleFrames,resets,resetCounts:{...resetCounts},lastReset,lastBypass,lastTime,frameActive:Boolean(active),depthPayload:'history alpha is linear view depth; sky/invalid depth is zero',pixelAcceptance:'not measured; counters describe CPU frame eligibility, not GPU pixel reuse',scope:'stable-grid camera reprojection only; no object velocities, no upscaling; water/spray depth incomplete',motionProtection:'depth and silhouette rejection; current-neighborhood variance clamp; selectable chroma or raw radiance/RGB reactivity'}),
+  resources:()=>[...targets.map((target,i)=>['temporalHDRDepth'+i,target]),...(debugTarget?[['temporalDiagnostic',debugTarget]]:[])],
+  status:()=>({enabled:temporalResolveEnabled.value,debugMode:debugRequested,mode:'stable-grid-history',reactivity:temporalChromaEnabled.value?'chroma-neutral-cap':'raw-radiance-rgb',temporalChromaEnabled:temporalChromaEnabled.value,neutralHistoryCap:.65,appliedNeutralHistoryWeight:uniforms.neutralHistoryWeight.value,projectionJitter:false,paused,disposed,historyValid:valid,lastHistoryEligible:lastEligible,phase:0,nextPhase:0,jitterPixels:[0,0],width,height,targets:targets.length,estimatedTargetBytes:width*height*(16+(debugTarget?4:0)),extraPasses:temporalResolveEnabled.value?1+(debugRequested?1:0):0,maxTextureSamplesPerPixel:16,historyWeight,appliedHistoryWeight,weightReferenceHz:60,frames,seedFrames,historyEligibleFrames,resets,resetCounts:{...resetCounts},lastReset,lastBypass,lastTime,frameActive:Boolean(active),depthPayload:'history alpha is linear view depth; sky/invalid depth is zero',pixelAcceptance:debugRequested?'inspect separate GPU diagnostic target; CPU counters still describe frame eligibility':'not measured; counters describe CPU frame eligibility, not GPU pixel reuse',scope:'stable-grid camera reprojection only; no object velocities, no upscaling; water/spray depth incomplete',motionProtection:'depth and silhouette rejection; current-neighborhood variance clamp; selectable chroma or raw radiance/RGB reactivity'}),
   dispose(){if(disposed)return;setEnabled(false);endFrame();releaseTargets();material.dispose();geometry.dispose();disposed=true;},
  };
 }

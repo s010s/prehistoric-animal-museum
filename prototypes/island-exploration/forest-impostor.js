@@ -1,3 +1,4 @@
+import {treeSemanticEnabled,treeReviewGLSL,treeRepresentation,treeReviewRoot,treeReviewRadius} from './tree-material.js';
 import {temporalResolveEnabled,temporalSampleIndex} from './temporal-resolve.js';
 // Frame reprojection adapted from Tidewater (MIT), DRG Software Solutions LLC.
 // Fixed source 4811ba48d795197de5621985f404e765c0b7c0ef.
@@ -85,7 +86,7 @@ export function configureForestImpostor(mesh,atlas,viewerPosition,forestRange,ne
  const forestViewportWidth={value:1},forestCameraNear={value:.3},treeCrownRatios={value:new T.Vector4(...[0,1,2,3].map(i=>templates?.[i]?templates[i].width/templates[i].height:.7))},viewport=new T.Vector4(),before=mesh.onBeforeRender??function(){};
  mesh.onBeforeRender=function(renderer,scene,camera,...rest){before.call(this,renderer,scene,camera,...rest);forestViewportWidth.value=renderer.getCurrentViewport(viewport).z;forestCameraNear.value=camera.near;};
  mesh.material.onBeforeCompile=s=>{
-  Object.assign(s.uniforms,{temporalResolveEnabled,temporalSampleIndex,treeNormals:{value:atlas.normalMap},treeTime,viewerPosition,forestRange,nearFraction,deferredAtlasNormal,forestAtlasBudgetEnabled,forestViewportWidth,forestCameraNear,treeCrownRatios});
+  Object.assign(s.uniforms,{treeSemanticEnabled,treeRepresentation,treeReviewRoot,treeReviewRadius,treeSemantics:{value:atlas.semanticMap??atlas.normalMap},temporalResolveEnabled,temporalSampleIndex,treeNormals:{value:atlas.normalMap},treeTime,viewerPosition,forestRange,nearFraction,deferredAtlasNormal,forestAtlasBudgetEnabled,forestViewportWidth,forestCameraNear,treeCrownRatios});
   s.vertexShader=s.vertexShader.replace('#include <common>',`#include <common>
   uniform float treeTime,forestViewportWidth,forestCameraNear;uniform vec4 treeCrownRatios;uniform vec3 viewerPosition;attribute float nearSeed,treeYaw,treeSpecies;varying float nearIdentity,rootDistance,treeDistance,azimuth,elevation,treeType,yaw,crownPixels;varying vec3 treeScale,treeRoot,impostorWorld,treeSway,impostorCenter;
   ${treeWindFieldGLSL}`)
@@ -107,7 +108,9 @@ export function configureForestImpostor(mesh,atlas,viewerPosition,forestRange,ne
   impostorWorld=airWorld;vec4 mvPosition=viewMatrix*vec4(airWorld,1.);gl_Position=projectionMatrix*mvPosition;`)
   .replace('#include <worldpos_vertex>','vec4 worldPosition=vec4(airWorld,1.);');
   s.fragmentShader=s.fragmentShader.replace('#include <common>',`#include <common>
-  uniform sampler2D treeNormals;uniform bool temporalResolveEnabled;uniform float temporalSampleIndex;uniform bool deferredAtlasNormal,forestAtlasBudgetEnabled;uniform float forestRange,nearFraction;varying float nearIdentity,rootDistance,treeDistance,azimuth,elevation,treeType,yaw,crownPixels;varying vec3 treeScale,treeRoot,impostorWorld,treeSway,impostorCenter;
+  uniform sampler2D treeNormals,treeSemantics;
+  ${treeReviewGLSL}
+  bool forestReadSemantic=false;float forestLeafFraction=1.,forestCrownExposure=1.;uniform bool temporalResolveEnabled;uniform float temporalSampleIndex;uniform bool deferredAtlasNormal,forestAtlasBudgetEnabled;uniform float forestRange,nearFraction;varying float nearIdentity,rootDistance,treeDistance,azimuth,elevation,treeType,yaw,crownPixels;varying vec3 treeScale,treeRoot,impostorWorld,treeSway,impostorCenter;
   vec3 forestO,forestD,forestDx,forestDy,forestSurfaceLocal,forestSurfaceWorld,forestSurfaceNormal;
   vec4 forestFrameCoverages=vec4(0.);int forestFrameSlot=0;
   bool forestReadSurface=false;float forestFrameWeight=0.,forestSurfaceCoverage=0.;
@@ -127,14 +130,14 @@ export function configureForestImpostor(mesh,atlas,viewerPosition,forestRange,ne
    vec2 padding=vec2(.5/${atlas.cell.toFixed(1)}),gradientMask=step(padding,p)*step(p,1.-padding),size=vec2(8.,${atlas.rows.toFixed(1)});
    vec2 gx=vec2(dot(dx,right),dot(dx,up))/1.4*gradientMask/size,gy=vec2(dot(dy,right),dot(dy,up))/1.4*gradientMask/size;
    vec4 sampleValue=textureGrad(tx,(clamp(p,padding,1.-padding)+vec2(mod(az,8.),treeType*3.+el))/size,gx,gy);
-   if(!forestReadSurface)forestFrameCoverages[slot]=sampleValue.a;
-   else{float coverage=forestFrameCoverages[slot];if(coverage>.001){float surfaceDepth=(sampleValue.a/coverage-.5)*1.4;
+   if(!forestReadSurface&&!forestReadSemantic)forestFrameCoverages[slot]=sampleValue.a;
+   else if(forestReadSurface){float coverage=forestFrameCoverages[slot];if(coverage>.001){float surfaceDepth=(sampleValue.a/coverage-.5)*1.4;
     vec3 surfacePoint=forestO-forestD*((dot(forestO,n)-surfaceDepth)/den);
     forestSurfaceLocal+=surfacePoint*(forestFrameWeight*coverage);forestSurfaceCoverage+=forestFrameWeight*coverage;
    }sampleValue.a=coverage;}return sampleValue;
   }
   float forestAxisWeight(float f,float detail){float band=mix(.04,1.,detail);return mix(smoothstep(.5-band*.5,.5+band*.5,f),f,detail);}
-  vec4 atlasBlend(sampler2D tx,vec2 p){forestFrameSlot=0;if(!forestReadSurface)forestFrameCoverages=vec4(0.);float a=floor(azimuth),e=floor(elevation),x=fract(azimuth),y=fract(elevation);
+  vec4 atlasBlend(sampler2D tx,vec2 p){forestFrameSlot=0;if(!forestReadSurface&&!forestReadSemantic)forestFrameCoverages=vec4(0.);float a=floor(azimuth),e=floor(elevation),x=fract(azimuth),y=fract(elevation);
    if(!forestAtlasBudgetEnabled){if(rootDistance>280.){forestFrameWeight=1.;return frameSample(tx,floor(azimuth+.5),floor(elevation+.5));}}
    if(forestAtlasBudgetEnabled){float detail=smoothstep(24.,48.,crownPixels);x=forestAxisWeight(x,detail);y=e>=2.?0.:forestAxisWeight(y,detail);}
    vec4 canopy=vec4(0.);if(x<1.&&y<1.){forestFrameWeight=(1.-x)*(1.-y);canopy+=frameSample(tx,a,e)*forestFrameWeight;}if(x>0.&&y<1.){forestFrameWeight=x*(1.-y);canopy+=frameSample(tx,a+1.,e)*forestFrameWeight;}if(x<1.&&y>0.){forestFrameWeight=(1.-x)*y;canopy+=frameSample(tx,a,min(2.,e+1.))*forestFrameWeight;}if(x>0.&&y>0.){forestFrameWeight=x*y;canopy+=frameSample(tx,a+1.,min(2.,e+1.))*forestFrameWeight;}return canopy;
@@ -144,14 +147,15 @@ export function configureForestImpostor(mesh,atlas,viewerPosition,forestRange,ne
    return packed.rgb/max(packed.a,.001)*2.-1.;}
   `)  .replace('#include <map_fragment>',`prepareForestAtlas();vec4 canopy=atlasBlend(map,vMapUv);vec3 canopyNormal=vec3(0.);
   if(!deferredAtlasNormal)canopyNormal=readForestNormal(vMapUv);
+  if(treeSemanticEnabled){forestReadSemantic=true;vec4 semantic=atlasBlend(treeSemantics,vMapUv);forestReadSemantic=false;vec3 info=semantic.rgb/max(semantic.a,.001);forestLeafFraction=clamp(info.r,0.,1.);forestCrownExposure=clamp(info.g,.25,1.);forestTransmissionStrength=info.b;}
   diffuseColor.rgb*=canopy.rgb/max(canopy.a,.001);diffuseColor.a*=canopy.a;
 
   float distant=1.-smoothstep(forestRange-1400.,forestRange,treeDistance);
-  float nearCoverage=nearIdentity<nearFraction?1.-smoothstep(80.,112.,rootDistance):0.;float treeCoverage=distant*(1.-nearCoverage);if(treeCoverage<.001)discard;`)
+  float nearCoverage=nearIdentity<nearFraction?1.-smoothstep(80.,112.,rootDistance):0.;if(treeReviewMatch(treeRoot))nearCoverage=treeRepresentation==2?0.:treeRepresentation==1?1.:nearCoverage;float treeCoverage=distant*(1.-nearCoverage);if(treeCoverage<.001)discard;`)
   .replace('#include <alphatest_fragment>','#include <alphatest_fragment>\nfloat transitionNoise=fract(52.9829189*fract(dot(gl_FragCoord.xy+(temporalResolveEnabled?vec2(47.,17.)*temporalSampleIndex:vec2(0.)),vec2(.06711056,.00583715))));if(transitionNoise<nearCoverage||transitionNoise>distant)discard;')
   .replace('#include <normal_fragment_maps>',`if(deferredAtlasNormal)canopyNormal=readForestNormal(vMapUv);
   vec3 localNormal=normalize(canopyNormal/max(treeScale,vec3(.001)));float cy=cos(yaw),sy=sin(yaw);vec3 worldNormal=vec3(cy*localNormal.x+sy*localNormal.z,localNormal.y,-sy*localNormal.x+cy*localNormal.z);if(canopyCandidateEnabled&&dot(worldNormal,cameraPosition-forestSurfaceWorld)<0.)worldNormal=-worldNormal;forestSurfaceNormal=worldNormal;normal=normalize(mat3(viewMatrix)*worldNormal+(canopyCandidateEnabled?normalize(vViewPosition)*.12:vec3(0.)));
   // Keep the raster depth for early-Z. Surface depth corrects solar/terrain lighting; SSAO and camera history still use the card depth.`);
  s.fragmentShader=s.fragmentShader.replace('#include <lights_fragment_end>','#include <lights_fragment_end>\nif(!canopyCandidateEnabled){reflectedLight.directSpecular*=.025;reflectedLight.indirectSpecular*=.025;}');
- };mesh.material.customProgramCacheKey=()=> 'reprojected-canopy-r12-projected-budget-r13-p8-surface-depth';
+ };mesh.material.customProgramCacheKey=()=> 'reprojected-canopy-r12-semantic-atlas-r14';
 }

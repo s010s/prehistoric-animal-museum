@@ -320,7 +320,7 @@ void main(){gl_FragColor=texture2D(map,vUv);if(aoEnabled>.5)gl_FragColor.rgb*=co
  let spray=null,lastW=0,lastH=0,lastFine=null,reflectionMode=()=>{};
  const shadowSun=skyUniforms.skySun.value.clone();
  const pass=(name,fn)=>diagnostics?diagnostics.pass(name,fn):fn();
- const api={setTemporal:enabled=>{temporalRequested=Boolean(enabled)&&linearComposite;temporal.setEnabled(temporalRequested&&renderer.domElement.width*renderer.domElement.height<=921600)},resetTemporal:reason=>temporal.reset(reason),setTemporalPaused:value=>temporal.setPaused(value),auditTemporal:()=>temporal.status(),auditSunGlare(){
+ const api={setTemporalDebug:value=>temporal.setDebug(value),readTemporalDebug:()=>temporal.readDebug(renderer),setTemporal:enabled=>{temporalRequested=Boolean(enabled)&&linearComposite;temporal.setEnabled(temporalRequested&&renderer.domElement.width*renderer.domElement.height<=921600)},resetTemporal:reason=>temporal.reset(reason),setTemporalPaused:value=>temporal.setPaused(value),auditTemporal:()=>temporal.status(),auditSunGlare(){
   // Explicit acceptance only: one half-float RGBA pixel, never ordinary/timing.
   const target=sunGlare.resources().find(([,r])=>r.texture===sunGlare.uniforms.glareVisibilityTex.value)?.[1];
   if(!target)return {value:0,readbackBytes:0,source:'zero-texture'};

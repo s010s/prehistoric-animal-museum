@@ -15,6 +15,10 @@ export function markTreeLeafMaterial(material,kind){
 export function leafUniformsFor(material){return{canopyCandidateEnabled,leafTransmissionEnabled:leafTransmission.enabled,...(material.userData?.treeLeafKind in strengths?{leafTransmissionStrength:{value:strengths[material.userData.treeLeafKind]},leafCandidateStrength:{value:candidateStrengths[material.userData.treeLeafKind]}}:{})}}
 export const leafTransmissionGLSL=`
 uniform bool canopyCandidateEnabled;
+#ifndef ISLAND_TREE_SEMANTIC_UNIFORM
+uniform bool treeSemanticEnabled;
+#define ISLAND_TREE_SEMANTIC_UNIFORM
+#endif
 #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
 uniform mat4 directionalShadowMatrix[NUM_DIR_LIGHT_SHADOWS];
 vec4 islandDirectionalReceiver(vec4 original,int lightIndex,float normalBias);
@@ -27,11 +31,18 @@ float leafAngularWeight(vec3 n,vec3 l,vec3 v){
  float through=max(0.,-dot(v,l));
  return clamp(back*(.25+.75*through*through),0.,1.);
 }
+#ifdef ISLAND_FOREST_SURFACE
+float forestTransmissionStrength=.35;
+#endif
 vec3 canopyTransmission(vec3 albedo,vec3 n,vec3 l,vec3 v){
  vec3 leafN=dot(n,v)<0.?-n:n;
  float back=max(0.,-dot(leafN,l)),through=max(0.,-dot(v,l));
  // Tidewater-inspired warm transmission within shadowed direct lighting.
- return (albedo*vec3(.9,1.,.65))*(leafCandidateStrength*back*(.3+.7*through*through*through));
+ float strength=leafCandidateStrength;
+ #ifdef ISLAND_FOREST_SURFACE
+ if(treeSemanticEnabled)strength=forestTransmissionStrength;
+ #endif
+ return (albedo*vec3(.9,1.,.65))*(strength*back*(.3+.7*through*through*through));
 }
 #endif
 #ifdef ISLAND_LEAF_REVIEW_FIXTURE

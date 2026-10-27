@@ -1,3 +1,4 @@
+import {patchTreeMaterial,treeSemanticEnabled} from './tree-material.js';
 import * as T from 'three'
 import {terrainLightGLSL} from './terrain-light.js'
 import {skyGLSL} from './sky.js'
@@ -7,7 +8,7 @@ import {attachFoliageCoverageSwitch} from './foliage-coverage.js'
 // One linear-light atmospheric endpoint, including the same far sea used by the sky sphere.
 export function makeAtmosphere(uniforms){
  const patched=new WeakSet();
- function shader(s,m){Object.assign(s.uniforms,uniforms,{shadowBudgetEnabled:shadowBudget.enabled,shadowFootprintEnabled},leafUniformsFor(m));s.fragmentShader=s.fragmentShader.replace('#include <common>',`#include <common>\nvarying vec3 airWorld;\nuniform float shadowBudgetEnabled;\n${terrainLightGLSL}\n${leafTransmissionGLSL}`).replace('#include <lights_fragment_begin>',`vec3 lightingWorld=airWorld;
+ function shader(s,m){Object.assign(s.uniforms,uniforms,{shadowBudgetEnabled:shadowBudget.enabled,shadowFootprintEnabled,treeSemanticEnabled},leafUniformsFor(m));s.fragmentShader=s.fragmentShader.replace('#include <common>',`#include <common>\nvarying vec3 airWorld;\nuniform float shadowBudgetEnabled;\n${terrainLightGLSL}\n${leafTransmissionGLSL}`).replace('#include <lights_fragment_begin>',`vec3 lightingWorld=airWorld;
 #ifdef ISLAND_FOREST_SURFACE
 if(canopyCandidateEnabled)lightingWorld=forestSurfaceWorld;
 #endif
@@ -57,6 +58,9 @@ void main()`).replace('#include <tonemapping_fragment>',`
  // compensation uses the same inputs. Legacy leaves retain their old endpoint.
  if(m.userData?.treeLeafKind)s.fragmentShader=s.fragmentShader.replace('#include <lights_physical_fragment>',`#include <lights_physical_fragment>
  if(canopyCandidateEnabled){material.specularColor*=.15;material.specularColorBlended*=.15;material.specularF90*=.15;}`);
+ patchTreeMaterial(s,m);
+ // The semantic path uses the reconstructed surface consistently for haze.
+ if(m.defines?.ISLAND_FOREST_SURFACE)s.fragmentShader=s.fragmentShader.replace('vec3 ar=airWorld-cameraPosition;', 'vec3 hazeWorld=treeSemanticEnabled?forestSurfaceWorld:airWorld;vec3 ar=hazeWorld-cameraPosition;').replace('y1=max(airWorld.y,0.)','y1=max(hazeWorld.y,0.)');
  attachFoliageCoverageSwitch(s);
  }
  return {uniforms,apply(object){object.traverse(o=>{if(!o.isMesh)return;for(const m of Array.isArray(o.material)?o.material:[o.material]){if(patched.has(m))continue;patched.add(m);if(m.userData?.treeLeafKind)markTreeLeafMaterial(m,m.userData.treeLeafKind);if(m.isShaderMaterial){shader(m,m);m.needsUpdate=true}else{const original=m.onBeforeCompile,key=m.customProgramCacheKey();m.onBeforeCompile=s=>{original.call(m,s);shader(s,m);if(m.isMeshBasicMaterial)s.fragmentShader=s.fragmentShader.replace('#include <opaque_fragment>','outgoingLight*=mix(.62,1.,worldSun(airWorld))*worldAmbient(airWorld);\n#include <opaque_fragment>')};m.customProgramCacheKey=()=>`island-air-r6-${key}`;m.needsUpdate=true}}})}};
