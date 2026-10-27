@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import * as THREE from 'three';
-import { MEDIUM } from './config.mjs';
+import { MEDIUM, ACTOR_LIGHTING } from './config.mjs';
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 export function preserveBlueDepthPalette(texture, sunColor) {
     const { data, width, height } = texture.image, legacySun = new THREE.Vector3(-.25, .68, -.69).normalize();
@@ -18,7 +18,7 @@ export function preserveBlueDepthPalette(texture, sunColor) {
     }
     texture.needsUpdate = true;
 }
-export function decorateSharedActorLighting(root, field) {
+export function decorateSharedActorLighting(root, field, reviewUniforms = null) {
     const mats = [];
     root.traverse(o => {
         if (!o.isMesh)
@@ -32,20 +32,23 @@ export function decorateSharedActorLighting(root, field) {
                 m.normalScale.multiplyScalar(.7);
             m.onBeforeCompile = function (s, r) {
                 compile.call(this, s, r);
-                Object.assign(s.uniforms, field.uniforms, { uDownwellingIrradiance: { value: new THREE.Vector3(...MEDIUM.ambientIrradiance) } });
+                Object.assign(s.uniforms, field.uniforms, reviewUniforms, { uDownwellingIrradiance: { value: new THREE.Vector3(...MEDIUM.ambientIrradiance) } });
                 s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 underwaterWorld;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nunderwaterWorld=(modelMatrix*vec4(transformed,1.)).xyz;');
-                s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 underwaterWorld;\nuniform vec3 uDownwellingIrradiance;\n' + field.samplerGLSL);
-                const direct = THREE.ShaderChunk.lights_fragment_begin.replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight );\n directLight.color = sampleField(underwaterWorld);');
+                s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 underwaterWorld;\nuniform vec3 uDownwellingIrradiance;\n' + (reviewUniforms ? 'uniform int uReviewActorMode;uniform float uReviewDiffuseGain,uReviewDirectGain,uReviewGradeOff;\n' : '') + field.samplerGLSL);
+                const direct = THREE.ShaderChunk.lights_fragment_begin.replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight );\n directLight.color = sampleField(underwaterWorld)' + (reviewUniforms ? '*uReviewDirectGain' : '') + ';');
                 if (direct === THREE.ShaderChunk.lights_fragment_begin)
                     throw new Error('Pinned Three directional light integration changed');
                 s.fragmentShader = s.fragmentShader.replace('#include <lights_fragment_begin>', direct).replace('#include <lights_fragment_end>', `#if defined(RE_IndirectDiffuse)
 vec3 waterN=inverseTransformDirection(geometryNormal,viewMatrix);
 vec3 diffuseWaterE=uDownwellingIrradiance*exp(-uCausticSigmaT*max(0.,uCausticSeaLevel-underwaterWorld.y));
-irradiance+=diffuseWaterE*(.65+.35*max(waterN.y,0.));
+irradiance+=diffuseWaterE*${ACTOR_LIGHTING.diffuseGain}*(${ACTOR_LIGHTING.sideDiffuseFraction}+${1-ACTOR_LIGHTING.sideDiffuseFraction}*max(waterN.y,0.))${reviewUniforms ? '*uReviewDiffuseGain' : ''};
 #endif
 #include <lights_fragment_end>`).replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor=.46+.52*clamp(roughnessFactor,0.,1.);');
+                if (reviewUniforms) {
+                    s.fragmentShader = s.fragmentShader.replace(/vec3\((1\.0800|1\.0450)\)/g, 'vec3(mix($1,1.,uReviewGradeOff))').replace('#include <opaque_fragment>', 'if(uReviewActorMode==1)outgoingLight=diffuseColor.rgb;if(uReviewActorMode==2)outgoingLight=reflectedLight.indirectDiffuse;if(uReviewActorMode==3)outgoingLight=reflectedLight.directDiffuse;if(uReviewActorMode==4)outgoingLight=vec3(1.);\n#include <opaque_fragment>');
+                }
             };
-            m.customProgramCacheKey = () => key.call(m) + '|ocean-refracted-' + (field.diagnostics.revision ?? 'analytic-mean-v1');
+            m.customProgramCacheKey = () => key.call(m) + '|ocean-refracted-fill-v2|' + ACTOR_LIGHTING.diffuseGain + '|' + ACTOR_LIGHTING.sideDiffuseFraction + '|' + !!reviewUniforms + '|' + (field.diagnostics.revision ?? 'analytic-mean-v1');
             m.needsUpdate = true;
         }
     });
