@@ -4,6 +4,7 @@ import {ShelfReef} from './ShelfReef.js';
 // derived from Tidewater4811ba48 App.js (MIT, DRG Software Solutions LLC).
 import { MuseumApp } from '../museum/MuseumApp.js';
 import { createMuseumAnimals } from '../museum/animals.js';
+import {attachDynamicMuseumShadows} from '../museum/DynamicMuseumShadows.js';
 import { Vector3, Euler, MathUtils } from '../vendor/tidewater/src/engine/index.js';
 import { GPU } from '../vendor/tidewater/src/engine/gpu/GPU.js';
 import { FrameUniforms } from '../vendor/tidewater/src/engine/render/Frame.js';
@@ -116,6 +117,7 @@ export class CreekApp extends MuseumApp {
       this.colliders.addBox(new Vector3(...center),new Vector3(...half),a.yaw??this.geography.animals.find(x=>x.id===a.id).yaw,{tag:'museum animal',solid:true});
     }
     this.sampleMuseumLife=await SampleMuseumLife.create(this);
+    this.dynamicMuseumShadows=attachDynamicMuseumShadows(this);
     this.habitatEnrichment=await SampleHabitatEnrichment.create(this,data);
     data.sampleHabitatEnrichmentVisits=this.habitatEnrichment?.visits??{};
     const clipped=new Set();scene.traverse(o=>{if(o.isMesh&&o.material&&!o.material.isWaterMaterial&&!clipped.has(o.material)){clipped.add(o.material);clipCreekRefraction(o.material,data.field);}});

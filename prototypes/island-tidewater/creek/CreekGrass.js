@@ -4,6 +4,7 @@ import {Float32BufferAttribute,InstancedBufferAttribute,DynamicDrawUsage} from '
 import {GrassField,CELL} from '../vendor/tidewater/src/world/vegetation/GrassField.js';
 import {GPU,StorageBuffer,ComputeKernel,readBuffer} from '../vendor/tidewater/src/engine/webgpu.js';
 import {ShaderModule,UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
+import {GrassRootCache} from './GrassRootCache.js';
 
 // Occupancy is only a conservative CPU acceleration structure. The real
 // density texture and world-fixed probability remain in museumFloraAt.
@@ -115,11 +116,12 @@ export class CreekGrass extends GrassField {
   s.translucency*=.28;
  }
 `;
+  this.rootCache=new GrassRootCache({appearance:this.appearance,levels:this.levels,material:mat});
   mat.needsUpdate=true;this.groundAudit=null;
  }
  update(camera){
   const e=camera.matrixWorld.elements,pe=camera.projectionMatrix.elements,L=this._last;
-  if(Math.abs(e[12]-L[0])<.05&&Math.abs(e[13]-L[1])<.05&&Math.abs(e[14]-L[2])<.05&&Math.abs(e[8]-L[3])<1e-3&&Math.abs(e[9]-L[4])<1e-3&&Math.abs(e[10]-L[5])<1e-3&&pe[0]===L[6]&&pe[5]===L[7])return false;
+  if(Math.abs(e[12]-L[0])<.05&&Math.abs(e[13]-L[1])<.05&&Math.abs(e[14]-L[2])<.05&&Math.abs(e[8]-L[3])<1e-3&&Math.abs(e[9]-L[4])<1e-3&&Math.abs(e[10]-L[5])<1e-3&&pe[0]===L[6]&&pe[5]===L[7]){this.rootCache.update(this.levels);return false;}
   L.set([e[12],e[13],e[14],e[8],e[9],e[10],pe[0],pe[5]]);
   this._mat.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this._frustum.setFromProjectionMatrix(this._mat,camera.coordinateSystem,camera.reversedDepth);
   const cx=e[12],cy=e[13],cz=e[14],t=this.terrain,n=this.cellsPerSide,far=this.appearance.distance.radius;
@@ -145,6 +147,7 @@ export class CreekGrass extends GrassField {
    l.geometry.instanceCount=l.count;l.attr.clearUpdateRanges();l.attr.addUpdateRange(0,Math.max(1,l.count)*4);l.attr.needsUpdate=true;
   }
   this.rangeAudit={eligible:this.levels.map(l=>l.pending),capacity:this.capacity,overflow,overflowSeen:this.overflowSeen.slice(),extendedCells,maxSelectedDistance:this.levels.map(l=>l.maxSelectedDistance),envelope:this.envelope,legacyBounds:this.legacyBounds,boundsAudit:this.auditBounds,unsafeRejected:this.auditBounds||this.legacyBounds?unsafeRejected:null,rescued,selection:'conservative plant-envelope frustum; 3D cell distance; closest first only on overflow'};
+  this.rootCache.update(this.levels);
   return true;
  }
  setFarRange(radius){this.appearance.distance.set(radius);this._last.fill(NaN);}

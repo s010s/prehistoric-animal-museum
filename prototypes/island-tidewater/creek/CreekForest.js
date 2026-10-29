@@ -294,7 +294,8 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
     camera.updateMatrixWorld();camera.getWorldPosition(this.position);uCamPos.value.copy(this.position);
     const pixels=camera.projectionMatrix.elements[5]*this.engine.height*.5;review.fields.pixelScale.value=pixels;for(const t of this.geometryCanopies)t.pixelScale=pixels;
     const wind=G.windDir.value,speed=.7*G.windSpeed.value+1.5;uGustOffset.value.x+=wind.x*speed*dt;uGustOffset.value.y+=wind.y*speed*dt;
-    for(const type of this.types)type.update(this.position,camera);
+    // Native VegType's second argument is force, not camera.
+    for(const type of this.types){if(type instanceof GeometryCanopy)type.update(this.position,camera);else type.update(this.position);}
     this.grass.update(camera);
   }
   giantWindow(p){const t=this.canopies.find(t=>t.nearRange===GROVE.near);return this.heroes.map(h=>{let id=-1;for(let i=0;i<t.inst.count;i++)if(Math.abs(t.inst.px[i]-h.x)<.02&&Math.abs(t.inst.pz[i]-h.z)<.02){id=i;break;}let inPool=false;for(let k=0;k<t.near.count;k++)if(t.nearIds[k]===id)inPool=true;return {root:[h.x,h.z],distance:Math.hypot(p.x-h.x,p.y-t.inst.py[id],p.z-h.z),horizontal:Math.hypot(p.x-h.x,p.z-h.z),inPool,queryRadius:t.queryRadius,visualEnd:GROVE.near*1.14};});}

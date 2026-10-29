@@ -15,7 +15,7 @@ export class NativeRuntime {
     this.app = app; this.kind = kind; this.phase = 'loading'; this.running = false;
     this.events = []; this.callbacks = []; this.frames = []; this.errors = []; this.recording = false;
     this.timer = new FrameTimer(); this.loadedAt = null; this.lastCallback = null; this.lastSubmit = null;
-    this.inFlight = 0; this.targetFps = 60; this.frameToleranceMs = 1;
+    this.inFlight = 0; this.maximumInFlight = 2; this.targetFps = 60; this.frameToleranceMs = 1;
     this.cpu = {}; this.lastFrame = null; this.cancelled = false; this.lost = false;
     this.loaderStarted = performance.now();
     bindSceneReport(this,buildInfo);
@@ -227,7 +227,7 @@ export class NativeRuntime {
     // rAF timestamps jitter around display ticks. Compare with the last actual
     // submission, so an epoch boundary cannot create alternating25ms/8ms pairs.
     const tooSoon = this.lastSubmit !== null && t - this.lastSubmit < 1000 / this.targetFps - this.frameToleranceMs;
-    const reason = this.phase !== 'ready' ? this.phase : document.hidden ? 'hidden' : !this.running ? 'paused' : this.lost ? 'device-lost' : t >= this.deadline ? 'observation-deadline' : tooSoon ? 'frame-budget' : this.inFlight >= 2 ? 'gpu-backpressure' : null;
+    const reason = this.phase !== 'ready' ? this.phase : document.hidden ? 'hidden' : !this.running ? 'paused' : this.lost ? 'device-lost' : t >= this.deadline ? 'observation-deadline' : tooSoon ? 'frame-budget' : this.inFlight >= this.maximumInFlight ? 'gpu-backpressure' : null;
     const callback = { t, interval: callbackInterval, callbackStart, latenessMs: callbackStart - t, attempted: !reason, submitted: false, reason };
     if (this.recording) this.callbacks.push(callback);
     if (reason) { if (reason === 'observation-deadline' && this.running) this.stop(reason); return; }
@@ -239,9 +239,11 @@ export class NativeRuntime {
     catch (error) { this.fail(error); return; }
     this.inFlight++;
     // Asynchronous resource/backpressure bound, not a GPU timing measurement.
-    GPU.queue.onSubmittedWorkDone().then(() => this.inFlight--, error => { this.inFlight--; this.lost = true; this.fail(error); });
+    const completion=GPU.queue.onSubmittedWorkDone();
     callback.submitted = true;
     const row = { t, frame: GPU.frame, interval, dt, worldTime: G.time.value, camera: this.app.camera.position.toArray(), quaternion: this.app.camera.quaternion.toArray(), cpuFrameMs: performance.now() - start, cpu: { ...this.cpu } };
+    row.outstandingAtSubmission=this.inFlight;
+    completion.then(()=>{this.inFlight--;row.gpuCompletedAt=performance.now();row.queueCompletionDelayMs=row.gpuCompletedAt-start;},error=>{this.inFlight--;this.lost=true;this.fail(error);});
     this.lastFrame = row;
     if(this.videoRouteFrames)this.videoRouteFrames.push({elapsedMs:this.videoRouteTick*1000/30,tick:this.videoRouteTick,frame:GPU.frame,camera:row.camera,quaternion:row.quaternion,ground:this.app.terrainData?.heightAt(row.camera[0],row.camera[2])??null});
     if (this.recording) this.frames.push(row);
@@ -267,6 +269,8 @@ export class NativeRuntime {
       interactionEvents:this.events.filter(e=>['pointer-lock','pointer-lock-rejected','canvas-reenter','pause','resume'].includes(e.kind)).slice(-12),
       sceneConditions:{timeOfDay:a.settings.timeOfDay,windSpeed:G.windSpeed.value,exposure:a.settings.exposure,autoExposure:a.post?.autoExposure.enabled.value,filmGrain:a.post?.params.grain.value,sharpen:a.post?.params.sharpen.value,jitterMoving:a.post?.taau?.jitterMoving},
       renderScale: a.settings.renderScale, aaMode: a.post?.aaMode,
+      dynamicMuseumShadows:a.dynamicMuseumShadows?.stats()??null,
+      grassRootCache:a.vegetation?.grass?.rootCache?.stats()??null,
       antiAlias:a.post?{requested:a.post.aaMode,lookupTexturesReady:!!(a.post.aa.area&&a.post.aa.search),smaaBuilt:!!a.post.aa._smaa,actualPreFilter:a.post.aaMode==='smaataa'?(a.post.aa.area&&a.post.aa.search?'smaa':'fxaa fallback'):'none'}:null,
       systems: Object.fromEntries(['atmosphere', 'sky', 'clouds', 'environment', 'terrain', 'vegetation', 'shadows', 'fft', 'shoreSim', 'refraction', 'underwater', 'haze', 'post', 'game'].map(k => [k, !!a[k]])),
       animals: a.animals?.state() ?? [], lastFrame: this.lastFrame, errors: this.errors,
@@ -277,7 +281,7 @@ export class NativeRuntime {
       nativeScene: { scannedDebrisReady: a.debris?.scanned?.ready, renderStats: a.engine?.meshRenderer?.stats },
       loadMs: this.loadedAt === null ? null : this.loadedAt - this.loaderStarted,
       adapter: GPU.adapter?.info ? { vendor: GPU.adapter.info.vendor, architecture: GPU.adapter.info.architecture, device: GPU.adapter.info.device, description: GPU.adapter.info.description } : null,
-      timestampSupported: GPU.hasTimestamp, pendingQueries: this.timer.pending.size, scheduler: { targetFps: this.targetFps, timestampToleranceMs: this.frameToleranceMs, gate: 'elapsed-since-last-submission', maximumInFlight: 2, currentInFlight: this.inFlight },
+      timestampSupported: GPU.hasTimestamp, pendingQueries: this.timer.pending.size, scheduler: { targetFps: this.targetFps, timestampToleranceMs: this.frameToleranceMs, gate: 'elapsed-since-last-submission', maximumInFlight: this.maximumInFlight, currentInFlight: this.inFlight },
       sample:a.creekData?sampleState(a):null,
       slice: a.sliceState?.() ?? null,
       limitation: a.sliceState ? 'Connected museum island, nine habitats and native ocean/underwater chain. Inland SSR remains screen-limited; species-level palaeobotany, river caustics, marine gameplay and long-duration thermal stability need separate validation.' : 'Reference island with native museum animal compatibility; original museum creek, vegetation and inland water not migrated. Submitted frames do not measure compositor presentation.',
