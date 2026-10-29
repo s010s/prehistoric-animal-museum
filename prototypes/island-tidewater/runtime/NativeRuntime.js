@@ -6,6 +6,7 @@ import buildInfo from './build-info.json';
 import {bindSceneReport} from './SceneReport.js';
 import {bindSampleInspection,sampleState} from './SampleInspection.js';
 import {bindRevisionRoutes,prepareRevisionRoute,applyRevisionTick} from './RevisionRoutes.js';
+import {setPteranodonReview} from '../museum/PteranodonReview.js';
 
 const quantile = (a, q) => { const v = a.slice().sort((a, b) => a - b); return v.length ? v[Math.floor((v.length - 1) * q)] : null; };
 const pause = ms => new Promise(r => setTimeout(r, ms));
@@ -42,6 +43,8 @@ export class NativeRuntime {
     const speed=document.querySelector('#flight-speed');if(speed)speed.onchange=()=>{app.fly.speed=Number(speed.value);app.fly.velocity.set(0,0,0);this.event('flight-speed',{metresPerSecond:app.fly.speed,shiftMultiplier:6});this.publish();};
     const duration=document.querySelector('#duration');if(duration)duration.onchange=()=>{if(this.running){this.deadline=Number(duration.value)>0?performance.now()+Number(duration.value)*1000:Infinity;}this.event('observation-duration',{seconds:Number(duration.value)});this.publish();};
     const waterDebug=document.querySelector('#water-debug');if(waterDebug)waterDebug.onchange=()=>{if(this.phase!=='ready'||this.recording||this.measuring||this.walkingSample)return;for(const m of [app.water?.material,app.oceanMaterial])if(m?.debugMode)m.debugMode.value=Number(waterDebug.value);this.resetHistory();this.event('water-debug',{mode:Number(waterDebug.value)});this.publish();};
+    const wingReview=document.querySelector('#pteranodon-review');if(wingReview)wingReview.onchange=()=>{if(this.phase!=='ready'||this.recording||this.measuring||this.walkingSample||this.recordingVideo)return;this.pteranodonReview=setPteranodonReview(app,wingReview.value);this.resetHistory();this.resume();this.event('pteranodon-review',this.pteranodonReview);this.publish();};
+    for(const [id,apply] of [['grass-reuse',v=>{app.vegetation.grass.review.fields.enabled.value=v;}],['sample-ground-cover',v=>{app.creekData.appearance.review.fields.patchCover.value=v;}],['water-reuse',v=>{for(const m of [app.water?.material,app.oceanMaterial])m.depthReview.fields.skyReuse.value=v;}]]){const e=document.querySelector('#'+id);if(e)e.onchange=()=>{if(this.phase!=='ready'||this.measuring||this.recordingVideo)return;apply(e.checked?1:0);this.resetHistory();this.resume();this.event('work-reuse',{id,enabled:e.checked});this.publish();};}
     const grassDistance=document.querySelector('#grass-distance');if(grassDistance)grassDistance.onchange=()=>{if(this.phase!=='ready'||this.measuring||this.recordingVideo||this.recordingAudio||this.walkingSample)return;app.vegetation?.grass?.setFarRange(Number(grassDistance.value));this.resetHistory();this.event('grass-distance',{metres:Number(grassDistance.value)});this.resume();this.publish();};
     const grassVisible=document.querySelector('#grass-visible');if(grassVisible)grassVisible.onchange=()=>{app.vegetation?.grass?.setVisible(grassVisible.checked);this.resetHistory();this.publish();};
     const boundsAudit=document.querySelector('#grass-bounds-audit');if(boundsAudit)boundsAudit.onchange=()=>{app.vegetation?.grass?.setBoundsAudit(boundsAudit.checked);this.publish();};
@@ -155,6 +158,7 @@ export class NativeRuntime {
     for (const [key, method, label] of [
       ['animals', 'update', 'animals'], ['player', 'update', 'navigation'], ['fly', 'update', 'flyCamera'],
       ['terrain', 'update', 'terrain'], ['vegetation', 'update', 'vegetation'], ['debris', 'update', 'debris'],
+      ['sampleMuseumLife','update','museumLife'],['life','update','smallLife'],['habitatEnrichment','update','habitatPlants'],['landscapeDetails','update','benthicDetails'],['airMotes','update','airMotes'],
       ['clouds', 'update', 'clouds'], ['environment', 'update', 'environment'], ['fft', 'update', 'oceanFFT'],
       ['shoreSim', 'update', 'shoreSimulation'], ['sceneRenderer', 'render', 'sceneRenderInclusive'],
       ['shadows', 'render', 'shadows'], ['post', 'render', 'post'],
@@ -173,6 +177,8 @@ export class NativeRuntime {
   }
   resetHistory() {
     this.app.animals?.hold();
+    this.app.sampleMuseumLife?.hold();
+    this.app.life?.hold();
     if(this.app.haze)this.app.haze._histValid=false;
     this.app.clouds?.resetHistory?.();
     const temporal = this.app.post?.taau;
@@ -190,6 +196,7 @@ export class NativeRuntime {
   stop(reason) {
     if (this.recording) this.interruptedDuringTiming = true;
     this.running = false; this.app.audio?.setPaused?.(true).catch(e=>this.event('audio-state-error',{message:String(e)})); if (!this.lost && this.phase !== 'error') this.app.animals?.hold();
+    this.app.sampleMuseumLife?.hold();this.app.life?.hold();
     this.clearInput();
     if (document.pointerLockElement) document.exitPointerLock();
     this.event('pause', { reason, gpuFrame: GPU.frame, worldTime: G.time.value });
@@ -264,6 +271,9 @@ export class NativeRuntime {
       systems: Object.fromEntries(['atmosphere', 'sky', 'clouds', 'environment', 'terrain', 'vegetation', 'shadows', 'fft', 'shoreSim', 'refraction', 'underwater', 'haze', 'post', 'game'].map(k => [k, !!a[k]])),
       animals: a.animals?.state() ?? [], lastFrame: this.lastFrame, errors: this.errors,
       animalPassVisits: this.animalPassVisits, historyResetPending: a.post?.taau?._needsRestart,
+      pteranodonReview: this.pteranodonReview??{mode:'normal'},
+      sampleGroundCover:{...a.creekData?.appearance?.groundCover,weight:a.creekData?.appearance?.review.fields.patchCover.value??null},
+      waterReview:Object.fromEntries([['inland',a.water?.material],['ocean',a.oceanMaterial]].map(([k,m])=>[k,m?.depthReview?Object.fromEntries(Object.entries(m.depthReview.fields).map(([n,f])=>[n,f.value])):null])),
       nativeScene: { scannedDebrisReady: a.debris?.scanned?.ready, renderStats: a.engine?.meshRenderer?.stats },
       loadMs: this.loadedAt === null ? null : this.loadedAt - this.loaderStarted,
       adapter: GPU.adapter?.info ? { vendor: GPU.adapter.info.vendor, architecture: GPU.adapter.info.architecture, device: GPU.adapter.info.device, description: GPU.adapter.info.description } : null,
@@ -322,6 +332,7 @@ export class NativeRuntime {
     this.measuring = false;
     document.querySelector('#measure').disabled = false;
     document.querySelector('#status').textContent = result.passed ? `计时已保存 · 提交 ${result.submittedFps.toFixed(2)} FPS · GPU pass 区间 p50 ${result.gpuP50?.toFixed(2) ?? '不可用'} ms` : '计时中断或失败 · 原始记录已保存';
+    this.publish();
   }
   async walkSample() {
     if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample || this.recordingAudio || this.recordingVideo) return;
@@ -346,7 +357,7 @@ export class NativeRuntime {
       const after = this.state();
       const travel = points.reduce((sum, p, i) => i ? sum + Math.hypot(p.position[0] - points[i - 1].position[0], p.position[2] - points[i - 1].position[2]) : 0, 0);
       await this.save('observation', { kind: 'ordinary-native-walk', passed: complete && travel > 1, before, after, points, travelMetres: travel, events: this.events });
-    } finally { this.app.input?.keys.delete('KeyW'); this.walkingSample = false; }
+    } finally { this.app.input?.keys.delete('KeyW'); this.walkingSample = false; this.publish(); }
   }
   async recordVideo() {
     if(this.phase!=='ready'||this.recordingVideo||this.recordingAudio||this.recording||this.measuring||this.walkingSample)return;
@@ -358,7 +369,8 @@ export class NativeRuntime {
     const revisionRoute=prepareRevisionRoute(this,motion),durationMs=revisionRoute?.durationMs??12000;
     if(motion==='dive'&&(this.app.freeCam||this.app.player.mode!=='swim'))throw Error('请先进入水下观察，再记录上浮下潜');
     if(motion==='catchment'&&!this.app.creekData.field.continuousSample)throw Error('原版无样板水系航拍路线');
-    const button=document.querySelector('#record-video'),stream=canvas.captureStream(30),chunks=[];
+    const captureFps=revisionRoute?.wingFollow?60:30;
+    const button=document.querySelector('#record-video'),stream=canvas.captureStream(captureFps),chunks=[];
     this.recordingVideo=true;this.videoResult={status:'recording'};button.disabled=true;document.querySelector('#inspection')?.removeAttribute('open');
     if(['turn','pitch','aerial','approach','catchment'].includes(motion)&&!this.app.freeCam)this.app.setFreeCam(true);
     if(motion==='walk'&&this.app.freeCam){this.app.freeCam=false;this.app.dropPlayerAtCamera();}
@@ -375,7 +387,7 @@ export class NativeRuntime {
       const t=performance.now()-start,keys=this.app.input.keys;
       if(['walk','approach','aerial'].includes(motion)){keys.delete('KeyA');keys.delete('KeyD');keys.delete('KeyW');keys.delete('KeyS');if(t>2000&&t<10000&&this.running){keys.add(motion==='walk'?'KeyW':motion==='approach'?(t<6000?'KeyW':'KeyS'):t<6000?'KeyD':'KeyA');}}
       if(motion==='dive'){keys.delete('Space');keys.delete('KeyC');if(t>2000&&t<10000&&this.running)keys.add(t<6000?'Space':'KeyC');}
-      const life=this.app.life;motionPoints.push({elapsedMs:t,camera:this.app.camera.position.toArray(),quaternion:this.app.camera.quaternion.toArray(),running:this.running,grove:this.app.vegetation?.giantWindow?.(this.app.camera.position),life:life?{fish:life.frameSight.fish.length,shrimp:life.frameSight.shrimp.length,birds:life.frameSight.birds.length,examples:Object.fromEntries(Object.entries(life.frameSight).map(([k,v])=>[k,v.slice(0,2)]))}:null});
+      const life=this.app.life;motionPoints.push({elapsedMs:t,camera:this.app.camera.position.toArray(),quaternion:this.app.camera.quaternion.toArray(),running:this.running,grove:this.app.vegetation?.giantWindow?.(this.app.camera.position),museumActors:this.app.sampleMuseumLife?.stats().actors,life:life?{time:life.time,rigs:{pterosaurs:life.pterosaurs?.stats(),insect:life.insect?.stats(),benthos:life.benthos?.stats()},fish:life.frameSight.fish.length,shrimp:life.frameSight.shrimp.length,birds:life.frameSight.birds.length,examples:Object.fromEntries(Object.entries(life.frameSight).map(([k,v])=>[k,v.slice(0,2)]))}:null});
     },100);
     const recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:revisionRoute?6000000:4000000});
     const onHide=()=>{if(recorder.state!=='inactive')recorder.stop();};
@@ -389,7 +401,7 @@ export class NativeRuntime {
       const blob=new Blob(chunks,{type:mimeType}),bytes=new Uint8Array(await blob.arrayBuffer());
       if(bytes.length>32000000)throw Error('录像超过本地体积限制');
       let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
-      const saved=await this.save('video',{before,after:this.state(),motion,motionPoints,revisionRoute,routeFrames:this.videoRouteFrames??null,events:this.events,elapsedMs:performance.now()-start,mimeType,videoBase64:btoa(binary),captureFps:30,performanceEvidence:false});
+      const saved=await this.save('video',{before,after:this.state(),motion,motionPoints,revisionRoute,routeFrames:this.videoRouteFrames??null,events:this.events,elapsedMs:performance.now()-start,mimeType,videoBase64:btoa(binary),captureFps,performanceEvidence:false});
       this.videoResult={status:'saved',artifact:saved.artifact,bytes:bytes.length,motion};
       document.querySelector('#status').textContent='动态画面已保存 · 性能另行计时';
     } finally {

@@ -1,0 +1,6 @@
+Model license
+
+SPDX: CC-BY-4.0
+Name: Creative Commons Attribution 4.0 International
+URL: https://creativecommons.org/licenses/by/4.0/
+Redistribution allowed: true

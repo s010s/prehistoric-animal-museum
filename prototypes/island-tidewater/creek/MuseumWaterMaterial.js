@@ -14,9 +14,15 @@ fn museumUnderTerrain(P:vec3f,R:vec3f,sigT:vec3f,fallback:vec3f)->vec4f{
    let H=P+R*hi;let N=terrainNormalAt(H.xz);
    let detail=textureSampleLevel(terrainDetailTex,smpLinearRepeat,H.xz/3.5,1.0);
    let broad=textureSampleLevel(terrainDetailTex,smpLinearRepeat,H.xz/27.0,1.0);
-   let sand=mix(vec3f(.133,.113,.068),vec3f(.307,.263,.155),broad.z*.55+detail.y*.45);
-   let gravel=mix(vec3f(.073,.078,.064),vec3f(.188,.179,.126),detail.z);
-   let c=mix(sand,gravel,max(smoothstep(.1,.55,1.0-N.y),select(.6,0.0,P.y<1.0)));
+   // Match the lit coastal sand below the waterline. The old near-black
+   // receiver made shallow upward reflections look like a deep hole.
+   let sand=mix(vec3f(.34,.29,.21),vec3f(.57,.50,.38),broad.z*.55+detail.y*.45);
+   let gravel=mix(vec3f(.105,.108,.090),vec3f(.23,.22,.17),detail.z);
+   // Classify the reflected receiver through the continuous hydrology field.
+   // A height test on the water origin cut a straight colour seam where the
+   // descending creek crossed an absolute altitude of one metre.
+   let fluvial=museumInlandLightWeight(H.xz);
+   let c=mix(sand,gravel,max(smoothstep(.1,.55,1.0-N.y),.6*fluvial));
    let sun=frame.sunColor*max(dot(N,frame.sunDir),0.0)*terrainSunShadowAt(H);
    let depth=max(P.y-H.y,0.0);let lit=c*(frame.skyIrradiance+sun)*exp(-sigT*depth*1.2)*.72;
    let T=exp(-sigT*hi);let weight=1.0-smoothstep(32.0,58.0,hi);
@@ -36,7 +42,7 @@ fn museumUnderReflection(P:vec3f,R:vec3f,sigT:vec3f,fallback:vec3f)->vec4f{
 `});
 
 export class MuseumWaterMaterial extends WaterMaterial{
- constructor(options){super(options);this.depthReview=new UniformBlock('MuseumWaterReview',{pixelDepth:['f32',1],pathLegacy:['f32',0]});this.depthReviewModule=new ShaderModule({name:'museumWaterReview',uniforms:this.depthReview,uniformName:'museumWaterReview'});}
+ constructor(options){super(options);this.depthReview=new UniformBlock('MuseumWaterReview',{pixelDepth:['f32',1],pathLegacy:['f32',0],skyReuse:['f32',1]});this.depthReviewModule=new ShaderModule({name:'museumWaterReview',uniforms:this.depthReview,uniformName:'museumWaterReview'});}
  _build(){super._build();this.modules.push(shallowReflection,this.depthReviewModule);if(this.inlandField)this.modules.push(this.inlandField.module);
   if(this.isMuseumOcean){const helper=this.modules.find(m=>m.name==='waterHelpers');if(!helper||!helper.code.includes('frame.seaLevel'))throw Error('Pinned sea SSR seam changed');const local=new ShaderModule({name:'museumSeaWaterHelpers',deps:helper.deps,bindings:helper.bindings,code:helper.code.replaceAll('frame.seaLevel','y0').replace('k < 3','k < 7')});this.modules=this.modules.map(m=>m===helper?local:m);}
  }
@@ -47,7 +53,9 @@ export class MuseumWaterMaterial extends WaterMaterial{
   // river grids also cross banks: reject the buried sheet on BOTH faces. The
   // above-water thickness blend alone left its underside visible to divers.
   change('let footprint = max( length( fwidth( lagXZ ) ), 1e-4 );',`let footprint=max(length(fwidth(lagXZ)),1e-4);
- if(pos.y<terrainHeightAt(pos.xz)-.015){discard;}`);
+ let museumGroundH=terrainHeightAt(pos.xz);
+ if(pos.y<museumGroundH-.015){discard;}`);
+  change('let groundH = terrainHeightAt( pos.xz );','let groundH=museumGroundH;');
   if(this.isMuseumOcean){
    // Every material use of history (including suspended sand) must share the
    // presentation handover. Filtering only foam leaves a rectangular tint.
@@ -76,6 +84,11 @@ export class MuseumWaterMaterial extends WaterMaterial{
    change('let mss = ( 0.003 + frame.windSpeed * 0.00512 ) * waterSurface.slopeScale;','let mss=(.003+frame.windSpeed*.00512)*mix(waterSurface.slopeScale,.35,museumTransition);');
   }
   change('var dbgRefr = vec3f( 0.0 );','var dbgRefr=vec3f(0.0);var museumF=0.0;var museumReflect=vec4f(0.0);');
+  // At total internal reflection the entire transmitted term is exactly zero.
+  // Preserve the native sky path everywhere it can contribute, including the
+  // critical-angle transition; the local switch permits identical-build A/B.
+  change('let skyT = min( skyRadianceWithClouds( Td, true ), vec3f( 60.0 ) );',`var skyT=vec3f(0.0);
+ if(F<1.0||museumWaterReview.skyReuse<.5){skyT=min(skyRadianceWithClouds(Td,true),vec3f(60.0));}`);
   change('let Tt = refract( - V, N,', 'museumF=F;\n let Tt = refract( - V, N,');
   change('outCol = mix( transmittedU * ( 1.0 - F ) + deepCol * F, foamUnder, sat( foam ) * 0.7 );',`museumReflect=museumUnderReflection(pos+Rr*.03,Rr,sigT,deepCol);
   let reflected=mix(deepCol,museumReflect.rgb,museumReflect.a);

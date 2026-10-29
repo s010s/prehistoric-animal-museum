@@ -46,6 +46,21 @@ export async function writeBuildInfo() {
   for(const item of [...coast.outputs,...materials.assets]){const bytes=await readFile(new URL('creek/'+item.path,root));if(sha(bytes)!==item.sha256)throw Error('Museum coast/material changed: '+item.path);}
   const sample=JSON.parse(await readFile(new URL('creek/sample.lock.json',root),'utf8'));
   for(const item of sample.assets){if(sha(await readFile(new URL('creek/'+item.path,root)))!==item.sha256)throw Error('Authored sample asset changed: '+item.path);}
+  const reef=JSON.parse(await readFile(new URL('creek/vault-reef.lock.json',root),'utf8'));
+  for(const item of reef.assets){const bytes=await readFile(new URL('creek/'+item.path,root));if(bytes.length!==item.bytes||sha(bytes)!==item.sha256)throw Error('Vault reef asset changed: '+item.id);}
+  const habitat=JSON.parse(await readFile(new URL('creek/sample-habitat.lock.json',root),'utf8'));
+  for(const item of habitat.assets){
+    const path=item.path.replace(/^prototypes\/island-tidewater\//,''),bytes=await readFile(new URL(path,root));
+    if(bytes.length!==item.bytes||sha(bytes)!==item.sha256)throw Error('Vault habitat asset changed: '+item.id);
+  }
+  const sampleAnimals=JSON.parse(await readFile(new URL('creek/sample-animals.lock.json',root),'utf8'));
+  for(const animal of sampleAnimals.animals){
+    const bytes=await readFile(new URL(animal.derived,root));
+    if(bytes.length!==animal.bytes||sha(bytes)!==animal.sha256)throw Error('Sample museum animal changed: '+animal.id);
+    const metadata=await readFile(new URL(animal.metadata,root)),license=await readFile(new URL(animal.licenseFile,root));
+    if(metadata.length!==animal.metadataBytes||sha(metadata)!==animal.metadataSha256)throw Error('Sample museum animation metadata changed: '+animal.id);
+    if(license.length!==animal.licenseBytes||sha(license)!==animal.licenseSha256)throw Error('Sample museum attribution changed: '+animal.id);
+  }
   const info = { wholeIslandSha256:sha(Buffer.from(JSON.stringify(wholeIsland))),watershedSha256:sha(Buffer.from(JSON.stringify(watershed))),coastGeographySha256:sha(Buffer.from(JSON.stringify(coast))), originalMaterialsSha256:sha(Buffer.from(JSON.stringify(materials))), schema: 'museum-native-build-v1', sourceHash: source.digest('hex'), upstreamCommit: upstream.commit, upstreamFiles: upstream.files.length, upstreamUnmodified: true, dependencyLockSha256: sha(lock), animalConversionSha256: sha(Buffer.from(JSON.stringify(converted))), creekGeographySha256: sha(Buffer.from(JSON.stringify(creek))), sourceFiles: names };
   const text = JSON.stringify(info, null, 2) + '\n';
   const target = new URL('runtime/build-info.json', root);

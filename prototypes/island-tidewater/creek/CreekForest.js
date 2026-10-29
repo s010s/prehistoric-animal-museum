@@ -36,10 +36,27 @@ fn creekTemplateAlbedo(uv:vec2f,leaf:f32,shade:f32)->vec3f {
  let fan=vec3f(.095,.160,.043)*(.83+uv.y*.17)*shade;
  return select(bark,select(needle,fan,leaf>1.5),leaf>.5);
 }
-fn creekTreeWind(base:vec3f,hf:f32,H:f32,seed:f32,t:f32)->vec3f{
- let w=vegWindStrength()*museumCanopy.wind;let g=vegGustAt(base.xz);let ph=seed*6.2832;
- let sway=(w*w*0.009*(g*0.8+0.3)+sin(t*0.9+ph)*w*0.0045*(g+0.4))*H*hf*hf;
+fn creekTreeWindG(hf:f32,H:f32,seed:f32,g:f32,t:f32)->vec3f{
+ let w=vegWindStrength()*museumCanopy.wind;let ph=seed*6.2832;
+ // Trunks bend from the root. At the sample's 3.2 m/s wind, the inherited
+ // 0.009/0.0045 coefficients moved a 15 m crown only a few centimetres.
+ let sway=(w*w*.023*(g*.8+.3)+sin(t*.9+ph)*w*.009*(g+.4))*H*hf*hf;
  return vegWindDir3()*sway;
+}
+// The atlas ray's reconstructed hit calls the original five-argument seam.
+fn creekTreeWind(base:vec3f,hf:f32,H:f32,seed:f32,t:f32)->vec3f{
+ return creekTreeWindG(hf,H,seed,vegGustAt(base.xz),t);
+}
+fn creekLeafWind(rest:vec3f,base:vec3f,hf:f32,H:f32,seed:f32,leaf:f32,g:f32,t:f32)->vec3f{
+ let trunk=creekTreeWindG(hf,H,seed,g,t);
+ let w=vegWindStrength()*museumCanopy.wind;
+ let tip=smoothstep(.28,.92,hf)*min(leaf,1.0);
+ // Low spatial frequency keeps the vertices of a spray together, while
+ // neighbouring shoots and fan leaves turn at slightly different phases.
+ let q=rest-base;let ph=seed*6.2832+q.x*.18+q.z*.23+q.y*.11;
+ let branch=sin(t*1.65+ph)*w*(.18+H*.008)*(.38+.62*g)*tip;
+ let flutter=sin(t*4.4+ph*2.1)*w*.052*tip;
+ return trunk+vegWindDir3()*branch+vegWindPerp3()*flutter;
 }
 fn creekNeedleSample(uv:vec2f)->vec4f{return textureSample(creekNeedles,smpAnisoRepeat,uv);}
 fn creekNeedleVisible(uv:vec2f,P:vec3f,V:vec3f)->bool{
@@ -121,9 +138,10 @@ fn creekRootNormal(p:vec3f,base:vec3f,n:vec3f,wood:f32,seed:f32)->vec3f{
  let variant=creekVariant(v.iDat.w);let keep=select(0.0,1.0,abs(v.aMat.w-variant)<0.1);
  let base=v.iPos.xyz;let d=length(vegParams.camPos-base);let nd=museumNear(v.iDat.w);let limit=select(nd*(1.0+VEG_LOD_BAND/2.0),nd*1.5,museumCanopy.mode==1.0);let vis=select(0.0,1.0,d<limit&&museumCanopy.mode!=2.0&&(museumCanopy.solo<.5||distance(base.xz,museumCanopy.probeXZ)<.05));
  let p=(v.model*vec4f(v.position,1.0)).xyz;
- let offset=creekTreeWind(base,v.aVeg.x,v.iDat.z,v.iDat.w,frame.time);
+ let gust=vegGustAt(base.xz);
+ let offset=creekLeafWind(p,base,v.aVeg.x,v.iDat.z,v.iDat.w,v.aMat.x,gust,frame.time);
  v.useWorld=true;v.worldPos=base+(creekRootContact(p+offset,base,v.aMat.x,v.iDat.w)-base)*keep*vis;v.worldNormal=creekRootNormal(p+offset,base,vegInstanceNormal(v.model,v.normal),v.aMat.x,v.iDat.w);
- v.prevWorldPos=base+(creekRootContact(p+creekTreeWind(base,v.aVeg.x,v.iDat.z,v.iDat.w,frame.time-frame.dt),base,v.aMat.x,v.iDat.w)-base)*keep*vis;
+ v.prevWorldPos=base+(creekRootContact(p+creekLeafWind(p,base,v.aVeg.x,v.iDat.z,v.iDat.w,v.aMat.x,gust,frame.time-frame.dt),base,v.aMat.x,v.iDat.w)-base)*keep*vis;
  o.vMat=v.aMat;o.vSeed=v.iDat.w;o.vDistance=d;o.vRoot=base;`,surface:`
  let leafKind=in.vs.vMat.x;let leaf=min(leafKind,1.0);let needlesVisible=creekNeedleVisible(in.uv,in.P,in.V);if(leafKind>0.5 && leafKind<1.5 && !needlesVisible){discard;}
  let fade=select(smoothstep(museumNear(in.vs.vSeed)*(1.0-VEG_LOD_BAND/2.0),museumNear(in.vs.vSeed)*(1.0+VEG_LOD_BAND/2.0),in.vs.vDistance),0.0,museumCanopy.mode==1.0);
@@ -141,6 +159,8 @@ fn creekRootNormal(p:vec3f,base:vec3f,n:vec3f,wood:f32,seed:f32)->vec3f{
     far.vertex=far.vertex.replace(thinSeam,'let thin = smoothstep(140.0,320.0,d)*museumCanopy.thinning;')
       .replace('d >= ( museumTreeFar(iDat.z,iDat.w,iDat.y) ) * ( 1.0 - VEG_LOD_BAND / 2.0 )','museumCanopy.mode!=1.0 && (museumCanopy.mode==2.0 || d >= museumTreeFar(iDat.z,iDat.w,iDat.y)*(1.0-VEG_LOD_BAND/2.0))')
       .replace('let w = vegWindStrength();','let w = vegWindStrength()*museumCanopy.wind;')
+      .replace('let swayV = vegWindDir3() * sway;','let swayV = creekTreeWindG(.45,iDat.z,iDat.w,g,frame.time);')
+      .replace('v.worldPos=posed+creekTreeWind(base,hf,iDat.z,iDat.w,frame.time);','v.worldPos=posed+creekTreeWindG(hf,iDat.z,iDat.w,g,frame.time);')
       .replace('let k = s * vis * keep;','let isolate=select(0.0,1.0,museumCanopy.solo<.5||distance(base.xz,museumCanopy.probeXZ)<.05);let k=s*vis*keep*isolate;');
     far.surface=far.surface.replace('let fade = smoothstep( nd * ( 1.0 - VEG_LOD_BAND / 2.0 ), nd * ( 1.0 + VEG_LOD_BAND / 2.0 ), length( vegParams.camPos - base ) );','let fade = select(smoothstep(nd*(1.0-VEG_LOD_BAND/2.0),nd*(1.0+VEG_LOD_BAND/2.0),length(vegParams.camPos-base)),1.0,museumCanopy.mode==2.0);');
     // Atlas A is original linear RGB/coverage, B is oct-normal/leaf/crown exposure. Never
@@ -162,7 +182,7 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
  let oldToCam=normalize(frame.prevCameraPos-oldCs);let oldRight=normalize(cross(VEG_UP,oldToCam)+vec3f(1e-4,0.0,0.0));let oldUp=cross(oldToCam,oldRight);
  let oldTy=abs(oldToCam.y);let oldH=(Hv*sy*sqrt(max(1.0-oldTy*oldTy,0.0))+Rh*oldTy)*oldK;
  let oldP=oldCs+oldRight*(p.x*Rh*oldK)+oldUp*(p.y*oldH);
- v.prevWorldPos=oldP+creekTreeWind(base,clamp((oldP.y-base.y)/max(iDat.z,.01),0.0,1.15),iDat.z,iDat.w,frame.time-frame.dt);`;
+ v.prevWorldPos=oldP+creekTreeWindG(clamp((oldP.y-base.y)/max(iDat.z,.01),0.0,1.15),iDat.z,iDat.w,g,frame.time-frame.dt);`;
     far.output+=`
 #if PASS_MAIN
  let ip=in.vs.vIPos4;let id=in.vs.vIDat;let sy=abs(id.y);let yaw=id.x;
@@ -173,8 +193,9 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
  let rest=ip.xyz+vec3f(local.x*cos(yaw)+local.z*sin(yaw),local.y,local.z*cos(yaw)-local.x*sin(yaw));
  let oldRest=ip.xyz+vec3f(oldLocal.x*cos(yaw)+oldLocal.z*sin(yaw),oldLocal.y,oldLocal.z*cos(yaw)-oldLocal.x*sin(yaw));
  let hf=clamp((rest.y-ip.y)/max(id.z,.01),0.0,1.15);let oldHf=clamp((oldRest.y-ip.y)/max(id.z,.01),0.0,1.15);
- let now=frame.viewProjNoJitter*vec4f(rest+creekTreeWind(ip.xyz,hf,id.z,id.w,frame.time),1.0);
- let old=frame.prevViewProjNoJitter*vec4f(oldRest+creekTreeWind(ip.xyz,oldHf,id.z,id.w,frame.time-frame.dt),1.0);
+ let motionG=vegGustAt(ip.xyz.xz);
+ let now=frame.viewProjNoJitter*vec4f(rest+creekTreeWindG(hf,id.z,id.w,motionG,frame.time),1.0);
+ let old=frame.prevViewProjNoJitter*vec4f(oldRest+creekTreeWindG(oldHf,id.z,id.w,motionG,frame.time-frame.dt),1.0);
  r.velocity=vec4f((now.xy/now.w-old.xy/old.w)*vec2f(.5,-.5),0.0,1.0);
 #endif`;
     // Keep three-view reconstruction throughout the near approach. Blend to
@@ -204,6 +225,13 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
     const speciesNames=['高针叶','疏冠针叶','扇叶树形','矮针叶','古杉巨木'];
     for(const original of sourceRecords){let choice=pilotVegetation(original.x,original.z,original.seed);
       if(field.continuousSample&&sampleForestWeight(original.x,original.z)>.25)continue;
+      // The inherited scatter predates this strand's sand cover. Two tall
+      // roots at (-819,47) and (-805,43) stood alone on the mobile sand;
+      // apply the same dry, vegetated-shoulder gate as the new forest edge.
+      if(field.continuousSample&&original.x>-870&&original.x<-760&&original.z>0&&original.z<110){
+        const f=field.sample(original.x,original.z),h=terrain.heightAt(original.x,original.z);
+        if(h<Math.max(f[0]+3,7)&&f[1]<30)continue;
+      }
       if(field.continuousSample&&field.continuousSample.weight(original.x,original.z)>.05){const f=field.sample(original.x,original.z);if(f[1]<3||terrain.heightAt(original.x,original.z)<f[0]+.8)continue;}
       const edge=groveWeight(original.x,original.z);
       if(edge>.05&&(grovePathDistance(original.x,original.z)<6.0||groveOpening(original.x,original.z)>.85||heroes.some(h=>Math.hypot(original.x-h.x,original.z-h.z)<13)))continue;
@@ -231,7 +259,7 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
     this.canopies=[makeCanopy('museum conifers',records.filter(r=>r.variant<2),nearGeometry),... [2,3,4].map(i=>makeCanopy('museum '+speciesNames[i],records.filter(r=>r.variant===i),variants[i],i===4?190:RANGE))];
     this.canopy=this.canopies[0];this.types=[...this.canopies];
     const middleTemplates=[coniferTemplate(3,0,null,null,1),coniferTemplate(11,1,null,null,1),templates[2],coniferTemplate(87,3,null,null,1),coniferTemplate(141,2,null,null,1)];
-    this.canopyShadows=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}]);const items=field.continuousSample?records.filter(r=>hasFixedCanopyShadow(r)&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i):[];return new CanopyShadows('museum depth-only '+speciesNames[i],items,geometry,shadowMaterial);});
+    this.canopyShadows=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}]);const items=field.continuousSample?records.filter(r=>hasFixedCanopyShadow(r)&&r.castsFixedShadow!==false&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i):[];return new CanopyShadows('museum depth-only '+speciesNames[i],items,geometry,shadowMaterial);});
     this.types.push(...this.canopyShadows);for(const type of this.canopyShadows)for(const mesh of type.meshes)this.group.add(mesh);
     this.geometryCanopies=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}]);const items=records.filter(r=>r.stableGeometry&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i);return new GeometryCanopy('museum middle '+speciesNames[i],items,geometry,mid,canopyBounds(geometry));});
     this.types.push(...this.geometryCanopies);for(const type of this.geometryCanopies)for(const mesh of type.meshes){mesh.renderOrder=1;mesh.underwaterLighting='none';mesh.material.underwaterLighting='none';this.group.add(mesh);}

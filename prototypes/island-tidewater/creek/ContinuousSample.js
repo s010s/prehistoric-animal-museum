@@ -14,19 +14,30 @@ export const SAMPLE = {
     [-645,-496,54.75,.30,.10],[-649,-491,53.40,.45,.12],
     [-654,-486,52.55,.85,.25],[-656,-482,52.50,2.65,.95],
     [-665,-472,52.35,1.10,.28],[-686,-448,50.80,1.25,.38],
-    [-714,-405,46.80,1.70,.56],[-719,-348,39.90,1.35,.42],
-    [-698,-282,31.70,2.30,.78],[-730,-220,24.10,1.80,.40],
-    [-751,-160,18.20,2.70,.76],[-730,-100,13.60,2.10,.42],
-    [-744,-33,8.80,3.30,.68],[-777,20,4.70,3.70,.85],
-    [-799,75,1.40,4.80,1.00],[-831,108,.30,6.00,1.25],
-    [-858,123,-.45,9.00,1.50],[-900,130,-.70,13.00,1.85],
-    [-962,146,-.70,18.00,2.90],[-1110,170,-.70,25.00,6.00],
-    [-1240,180,-.70,38.00,10.00],
+    // The spring stays a fine ribbon. Farther down, alternation between
+    // wider scour pools and narrower runs gives fish a usable water column
+    // while retaining shallow margins and a continuous descending bed.
+    [-714,-405,46.80,3.40,1.40],[-719,-348,39.90,3.15,1.25],
+    [-698,-282,31.70,4.80,1.85],[-730,-220,24.10,4.60,1.55],
+    [-751,-160,18.20,6.30,2.20],[-730,-100,13.60,5.80,1.65],
+    [-744,-33,8.80,7.80,2.30],[-777,20,4.70,9.00,2.50],
+    [-799,75,1.40,11.20,2.50],[-831,108,.30,13.80,2.35],
+    [-858,123,-.45,15.50,2.05],[-900,130,-.70,20.00,2.25],
+    [-962,146,-.70,25.00,2.55],[-1110,170,-.70,29.00,1.65],
+    [-1240,180,-.70,36.00,.55],
   ],
 };
 export const smooth = (a,b,v) => {const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 const mix=(a,b,t)=>a+(b-a)*t, f=n=>Number(n).toFixed(7);
 const cat=(a,b,c,d,t)=>b+.5*t*(c-a+t*(2*a-5*b+4*c-d+t*(3*(b-c)+d-a)));
+const flowSpeed=(grade,width,depth,distance)=>{
+  const run=Math.max(.14,Math.min(.85,.18+grade*3));
+  // An authored downstream supply grows with the catchment. Relative to a
+  // narrow run, the same reach's larger submerged section moves more slowly
+  // through a deep pool; the precise spring velocities remain unchanged.
+  const pool=Math.max(.12,Math.min(run,(.8+distance*.014)/Math.max(.1,width*depth*1.4)));
+  return mix(run,pool,smooth(78,180,distance));
+};
 
 export function createContinuousSample() {
   const controls=SAMPLE.sections, points=[],bins=new Map(),cell=32;
@@ -37,7 +48,7 @@ export function createContinuousSample() {
     for(let j=0;j<steps;j++){
       const t=j/steps,level=mix(b[2],c[2],t),width=mix(b[3],c[3],smooth(0,1,t)),depth=mix(b[4],c[4],smooth(0,1,t));
       const p={x:i<7?mix(b[0],c[0],t):cat(a[0],b[0],c[0],d[0],t),z:i<7?mix(b[1],c[1],t):cat(a[1],b[1],c[1],d[1],t),level,width:i<7?mix(b[3],c[3],t):width,depth};
-      if(points.length){const q=points.at(-1),ds=Math.hypot(p.x-q.x,p.z-q.z),grade=Math.max(0,(q.level-level)/Math.max(ds,.001));length+=ds;travel+=ds/Math.max(.14,Math.min(.85,.18+grade*3));}
+      if(points.length){const q=points.at(-1),ds=Math.hypot(p.x-q.x,p.z-q.z),grade=Math.max(0,(q.level-level)/Math.max(ds,.001));length+=ds;travel+=ds/flowSpeed(grade,p.width,p.depth,length);}
       p.distance=length;p.travel=travel;points.push(p);
     }
   }
@@ -53,7 +64,7 @@ export function createContinuousSample() {
     const ids=bins.get(Math.floor(x/cell)+','+Math.floor(z/cell));if(!ids)return null;
     let best=null,bestD=Infinity;
     for(const i of ids){const a=points[i-1],b=points[i],dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),qx=a.x+dx*t,qz=a.z+dz*t,dist=Math.hypot(x-qx,z-qz);if(dist>=bestD)continue;bestD=dist;const inv=1/Math.sqrt(L2);
-      best={x:qx,z:qz,level:mix(a.level,b.level,t),width:mix(a.width,b.width,t),depth:mix(a.depth,b.depth,t),distance:mix(a.distance,b.distance,t),travel:mix(a.travel,b.travel,t),dist,across:((x-qx)*dz-(z-qz)*dx)*inv,dir:[dx*inv,dz*inv],grade:Math.max(0,(a.level-b.level)*inv)};
+      best={i,x:qx,z:qz,level:mix(a.level,b.level,t),width:mix(a.width,b.width,t),depth:mix(a.depth,b.depth,t),distance:mix(a.distance,b.distance,t),travel:mix(a.travel,b.travel,t),dist,across:((x-qx)*dz-(z-qz)*dx)*inv,dir:[dx*inv,dz*inv],grade:Math.max(0,(a.level-b.level)*inv)};
     }return best;
   };
   // Exact sub-metre spring support; its first 56m is monotone in Z. The
@@ -76,7 +87,7 @@ export function createContinuousSample() {
   for(let j=0;j<SAMPLE.res;j++)for(let i=0;i<SAMPLE.res;i++){
     const x=origin[0]+(i+.5)*2,z=origin[1]+(j+.5)*2,r=nearest(x,z),k=(j*SAMPLE.res+i)*4;
     if(!r){bytes.set([SAMPLE.sea,10000,0,0],k);continue;}
-    const speed=Math.min(.85,.18+r.grade*3);bytes.set([r.level,r.dist-r.width,r.dir[0]*speed,r.dir[1]*speed],k);
+    const speed=flowSpeed(r.grade,r.width,r.depth,r.distance);bytes.set([r.level,r.dist-r.width,r.dir[0]*speed,r.dir[1]*speed],k);
   }
   const sample=(x,z,out=[0,0,0,0])=>{
     const fine=fineAt(x,z);if(fine&&fine[4]===1&&z<=-456){for(let c=0;c<4;c++)out[c]=fine[c];return out;}
@@ -87,22 +98,46 @@ export function createContinuousSample() {
   const weight=(x,z)=>{const r=nearest(x,z);if(!r)return 0;return (1-smooth(r.width+38,r.width+108,r.dist))*(1-smooth(480,504,Math.max(Math.abs(x+1024),Math.abs(z+160))));};
   const sculpt=(x,z,old)=>{
     const r=nearest(x,z);if(!r)return old;const w=weight(x,z);if(w<=0)return old;
-    const water=sample(x,z),lateral=Math.max(0,r.dist-r.width),asym=r.across<0?1.0:.67;
-    const channel=Math.max(0,1-(1+water[1]/Math.max(.2,r.width))**2),thalweg=water[0]-r.depth*(.22+.78*channel);
-    const bank=water[0]+.10+Math.min(11,lateral*(.29+asym*.12));
-    let target=mix(thalweg,bank,smooth(-.25,.75,water[1]));
+    const water=sample(x,z),lateral=Math.max(0,r.dist-r.width);
+    // The valley shoulders can rise far from the upper stream. Once its
+    // gradient eases into the strand, that broad influence must contract or
+    // it raises a sawtooth berm across the open beach.
+    const coastProgress=1-smooth(4,12,r.level);
+    const before=points[Math.max(0,r.i-8)],after=points[Math.min(points.length-1,r.i+8)];
+    const curvature=(r.dir[0]*(after.z-r.z)-r.dir[1]*(after.x-r.x))-(r.dir[0]*(r.z-before.z)-r.dir[1]*(r.x-before.x));
+    const bend=Math.max(-1,Math.min(1,curvature/3));
+    const across=r.across/Math.max(.2,r.width),bar=Math.max(0,Math.min(1,1-Math.abs(across)));
+    const channel=Math.max(0,1-(across-bend*.22)**2),thalweg=water[0]-r.depth*(.18+.82*channel)+bar*bend*across*.12;
+    // Sand banks flatten into the tidal reach before the stream reaches sea
+    // level. Keeping the upstream .30 bank slope all the way to the mouth
+    // made a knife-edge on either side of the shallow swash sheet.
+    const tidalReach=1-smooth(.2,1.6,r.level);
+    const bankSlope=mix(.30+Math.sign(r.across)*bend*.075,.085+Math.sign(r.across)*bend*.018,tidalReach);
+    const bankRise=mix(mix(11,2.5,coastProgress),.62,tidalReach);
+    const bank=water[0]+mix(.12,.05,tidalReach)+Math.min(bankRise,lateral*bankSlope);
+    // The channel must shoal *inside* its wet edge. Putting the wider blend
+    // outside that edge left a deep bed under an abruptly clipped river mesh,
+    // seen from walking height as a long triangular dry-water boundary.
+    let target=mix(thalweg,bank,smooth(mix(-.25,-4.2,tidalReach),mix(.75,.5,tidalReach),water[1]));
     for(const control of SAMPLE.channelControls){const [cx,cz,rx,rz,depth]=control.scour;const shape=Math.exp(-(((x-cx)/rx)**2+((z-cz)/rz)**2));target-=depth*shape*(1-smooth(-.2,1.0,water[1]));}
-    if(r.level<=SAMPLE.sea+.01){
-      // A submerged channel opens into the existing shelf; no raised berm.
-      target=Math.min(old,water[0]-r.depth*Math.max(.12,1-(r.dist/Math.max(1,r.width*1.6))**2));
-    }
+    // The ebb channel loses its identity across the shallow shelf. The old
+    // branch carved every dry bank within the broad terrain feather and then
+    // kept deepening for hundreds of metres, making two square mouth corners
+    // and a dark, parallel-sided hole when seen from above.
+    const marine=1-smooth(SAMPLE.sea+.02,SAMPLE.sea+.55,r.level);
+    const ebb=1-smooth(760,930,r.distance);
+    const seaCore=1-smooth(r.width*.80,r.width+11,r.dist);
+    const seaBed=Math.min(old,water[0]-r.depth*ebb*Math.max(.10,1-(r.dist/Math.max(1,r.width*1.7))**2));
+    target=mix(target,seaBed,marine);
+    const coastReach=1-smooth(r.width+12,r.width+mix(108,32,coastProgress),r.dist);
+    const effectiveWeight=w*mix(1,coastReach,coastProgress)*mix(1,seaCore*ebb,marine);
     // Broad irregular bedrock shoulders; centimetre grit stays in the
     // filtered material, never in incompatible physical sampling grids.
     const shoulder=(Math.sin(x*.043+z*.017)+Math.sin(z*.029-x*.011))*.32;
     target+=shoulder*smooth(2,9,lateral);
     const sourceBack=1-smooth(-510,-504,z);
     if(Math.abs(x+642)<12&&z>-525&&z< -504)target=Math.max(target,55.4+sourceBack*3.6);
-    return mix(old,target,w);
+    return mix(old,target,effectiveWeight);
   };
   const fineWGSL=fineControls.slice(1).map((b,i)=>{
     const a=fineControls[i],n=Math.hypot(b[0]-a[0],b[1]-a[1]),s=Math.min(.85,.18+Math.max(0,(a[2]-b[2])/n)*3);

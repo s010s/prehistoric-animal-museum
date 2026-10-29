@@ -233,7 +233,7 @@ fn waterSurfaceFragment(lagXZ:vec2f,footprint:f32,depth:f32,vertexFoam:f32,shore
  let bandA=1.0-smoothstep(0.1,0.6,footprint);let bandB=1.0-smoothstep(0.035,0.18,footprint);let bandC=1.0-smoothstep(0.012,0.065,footprint);
  let sheet=smoothstep(0.12,0.8,length(grad))*creekSheetFlag();
  let thread=creekNoise(uv*vec2f(13.0,0.65)+vec2f(21.0,8.0));
- let rip=waterSurface.rippleScale*smoothstep(.5,2.0,f.x-frame.seaLevel)*(a.yz*0.017*bandA+b.yz*0.010*bandB+c.yz*0.004*bandC+thread.yz*vec2f(.045,.009)*sheet*bandB)*mix(0.55,1.0,smoothstep(0.1,0.7,speed));
+ let rip=waterSurface.rippleScale*(.35+.65*smoothstep(.4,2.0,f.x-frame.seaLevel))*(a.yz*0.017*bandA+b.yz*0.010*bandB+c.yz*0.004*bandC+thread.yz*vec2f(.045,.009)*sheet*bandB)*mix(0.55,1.0,smoothstep(0.1,0.7,speed));
  let len=length(f.zw);let along=normalize(f.zw+vec2f(1e-4));let across=vec2f(along.y,-along.x);
  let slopes=grad+across*rip.x+along*rip.y;
  let mapUV=(lagXZ-vec2f(-72.0,-96.0))/96.0;
@@ -251,6 +251,9 @@ fn waterSurfaceFragment(lagXZ:vec2f,footprint:f32,depth:f32,vertexFoam:f32,shore
  // Resolve bubbles near the visitor; distant fractional foam coverage must
  // not expose the repeating texture as rows of separate bright dots.
  let lace=mix(smoothstep(.40,.76,cells.r)*(.7+.3*cells.a),.28,smoothstep(.08,.3,footprint));
+ // The river sheet meets the native ShoreSim swash here. A second bank-foam
+ // noise field formed round white spots on the shallow mouth instead of a
+ // draining wave front; rapids and impact foam remain upstream.
  let foam=clamp((rapid*.36+landing*1.1+riffle*.12)*lace+cells.g*landing*.22,0.0,.78);
  var r:WaterSurfaceFrag;r.normal=normalize(vec3f(-slopes.x,1.0,-slopes.y));r.foam=foam;r.coverage=1.0;r.slopes=slopes;r.jacobian=1.0;r.rough=0.35;r.aeration=rapid*0.15;r.gust=0.0;r.slick=0.0;return r;
 }`});

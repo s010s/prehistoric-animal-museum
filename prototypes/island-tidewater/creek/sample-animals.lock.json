@@ -1,0 +1,141 @@
+{
+  "schema": "museum-sample-animals-v1",
+  "sourceCollection": "museum mainCollection (36 entries)",
+  "sourceRevision": "dbe71900",
+  "conversion": "tools/prepare-sample-animals.mjs",
+  "animals": [
+    {
+      "id": "lystrosaurus",
+      "source": "src/content/animals/lystrosaurus/model/model.glb",
+      "sourceSha256": "f3edc52dc7bbfec681cb7b30b8246f65b84f2980b6bd04f8eee46e5f6a62551a",
+      "sourceBytes": 339248,
+      "sourceRevision": "dbe71900",
+      "derived": "museum/assets/sample-lystrosaurus.glb",
+      "sha256": "ffbfe8df826c7abebd66efca7d9b0d3cb7477480b4b09d742803d01019642b12",
+      "bytes": 2059460,
+      "metadata": "museum/assets/sample-lystrosaurus.json",
+      "metadataSha256": "3adf0ea96564037bfbfc30901626e90e5c517ddd16be49ea30688980ef39bb75",
+      "metadataBytes": 6721,
+      "license": "CC-BY-4.0",
+      "licenseFile": "notices/sample-lystrosaurus-license.txt",
+      "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+      "licenseBytes": 163,
+      "author": "seth the yutyrannus",
+      "sourceUrl": "https://sketchfab.com/3d-models/lystrosaurus-32ea6a3bedd948638f9add8da7483b28",
+      "changes": "Meshopt decoded; quantization removed; images decoded losslessly to PNG; original skeleton, meshes, materials and clip channels retained. Runtime merges palettes and pieces without flattening animation.",
+      "geometry": {
+        "vertices": 14161,
+        "meshNodes": 1,
+        "skins": 1
+      },
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 210
+        }
+      ]
+    },
+    {
+      "id": "parasaurolophus",
+      "source": "src/content/animals/parasaurolophus/model/model.glb",
+      "sourceSha256": "c1290e59f4ce65246ee964dbf4b435ec49df5fb6d4b2d222bb54f4527d3b438e",
+      "sourceBytes": 2396824,
+      "sourceRevision": "dbe71900",
+      "derived": "museum/assets/sample-parasaurolophus.glb",
+      "sha256": "c5d03b114fafb53a8a595d72dd737803b28c80d177dc95cf4ac435ecdb97b2f4",
+      "bytes": 2484276,
+      "metadata": "museum/assets/sample-parasaurolophus.json",
+      "metadataSha256": "3f1fd6275f4db3ba93990c643957117a0f4ad4dc036fa236105e44fddfcc76de",
+      "metadataBytes": 12603,
+      "license": "CC-BY-4.0",
+      "licenseFile": "notices/sample-parasaurolophus-license.txt",
+      "licenseSha256": "1c327a723c35cb1ab39f1668a19e9e49d44d3ec941ae5df487ef02ad7cba0979",
+      "licenseBytes": 336,
+      "author": "htqj寒潭秋镜",
+      "sourceUrl": "https://sketchfab.com/3d-models/parasaurolophus-0f25fa4a55ba48c88adef066161f5e83",
+      "changes": "Meshopt decoded; quantization removed; images decoded losslessly to PNG; original skeleton, meshes, materials and clip channels retained. Runtime merges palettes and pieces without flattening animation.",
+      "geometry": {
+        "vertices": 12886,
+        "meshNodes": 3,
+        "skins": 1
+      },
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 174
+        },
+        {
+          "name": "Walk",
+          "duration": 8,
+          "channels": 174
+        }
+      ]
+    },
+    {
+      "id": "pteranodon",
+      "source": "src/content/animals/pteranodon/model/model.glb",
+      "sourceSha256": "abcde65b2ea29c6ae86d8232a5e1a604b05099deb34cebfb30495aff53f61af1",
+      "sourceBytes": 3819812,
+      "sourceRevision": "dbe71900",
+      "derived": "museum/assets/sample-pteranodon.glb",
+      "sha256": "d6218fd1ddfe605a5ad71acf048b8572858a1c7f02d4ed58656ee7576a73f209",
+      "bytes": 6845436,
+      "metadata": "museum/assets/sample-pteranodon.json",
+      "metadataSha256": "f4582f42bc3ef3f2651902ced7a8d0e5dfe5dc1666ff982fed8d661fd6f2b1f7",
+      "metadataBytes": 9434,
+      "license": "CC-BY-4.0",
+      "licenseFile": "notices/sample-pteranodon-license.txt",
+      "licenseSha256": "c921e5b41307d833e0117c304f4c4224c23cb0e927cb8d796661c6e4b003b35d",
+      "licenseBytes": 938,
+      "author": "Chistodrako._. / Oscar López Riviello",
+      "sourceUrl": "https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b",
+      "changes": "Meshopt decoded; quantization removed; images decoded losslessly to PNG; original skeleton, meshes, materials and clip channels retained. Runtime merges palettes and pieces without flattening animation.",
+      "geometry": {
+        "vertices": 7838,
+        "meshNodes": 1,
+        "skins": 1
+      },
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 10.666666984558105,
+          "channels": 375
+        }
+      ]
+    },
+    {
+      "id": "ichthyosaur",
+      "source": "src/content/animals/ichthyosaur/model/model.glb",
+      "sourceSha256": "226f5f6055656f10498c641f0aa5a124dcfffc228d945b0f7484bfd480817f31",
+      "sourceBytes": 5737920,
+      "sourceRevision": "dbe71900",
+      "derived": "museum/assets/sample-ichthyosaur.glb",
+      "sha256": "80e4a8d655ed5f5d3d4d49f36b1cbddb86fb74f3b317917ac79613a696287573",
+      "bytes": 12359524,
+      "metadata": "museum/assets/sample-ichthyosaur.json",
+      "metadataSha256": "28fd05699a7383935e61b754795eec6faef91002ea1b476303cfe12a331863fc",
+      "metadataBytes": 5416,
+      "license": "CC-BY-4.0",
+      "licenseFile": "notices/sample-ichthyosaur-license.txt",
+      "licenseSha256": "ea7ea37b74d11529c236998e9088920f3245b6fd56a8d948ca2bc3d25a144f28",
+      "licenseBytes": 920,
+      "author": "Julian Johnson-Mortimer / FreddyFoxFreddy",
+      "sourceUrl": "https://sketchfab.com/3d-models/ichthyosaurus-ef8609f5efa84984bc1800bdb36aac3c",
+      "changes": "Meshopt decoded; quantization removed; images decoded losslessly to PNG; original skeleton, meshes, materials and clip channels retained. Runtime merges palettes and pieces without flattening animation.",
+      "geometry": {
+        "vertices": 47745,
+        "meshNodes": 3,
+        "skins": 3
+      },
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 6,
+          "channels": 13
+        }
+      ]
+    }
+  ]
+}

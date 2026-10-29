@@ -33,7 +33,12 @@ export function sculptShallowCove(regional,global,site,otherGrids=[]){
     for(let u=1;u<curve.length;u++)if(q<=curve[u][0]){const [v,h]=curve[u-1],[vv,hh]=curve[u];dep=lerp(h,hh,(q-v)/(vv-v));break;}
     const envelope=smooth(5,35,d)*(1-smooth(W*.65,W,d)),ribs=Math.sin(a*.031+Math.sin(d*.017)*1.3)*Math.sin(d*.044+a*.007)*.45;
     const tongue=Math.exp(-((a*.007+Math.sin(d*.015)*.9)**2))*.55,stone=Math.exp(-((Math.sin(a*.006+d*.009)*3.5)**2))*.85;
-    const y=lerp(old,sea-Math.max(.08,dep-(ribs+tongue+stone)*envelope),w);
+    // The authored mouth receives a broad sandy river fan. Repeated offshore
+    // stone ribs from the older shelf recipe made three parallel dark grooves
+    // beside its outlet, as if every breaker cut a permanent trench. Fade
+    // those ribs through the fan while retaining them farther alongshore.
+    const inlet=shelf.id==='west-shelf'?Math.exp(-(((a+158)/220)**2))*(1-smooth(360,510,d)):0;
+    const y=lerp(old,sea-Math.max(.08,dep-(ribs+tongue+stone)*(1-inlet)*envelope),w);
     grid.heights[k]=y;shelf.changedSamples++;shelf.maxShiftMetres=Math.max(shelf.maxShiftMetres,Math.abs(y-old));
     if(sea-y<14){grid.sand[k]=Math.round(w*255);grid.rock[k]*=1-w*.8;}
    }

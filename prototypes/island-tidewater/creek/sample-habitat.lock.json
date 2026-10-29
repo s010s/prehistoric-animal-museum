@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/s010s/lowpoly-vault",
+  "revision": "38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af",
+  "manifestSha256": "5de0fd875ea8bf8d45f814f506a6114e54519b1c975f5ceece0082fa11cc646e",
+  "verifiedAt": "2026-10-28",
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "author": "Leon Made This / s010s",
+  "changes": [
+    "Unmodified source GLB files retained and verified; runtime material merge and wet-sediment recolor.",
+    "Plants receive root-anchored local leaf/branch wind or underwater current deformation; no original skeletal animation claimed.",
+    "Three-toed-track cavity topology extracted from its teaching slab; substrate display slab removed, print edge feathered and conformed to real terrain, paired trails are artistic environmental placement.",
+    "Marsilea petioles extend at runtime in 0.15–0.65m freshwater so four-leaf blades meet the water surface while rhizomes retain bed contact; shape is a generic genus-level environmental analogy."
+  ],
+  "assets": [
+    {
+      "id": "cycad",
+      "path": "prototypes/island-tidewater/creek/assets/habitat-cycad-vault.glb",
+      "source": "https://raw.githubusercontent.com/s010s/lowpoly-vault/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/prehistoric/plants/cycad/cycad.glb",
+      "bytes": 154316,
+      "sha256": "9933903953c6bc2167e06c6b5633d3b2a1e5b2b37a547a3990460fb2f53068a2",
+      "triangles": 1944,
+      "name": {
+        "en": "Cycad rosette",
+        "zh": "苏铁形植株"
+      },
+      "license": "CC-BY-4.0",
+      "author": "Leon Made This / s010s",
+      "dimensions": [
+        2.10919052362442,
+        1.3677858654409647,
+        2.166151285171509
+      ],
+      "scientific_scope": {
+        "en": "Evidence-informed stylized plant concept, not a taxon or site reconstruction.",
+        "zh": "有依据的风格化植物概念，并非具体物种或化石地点复原。"
+      }
+    },
+    {
+      "id": "fern-cluster",
+      "path": "prototypes/island-tidewater/creek/assets/habitat-fern-cluster-vault.glb",
+      "source": "https://raw.githubusercontent.com/s010s/lowpoly-vault/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/revisions/fern-cluster/r006/fern-cluster.glb",
+      "bytes": 420508,
+      "sha256": "a94b2e020787f1f6edd2112f5eb64e045faedd57c919464ef0f5e31a143987ac",
+      "triangles": 7736,
+      "name": {
+        "en": "Ground fern cluster",
+        "zh": "地被蕨丛"
+      },
+      "license": "CC-BY-4.0",
+      "author": "Leon Made This / s010s",
+      "dimensions": [
+        1.4207196831703186,
+        0.8817551825195551,
+        1.5155771970748901
+      ],
+      "scientific_scope": {
+        "en": "Evidence-informed stylized concept; no named taxon, specimen, locality, age or habitat reconstruction is claimed. Dimensions and colors are artistic choices.",
+        "zh": "有依据的风格化概念；不主张具体物种、标本、地点、年代或栖息地复原，尺寸和颜色为美术选择。"
+      }
+    },
+    {
+      "id": "horsetail-cluster",
+      "path": "prototypes/island-tidewater/creek/assets/habitat-horsetail-cluster-vault.glb",
+      "source": "https://raw.githubusercontent.com/s010s/lowpoly-vault/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/prehistoric/plants/horsetail-cluster/horsetail-cluster.glb",
+      "bytes": 107256,
+      "sha256": "36b6471c6b9f469277b405a792c4afac0bedca484605011b6cdb652f496819b9",
+      "triangles": 1838,
+      "name": {
+        "en": "Jointed horsetail cluster",
+        "zh": "木贼群落"
+      },
+      "license": "CC-BY-4.0",
+      "author": "Leon Made This / s010s",
+      "dimensions": [
+        0.911264955997467,
+        1.4815790886059403,
+        0.7915564477443695
+      ],
+      "scientific_scope": {
+        "en": "Evidence-informed stylized plant concept, not a taxon or site reconstruction.",
+        "zh": "有依据的风格化植物概念，并非具体物种或化石地点复原。"
+      }
+    },
+    {
+      "id": "three-toed-track",
+      "path": "prototypes/island-tidewater/creek/assets/habitat-three-toed-track-vault.glb",
+      "source": "https://raw.githubusercontent.com/s010s/lowpoly-vault/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/prehistoric/traces/three-toed-track/three-toed-track.glb",
+      "bytes": 48552,
+      "sha256": "29f156d80ecbcbb0b236a050507c8e7c946321fd274eafb2e5df56e7492e6e4a",
+      "triangles": 972,
+      "name": {
+        "en": "Three-toed Track Slab",
+        "zh": "三趾足迹泥板"
+      },
+      "license": "CC-BY-4.0",
+      "author": "Leon Made This / s010s",
+      "dimensions": [
+        2.771999955177307,
+        0.147782564163208,
+        1.4011200070381165
+      ],
+      "scientific_scope": {
+        "en": "Evidence-informed stylized teaching/environment concept; not a species, specimen, or site reconstruction.",
+        "zh": "有依据的风格化教学或环境概念；不是具体物种、标本或地点的科学复原。"
+      }
+    },
+    {
+      "id": "halimeda",
+      "path": "prototypes/island-tidewater/creek/assets/habitat-halimeda-vault.glb",
+      "source": "https://raw.githubusercontent.com/s010s/lowpoly-vault/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/halimeda/small-life-round03-20261018/halimeda.glb",
+      "bytes": 33188,
+      "sha256": "5e1b7e2940482c1ad27b156b7457354d1c04fe98a46a36fc3ae904a5a16517ea",
+      "triangles": 1520,
+      "name": {
+        "en": "Halimeda articulated calcified thallus",
+        "zh": "Halimeda 仙掌藻类"
+      },
+      "license": "CC-BY-4.0",
+      "author": "Leon Made This / s010s",
+      "dimensions": [
+        0.13675706833600998,
+        0.14999999105930328,
+        0.10665001347661018
+      ],
+      "scientific_scope": {
+        "en": "Independently reviewed original stylized-inspired static teaching art. Palette, pose, nominal dimensions and simplified anatomy are artistic choices; not a strict scientific reconstruction or coexistence claim.",
+        "zh": "通过独立审查的原创静态风格化启发教学美术；配色、姿态、名义尺寸及简化解剖属于美术选择，不作严格科学复原或同域共存主张。"
+      }
+    },
+    {
+      "id": "montsechia",
+      "path": "prototypes/island-tidewater/creek/assets/habitat-montsechia-vault.glb",
+      "source": "https://raw.githubusercontent.com/s010s/lowpoly-vault/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/montsechia/small-life-round07-20261018/montsechia.glb",
+      "bytes": 92544,
+      "sha256": "5ce96a830ddd499881f9aac0c5d261a80b1436c79935e85965c7777ffaf28d6b",
+      "triangles": 3140,
+      "name": {
+        "en": "Montsechia flexible fine-leaf shoots",
+        "zh": "Montsechia 水生早期被子植物"
+      },
+      "license": "CC-BY-4.0",
+      "author": "Leon Made This / s010s",
+      "dimensions": [
+        0.11311334744095802,
+        0.14999999105930328,
+        0.019443745724856853
+      ],
+      "scientific_scope": {
+        "en": "Independently reviewed original stylized-inspired static teaching art. Palette, pose, nominal dimensions and simplified anatomy are artistic choices; not a strict scientific reconstruction or coexistence claim.",
+        "zh": "通过独立审查的原创静态风格化启发教学美术；配色、姿态、名义尺寸及简化解剖属于美术选择，不作严格科学复原或同域共存主张。"
+      }
+    },
+    {
+      "id": "marsilea",
+      "path": "prototypes/island-tidewater/creek/assets/habitat-marsilea-vault.glb",
+      "source": "https://raw.githubusercontent.com/s010s/lowpoly-vault/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/marsilea/small-life-round10-20261018/marsilea.glb",
+      "bytes": 90712,
+      "sha256": "ab9683f2adab1bf3bc3a3e11bd3fbf1e38f6ce3ecd47656ad87be951ad5d19cd",
+      "triangles": 2662,
+      "name": {
+        "en": "Marsilea water-clover patch",
+        "zh": "Marsilea 水生四叶蕨"
+      },
+      "license": "CC-BY-4.0",
+      "author": "Leon Made This / s010s",
+      "dimensions": [
+        0.18000000715255737,
+        0.08490988612174988,
+        0.05386289022862911
+      ],
+      "scientific_scope": {
+        "en": "Independently reviewed original stylized-inspired static teaching art. Palette, pose, nominal dimensions and simplified anatomy are artistic choices; not a strict scientific reconstruction or coexistence claim.",
+        "zh": "通过独立审查的原创静态风格化启发教学美术；配色、姿态、名义尺寸及简化解剖属于美术选择，不作严格科学复原或同域共存主张。"
+      }
+    }
+  ],
+  "runtimePlacement": {
+    "units": "metres",
+    "plantForms": 6,
+    "nativeAdditionalForm": "Tidewater seagrass",
+    "freshwater": [
+      "marsilea",
+      "montsechia"
+    ],
+    "land": [
+      "cycad",
+      "fern-cluster",
+      "horsetail-cluster"
+    ],
+    "marine": [
+      "halimeda",
+      "native seagrass"
+    ],
+    "nominalCounts": {
+      "cycad": 44,
+      "fern-cluster": 62,
+      "horsetail-cluster": 106,
+      "marsilea": 90,
+      "montsechia": 100,
+      "halimeda": 132,
+      "seagrass": 108
+    },
+    "trace": "three-toed-track; environmental hindfoot analogy beside Parasaurolophus route; source contour is not species evidence",
+    "traceReliefMetres": [
+      0.0018,
+      0.01476
+    ],
+    "notClaimed": [
+      "One geological age or fossil assemblage",
+      "Real sediment transport or persistent terrain carving",
+      "Exact ichnotaxon or measured animal stride from fossil source"
+    ],
+    "traceCurrentAnimationNote": "Older previous walking pass beside the same route. Current source Walk shuffles at 0.18m/s with same-foot stride0.36m; the older trail is not claimed to match these live footfalls."
+  }
+}

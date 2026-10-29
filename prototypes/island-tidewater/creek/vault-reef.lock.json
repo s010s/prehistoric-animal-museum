@@ -1,0 +1,444 @@
+{
+  "schema": "museum-vault-reef-v1",
+  "repository": "s010s/lowpoly-vault",
+  "revision": "38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af",
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/LICENSE",
+  "author": "Leon Made This / s010s",
+  "assets": [
+    {
+      "id": "calceola",
+      "path": "assets/calceola-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/calceola/small-life-round02-20261018/calceola.glb",
+      "sourcePath": "assets/additions/calceola/small-life-round02-20261018/calceola.glb",
+      "sha256": "13ed3091c6408621858a183b8df90fc17984c0de0f01380600faac6c9a0c56b4",
+      "bytes": 37020,
+      "triangles": 1438,
+      "dimensionsMetres": [
+        0.07000000029802322,
+        0.047381288022734225,
+        0.06019732961431146
+      ]
+    },
+    {
+      "id": "favosites",
+      "path": "assets/favosites-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/favosites/small-life-round02-20261018/favosites.glb",
+      "sourcePath": "assets/additions/favosites/small-life-round02-20261018/favosites.glb",
+      "sha256": "364bb5b4209a2eb7076527dc87b28d4659eee233462fd7f44a3f41b21ee5327e",
+      "bytes": 139440,
+      "triangles": 2602,
+      "dimensionsMetres": [
+        0.1768507957458496,
+        0.05931352823972702,
+        0.16669726371765137
+      ]
+    },
+    {
+      "id": "goniophyllum",
+      "path": "assets/goniophyllum-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/goniophyllum/small-life-round02-20261018/goniophyllum.glb",
+      "sourcePath": "assets/additions/goniophyllum/small-life-round02-20261018/goniophyllum.glb",
+      "sha256": "8f0caa08c7ac6062a68b9bfae0c7b43f8c1c919b641b7e6122fae45895972ced",
+      "bytes": 103884,
+      "triangles": 5326,
+      "dimensionsMetres": [
+        0.10699999332427979,
+        0.1132500022649765,
+        0.10699999332427979
+      ]
+    },
+    {
+      "id": "halysites",
+      "path": "assets/halysites-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/halysites/small-life-round02-20261018/halysites.glb",
+      "sourcePath": "assets/additions/halysites/small-life-round02-20261018/halysites.glb",
+      "sha256": "451a6f8e7b5f2f93c4b3108ffbf5a17cf1d1486f86b4021ee3252be0e97541ca",
+      "bytes": 195220,
+      "triangles": 8464,
+      "dimensionsMetres": [
+        0.15653050690889359,
+        0.04856979474425316,
+        0.16057248413562775
+      ]
+    },
+    {
+      "id": "aulopora",
+      "path": "assets/aulopora-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/aulopora/small-life-round02-20261018/aulopora.glb",
+      "sourcePath": "assets/additions/aulopora/small-life-round02-20261018/aulopora.glb",
+      "sha256": "c652b3dec0eb541bee597922251933af32c301cb2cb8a9eba5744c66ffaa5657",
+      "bytes": 178764,
+      "triangles": 9474,
+      "dimensionsMetres": [
+        0.15000000596046448,
+        0.018922308459877968,
+        0.106112040579319
+      ]
+    },
+    {
+      "id": "thamnopora",
+      "path": "assets/thamnopora-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/thamnopora/small-life-round02-20261018/thamnopora.glb",
+      "sourcePath": "assets/additions/thamnopora/small-life-round02-20261018/thamnopora.glb",
+      "sha256": "35e1e2d644be711752340b2f4b7270ca600cc39de91b418d54ae35c6fcc33c20",
+      "bytes": 174188,
+      "triangles": 8866,
+      "dimensionsMetres": [
+        0.14321176707744598,
+        0.19999998807907104,
+        0.0881628543138504
+      ]
+    },
+    {
+      "id": "syringopora",
+      "path": "assets/syringopora-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/syringopora/small-life-round03-20261018/syringopora.glb",
+      "sourcePath": "assets/additions/syringopora/small-life-round03-20261018/syringopora.glb",
+      "sha256": "63024697f0b688183d6a4de8f681c4cb17e8d002ba6efaff33cb74db9ce68036",
+      "bytes": 155628,
+      "triangles": 8020,
+      "dimensionsMetres": [
+        0.13261211663484573,
+        0.18000000715255737,
+        0.11550486460328102
+      ]
+    },
+    {
+      "id": "heliophyllum",
+      "path": "assets/heliophyllum-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/heliophyllum/small-life-round03-20261018/heliophyllum.glb",
+      "sourcePath": "assets/additions/heliophyllum/small-life-round03-20261018/heliophyllum.glb",
+      "sha256": "2e70992168ff04d758a2debbd0c77d08a5090626c89489849553491f71950517",
+      "bytes": 74852,
+      "triangles": 3836,
+      "dimensionsMetres": [
+        0.08818219508975744,
+        0.11999999731779099,
+        0.07778428494930267
+      ]
+    },
+    {
+      "id": "meandrina",
+      "path": "assets/meandrina-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/meandrina/small-life-round03-20261018/meandrina.glb",
+      "sourcePath": "assets/additions/meandrina/small-life-round03-20261018/meandrina.glb",
+      "sha256": "2a17fa8ddcab195ebc714a377ddc487110f790762b33d59480fbb5266509077c",
+      "bytes": 281572,
+      "triangles": 10240,
+      "dimensionsMetres": [
+        0.18000000715255737,
+        0.06287916004657745,
+        0.15800000727176666
+      ]
+    },
+    {
+      "id": "thecosmilia",
+      "path": "assets/thecosmilia-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/thecosmilia/small-life-round03-20261018/thecosmilia.glb",
+      "sourcePath": "assets/additions/thecosmilia/small-life-round03-20261018/thecosmilia.glb",
+      "sha256": "5b396b9e0385ba85eb28b028fa4291f6f98485b4ad162cedfb2632ee4f222150",
+      "bytes": 179624,
+      "triangles": 9488,
+      "dimensionsMetres": [
+        0.11399702355265617,
+        0.2000703348312527,
+        0.10744582861661911
+      ]
+    },
+    {
+      "id": "flabellum",
+      "path": "assets/flabellum-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/flabellum/small-life-round04-20261018/flabellum.glb",
+      "sourcePath": "assets/additions/flabellum/small-life-round04-20261018/flabellum.glb",
+      "sha256": "fedfac4035f835b425b3d66f3b56e3977d7c0c0ddde69229e324024c8e9a5c69",
+      "bytes": 77384,
+      "triangles": 3966,
+      "dimensionsMetres": [
+        0.09955861419439316,
+        0.08999999612569809,
+        0.021475860849022865
+      ]
+    },
+    {
+      "id": "micrabacia",
+      "path": "assets/micrabacia-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/micrabacia/small-life-round04-20261018/micrabacia.glb",
+      "sourcePath": "assets/additions/micrabacia/small-life-round04-20261018/micrabacia.glb",
+      "sha256": "89bc867f362236919fe72faec8dbdf789ce4f5b61d745cb83eefc9226b34c40e",
+      "bytes": 162836,
+      "triangles": 8960,
+      "dimensionsMetres": [
+        0.05999999865889549,
+        0.009243897162377834,
+        0.05999999865889549
+      ]
+    },
+    {
+      "id": "cystiphyllum",
+      "path": "assets/cystiphyllum-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/cystiphyllum/small-life-round04-20261018/cystiphyllum.glb",
+      "sourcePath": "assets/additions/cystiphyllum/small-life-round04-20261018/cystiphyllum.glb",
+      "sha256": "0e8239998b510334a1e6743adf82de0fabc4c3f557b3ca8b43d6fa0f9b049dbf",
+      "bytes": 149860,
+      "triangles": 8064,
+      "dimensionsMetres": [
+        0.0855945385992527,
+        0.10045000165700912,
+        0.07883055880665779
+      ]
+    },
+    {
+      "id": "acrocyathus",
+      "path": "assets/acrocyathus-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/acrocyathus/small-life-round05-20261018/acrocyathus.glb",
+      "sourcePath": "assets/additions/acrocyathus/small-life-round05-20261018/acrocyathus.glb",
+      "sha256": "85c65487af8ddb08595248c5dfda912ddfdc3a1d9e22116177937d848b08400c",
+      "bytes": 137920,
+      "triangles": 4340,
+      "dimensionsMetres": [
+        0.18000000715255737,
+        0.135161355137825,
+        0.14927200227975845
+      ]
+    },
+    {
+      "id": "montlivaltia",
+      "path": "assets/montlivaltia-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/montlivaltia/small-life-round05-20261018/montlivaltia.glb",
+      "sourcePath": "assets/additions/montlivaltia/small-life-round05-20261018/montlivaltia.glb",
+      "sha256": "535626995156365c82bf6d31e7f219055a568573de07b938ccf2d2525971996f",
+      "bytes": 199664,
+      "triangles": 10800,
+      "dimensionsMetres": [
+        0.10663999989628792,
+        0.12200901657342911,
+        0.09810879826545715
+      ]
+    },
+    {
+      "id": "pleurodictyum",
+      "path": "assets/pleurodictyum-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/pleurodictyum/small-life-round06-20261018/pleurodictyum.glb",
+      "sourcePath": "assets/additions/pleurodictyum/small-life-round06-20261018/pleurodictyum.glb",
+      "sha256": "2b904cc71378663b71fdd74680de4f5ee24b5f34729681a0080c343a776dca3c",
+      "bytes": 127672,
+      "triangles": 7004,
+      "dimensionsMetres": [
+        0.08975902199745178,
+        0.023993919938220643,
+        0.0751851350069046
+      ]
+    },
+    {
+      "id": "isastraea",
+      "path": "assets/isastraea-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/isastraea/small-life-round06-20261018/isastraea.glb",
+      "sourcePath": "assets/additions/isastraea/small-life-round06-20261018/isastraea.glb",
+      "sha256": "6380b1770d80a0f6e9521fb69189cce836f2b42be07e4b0aa238adc1cfb0ece9",
+      "bytes": 184356,
+      "triangles": 8528,
+      "dimensionsMetres": [
+        0.1826999932527542,
+        0.044884029775857925,
+        0.14616000652313232
+      ]
+    },
+    {
+      "id": "gryphaea",
+      "path": "assets/gryphaea-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/gryphaea/small-life-round12-20261018/gryphaea.glb",
+      "sourcePath": "assets/additions/gryphaea/small-life-round12-20261018/gryphaea.glb",
+      "sha256": "fa7f25433044c572d589ee356625b2767f76f655226d78eff718598e3f750c7e",
+      "bytes": 159436,
+      "triangles": 8412,
+      "dimensionsMetres": [
+        0.09000000357627869,
+        0.06924807140603662,
+        0.05240340530872345
+      ]
+    },
+    {
+      "id": "hippurites",
+      "path": "assets/hippurites-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/hippurites/ready72-r001/model.glb",
+      "sourcePath": "assets/additions/hippurites/ready72-r001/model.glb",
+      "sha256": "d2fb4e1e9b73434148d22758dd322227560e4edd70d2f0b1fe8d162165ed2d0d",
+      "bytes": 207856,
+      "triangles": 3834,
+      "dimensionsMetres": [
+        0.11500000208616257,
+        0.20999999344348907,
+        0.10500000044703484
+      ]
+    },
+    {
+      "id": "neithea",
+      "path": "assets/neithea-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/neithea/drive-r001/neithea.glb",
+      "sourcePath": "assets/additions/neithea/drive-r001/neithea.glb",
+      "sha256": "e2cf1c42134cfeab37eb5573075d05f32cb0fa5be921778bc33b6f579c915678",
+      "bytes": 332744,
+      "triangles": 4200,
+      "dimensionsMetres": [
+        0.012199999764561653,
+        0.014999999664723873,
+        0.004951217328198254
+      ]
+    },
+    {
+      "id": "trigonia",
+      "path": "assets/trigonia-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/trigonia/drive-r001/trigonia.glb",
+      "sourcePath": "assets/additions/trigonia/drive-r001/trigonia.glb",
+      "sha256": "1cd08ae17f99af63cb812c292f28743014eb62a2738e42aaa1349b4598f9d90e",
+      "bytes": 382812,
+      "triangles": 6970,
+      "dimensionsMetres": [
+        0.014499999582767487,
+        0.02019999921321869,
+        0.02329999953508377
+      ]
+    },
+    {
+      "id": "cucullaea",
+      "path": "assets/cucullaea-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/cucullaea/drive-r001/cucullaea.glb",
+      "sourcePath": "assets/additions/cucullaea/drive-r001/cucullaea.glb",
+      "sha256": "b5cfb5feca23d85c79163567b8b63f1cae550176eef4259e5a164678f1e5ba69",
+      "bytes": 308528,
+      "triangles": 5664,
+      "dimensionsMetres": [
+        0.04900000058114529,
+        0.035331685008713976,
+        0.02800000086426735
+      ]
+    },
+    {
+      "id": "pinna",
+      "path": "assets/pinna-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/pinna/ready72-r001/model.glb",
+      "sourcePath": "assets/additions/pinna/ready72-r001/model.glb",
+      "sha256": "761bb1eab5a49158c04283c7c37f6b15ebc73a4c53a66fd43ca2a05cdc7e33b1",
+      "bytes": 153064,
+      "triangles": 2788,
+      "dimensionsMetres": [
+        0.11900000274181366,
+        0.03200000151991844,
+        0.019600000232458115
+      ]
+    },
+    {
+      "id": "radiolites",
+      "path": "assets/radiolites-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/radiolites/ready72-r001/model.glb",
+      "sourcePath": "assets/additions/radiolites/ready72-r001/model.glb",
+      "sha256": "08bc6ecc0e1c992b94ade516d1fbc2620eb0b75541d641ec5f80b1be468291ef",
+      "bytes": 289840,
+      "triangles": 5280,
+      "dimensionsMetres": [
+        0.024999999441206455,
+        0.04500000178813934,
+        0.023000000044703484
+      ]
+    },
+    {
+      "id": "naticarius",
+      "path": "assets/naticarius-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/naticarius/ready72-r001/model.glb",
+      "sourcePath": "assets/additions/naticarius/ready72-r001/model.glb",
+      "sha256": "88aefedc61fea69387caf8d4f65a57e4b16e313149d562c7adc6d2d51e0ebf11",
+      "bytes": 118652,
+      "triangles": 5718,
+      "dimensionsMetres": [
+        0.030000001192092896,
+        0.02800000086426735,
+        0.02499999850988388
+      ]
+    },
+    {
+      "id": "siphocypraea",
+      "path": "assets/siphocypraea-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/siphocypraea/ready72-r001/model.glb",
+      "sourcePath": "assets/additions/siphocypraea/ready72-r001/model.glb",
+      "sha256": "75facf6a93410ff30d28c5613e83f4b26fb36d3b0d5df6610ae31e321c6b713c",
+      "bytes": 140632,
+      "triangles": 7000,
+      "dimensionsMetres": [
+        0.03700000047683716,
+        0.06599999964237213,
+        0.03400000184774399
+      ]
+    },
+    {
+      "id": "trochita",
+      "path": "assets/trochita-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/trochita/ready72-r001/model.glb",
+      "sourcePath": "assets/additions/trochita/ready72-r001/model.glb",
+      "sha256": "19a6026bed3bbc3d6063380afca8c3cc8e1f413362d7a5476ccc8e4cf3ae94e9",
+      "bytes": 201652,
+      "triangles": 9648,
+      "dimensionsMetres": [
+        0.04800000041723251,
+        0.02199999988079071,
+        0.04560690186917782
+      ]
+    },
+    {
+      "id": "vauxia",
+      "path": "assets/vauxia-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/vauxia/small-life-round03-20261018/vauxia.glb",
+      "sourcePath": "assets/additions/vauxia/small-life-round03-20261018/vauxia.glb",
+      "sha256": "1b55a5dbc587b8574c40d9086fb759c8b1ce6da9d86a8b10c03e4f6fa096dfe5",
+      "bytes": 172096,
+      "triangles": 8944,
+      "dimensionsMetres": [
+        0.2361167147755623,
+        0.18000000715255737,
+        0.1765630915760994
+      ]
+    },
+    {
+      "id": "pirania",
+      "path": "assets/pirania-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/pirania/small-life-round03-20261018/pirania.glb",
+      "sourcePath": "assets/additions/pirania/small-life-round03-20261018/pirania.glb",
+      "sha256": "d51dc5a8215fb2fd3af11cbcba4134eaae082c308b8ff6b744b0eb966804c2e9",
+      "bytes": 116412,
+      "triangles": 6036,
+      "dimensionsMetres": [
+        0.10566851124167442,
+        0.15000000596046448,
+        0.07592511922121048
+      ]
+    },
+    {
+      "id": "coccosteus",
+      "path": "assets/coccosteus-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/coccosteus/lean-ready30-r001/model.glb",
+      "sourcePath": "assets/additions/coccosteus/lean-ready30-r001/model.glb",
+      "sha256": "8f5b99e9f88aa040116ca8cac6fd62c4e3900acbcdf62ee98d3cfbef57e7bfd9",
+      "bytes": 108000,
+      "triangles": 1640,
+      "dimensionsMetres": [
+        0.10999999940395355,
+        0.09262499958276749,
+        0.35133765637874603
+      ]
+    },
+    {
+      "id": "dipterus",
+      "path": "assets/dipterus-lowpoly-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af/assets/additions/dipterus/ready72-r001/model.glb",
+      "sourcePath": "assets/additions/dipterus/ready72-r001/model.glb",
+      "sha256": "eb1709a97f0c4d789b6bbdc0e1eed38768c0092e2f79dac902963b2c4a4dd88a",
+      "bytes": 328080,
+      "triangles": 4676,
+      "dimensionsMetres": [
+        0.06207190826535225,
+        0.0586138591170311,
+        0.20000000298023224
+      ]
+    }
+  ]
+}

@@ -135,7 +135,15 @@ export function createCoastalOcean(app,data){
  const material=new MuseumWaterMaterial({surface,sky,sceneCopy:sceneRenderer.opaqueCopy,sceneDepthHalf:sceneRenderer.opaqueDepthHalf.texture,refraction});material.isMuseumOcean=true;material.inlandField=data.field;
  material.clouds=clouds;material.cameraWaterHeightNode=query.cameraState().x;
  const ocean=new Mesh(oceanLOD.geometry,material);ocean.name='Museum western sea · native Tidewater waves';ocean.frustumCulled=false;ocean.receiveShadow=true;ocean.staticVelocity=true;ocean.layers.set(LAYERS.WATER);scene.add(ocean);
- const spray=new Spray(engine,{query,terrain:terrainGPU,sceneCopy:sceneRenderer.opaqueCopy,clouds});scene.add(spray.mesh);
+ const spray=new Spray(engine,{query,terrain:terrainGPU,sceneCopy:sceneRenderer.opaqueCopy,clouds});
+ // A visitor can stand where the inlet touches active breakers. The native
+ // clear droplets keep full opacity right up to the lens and become hundreds
+ // of giant blobs there. Keep the breaker plume at a readable distance while
+ // preserving its foam deposits and the distant wind-carried mist.
+ const nearDrop='select( smoothstep( 0.6, 3.0, dist ), 1.0, water )';
+ if(!spray.material.vertex.includes(nearDrop))throw Error('Pinned native spray near-camera seam changed');
+ spray.material.vertex=spray.material.vertex.replace(nearDrop,'select( smoothstep( 0.6, 3.0, dist ), smoothstep( 4.0, 9.0, dist ), water )');
+ spray.material.needsUpdate=true;scene.add(spray.mesh);
  // Native buildStations scans its original south-facing bay. Rotate/translate
  // that *input coordinate frame* onto our west-facing coast, then return each
  // station and its outward normal to museum coordinates before the first frame.

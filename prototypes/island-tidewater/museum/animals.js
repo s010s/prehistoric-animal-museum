@@ -7,13 +7,14 @@ import { loadGLB, decodeImage } from '../vendor/tidewater/src/engine/loaders/GLT
 import { SkinnedModel } from '../vendor/tidewater/src/engine/render/Skinning.js';
 import apato from './assets/apatosaurus.json';
 import tri from './assets/triceratops.json';
+import { findMuseumGround, seatMuseumModel, museumGroundVisit } from './MuseumGrounding.js';
 
 const definitions = [
   { id: 'apatosaurus', name: '迷惑龙', metres: 22, yaw: -.45, x: -35, z: -92, data: apato, glb: new URL('./assets/apatosaurus.glb', import.meta.url).href },
   { id: 'triceratops', name: '三角龙', metres: 8.5, yaw: .6, x: -12, z: -73, data: tri, glb: new URL('./assets/triceratops.glb', import.meta.url).href },
 ];
 
-function materialOptions({ gltfMaterial: gm, textures, nativeNormalIncluded = true }) {
+export function museumMaterialOptions({ gltfMaterial: gm, textures, nativeNormalIncluded = true }) {
   const pbr = gm.pbrMetallicRoughness ?? {};
   const color = pbr.baseColorFactor ?? [1, 1, 1, 1];
   const normalScale = gm.normalTexture?.scale ?? 1;
@@ -50,7 +51,7 @@ async function morphModel(gltf, metadata) {
     texture.getGPU(); generateMipmaps(texture); textures[key] = texture;
   }
   const current = new Vector2(), previous = new Vector2();
-  const extra = materialOptions({ gltfMaterial: gm, textures, nativeNormalIncluded: false });
+  const extra = museumMaterialOptions({ gltfMaterial: gm, textures, nativeNormalIncluded: false });
   const material = new Material({
     name: 'museum-apatosaurus-morph',
     color: extra.color, roughness: pbr.roughnessFactor ?? 1, metalness: 0,
@@ -94,23 +95,45 @@ ${extra.surface}`,
 }
 
 export async function createMuseumAnimals(app) {
-  const animals = [];
+  const animals = [], sample = !!app.creekData?.field.continuousSample, visits = {}, sites = {};
   for (const baseDefinition of definitions) {
     const definition = { ...baseDefinition, ...(app.geography?.animals.find(a => a.id === baseDefinition.id) ?? {}) };
     const gltf = await loadGLB(definition.glb);
-    const model = definition.id === 'apatosaurus' ? await morphModel(gltf, definition.data) : await SkinnedModel.create(gltf, { materials: materialOptions });
+    const model = definition.id === 'apatosaurus' ? await morphModel(gltf, definition.data) : await SkinnedModel.create(gltf, { materials: museumMaterialOptions });
     if (definition.id === 'triceratops') model.play('Idle', { loop: true, speed: .9, fade: 0 });
     const scale = definition.data.scale;
     model.group.scale.setScalar(scale); model.group.rotation.y = definition.yaw;
-    const ground = app.terrainData.heightAt(definition.x, definition.z);
-    model.group.position.set(definition.x, ground - definition.data.bounds.min[1] * scale, definition.z);
+    let ground = app.terrainData.heightAt(definition.x, definition.z), site = null;
+    if (sample) {
+      const spec = definition.id === 'apatosaurus'
+        ? { preferred: [-668, -245], yaw: 1.2, supportHalf: [1.7, .8], contactCenter: [-4.26 / scale, 0], radius: 48, maxSlope: .24 }
+        : { preferred: [-777, -71], yaw: 0, supportHalf: [1, .9], contactCenter: [0, .27 / scale], radius: 42, maxSlope: .24 };
+      site = findMuseumGround(app, definition.data, spec);
+      definition.x = site.x; definition.z = site.z; definition.yaw = site.yaw; ground = site.y;
+      seatMuseumModel(model, definition.data, site, spec.contactCenter);
+      sites[definition.id] = { id: definition.id, x: site.x, y: site.y, z: site.z, yaw: site.yaw, supportHalf: spec.supportHalf, contactCenter: spec.contactCenter, slope: site.slope, residual: site.residual, groundClearance: site.clear, waterEdge: site.edge, metres: definition.metres, placement: 'four contact regions fitted to existing gentle dry ground; entire rest body clears trunks' };
+    } else model.group.position.set(definition.x, ground - definition.data.bounds.min[1] * scale, definition.z);
     model.group.name = `museum:${definition.id}`;
     app.scene.add(model.group);
     model.update(0); model.hold();
-    animals.push({ definition, model, ground });
+    const center = new Vector3(...definition.data.bounds.min.map((v, i) => (v + definition.data.bounds.max[i]) * scale * .5)).applyQuaternion(model.group.quaternion).add(model.group.position);
+    if(sample)visits[`sample-${definition.id}`]=museumGroundVisit(app,`sample-${definition.id}`,definition.id==='apatosaurus'?'溪谷林缘的迷惑龙':'林缘停留的三角龙',site,definition.data.dimensions[1]*scale*.56,definition.id==='apatosaurus'?24:13,center.toArray());
+    const halfExtents = definition.data.dimensions.map(v => v * scale * .49);
+    animals.push({ definition, model, ground, site, center, halfExtents, active: true });
   }
+  if (sample) { app.creekData.sampleMuseumLifeSites = { ...app.creekData.sampleMuseumLifeSites, ...sites }; app.creekData.sampleMuseumLifeVisits = { ...app.creekData.sampleMuseumLifeVisits, ...visits }; }
   return {
-    update(dt) { for (const a of animals) a.model.update(dt); },
+    visits,
+    update(dt) { for (const a of animals) {
+      if (sample) {
+        const p = app.camera.position, q = a.model.group.position, range = a.definition.id === 'apatosaurus' ? 360 : 240;
+        const active = Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z) < range + (a.active ? 20 : 0);
+        if (!active) { if (a.active) a.model.hold(); a.model.group.visible = false; a.active = false; continue; }
+        if (!a.active) { a.model.update(0); a.model.hold(); for (const mesh of a.model.meshes) mesh.resetVelocity = true; }
+        a.active = true; a.model.group.visible = true;
+      }
+      a.model.update(dt);
+    } },
     instrumentPassVisits(callback) { for (const a of animals) for (const mesh of a.model.meshes) { const original = mesh.onBeforeRender; mesh.onBeforeRender = (...args) => { original?.apply(mesh, args); callback(a.definition.id); }; } },
     hold() { for (const a of animals) { a.model.hold(); for (const mesh of a.model.meshes) mesh.resetVelocity = true; } },
     lookAt(id) {
@@ -126,6 +149,6 @@ export async function createMuseumAnimals(app) {
       this.hold();
       if (app.post?.taau) app.post.taau._needsRestart = true;
     },
-    state() { return animals.map(a => ({ id: a.definition.id, lengthMetres: a.definition.metres, horizontalRestLengthMetres: Math.max(a.definition.data.dimensions[0], a.definition.data.dimensions[2]) * a.model.group.scale.x, position: a.model.group.position.toArray(), ground: a.ground, meshes: a.model.meshes.map(m => ({ name: m.name, castShadow: m.castShadow, receiveShadow: m.receiveShadow, frustumCulled: m.frustumCulled, resetVelocity: m.resetVelocity })), animation: a.model.state?.() ?? { kind: 'native-skin', joints: a.model.joints, clips: a.model.clipNames(), layers: a.model.layers.map(l => ({ time: l.time, weight: l.weight, speed: l.speed })) } })); },
+    state() { return animals.map(a => ({ id: a.definition.id, lengthMetres: a.definition.metres, horizontalRestLengthMetres: Math.max(a.definition.data.dimensions[0], a.definition.data.dimensions[2]) * a.model.group.scale.x, position: a.model.group.position.toArray(), ground: a.ground, yaw: a.definition.yaw, halfExtents: a.halfExtents, colliderCenter: a.center.toArray(), sampleSite: sites[a.definition.id] ?? null, localPose: a.model.state?.().current ?? [...new Set(a.model.layers[0]?.clip.channels.map(c => c.node) ?? [])].slice(0, 3).flatMap(i => Array.from(a.model.local[i].r)), visible: a.model.group.visible, active: a.active, meshes: a.model.meshes.map(m => ({ name: m.name, castShadow: m.castShadow, receiveShadow: m.receiveShadow, frustumCulled: m.frustumCulled, resetVelocity: m.resetVelocity })), animation: a.model.state?.() ?? { kind: 'native-skin', joints: a.model.joints, clips: a.model.clipNames(), layers: a.model.layers.map(l => ({ time: l.time, weight: l.weight, speed: l.speed })) } })); },
   };
 }

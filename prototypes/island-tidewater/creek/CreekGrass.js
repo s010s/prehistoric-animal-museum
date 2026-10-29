@@ -3,6 +3,7 @@
 import {Float32BufferAttribute,InstancedBufferAttribute,DynamicDrawUsage} from '../vendor/tidewater/src/engine/index.js';
 import {GrassField,CELL} from '../vendor/tidewater/src/world/vegetation/GrassField.js';
 import {GPU,StorageBuffer,ComputeKernel,readBuffer} from '../vendor/tidewater/src/engine/webgpu.js';
+import {ShaderModule,UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
 
 // Occupancy is only a conservative CPU acceleration structure. The real
 // density texture and world-fixed probability remain in museumFloraAt.
@@ -23,6 +24,8 @@ export class CreekGrass extends GrassField {
  constructor({data,terrainGPU}){
   super({terrain:data.coverTerrain??data.terrain,mask:occupancyMask(data)});this.appearance=data.appearance;this.gpu=terrainGPU;this.coverData=data;
   const mat=this.material;mat.modules.push(data.appearance.module);delete mat.bindings.grassHeights;
+  this.review=new UniformBlock('MuseumGrassReuseReview',{enabled:['f32',1]});
+  mat.modules.push(new ShaderModule({name:'museumGrassReuseReview',uniforms:this.review}));
   const change=(from,to)=>{if(!mat.vertex.includes(from))throw Error('Pinned grass adapter seam changed: '+from.slice(0,45));mat.vertex=mat.vertex.replace(from,to);};
   change('let xz = cell + slot.xy;',`let cellYaw=floor(vegHash12(cell*.137+vec2f(7.1,19.3))*4.0)*1.57079632679;
  let cs=cos(cellYaw);let sn=sin(cellYaw);let q=slot.xy-vec2f(4.0);
@@ -32,6 +35,14 @@ export class CreekGrass extends GrassField {
   const maskEnd=mat.vertex.indexOf('let isGrass',maskStart);
   if(maskStart<0||maskEnd<0)throw Error('Pinned flora mask seam changed');
   mat.vertex=mat.vertex.slice(0,maskStart)+'let m = museumFloraAt(xz,0.0);\n\t'+mat.vertex.slice(maskEnd);delete mat.bindings.grassMask;
+  // Every native template triangle has one slot and one kind. An absent plant
+  // can collapse to one finite point before tone, ground, wind and prior pose.
+  change('let present = select( 0.0, 1.0, r < density ) * flowerOk;',`let present = select( 0.0, 1.0, r < density ) * flowerOk;
+ if(museumGrassReuseReview.enabled>.5&&present==0.0){
+  let collapsed=vec3f(xz.x,0.0,xz.y);
+  v.useWorld=true;v.worldPos=collapsed;v.prevWorldPos=collapsed;v.worldNormal=vec3f(0.0,1.0,0.0);
+  return;
+ }`);
   change('let dist = length( xz - vegParams.camPos.xz );','let dist=distance(vec3f(xz.x,terrainHeightAt(xz),xz.y),vegParams.camPos);');
   change('let cut = mix( 67.0, 87.0, cutK - floor( cutK ) );','let cut=mix(museumGrassDistance.fade.x+5.0,museumGrassDistance.fade.y,fract(cutK));');
   change('let flowerOk = select( 1.0, select( 0.0, 1.0, r2 < 0.35 ), kind > 3.5 );','let flowerOk = select(1.0,0.0,kind>3.5);');
@@ -147,10 +158,13 @@ export class CreekGrass extends GrassField {
   const k=Math.floor((z-t.origin)/CELL)*this.cellsPerSide+Math.floor((x-t.origin)/CELL),h=t.heightAt(x,z),water=data.field.sample(x,z),rise=Math.hypot(t.heightAt(x+1,z)-t.heightAt(x-1,z),t.heightAt(x,z+1)-t.heightAt(x,z-1))/2;
   const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
   const support=1-smooth(0,2.5,water[1]),legacy=this.appearance.review.fields.legacyWater.value,waterDry=1+(smooth(.08,.6,h-water[0])-1)*(support*(1-legacy)+legacy),density=coarse*(1-weight)+fine*weight;
-  return {point:[x,h,z],coarseDensity:coarse,fineDensity:fine,fineWeight:weight,coverDensity:density,waterDry,effectiveWaterDensity:density*waterDry,water:{nearestLevel:water[0],signedEdge:water[1],support,contains:water[1]<=0,legacy},cpuOccupied:!!this.cellFlags[k],normalY:1/Math.sqrt(1+rise*rise),heightAboveWater:water[1]<=0?h-water[0]:null,scope:'CPU bilinear mask and signed-water support before final GPU wet-bank/grove suppression'};
+  const beachReach=data.field.continuousSample?1-smooth(170,320,Math.hypot(x+875,z-125)):0;
+  const beachWarp=Math.sin(x*.081+z*.023)*.70+Math.sin(z*.12-x*.047)*.35;
+  const mouthOpenSand=beachReach*(1-smooth(11+beachWarp,19+beachWarp,h+.7));
+  return {point:[x,h,z],coarseDensity:coarse,fineDensity:fine,fineWeight:weight,coverDensity:density,waterDry,effectiveWaterDensity:density*waterDry,mouthOpenSand,upperBoundAfterMouthSand:density*waterDry*(1-mouthOpenSand),water:{nearestLevel:water[0],signedEdge:water[1],support,contains:water[1]<=0,legacy},cpuOccupied:!!this.cellFlags[k],normalY:1/Math.sqrt(1+rise*rise),heightAboveWater:water[1]<=0?h-water[0]:null,scope:'CPU bilinear mask, signed-water and open-sand upper bound; GPU also applies dune pockets and wet-bank/grove suppression'};
  }
  async auditGround(){
-  const pts=[[7690.312686253738,-2002.8799280156782],[8319.441878239979,-2633.1065592216073],[7486.592,-1873.309],[3600,-5280],[4170,-5280],[2850,-1950],[3520,-1950],...Array.from({length:25},(_,i)=>[-46+i*4,-60]),...Array.from({length:13},(_,i)=>[-170+i*8,80]),[460,0],[480,0],[496,0],[-460,80],[-480,80],[-496,80],[-849,-32],[-88,18],[-88,16],[-84,74],[-84,78],[-84,82],[-36,-60]];
+  const pts=[[7690.312686253738,-2002.8799280156782],[8319.441878239979,-2633.1065592216073],[7486.592,-1873.309],[3600,-5280],[4170,-5280],[2850,-1950],[3520,-1950],...Array.from({length:25},(_,i)=>[-46+i*4,-60]),...Array.from({length:13},(_,i)=>[-170+i*8,80]),[460,0],[480,0],[496,0],[-460,80],[-480,80],[-496,80],[-849,-32],[-823,119],[-810,170],[-761,50],[-880,145],[-88,18],[-88,16],[-84,74],[-84,78],[-84,82],[-36,-60]];
   for(const p of this.coverData.field.continuousSample?.points.filter((_,i)=>i%37===0)??[]){const r=this.coverData.field.continuousSample.nearest(p.x,p.z);pts.push([p.x+r.dir[1]*(p.width+1),p.z-r.dir[0]*(p.width+1)]);}
   const input=new StorageBuffer({label:'Actual grass root audit points',count:pts.length,type:'vec4f',data:new Float32Array(pts.flatMap(p=>[...p,0,0]))});
   const output=new StorageBuffer({label:'Grass vs terrain root heights',count:pts.length,type:'vec4f'});
@@ -163,5 +177,5 @@ fn main(@builtin(global_invocation_id) id:vec3u){let i=id.x;if(i>=${pts.length}u
   if(!passed)throw Error('Shared grass/terrain root integration failed');
   return this.groundAudit={passed,phase:'startup-only; no timed readback',rows,maxOldError:Math.max(...rows.map(r=>Math.abs(r.oldError))),maxOldErrorInGrass:Math.max(...rows.filter(r=>r.density>.035).map(r=>Math.abs(r.oldError))),maxRootError:Math.max(...rows.map(r=>Math.abs(r.gap+.035)))};
  }
- stats(){return {visible:this.visible,envelope:this.envelope,cells:this.levels.map(x=>x.count),triangles:this.triangles,patchTriangles:this.patchTris,forms:this.appearance.counts,range:this.appearance.distance.stats(),rangeAudit:this.rangeAudit,handover:'shared 3D tier0/ground fade; native near/mid tiers, projected warped tussocks and surface-gradient relief',placement:'same terrainHeightAt as ground, per-blade roots; cell-dependent torus offsets/quarter turns',wind:'native envelope; world-fixed 0.52–1.25 grass heights and 0.42 low cover; template-derived conservative root/vertex envelope',groundAudit:this.groundAudit};}
+ stats(){return {visible:this.visible,envelope:this.envelope,cells:this.levels.map(x=>x.count),triangles:this.triangles,patchTriangles:this.patchTris,forms:this.appearance.counts,range:this.appearance.distance.stats(),rangeAudit:this.rangeAudit,reuse:{enabled:this.review.fields.enabled.value>.5,condition:'present==0; zero-area same-position triangle'},handover:'shared 3D tier0/ground fade; native near/mid tiers, projected warped tussocks and surface-gradient relief',placement:'same terrainHeightAt as ground, per-blade roots; cell-dependent torus offsets/quarter turns',wind:'native envelope; world-fixed 0.52–1.25 grass heights and 0.42 low cover; template-derived conservative root/vertex envelope',groundAudit:this.groundAudit};}
 }

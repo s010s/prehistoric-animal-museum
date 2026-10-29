@@ -1,0 +1,20 @@
+Model license record
+====================
+
+Asset: ichthyosaurus
+Creator: Julian Johnson-Mortimer / FreddyFoxFreddy
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License URL: https://creativecommons.org/licenses/by/4.0/
+Source URL: https://sketchfab.com/3d-models/ichthyosaurus-ef8609f5efa84984bc1800bdb36aac3c
+Accessed: 2026-08-04
+
+Attribution:
+“ichthyosaurus” by Julian Johnson-Mortimer / FreddyFoxFreddy, CC BY 4.0;
+modified for the Prehistoric Animal Museum.
+
+Project changes include welding the source head and body, closing residual
+open boundary loops, softening wound-like source marks, re-UVing the accepted
+body, authoring new aquatic base-colour, normal and roughness textures,
+reducing tooth geometry, building a fourteen-bone rig, authoring a six-second
+in-place swimming Idle, and applying browser-delivery compression. The
+project-facing group-level name remains “鱼龙类”.

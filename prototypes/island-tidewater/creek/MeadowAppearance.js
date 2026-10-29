@@ -8,6 +8,7 @@ import {groveModule,groveWeight,groveOpening,grovePathDistance,grovePatch} from 
 import {terrainShadingModule,srgb} from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
 import {createGrassDistance} from './GrassDistance.js';
 import {sampleForestWeight,sampleForestWGSL} from './SampleForest.js';
+import {buildSampleGroundCover} from './SampleGroundCover.js';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 
 export function createMeadowAppearance(data,terrainGPU){
@@ -35,6 +36,7 @@ export function createMeadowAppearance(data,terrainGPU){
   counts.meadow++;if(mask.data[k+2]>8)counts.upright++;if(mask.data[k+3]>8)counts.groundcover++;
  }
  const make=(label,res,bytes)=>{const t=new Texture({label,width:res,height:res,format:'rgba8unorm',data:bytes,mips:true,usage:['sample','copyDst'],sampler:'linearClamp'});t.getGPU();generateMipmaps(t);return t;};
+ const groundCover=buildSampleGroundCover(!!data.field.continuousSample,data.terrain);
  // GPU-only spare R stores ocean connectivity. Do not expose it to native
  // CPU grass occupancy or its dune-grass selector; those retain their zero R.
  const densityBytes=new Uint8Array(mask.data),wf=[0,0,0,0];
@@ -43,18 +45,42 @@ export function createMeadowAppearance(data,terrainGPU){
   let marine=data.cove.continuous.marineAt(x,z);if(marine>0){data.field.sample(x,z,wf);if(wf[1]<2&&wf[0]>-.1)marine=0;}
   densityBytes[(j*mask.res+i)*4]=Math.round(marine*255);
  }
- const fine=make('Museum creek habitat',g.maskRes,data.masks),coarse=make('Museum watershed habitat',data.island.maskRes,data.islandMasks),density=make('Museum multi-form ground cover + marine connectivity',mask.res,densityBytes);
- const review=new UniformBlock('MuseumHabitatReview',{legacyWater:['f32',0]});
- const module=new ShaderModule({name:'museumMeadow',deps:[terrainGPU.module,terrainShadingModule(),data.field.module,groveModule,distance.module],uniforms:review,uniformName:'museumHabitatReview',bindings:{museumFineCover:{texture:fine},museumOuterCover:{texture:coarse},museumFlora:{texture:density}},code:`
+ const fine=make('Museum creek habitat',g.maskRes,data.masks),coarse=make('Museum watershed habitat',data.island.maskRes,data.islandMasks),density=make('Museum multi-form ground cover + marine connectivity',mask.res,densityBytes),sampleGround=make('Museum 2m sample ground mosaic',groundCover.res,groundCover.bytes);
+ const review=new UniformBlock('MuseumHabitatReview',{legacyWater:['f32',0],patchCover:['f32',1]});
+ const module=new ShaderModule({name:'museumMeadow',deps:[terrainGPU.module,terrainShadingModule(),data.field.module,groveModule,distance.module],uniforms:review,uniformName:'museumHabitatReview',bindings:{museumFineCover:{texture:fine},museumOuterCover:{texture:coarse},museumFlora:{texture:density},museumSampleGroundCover:{texture:sampleGround}},code:`
 ${coveShadingWGSL}
 ${sampleForestWGSL}
+fn museumSampleGroundAt(p:vec2f,footprint:f32)->vec3f{
+ if(p.x<${groundCover.origin[0]}.0||p.x>${groundCover.origin[0]+groundCover.size}.0||p.y<${groundCover.origin[1]}.0||p.y>${groundCover.origin[1]+groundCover.size}.0){return vec3f(1.0,1.0,0.0);}
+ let uv=(p-vec2f(${groundCover.origin[0]}.0,${groundCover.origin[1]}.0))/${groundCover.size}.0;
+ return textureSampleLevel(museumSampleGroundCover,smpLinearClamp,uv,max(0.0,log2(max(footprint,.001)/2.0))).rgb;
+}
+fn museumMouthGrassFactor(p:vec2f,h:f32)->f32{
+ let q=p-vec2f(-875.0,125.0);let d2=dot(q,q);
+ if(d2>=102400.0||h>31.0){return 1.0;}
+ // The near grass and distant sward receive the same mask. Its open sand
+ // contour follows the ground material's 11–19 m coastal sand transition.
+ let reach=1.0-smoothstep(170.0,320.0,sqrt(d2));
+ let warp=sin(p.x*.081+p.y*.023)*.70+sin(p.y*.12-p.x*.047)*.35;
+ let aboveSea=h+.7;
+ let openSand=reach*(1.0-smoothstep(11.0+warp,19.0+warp,aboveSea));
+ if(aboveSea<=10.0){return 1.0-openSand;}
+ // Behind the sand, grass collects in irregular dune pockets. Between them
+ // the low, dry ground remains visible instead of a continuous green sheet.
+ let dune=reach*smoothstep(10.0,17.0,aboveSea)*(1.0-smoothstep(25.0,31.0,aboveSea));
+ let pocketNoise=clamp(.5+perlin2(p/19.3)*.32+perlin2(p/6.7+13.0)*.16,0.0,1.0);
+ let pockets=mix(.035,.55,smoothstep(.46,.70,pocketNoise));
+ return (1.0-openSand)*mix(1.0,pockets,dune);
+}
 fn museumCover(p:vec2f,footprint:f32)->vec4f{
  let a=textureSampleLevel(museumFineCover,smpLinearClamp,(p+512.0)/1024.0,max(0.0,log2(max(footprint,0.001)/2.0)));
  let b=textureSampleLevel(museumOuterCover,smpLinearClamp,(p+16384.0)/32768.0,max(0.0,log2(max(footprint,0.001)/32.0)));
  var cover=mix(b,a,terrainFineWeight(p));cover.a=max(cover.a,max(museumGroveWeight(p)*.94,${data.field.continuousSample?'museumSampleForest(p)*.92':'0.0'}));return cover;
 }
-fn museumFloraAt(p:vec2f,footprint:f32)->vec4f{
- if(max(abs(p.x),abs(p.y))>16368.0){return vec4f(0.0);}
+struct MuseumFloraSample { forms:vec4f, coverFactor:f32 };
+fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
+ var out:MuseumFloraSample;out.forms=vec4f(0.0);out.coverFactor=1.0;
+ if(max(abs(p.x),abs(p.y))>16368.0){return out;}
  var m=textureSampleLevel(museumFlora,smpLinearClamp,(p+16384.0)/32768.0,max(0.0,log2(max(footprint,0.001)/32.0)));m.r=0.0;
  let cov=museumCover(p,footprint);m.g=mix(m.g,cov.g,terrainFineWeight(p));
  // The nearest owner may be a lake kilometres away and hundreds of metres
@@ -73,9 +99,26 @@ fn museumFloraAt(p:vec2f,footprint:f32)->vec4f{
   // jointed wet-bank forms instead; bare wet margins share the same field.
   m.b=0.0;let tidal=1.0-smoothstep(.4,3.0,sf.x);let margin=mix(.18,1.35,tidal);
   let retreat=smoothstep(margin,margin+.9,h-sf.x);let support=1.0-smoothstep(2.0,8.0,sf.y);m.ga*=mix(1.0,retreat,support);
+ }
+ m.gba*=museumMouthGrassFactor(p,h);`:''}
+ m.gba*=1.0-museumSpringOutcrop(p);
+ ${data.field.continuousSample?`if(museumHabitatReview.patchCover>0.0){
+  // The beach mask already protects open sand. Let a world-fixed pattern
+  // interrupt the over-broad 32 m grass channel on the vegetated backshore.
+  let dryBackshore=smoothstep(4.0,12.0,h-frame.seaLevel);
+  let bankAway=smoothstep(1.5,7.0,abs(f.y));
+  let enabled=clamp(museumHabitatReview.patchCover,0.0,1.0);
+  let sampleGround=museumSampleGroundAt(p,footprint);
+  let pattern=mix(1.0,sampleGround.r,enabled*dryBackshore*bankAway);
+  // The G channel was baked from the actual composed 1 m height surface;
+  // suppress all ground-flora forms on walls while leaving level banks alone.
+  let slope=mix(1.0,sampleGround.g,enabled*sampleGround.b);
+  out.coverFactor=pattern*slope;
+  m.gb*=out.coverFactor;m.a*=mix(1.0,pattern,.5)*slope;
  }`:''}
- m.gba*=1.0-museumSpringOutcrop(p);return m;
+ out.forms=m;return out;
 }
+fn museumFloraAt(p:vec2f,footprint:f32)->vec4f{return museumFloraSampleAt(p,footprint).forms;}
 fn museumMeadowAt(p:vec2f,footprint:f32)->MeadowTone{
  let a=mat2x2f(.764842187,.644217687,-.644217687,.764842187)*p/173.0;
  let b=mat2x2f(-.504846105,.863209367,-.863209367,-.504846105)*p/47.0;
@@ -93,7 +136,7 @@ fn museumMeadowAt(p:vec2f,footprint:f32)->MeadowTone{
 }
 struct MuseumSward { albedo:vec3f, relief:f32 };
 fn museumSward(p:vec3f,N:vec3f,footprint:f32,gustOffset:vec2f)->MuseumSward{
- let mt=museumMeadowAt(p.xz,footprint);let density=museumFloraAt(p.xz,footprint).g;
+ let mt=museumMeadowAt(p.xz,footprint);let flora=museumFloraSampleAt(p.xz,footprint);let density=flora.forms.g;
  // Continuous, world-fixed sward: resolved leaf detail gives way to broad
  // non-periodic clumps before it becomes a subpixel repeated lattice.
  let r=mat2x2f(.267499,.963558,-.963558,.267499);
@@ -119,10 +162,12 @@ fn museumSward(p:vec3f,N:vec3f,footprint:f32,gustOffset:vec2f)->MuseumSward{
  let gustB=textureSample(terrainDetailTex,smpAniso4Repeat,windP/61.0+.37).w;
  let gust=smoothstep(.46,.6,gustA*.62+gustB*.38)*clamp(frame.windSpeed*.05,0.0,.35);
  lawn=mix(lawn,lawn*vec3f(1.14,1.12,1.04),gust*.5);
- let base=mix(mt.tone*.75,${srgb(.29,.28,.22)},.55)*(1.0+(dN.y-.45)*.22)*(1.0+(dF.y-.4)*.08*fine);
+ var base=mix(mt.tone*.75,${srgb(.29,.28,.22)},.55)*(1.0+(dN.y-.45)*.22)*(1.0+(dF.y-.4)*.08*fine);
  // A thin sward exposes soil, dry litter and small clumps gradually. This is
  // the same continuous density that decides the world-fixed blade presence.
  let spatialCover=smoothstep(.008,.36,density);
+ let dryThatch=mix(mt.tone*.78,${srgb(.36,.34,.23)},.24);
+ base=mix(base,dryThatch,(1.0-spatialCover)*(1.0-flora.coverFactor)*.65);
  var out:MuseumSward;out.albedo=mix(base,lawn,spatialCover);
  // Centimetre-scale tussock relief succeeds distant blades in the native
  // surface-gradient normal. Broad warped clumps survive; subpixel detail fades.
@@ -131,5 +176,5 @@ fn museumSward(p:vec3f,N:vec3f,footprint:f32,gustOffset:vec2f)->MuseumSward{
 }
 fn museumGrassGround(p:vec2f)->f32{return terrainHeightAt(p)-.035;}
 `});
- return {module,density,counts,distance,review,description:'moisture/613m macro tones with warped detail, region palettes; low, tall, upright and woodland cover; signed water support shared by ground and blades'};
+ return {module,density,counts,distance,review,groundCover:groundCover.stats,description:'moisture/613m macro tones with warped detail, region palettes; 2m sample ground mosaic shared by ground and blades; signed water support'};
 }
