@@ -41,6 +41,7 @@ import { loadCreekData } from './CreekData.js';
 import { CreekTerrain } from './CreekTerrain.js';
 import { CreekForest } from './CreekForest.js';
 import {CANOPY_SHADOW_LAYER} from './CanopyShadows.js';
+import {attachCanopyLightFrustum} from './CanopyLightFrustum.js';
 import {installCreekShadowFilter} from './CreekShadowFilter.js';
 import { loadConiferTextures } from './ConiferGeometry.js';
 import {createMeadowAppearance} from './MeadowAppearance.js';
@@ -121,6 +122,7 @@ export class CreekApp extends MuseumApp {
     this.habitatEnrichment=await SampleHabitatEnrichment.create(this,data);
     data.sampleHabitatEnrichmentVisits=this.habitatEnrichment?.visits??{};
     const clipped=new Set();scene.traverse(o=>{if(o.isMesh&&o.material&&!o.material.isWaterMaterial&&!clipped.has(o.material)){clipped.add(o.material);clipCreekRefraction(o.material,data.field);}});
+    this.canopyLightFrustum=await attachCanopyLightFrustum(this);
     this.underwater=new CreekUnderwater({depthTexture:this.sceneRenderer.sceneRT.depthTexture,maskTexture:this.sceneRenderer.waterMaskTexture,query:{module:this.query.mediumModule},caustics:this.caustics,fft:this.fft});
     this.haze=new ForestAir({depthTexture:this.sceneRenderer.sceneRT.depthTexture,underwater:this.underwater,atmosphere:this.atmosphere,sky:this.sky,clouds:this.clouds,terrain:this.terrainGPU,csm:this.csm},data.terrain);
     this.post=new PostFX(engine,{sceneRenderer:this.sceneRenderer,camera,underwater:this.underwater,clouds:this.clouds,sunDir:this.atmosphere.sunDir,haze:this.haze});

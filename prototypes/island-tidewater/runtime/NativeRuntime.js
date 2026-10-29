@@ -15,7 +15,7 @@ export class NativeRuntime {
     this.app = app; this.kind = kind; this.phase = 'loading'; this.running = false;
     this.events = []; this.callbacks = []; this.frames = []; this.errors = []; this.recording = false;
     this.timer = new FrameTimer(); this.loadedAt = null; this.lastCallback = null; this.lastSubmit = null;
-    this.inFlight = 0; this.maximumInFlight = 2; this.targetFps = 60; this.frameToleranceMs = 1;
+    this.inFlight = 0; this.maximumInFlight = 2; this.targetFps = 60;
     this.cpu = {}; this.lastFrame = null; this.cancelled = false; this.lost = false;
     this.loaderStarted = performance.now();
     bindSceneReport(this,buildInfo);
@@ -24,9 +24,10 @@ export class NativeRuntime {
     const reportError = console.error.bind(console);
     console.error = (...args) => { reportError(...args); this.fail(args.map(x => x?.message ?? String(x)).join(' ')); };
     const hudToggle=document.querySelector('#hud-toggle');if(hudToggle)hudToggle.onclick=()=>{const collapsed=document.body.classList.toggle('hud-collapsed');hudToggle.textContent=collapsed?'展开导览':'收起导览';hudToggle.setAttribute('aria-expanded',String(!collapsed));hudToggle.setAttribute('aria-label',collapsed?'展开导览面板':'收起导览面板');};
+    for(const id of ['inspection','raw-diagnostics'])document.querySelector('#'+id)?.addEventListener('toggle',()=>this.publish());
     document.querySelector('#pause').onclick = () => this.running ? this.stop('user') : this.resume();
     document.querySelector('#capture').onclick = () => this.saveObservation();
-    document.querySelector('#measure').onclick = () => this.measure().catch(e => this.fail(e));
+    document.querySelector('#measure').onclick = () => this.measure().catch(e => { if (!e.timingSaveFailed) this.fail(e); });
     const video=document.querySelector('#record-video');if(video)video.onclick=()=>this.recordVideo().catch(error=>{this.videoResult={status:'failed',message:String(error)};this.event('video-unavailable',{message:String(error)});this.publish();document.querySelector('#status').textContent='本次录像未保存 · '+error.message;});
     document.querySelector('#cancel').onclick = () => { this.cancelled = true; this.stop('loading cancelled'); GPU.device?.destroy(); };
     document.querySelector('#scale').onchange = event => {
@@ -224,10 +225,9 @@ export class NativeRuntime {
     this.raf = requestAnimationFrame(this._loop);
     const callbackInterval = this.lastCallback === null ? null : t - this.lastCallback;
     this.lastCallback = t;
-    // rAF timestamps jitter around display ticks. Compare with the last actual
-    // submission, so an epoch boundary cannot create alternating25ms/8ms pairs.
-    const tooSoon = this.lastSubmit !== null && t - this.lastSubmit < 1000 / this.targetFps - this.frameToleranceMs;
-    const reason = this.phase !== 'ready' ? this.phase : document.hidden ? 'hidden' : !this.running ? 'paused' : this.lost ? 'device-lost' : t >= this.deadline ? 'observation-deadline' : tooSoon ? 'frame-budget' : this.inFlight >= this.maximumInFlight ? 'gpu-backpressure' : null;
+    // Follow Tidewater's display-driven loop. A second 60 Hz clock rejects
+    // valid refreshes when their timestamps jitter; keep the GPU queue bound.
+    const reason = this.phase !== 'ready' ? this.phase : document.hidden ? 'hidden' : !this.running ? 'paused' : this.lost ? 'device-lost' : t >= this.deadline ? 'observation-deadline' : this.inFlight >= this.maximumInFlight ? 'gpu-backpressure' : null;
     const callback = { t, interval: callbackInterval, callbackStart, latenessMs: callbackStart - t, attempted: !reason, submitted: false, reason };
     if (this.recording) this.callbacks.push(callback);
     if (reason) { if (reason === 'observation-deadline' && this.running) this.stop(reason); return; }
@@ -270,6 +270,7 @@ export class NativeRuntime {
       sceneConditions:{timeOfDay:a.settings.timeOfDay,windSpeed:G.windSpeed.value,exposure:a.settings.exposure,autoExposure:a.post?.autoExposure.enabled.value,filmGrain:a.post?.params.grain.value,sharpen:a.post?.params.sharpen.value,jitterMoving:a.post?.taau?.jitterMoving},
       renderScale: a.settings.renderScale, aaMode: a.post?.aaMode,
       dynamicMuseumShadows:a.dynamicMuseumShadows?.stats()??null,
+      canopyLightFrustum:a.canopyLightFrustum?.stats()??null,
       grassRootCache:a.vegetation?.grass?.rootCache?.stats()??null,
       antiAlias:a.post?{requested:a.post.aaMode,lookupTexturesReady:!!(a.post.aa.area&&a.post.aa.search),smaaBuilt:!!a.post.aa._smaa,actualPreFilter:a.post.aaMode==='smaataa'?(a.post.aa.area&&a.post.aa.search?'smaa':'fxaa fallback'):'none'}:null,
       systems: Object.fromEntries(['atmosphere', 'sky', 'clouds', 'environment', 'terrain', 'vegetation', 'shadows', 'fft', 'shoreSim', 'refraction', 'underwater', 'haze', 'post', 'game'].map(k => [k, !!a[k]])),
@@ -281,62 +282,81 @@ export class NativeRuntime {
       nativeScene: { scannedDebrisReady: a.debris?.scanned?.ready, renderStats: a.engine?.meshRenderer?.stats },
       loadMs: this.loadedAt === null ? null : this.loadedAt - this.loaderStarted,
       adapter: GPU.adapter?.info ? { vendor: GPU.adapter.info.vendor, architecture: GPU.adapter.info.architecture, device: GPU.adapter.info.device, description: GPU.adapter.info.description } : null,
-      timestampSupported: GPU.hasTimestamp, pendingQueries: this.timer.pending.size, scheduler: { targetFps: this.targetFps, timestampToleranceMs: this.frameToleranceMs, gate: 'elapsed-since-last-submission', maximumInFlight: this.maximumInFlight, currentInFlight: this.inFlight },
+      timestampSupported: GPU.hasTimestamp, pendingQueries: this.timer.pending.size, scheduler: { targetFps: this.targetFps, gate: 'browser-refresh-with-gpu-backpressure', maximumInFlight: this.maximumInFlight, currentInFlight: this.inFlight },
       sample:a.creekData?sampleState(a):null,
       slice: a.sliceState?.() ?? null,
       limitation: a.sliceState ? 'Connected museum island, nine habitats and native ocean/underwater chain. Inland SSR remains screen-limited; species-level palaeobotany, river caustics, marine gameplay and long-duration thermal stability need separate validation.' : 'Reference island with native museum animal compatibility; original museum creek, vegetation and inland water not migrated. Submitted frames do not measure compositor presentation.',
     };
   }
   publish() {
-    const state = this.state();
+    const a=this.app,inspection=document.querySelector('#inspection'),raw=document.querySelector('#raw-diagnostics');
+    // Full evidence stays available through state(). Build the large JSON only
+    // while it is visible; disclosure events refresh it immediately on opening.
+    if((inspection?.open??true)&&(raw?.open??true))document.querySelector('#native-state').textContent=JSON.stringify(this.state(),null,2);
     const capture=document.querySelector('#copy-scene');if(capture)capture.disabled=this.phase!=='ready'||this.lost||this.measuring||this.recording||this.recordingVideo||this.recordingAudio||this.walkingSample||!!this.sceneCapture?.busy;
-    document.querySelector('#native-state').textContent = JSON.stringify(state, null, 2);
-    document.querySelector('#dimensions').textContent = state.output ? `输出 ${state.output.join('×')} · 内部 ${state.internal?.join('×') ?? '准备中'} · 目标 60 FPS` : '完整原生场景准备中';
-    const fly=document.querySelector('#fly');if(fly){fly.textContent=state.camera?.freeCam?'退出升空 · F':'自由升空 · F';fly.setAttribute('aria-pressed',String(!!state.camera?.freeCam));}
+    const output=a.engine?.canvas?[a.engine.width,a.engine.height]:null,internal=a.sceneRenderer?.sceneRT?[a.sceneRenderer.sceneRT.width,a.sceneRenderer.sceneRT.height]:null;
+    document.querySelector('#dimensions').textContent = output ? `输出 ${output.join('×')} · 内部 ${internal?.join('×') ?? '准备中'} · 目标 60 FPS` : '完整原生场景准备中';
+    const fly=document.querySelector('#fly');if(fly){fly.textContent=a.freeCam?'退出升空 · F':'自由升空 · F';fly.setAttribute('aria-pressed',String(!!a.freeCam));}
     const sound=document.querySelector('#sea-sound');if(sound&&this.app.audio){const a=this.app.audio;sound.textContent=!a.choice?'自然声：已关闭 · 点击开启':a.paused?'自然声：已暂停':a.enabled?'自然声：已开启':'自然声：点击恢复';sound.setAttribute('aria-pressed',String(a.choice));}
     const entry=document.querySelector('#scene-entry');if(entry)entry.hidden=this.phase!=='ready'||this.running||this.measuring||this.walkingSample||this.recording;
-    if (this.phase === 'ready' && this.running) document.querySelector('#status').textContent = this.recordingVideo?'正在保存动态画面':state.remainingSeconds===null?'持续观察中 · 可随时暂停':`观察中 · ${Math.ceil(state.remainingSeconds)} 秒后暂停`;
+    const remaining=Number.isFinite(this.deadline)?Math.max(0,(this.deadline-performance.now())/1000):null;
+    if (this.phase === 'ready' && this.running) document.querySelector('#status').textContent = this.recordingVideo?'正在保存动态画面':remaining===null?'持续观察中 · 可随时暂停':`观察中 · ${Math.ceil(remaining)} 秒后暂停`;
   }
-  async measure() {
+  async measure({warmupMs=3000,durationMs=8000}={}) {
+    if(!Number.isFinite(warmupMs)||warmupMs<0||!Number.isFinite(durationMs)||durationMs<1000||durationMs>300000)throw Error('Invalid native timing duration');
     if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample || this.recordingVideo || this.recordingAudio || this.lost) return;
     this.measuring = true;
-    // Repainting the live raw JSON panel changes browser presentation cost.
-    // Time the normal visitor view and record this condition explicitly.
-    document.querySelector('#inspection')?.removeAttribute('open');
-    document.querySelector('#measure').disabled = true;
-    this.resume();
-    document.querySelector('#status').textContent = '预热 3 秒后采集 8 秒 · 不录制画面';
-    await pause(3000);
-    if (!this.running) { this.measuring = false; document.querySelector('#measure').disabled = false; this.event('timing-cancelled-during-warmup'); return; }
-    const conditions = this.state();
-    this.callbacks = []; this.frames = []; this.interruptedDuringTiming = false; this.recording = true; this.timer.start();
-    const start = performance.now();
-    await pause(8000);
-    const elapsedMs = performance.now() - start;
-    this.recording = false;
-    const interrupted = !this.running || this.interruptedDuringTiming;
-    this.stop('timing complete');
-    const gpu = await this.timer.stop();
-    const after = this.state();
-    const fixedBuffers = JSON.stringify(conditions.output) === JSON.stringify(after.output) && JSON.stringify(conditions.internal) === JSON.stringify(after.internal) && conditions.renderScale === after.renderScale;
-    const intervals = this.frames.map(f => f.interval).filter(v => v !== null);
-    const gpuMs = gpu.rows.filter(r => r.status === 'valid').map(r => r.ms);
-    const result = {
-      schema: 'museum-native-timing-v1', passed: !interrupted && fixedBuffers && this.frames.length > 10 && !this.errors.length,
-      conditions, after, fixedBuffers, interrupted, elapsedMs, submittedFps: this.frames.length / (elapsedMs / 1000),
-      intervalP50: quantile(intervals, .5), intervalP95: quantile(intervals, .95), intervalP99: quantile(intervals, .99),
-      cpuP50: quantile(this.frames.map(f => f.cpuFrameMs), .5), cpuP95: quantile(this.frames.map(f => f.cpuFrameMs), .95),
-      callbackCpuP50: quantile(this.frames.map(f => f.cpuCallbackMs), .5), callbackCpuP95: quantile(this.frames.map(f => f.cpuCallbackMs), .95),
-      gpuP50: quantile(gpuMs, .5), gpuP95: quantile(gpuMs, .95), gpu,
-      callbacks: this.callbacks, frames: this.frames, events: this.events,
-      capture: false, pixelReadback: false, timestampReadback: true,
-      caveat: 'Sparse timestamps on actual native passes and asynchronous readbacks add overhead. No causal comparison or long-duration thermal claim from one short run.',
-    };
-    await this.save('timing', result);
-    this.measuring = false;
-    document.querySelector('#measure').disabled = false;
-    document.querySelector('#status').textContent = result.passed ? `计时已保存 · 提交 ${result.submittedFps.toFixed(2)} FPS · GPU pass 区间 p50 ${result.gpuP50?.toFixed(2) ?? '不可用'} ms` : '计时中断或失败 · 原始记录已保存';
-    this.publish();
+    try {
+      // Repainting the live raw JSON panel changes browser presentation cost.
+      // Time the normal visitor view and record this condition explicitly.
+      document.querySelector('#inspection')?.removeAttribute('open');
+      document.querySelector('#measure').disabled = true;
+      this.resume();
+      document.querySelector('#status').textContent = `预热 ${warmupMs/1000} 秒后采集 ${durationMs/1000} 秒 · 不录制画面`;
+      await pause(warmupMs);
+      if (!this.running) { this.event('timing-cancelled-during-warmup'); return; }
+      const conditions = this.state();
+      this.callbacks = []; this.frames = []; this.interruptedDuringTiming = false; this.recording = true; this.timer.start();
+      const start = performance.now();
+      await pause(durationMs);
+      const elapsedMs = performance.now() - start;
+      this.recording = false;
+      const interrupted = !this.running || this.interruptedDuringTiming;
+      this.stop('timing complete');
+      const gpu = await this.timer.stop();
+      // Sampling has ended. Finish the last asynchronous completion records
+      // before serializing evidence; this drain is outside elapsedMs.
+      await GPU.queue.onSubmittedWorkDone();
+      const after = this.state();
+      const fixedBuffers = JSON.stringify(conditions.output) === JSON.stringify(after.output) && JSON.stringify(conditions.internal) === JSON.stringify(after.internal) && conditions.renderScale === after.renderScale;
+      const intervals = this.frames.map(f => f.interval).filter(v => v !== null);
+      const gpuMs = gpu.rows.filter(r => r.status === 'valid').map(r => r.ms);
+      const result = {
+        schema: 'museum-native-timing-v1', requested:{warmupMs,durationMs}, passed: !interrupted && fixedBuffers && this.frames.length > 10 && !this.errors.length,
+        conditions, after, fixedBuffers, interrupted, elapsedMs, submittedFps: this.frames.length / (elapsedMs / 1000),
+        intervalP50: quantile(intervals, .5), intervalP95: quantile(intervals, .95), intervalP99: quantile(intervals, .99),
+        cpuP50: quantile(this.frames.map(f => f.cpuFrameMs), .5), cpuP95: quantile(this.frames.map(f => f.cpuFrameMs), .95),
+        callbackCpuP50: quantile(this.frames.map(f => f.cpuCallbackMs), .5), callbackCpuP95: quantile(this.frames.map(f => f.cpuCallbackMs), .95),
+        gpuP50: quantile(gpuMs, .5), gpuP95: quantile(gpuMs, .95), gpu,
+        callbacks: this.callbacks, frames: this.frames, events: this.events,
+        capture: false, pixelReadback: false, timestampReadback: true,
+        caveat: 'Sparse timestamps on actual native passes and asynchronous readbacks add overhead. No causal comparison or long-duration thermal claim from one short run.',
+      };
+      try { await this.save('timing', result); }
+      catch (error) {
+        this.event('timing-save-failed', { message: String(error) });
+        document.querySelector('#status').textContent = '计时保存失败 · 可重试';
+        const failure = new Error('Timing save failed', { cause: error });
+        failure.timingSaveFailed = true;
+        throw failure;
+      }
+      document.querySelector('#status').textContent = result.passed ? `计时已保存 · 提交 ${result.submittedFps.toFixed(2)} FPS · GPU pass 区间 p50 ${result.gpuP50?.toFixed(2) ?? '不可用'} ms` : '计时中断或失败 · 原始记录已保存';
+      this.publish();
+    } finally {
+      this.measuring = false;
+      document.querySelector('#measure').disabled = false;
+      this.publish();
+    }
   }
   async walkSample() {
     if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample || this.recordingAudio || this.recordingVideo) return;

@@ -18,10 +18,13 @@ fn hookDirectModulation(P:vec3f,N:vec3f)->vec3f {
  var atten=vec3f(1.0);
 #if !IS_WATER && UNDERWATER_LIGHTING != 0
  if(inland>.001){
-  let d=max(creekMeanAt(P.xz)-P.y,0.0);let grad=creekGradient(P.xz);
+  let d=max(creekMeanAt(P.xz)-P.y,0.0);
+  if(d>0.0){
+  let grad=creekGradient(P.xz);
   let wn=normalize(vec3f(-grad.x,1.0,-grad.y));
   let up=-refract(-frame.sunDir,wn,1.0/1.333);
   atten=mix(vec3f(1.0),exp(-(frame.waterAbsorption+frame.waterScattering)*d/max(up.y,0.15)),smoothstep(0.0,0.08,d));
+  }
  }
 #endif
 #if HILL_SHADOW_SELF
