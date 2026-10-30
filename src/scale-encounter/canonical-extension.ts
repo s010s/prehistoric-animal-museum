@@ -21,10 +21,12 @@ export interface CanonicalIdleContactSamples {
 export interface CanonicalComparisonMetadata {
   readonly names: Readonly<Record<Locale, string>>
   readonly measurements: Readonly<Record<Locale, string>>
-  readonly habitat: 'land' | 'water'
+  readonly habitat: 'land' | 'air' | 'water'
   readonly modelSha256: string
   readonly meters: number
   readonly modelYawRadians: number
+  readonly measurement?: 'body-length' | 'wingspan' | 'shoulder-height' | 'standing-height'
+  readonly measurementAxis?: 'x' | 'y' | 'z'
 }
 
 export interface CanonicalComparisonAudio {

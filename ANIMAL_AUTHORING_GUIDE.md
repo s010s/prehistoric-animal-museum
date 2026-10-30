@@ -42,6 +42,23 @@ collection entry, local asset records, and URLs must agree.
 
 ## 2. Intake before editing
 
+Discover candidates with broad terms such as `dinosaur`, `prehistoric bird`,
+and `pterosaur` before narrowing to a genus. Apply downloadable and reusable
+licence filters, then look at the model from more than one angle. Prioritise a
+convincing silhouette, surface quality, a calm presentation for children, and
+variety against the existing collection. A low triangle count or an older
+plausible reconstruction is a reason to inspect the asset, not to discard it
+without seeing it.
+
+Check the uploader's own description before investing in a download or model
+work. A CC BY label records the uploader's licence claim; when the description
+identifies a third-party film or game model, establish that the original rights
+holder permits redistribution before using it publicly. Once an asset has a
+clear source and looks promising, inspect the actual files, motion and mobile
+view. Gather a small set of primary science sources to write defensible child
+facts and note artistic reconstruction; do not require a specimen-level audit
+for every model.
+
 Retain private source material outside tracked runtime paths:
 
 - original model archive and untouched source GLB;

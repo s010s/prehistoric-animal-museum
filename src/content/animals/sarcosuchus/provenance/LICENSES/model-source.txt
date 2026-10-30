@@ -1,0 +1,9 @@
+Sarcosuchus
+Source: https://sketchfab.com/3d-models/sarcosuchus-6cb4e0c2b53447409cc092f9cfa97c51
+Source bytes: 48168276
+Source SHA-256: c35b775b5da2510a7fc49aac8da4673fd54cc2e4563c1dc4e6573109476a55c1
+Runtime bytes: 17945692
+Runtime SHA-256: f31490d167289a724a77f33b2040fc66f377c52a7f01bb1e361a2e5f011ceb20
+
+Changes:
+- Merged/welded source chunks; 250k geometry; high-to-low tangent normals; roughness correction; new skin and stationary 8-second Idle with breathing, head/neck/tail and 9-degree jaw closing; brighter warm green/ochre skin midtones.

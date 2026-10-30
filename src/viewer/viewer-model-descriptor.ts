@@ -6,6 +6,7 @@ export interface ViewerModelDescriptor {
   presentation: {
     cameraLightScale?: number
     initialYawDegrees: number
+    initialRotationZDegrees?: number
     horizontalOffset?: {
       landscape: number
       portrait: number

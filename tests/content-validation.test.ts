@@ -1,6 +1,7 @@
 /// <reference types="node" />
 
-import { readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { animal } from '../src/content/animals/stegosaurus/animal'
@@ -15,6 +16,13 @@ import {
   validateLocaleCompleteness,
   validateRecordedAsset,
 } from '../scripts/content-validation'
+
+import {
+  isPublicationAuthorizedNarrationPlan,
+  publicationAuthorizationCoversTrack,
+  verifyNarrationPublicationAuthorization,
+  validateNarrationPublicationAuthorization,
+} from '../scripts/narration-publication-authorization'
 
 const packageRoot = join(
   process.cwd(),
@@ -312,5 +320,101 @@ describe('published locale completeness', () => {
         narration: {},
       }),
     ).toEqual([])
+  })
+})
+
+
+describe('portable owner authorization for narration publication', () => {
+  const digest = 'a'.repeat(64)
+  const track = { animalId: 'example-animal', locale: 'zh-CN', phase: 'gallery', sha256: digest, assetPath: 'src/content/animals/example-animal/audio/narration.zh-CN.mp3' }
+  const authorization = {
+    schemaVersion: 1, kind: 'owner-publication-authorization',
+    scope: 'owner-publication-authorized', owner: 'Leon', recordedOn: '2026-10-30',
+    action: 'public-distribution', completeListening: 'unverified', tracks: [track],
+  }
+  const plan = {
+    status: 'ready', sourcePath: 'audio/narration.zh-CN.mp3', mimeType: 'audio/mpeg',
+    speaker: 'Serena', language: 'Chinese', humanReviewStatus: 'pending',
+    publicationAuthorization: { scope: 'owner-publication-authorized', recordSha256: digest, completeListening: 'unverified' },
+  }
+
+  it('accepts a named publication decision while preserving unverified listening', () => {
+    expect(isPublicationAuthorizedNarrationPlan(plan)).toBe(true)
+    expect(publicationAuthorizationCoversTrack(authorization, track)).toBe(true)
+    expect(validateLocaleCompleteness({
+      ...animalDefinition,
+      narration: { ...animalDefinition.narration, 'zh-CN': plan },
+    })).toEqual([])
+  })
+
+  it.each([
+    ['changed audio', { ...track, sha256: 'b'.repeat(64) }],
+    ['wrong animal', { ...track, animalId: 'different-animal' }],
+    ['wrong locale', { ...track, locale: 'en' }],
+    ['wrong phase', { ...track, phase: 'intro' }],
+  ])('rejects %s outside the exact authorized bytes', (_label, expected) => {
+    expect(publicationAuthorizationCoversTrack(authorization, expected)).toBe(false)
+  })
+
+  it.each([
+    ['missing owner', { ...authorization, owner: '' }],
+    ['invalid date', { ...authorization, recordedOn: '2026-02-30' }],
+    ['local-only scope', { ...authorization, scope: 'local-formal-candidate' }],
+    ['local-only action', { ...authorization, action: 'local-preview' }],
+    ['invented complete listening', { ...authorization, completeListening: 'approved' }],
+    ['empty tracks', { ...authorization, tracks: [] }],
+    ['duplicate tracks', { ...authorization, tracks: [track, track] }],
+    ['invalid hash', { ...authorization, tracks: [{ ...track, sha256: 'invalid' }] }],
+    ['private evidence path', { ...authorization, tracks: [{ ...track, assetPath: '.handoff/audio.mp3' }] }],
+    ['traversal path', { ...authorization, tracks: [{ ...track, assetPath: 'src/../audio.mp3' }] }],
+  ])('rejects %s in a public record', (_label, value) => {
+    expect(publicationAuthorizationCoversTrack(value, track)).toBe(false)
+  })
+
+  it('rejects fabricated listening and incomplete playback metadata', () => {
+    expect(isPublicationAuthorizedNarrationPlan({ ...plan, humanReviewStatus: 'approved' })).toBe(false)
+    expect(isPublicationAuthorizedNarrationPlan({ ...plan, status: 'pending-review' })).toBe(false)
+    expect(isPublicationAuthorizedNarrationPlan({ ...plan, sourcePath: 'audio/narration.en.mp3' })).toBe(false)
+    expect(isPublicationAuthorizedNarrationPlan({ ...plan, publicationAuthorization: { ...plan.publicationAuthorization, recordSha256: 'invalid' } })).toBe(false)
+    expect(isPublicationAuthorizedNarrationPlan({ ...plan, publicationAuthorization: { ...plan.publicationAuthorization, completeListening: 'approved' } })).toBe(false)
+  })
+
+  it('validates an isolated checkout from public records and rejects stale or missing evidence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'museum-publication-'))
+    const recordPath = join(root, 'src/content/narration-publication-authorization.json')
+    const manifestPath = join(root, 'src/scale-encounter/audio/additions-manifest.json')
+    const audio = Buffer.from('exact authorized encoded audio')
+    const galleryTrack = { ...track, sha256: sha256(audio) }
+    const comparisonTrack = { ...galleryTrack, phase: 'intro', assetPath: 'src/scale-encounter/audio/additions/example-animal-intro.zh-CN.mp3' }
+    const record = { ...authorization, tracks: [galleryTrack, comparisonTrack] }
+    const recordBytes = JSON.stringify(record)
+    const review = { ...plan, publicationAuthorization: { ...plan.publicationAuthorization, recordSha256: sha256(Buffer.from(recordBytes)) } }
+    const comparison = { ...comparisonTrack, ...review, file: 'additions/example-animal-intro.zh-CN.mp3' }
+    try {
+      await mkdir(join(root, 'src/content/animals/example-animal/audio'), { recursive: true })
+      await mkdir(join(root, 'src/scale-encounter/audio/additions'), { recursive: true })
+      await writeFile(recordPath, recordBytes)
+      await writeFile(manifestPath, JSON.stringify({ tracks: [comparison] }))
+      for (const entry of record.tracks) await writeFile(join(root, entry.assetPath), audio)
+      expect(await verifyNarrationPublicationAuthorization(review, galleryTrack, root)).toBe(true)
+      expect(await validateNarrationPublicationAuthorization(root)).toBe(true)
+      expect(await verifyNarrationPublicationAuthorization({ ...review, publicationAuthorization: { ...review.publicationAuthorization, recordSha256: 'b'.repeat(64) } }, galleryTrack, root)).toBe(false)
+      await writeFile(join(root, comparisonTrack.assetPath), 'changed audio')
+      expect(await validateNarrationPublicationAuthorization(root)).toBe(false)
+      await writeFile(join(root, comparisonTrack.assetPath), audio)
+      await writeFile(manifestPath, JSON.stringify({ tracks: [] }))
+      expect(await validateNarrationPublicationAuthorization(root)).toBe(false)
+      await writeFile(manifestPath, JSON.stringify({ tracks: [comparison, comparison] }))
+      expect(await validateNarrationPublicationAuthorization(root)).toBe(false)
+      await writeFile(manifestPath, JSON.stringify({ tracks: [{ ...comparison, humanReviewStatus: 'approved' }] }))
+      expect(await validateNarrationPublicationAuthorization(root)).toBe(false)
+      await rm(recordPath)
+      expect(await verifyNarrationPublicationAuthorization(review, galleryTrack, root)).toBe(false)
+      await writeFile(join(root, 'record.json'), recordBytes)
+      await symlink(join(root, 'record.json'), recordPath)
+      expect(await verifyNarrationPublicationAuthorization(review, galleryTrack, root)).toBe(false)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
   })
 })

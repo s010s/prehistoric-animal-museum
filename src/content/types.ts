@@ -23,7 +23,7 @@ export type IsoDate = string
 export type AnimalSizeFact =
   | { readonly kind: 'unknown'; readonly note: string }
   | {
-      readonly kind: 'body-length' | 'shoulder-height' | 'wingspan'
+      readonly kind: 'body-length' | 'shoulder-height' | 'standing-height' | 'wingspan'
       readonly minMeters: number
       readonly maxMeters: number
     }
@@ -79,6 +79,8 @@ export type AnimalContentEn = AnimalContent
 export interface AnimalPresentation {
   readonly cameraLightScale?: number
   readonly initialYawDegrees: number
+  /** Gallery-only correction about the source model's local Z axis. */
+  readonly initialRotationZDegrees?: number
   /**
    * Moves the fitted model inside the desktop/landscape composition frame.
    * Negative values move it toward audience-left.
@@ -239,6 +241,19 @@ export interface ApprovedNarrationPlan<Language extends Locale = Locale>
   readonly humanReviewStatus: 'approved'
 }
 
+/** Owner-authorized public distribution, without a complete listening claim. */
+export interface PublicationAuthorizedNarrationPlan<Language extends Locale = Locale>
+  extends ReadyNarrationPlan<Language> {
+  readonly speaker: 'Serena'
+  readonly language: NarrationLanguage<Language>
+  readonly humanReviewStatus: 'pending'
+  readonly publicationAuthorization: {
+    readonly scope: 'owner-publication-authorized'
+    readonly recordSha256: Sha256
+    readonly completeListening: 'unverified'
+  }
+}
+
 export interface PendingNarrationPlan<Language extends Locale = Locale> {
   readonly status: 'pending-review'
   readonly expectedPath: NarrationSourcePath<Language>
@@ -252,6 +267,7 @@ export interface PendingNarrationPlan<Language extends Locale = Locale> {
 
 export type NarrationPlan<Language extends Locale = Locale> =
   | ReadyNarrationPlan<Language>
+  | PublicationAuthorizedNarrationPlan<Language>
   | PendingNarrationPlan<Language>
 
 export interface ReadyNarrationAsset<Language extends Locale = Locale>
@@ -264,16 +280,21 @@ export interface ApprovedNarrationAsset<Language extends Locale = Locale>
   readonly url: string
 }
 
+export interface PublicationAuthorizedNarrationAsset<Language extends Locale = Locale>
+  extends PublicationAuthorizedNarrationPlan<Language> {
+  readonly url: string
+}
+
 export type NarrationAsset<Language extends Locale = Locale> =
   | ReadyNarrationAsset<Language>
   | PendingNarrationPlan<Language>
 
 export type PublishedNarrationPlans = {
-  readonly [Language in Locale]: ApprovedNarrationPlan<Language>
+  readonly [Language in Locale]: ApprovedNarrationPlan<Language> | PublicationAuthorizedNarrationPlan<Language>
 }
 
 export type PublishedNarrationAssets = {
-  readonly [Language in Locale]: ApprovedNarrationAsset<Language>
+  readonly [Language in Locale]: ApprovedNarrationAsset<Language> | PublicationAuthorizedNarrationAsset<Language>
 }
 
 export type DraftNarrationPlans = Partial<{

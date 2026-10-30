@@ -1,0 +1,515 @@
+{
+  "schemaVersion": 1,
+  "kind": "owner-publication-authorization",
+  "scope": "owner-publication-authorized",
+  "owner": "Leon",
+  "recordedOn": "2026-10-30",
+  "action": "public-distribution",
+  "completeListening": "unverified",
+  "tracks": [
+    {
+      "animalId": "regaliceratops",
+      "locale": "zh-CN",
+      "phase": "gallery",
+      "sha256": "1a27c3caeaafde5a3785ea76076d338d11626e52570aa58c1856cfaf41875df0",
+      "assetPath": "src/content/animals/regaliceratops/audio/narration.zh-CN.mp3"
+    },
+    {
+      "animalId": "regaliceratops",
+      "locale": "en",
+      "phase": "gallery",
+      "sha256": "52dec52f8117a388e2b73d18e049537218263882c8121ffa5ea81dd113d5d633",
+      "assetPath": "src/content/animals/regaliceratops/audio/narration.en.mp3"
+    },
+    {
+      "animalId": "sarcosuchus",
+      "locale": "zh-CN",
+      "phase": "gallery",
+      "sha256": "31057fe0538f318c67998e4c1b3878d093da92781e735eeae598b13486a265c0",
+      "assetPath": "src/content/animals/sarcosuchus/audio/narration.zh-CN.mp3"
+    },
+    {
+      "animalId": "sarcosuchus",
+      "locale": "en",
+      "phase": "gallery",
+      "sha256": "691a47e4e5de36851a53e52079fc05932306198e5a0108ac9bc41f1d7d49df63",
+      "assetPath": "src/content/animals/sarcosuchus/audio/narration.en.mp3"
+    },
+    {
+      "animalId": "anurognathus",
+      "locale": "zh-CN",
+      "phase": "gallery",
+      "sha256": "b3394baa4832659b8467488da03d567430f57b5528f2e0d7f86598f8d92197da",
+      "assetPath": "src/content/animals/anurognathus/audio/narration.zh-CN.mp3"
+    },
+    {
+      "animalId": "anurognathus",
+      "locale": "en",
+      "phase": "gallery",
+      "sha256": "d51c8f59eac02e8265038e21b4b760a3471ee9f5f0e23db8c6e7246b69fac529",
+      "assetPath": "src/content/animals/anurognathus/audio/narration.en.mp3"
+    },
+    {
+      "animalId": "therizinosaurus",
+      "locale": "zh-CN",
+      "phase": "gallery",
+      "sha256": "e9ffda753cf399ab6d2af7275dd45bf2f7217f1b4ab5e3619ec2587bc309e1f4",
+      "assetPath": "src/content/animals/therizinosaurus/audio/narration.zh-CN.mp3"
+    },
+    {
+      "animalId": "therizinosaurus",
+      "locale": "en",
+      "phase": "gallery",
+      "sha256": "454c00d0528ea5e0577b0da8b67427827912a8aa7a5f95d96a21d48d875046fa",
+      "assetPath": "src/content/animals/therizinosaurus/audio/narration.en.mp3"
+    },
+    {
+      "animalId": "phorusrhacos",
+      "locale": "zh-CN",
+      "phase": "gallery",
+      "sha256": "1d5c45843a1261e1232fa93ebf37963cbcd74a314630c1736e4e57042dc9a88d",
+      "assetPath": "src/content/animals/phorusrhacos/audio/narration.zh-CN.mp3"
+    },
+    {
+      "animalId": "phorusrhacos",
+      "locale": "en",
+      "phase": "gallery",
+      "sha256": "f7e8b3b8c119df91c0baaace13c7a602977267fa155124d0722c73289848fe30",
+      "assetPath": "src/content/animals/phorusrhacos/audio/narration.en.mp3"
+    },
+    {
+      "animalId": "sordes",
+      "locale": "zh-CN",
+      "phase": "gallery",
+      "sha256": "66be037fcd3b62c3d7695b179f496af7b58149afa5ea5e13eeb1d1713cc532a3",
+      "assetPath": "src/content/animals/sordes/audio/narration.zh-CN.mp3"
+    },
+    {
+      "animalId": "sordes",
+      "locale": "en",
+      "phase": "gallery",
+      "sha256": "b72b150575119fae3a459ae797412ceb0c86d7224d28dec327e5b3bb3c55769a",
+      "assetPath": "src/content/animals/sordes/audio/narration.en.mp3"
+    },
+    {
+      "animalId": "quetzalcoatlus",
+      "locale": "zh-CN",
+      "phase": "gallery",
+      "sha256": "e927840192249938731da65e549ccb857cef3bfb02b4692665cec8b6829b10f9",
+      "assetPath": "src/content/animals/quetzalcoatlus/audio/narration.zh-CN.mp3"
+    },
+    {
+      "animalId": "quetzalcoatlus",
+      "locale": "en",
+      "phase": "gallery",
+      "sha256": "b7a8f884abe356f6604e0735539a877caade3e0a6636016ca4255f7400190423",
+      "assetPath": "src/content/animals/quetzalcoatlus/audio/narration.en.mp3"
+    },
+    {
+      "animalId": "dallasaurus",
+      "locale": "zh-CN",
+      "phase": "gallery",
+      "sha256": "302b6802d16ec051ac6857e6b02cc0f3b90cc1ced362636c1cd075cba6cf1f7b",
+      "assetPath": "src/content/animals/dallasaurus/audio/narration.zh-CN.mp3"
+    },
+    {
+      "animalId": "dallasaurus",
+      "locale": "en",
+      "phase": "gallery",
+      "sha256": "678b8755e9445abdca05fa12f2bef2c274dc1bd335a4f3ff0ace9ae05e54ff97",
+      "assetPath": "src/content/animals/dallasaurus/audio/narration.en.mp3"
+    },
+    {
+      "animalId": "dakosaurus",
+      "locale": "zh-CN",
+      "phase": "gallery",
+      "sha256": "bd2631de203d8ab8df378854297af7186b22be9b90dd847bfe046d42e84f0a9c",
+      "assetPath": "src/content/animals/dakosaurus/audio/narration.zh-CN.mp3"
+    },
+    {
+      "animalId": "dakosaurus",
+      "locale": "en",
+      "phase": "gallery",
+      "sha256": "023f0ca3436b30e9e191e730e206835c7cf5b7c26c94c7fad992c6109fb9d4bf",
+      "assetPath": "src/content/animals/dakosaurus/audio/narration.en.mp3"
+    },
+    {
+      "animalId": "regaliceratops",
+      "locale": "zh-CN",
+      "phase": "intro",
+      "sha256": "33efc3b5aef55c68ef0b407f3f3950b654870369268b8e0733289e156e10698f",
+      "assetPath": "src/scale-encounter/audio/sky-additions/regaliceratops/intro.zh-CN.mp3"
+    },
+    {
+      "animalId": "regaliceratops",
+      "locale": "zh-CN",
+      "phase": "transition",
+      "sha256": "df9c5776ce877ed2e49ce70ec5f1098ddc86231cfd8e28851b8abcba7b18d590",
+      "assetPath": "src/scale-encounter/audio/sky-additions/regaliceratops/transition.zh-CN.mp3"
+    },
+    {
+      "animalId": "regaliceratops",
+      "locale": "zh-CN",
+      "phase": "arrival",
+      "sha256": "bf00028e14150bfe54c437da565d993d528bb4711e791fb105ac518b65a3e482",
+      "assetPath": "src/scale-encounter/audio/sky-additions/regaliceratops/arrival.zh-CN.mp3"
+    },
+    {
+      "animalId": "regaliceratops",
+      "locale": "en",
+      "phase": "intro",
+      "sha256": "92b64b8a66fea6104b493c7385471b33e107157d62ed99612cbf7bf9914f8ede",
+      "assetPath": "src/scale-encounter/audio/sky-additions/regaliceratops/intro.en.mp3"
+    },
+    {
+      "animalId": "regaliceratops",
+      "locale": "en",
+      "phase": "transition",
+      "sha256": "394677c1008554f37b959bad27259173b3a3f57b81dd3d46e113944e4dcdb173",
+      "assetPath": "src/scale-encounter/audio/sky-additions/regaliceratops/transition.en.mp3"
+    },
+    {
+      "animalId": "regaliceratops",
+      "locale": "en",
+      "phase": "arrival",
+      "sha256": "9c53baefe17bb50b1a83cbc96143217168bf3a19389f4826c3bf41f1fadd98e5",
+      "assetPath": "src/scale-encounter/audio/sky-additions/regaliceratops/arrival.en.mp3"
+    },
+    {
+      "animalId": "sarcosuchus",
+      "locale": "zh-CN",
+      "phase": "intro",
+      "sha256": "70eb18c74eca07e6b9e07a7c2b745abaa9cf97b2fad42ad92bab41816eccb19d",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sarcosuchus/intro.zh-CN.mp3"
+    },
+    {
+      "animalId": "sarcosuchus",
+      "locale": "zh-CN",
+      "phase": "transition",
+      "sha256": "b8231f9388549e477dbe20d652bd7d9ab6b7e3323ae33d4197e332385113daa0",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sarcosuchus/transition.zh-CN.mp3"
+    },
+    {
+      "animalId": "sarcosuchus",
+      "locale": "zh-CN",
+      "phase": "arrival",
+      "sha256": "e4e9649045c958db16a6918604b1cf10076245740a15c3f61499005bba146fb2",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sarcosuchus/arrival.zh-CN.mp3"
+    },
+    {
+      "animalId": "sarcosuchus",
+      "locale": "en",
+      "phase": "intro",
+      "sha256": "de8a92732d425122c5f28b20e3960b838def79b139667bed8333739b6bf8e8e4",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sarcosuchus/intro.en.mp3"
+    },
+    {
+      "animalId": "sarcosuchus",
+      "locale": "en",
+      "phase": "transition",
+      "sha256": "084f41b4e783eb6389fa7043ae021d01731b42641ccdb53c7f4695ec44cbf77c",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sarcosuchus/transition.en.mp3"
+    },
+    {
+      "animalId": "sarcosuchus",
+      "locale": "en",
+      "phase": "arrival",
+      "sha256": "fe1c0647f2e48de3dd87efa3cdea32b9981d716463f3c4642c07351b253ee6ad",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sarcosuchus/arrival.en.mp3"
+    },
+    {
+      "animalId": "anurognathus",
+      "locale": "zh-CN",
+      "phase": "intro",
+      "sha256": "01f5d17fbd4c7145d00cff58b882008d732246590006c337213c3fc6483a4ea0",
+      "assetPath": "src/scale-encounter/audio/sky-additions/anurognathus/intro.zh-CN.mp3"
+    },
+    {
+      "animalId": "anurognathus",
+      "locale": "zh-CN",
+      "phase": "transition",
+      "sha256": "5691d4bcf8a3a083fc4333278d8ef1ed09b7e0a98dd6837f6a6ce40791324057",
+      "assetPath": "src/scale-encounter/audio/sky-additions/anurognathus/transition.zh-CN.mp3"
+    },
+    {
+      "animalId": "anurognathus",
+      "locale": "zh-CN",
+      "phase": "arrival",
+      "sha256": "1d94f19b2bc1d11bd90dc8a51e3a07e3bc32cc3df98145ffef44ef35bb681579",
+      "assetPath": "src/scale-encounter/audio/sky-additions/anurognathus/arrival.zh-CN.mp3"
+    },
+    {
+      "animalId": "anurognathus",
+      "locale": "en",
+      "phase": "intro",
+      "sha256": "d6ba56ca1cc1e9bb3d8605f6626bf415403da9862a5377b343c08ffd8f1f99c1",
+      "assetPath": "src/scale-encounter/audio/sky-additions/anurognathus/intro.en.mp3"
+    },
+    {
+      "animalId": "anurognathus",
+      "locale": "en",
+      "phase": "transition",
+      "sha256": "052d3660db23be3b81dd47f235855f460a9898fd25da445a3b918095a39d2dce",
+      "assetPath": "src/scale-encounter/audio/sky-additions/anurognathus/transition.en.mp3"
+    },
+    {
+      "animalId": "anurognathus",
+      "locale": "en",
+      "phase": "arrival",
+      "sha256": "df7cea43dd26849ce11eedad006b060bfd48ab25f22c3a0822d82694c979b7b9",
+      "assetPath": "src/scale-encounter/audio/sky-additions/anurognathus/arrival.en.mp3"
+    },
+    {
+      "animalId": "therizinosaurus",
+      "locale": "zh-CN",
+      "phase": "intro",
+      "sha256": "ff31d2d1a75d5ed5c458e9b0e1fd965443f6e130d9347ff5a7fe7216c11ad7fa",
+      "assetPath": "src/scale-encounter/audio/sky-additions/therizinosaurus/intro.zh-CN.mp3"
+    },
+    {
+      "animalId": "therizinosaurus",
+      "locale": "zh-CN",
+      "phase": "transition",
+      "sha256": "e1bb91c2551b8c9dcdf9fc340d0a4088687377ec34dd604512dc6919928626fd",
+      "assetPath": "src/scale-encounter/audio/sky-additions/therizinosaurus/transition.zh-CN.mp3"
+    },
+    {
+      "animalId": "therizinosaurus",
+      "locale": "zh-CN",
+      "phase": "arrival",
+      "sha256": "1fbd8842e85de7700619d9df3c3424b3ce9e812cbe8d4206e3fc7df6bfb1d6c4",
+      "assetPath": "src/scale-encounter/audio/sky-additions/therizinosaurus/arrival.zh-CN.mp3"
+    },
+    {
+      "animalId": "therizinosaurus",
+      "locale": "en",
+      "phase": "intro",
+      "sha256": "69a8dfc39bb4e20778516007c1935d2802e7c8e7750b4d1a67456ca41179be3e",
+      "assetPath": "src/scale-encounter/audio/sky-additions/therizinosaurus/intro.en.mp3"
+    },
+    {
+      "animalId": "therizinosaurus",
+      "locale": "en",
+      "phase": "transition",
+      "sha256": "100f0edeb82a6cca919e7a6380535da12cb60f0d3306633bf2e69d95f8227ddf",
+      "assetPath": "src/scale-encounter/audio/sky-additions/therizinosaurus/transition.en.mp3"
+    },
+    {
+      "animalId": "therizinosaurus",
+      "locale": "en",
+      "phase": "arrival",
+      "sha256": "e86c7fc76a95a008a0b98a78afbfe0f0b01420726f604b9e38686090a6b1546b",
+      "assetPath": "src/scale-encounter/audio/sky-additions/therizinosaurus/arrival.en.mp3"
+    },
+    {
+      "animalId": "phorusrhacos",
+      "locale": "zh-CN",
+      "phase": "intro",
+      "sha256": "e240dc6dca7a81e7389fc73ff049d17c96ec74021eb62faf2e7536fd4da864ae",
+      "assetPath": "src/scale-encounter/audio/sky-additions/phorusrhacos/intro.zh-CN.mp3"
+    },
+    {
+      "animalId": "phorusrhacos",
+      "locale": "zh-CN",
+      "phase": "transition",
+      "sha256": "a16755a43e50b122c6c2a1adc1a1a04ef82d4ab49e8e6098f218e719dc14beb7",
+      "assetPath": "src/scale-encounter/audio/sky-additions/phorusrhacos/transition.zh-CN.mp3"
+    },
+    {
+      "animalId": "phorusrhacos",
+      "locale": "zh-CN",
+      "phase": "arrival",
+      "sha256": "27c81ae84361b2e95e33ce34ad60b42c9efac5d6e99199f721b239f4fdc7e16a",
+      "assetPath": "src/scale-encounter/audio/sky-additions/phorusrhacos/arrival.zh-CN.mp3"
+    },
+    {
+      "animalId": "phorusrhacos",
+      "locale": "en",
+      "phase": "intro",
+      "sha256": "bd82dc250e433c5c90fbd6aadebda16a97853eca6d05bd59d0bf70a13cbd05f0",
+      "assetPath": "src/scale-encounter/audio/sky-additions/phorusrhacos/intro.en.mp3"
+    },
+    {
+      "animalId": "phorusrhacos",
+      "locale": "en",
+      "phase": "transition",
+      "sha256": "e32875c943558fbaa44f4baa3d8df24b65fef47d1379d102eb559e48eddac88f",
+      "assetPath": "src/scale-encounter/audio/sky-additions/phorusrhacos/transition.en.mp3"
+    },
+    {
+      "animalId": "phorusrhacos",
+      "locale": "en",
+      "phase": "arrival",
+      "sha256": "2f953f4f2d9bbb71088b9fd08eea699afb88d2fe9e0c317f5957bf8b2d39b0a6",
+      "assetPath": "src/scale-encounter/audio/sky-additions/phorusrhacos/arrival.en.mp3"
+    },
+    {
+      "animalId": "sordes",
+      "locale": "zh-CN",
+      "phase": "intro",
+      "sha256": "9e4e72756078ef9d4df275d0a9ccdf1890757178def3f286934fdf4c3c00afad",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sordes/intro.zh-CN.mp3"
+    },
+    {
+      "animalId": "sordes",
+      "locale": "zh-CN",
+      "phase": "transition",
+      "sha256": "d5feb5903be40fc447f9ee13d3a7bef46cdd4ff15a3e1b2cf51727a901edaf68",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sordes/transition.zh-CN.mp3"
+    },
+    {
+      "animalId": "sordes",
+      "locale": "zh-CN",
+      "phase": "arrival",
+      "sha256": "e99f52c5f2bdd5f7efc9142f22af2c7475321a6606dea879a7bdac146060db95",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sordes/arrival.zh-CN.mp3"
+    },
+    {
+      "animalId": "sordes",
+      "locale": "en",
+      "phase": "intro",
+      "sha256": "595f0b99f58b20b98249cd049bffff7b82d42ce96c10ebcb1e9ca347f5f7d792",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sordes/intro.en.mp3"
+    },
+    {
+      "animalId": "sordes",
+      "locale": "en",
+      "phase": "transition",
+      "sha256": "4e81153d88066d9059f8888f34fa3172c926c119cc909965e61c8fae8acd94e4",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sordes/transition.en.mp3"
+    },
+    {
+      "animalId": "sordes",
+      "locale": "en",
+      "phase": "arrival",
+      "sha256": "4cc021380eebc02a7b84c151e515dac17a3b12ba0ce17df819e535cbe3c34ddf",
+      "assetPath": "src/scale-encounter/audio/sky-additions/sordes/arrival.en.mp3"
+    },
+    {
+      "animalId": "quetzalcoatlus",
+      "locale": "zh-CN",
+      "phase": "intro",
+      "sha256": "1081f5e4152688b7a4b8f8f28f193077f468ade40e0ee6f43b85a800665a4d6e",
+      "assetPath": "src/scale-encounter/audio/sky-additions/quetzalcoatlus/intro.zh-CN.mp3"
+    },
+    {
+      "animalId": "quetzalcoatlus",
+      "locale": "zh-CN",
+      "phase": "transition",
+      "sha256": "0f0d27b233e1dc1a0945a2c4271a1a79a10db6994486ace23e836077218cfad1",
+      "assetPath": "src/scale-encounter/audio/sky-additions/quetzalcoatlus/transition.zh-CN.mp3"
+    },
+    {
+      "animalId": "quetzalcoatlus",
+      "locale": "zh-CN",
+      "phase": "arrival",
+      "sha256": "d2e7a85ecd5b314657a13726de7dfc4b04a0b6090462cbe2e9be6645176486c0",
+      "assetPath": "src/scale-encounter/audio/sky-additions/quetzalcoatlus/arrival.zh-CN.mp3"
+    },
+    {
+      "animalId": "quetzalcoatlus",
+      "locale": "en",
+      "phase": "intro",
+      "sha256": "1417eaf977d2426a04f462db4467a5530b9eea337a168dd286915b1a1f659abe",
+      "assetPath": "src/scale-encounter/audio/sky-additions/quetzalcoatlus/intro.en.mp3"
+    },
+    {
+      "animalId": "quetzalcoatlus",
+      "locale": "en",
+      "phase": "transition",
+      "sha256": "5fe808796e33421e1f79dacfd92519758e8cc4fc6108eb2e06d7c5e1d7bb1f2b",
+      "assetPath": "src/scale-encounter/audio/sky-additions/quetzalcoatlus/transition.en.mp3"
+    },
+    {
+      "animalId": "quetzalcoatlus",
+      "locale": "en",
+      "phase": "arrival",
+      "sha256": "8ee546b78ac7f3047e03fc68a8aadad5b62f2503b0363402bab1d97b7d52900d",
+      "assetPath": "src/scale-encounter/audio/sky-additions/quetzalcoatlus/arrival.en.mp3"
+    },
+    {
+      "animalId": "dallasaurus",
+      "locale": "zh-CN",
+      "phase": "intro",
+      "sha256": "f39dd2bf30a04c49916caafdee60559108e64fa039568a87263d42f08fe0b2d6",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dallasaurus/intro.zh-CN.mp3"
+    },
+    {
+      "animalId": "dallasaurus",
+      "locale": "zh-CN",
+      "phase": "transition",
+      "sha256": "93487b1522ed81090fbcc1413dac40992fe184b16ab62e58cc8b8363ccd06388",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dallasaurus/transition.zh-CN.mp3"
+    },
+    {
+      "animalId": "dallasaurus",
+      "locale": "zh-CN",
+      "phase": "arrival",
+      "sha256": "97b8d02aceb4c41a22f523d797f6098496284bb619790f074c4b1539dde7e15b",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dallasaurus/arrival.zh-CN.mp3"
+    },
+    {
+      "animalId": "dallasaurus",
+      "locale": "en",
+      "phase": "intro",
+      "sha256": "2e1971482837b1d508a5e0c872b863feb6e050ae26ddc57399b3a997365a3911",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dallasaurus/intro.en.mp3"
+    },
+    {
+      "animalId": "dallasaurus",
+      "locale": "en",
+      "phase": "transition",
+      "sha256": "181ad6478b35001e8ba2c4d2cbecb3c860602d79220162658b36557479c3293c",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dallasaurus/transition.en.mp3"
+    },
+    {
+      "animalId": "dallasaurus",
+      "locale": "en",
+      "phase": "arrival",
+      "sha256": "16592597f421a18bf0e1f5167584e8103e95b327e50e1de12896a56aeda0e896",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dallasaurus/arrival.en.mp3"
+    },
+    {
+      "animalId": "dakosaurus",
+      "locale": "zh-CN",
+      "phase": "intro",
+      "sha256": "288623d585a602b844a4b2e2a7b4d168ebea00734e622fb2ec58c408a4341cfb",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dakosaurus/intro.zh-CN.mp3"
+    },
+    {
+      "animalId": "dakosaurus",
+      "locale": "zh-CN",
+      "phase": "transition",
+      "sha256": "72132c54a241ffe49c8c35ddc9e00e035fc160d2c86009c0a80baf1881bb2467",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dakosaurus/transition.zh-CN.mp3"
+    },
+    {
+      "animalId": "dakosaurus",
+      "locale": "zh-CN",
+      "phase": "arrival",
+      "sha256": "1f9524a38fc50a2a23013d904caab2ce818983bb88e930c209c3b087b26db8a3",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dakosaurus/arrival.zh-CN.mp3"
+    },
+    {
+      "animalId": "dakosaurus",
+      "locale": "en",
+      "phase": "intro",
+      "sha256": "c93e5e9c16a2deaf3730cfee957979e168ceb176db88b8a57c00ac71c7f19276",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dakosaurus/intro.en.mp3"
+    },
+    {
+      "animalId": "dakosaurus",
+      "locale": "en",
+      "phase": "transition",
+      "sha256": "c9e6cb6eefb6aa2388b0ab1bf893353e5d22c75ceab092a52f918ae8a644c778",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dakosaurus/transition.en.mp3"
+    },
+    {
+      "animalId": "dakosaurus",
+      "locale": "en",
+      "phase": "arrival",
+      "sha256": "21c61abe98d71e40988251f59dd1366e2b5f014f77c80caa793eef1f4d9bbe2b",
+      "assetPath": "src/scale-encounter/audio/sky-additions/dakosaurus/arrival.en.mp3"
+    }
+  ]
+}

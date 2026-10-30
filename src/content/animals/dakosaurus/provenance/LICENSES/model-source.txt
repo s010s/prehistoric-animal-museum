@@ -1,0 +1,10 @@
+Dakosaurus
+Source: https://sketchfab.com/3d-models/dakosaurus-a531d5bca7f3477d97b50212300c8271
+Source bytes: 90681984
+Source SHA-256: a64c734467e99c85e3111eadbc17426be4c2fd2ca94a65f79fd056f90a9919fd
+Runtime bytes: 16936480
+Runtime SHA-256: 20de5bdd4423fb6cf46bd7fd2756ccb44aa879b3557b4daa8a6da26e611b06b0
+
+Changes:
+- Mesh decimation, texture repacking, existing Idle, static normalization; gentle skin colour lift and roughness adjustment.
+- Repaired attached-island skin weights locally while preserving geometry, textures, global transforms and animation.

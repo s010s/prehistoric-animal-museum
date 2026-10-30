@@ -5,6 +5,8 @@ import {
   selectModelPreviewProfile,
 } from '../src/viewer/model-preview-profiles'
 import { createModelPreviewPresentationSignature } from '../src/viewer/model-preview-contract'
+import { createViewerModelDescriptor } from '../src/viewer/create-viewer-model-descriptor'
+import type { AnimalPresentation } from '../src/content/types'
 
 // Keep Vitest focused on the fast, in-memory contract. The production build
 // runs scripts/validate-model-previews.ts for the full 108-image decode,
@@ -108,5 +110,30 @@ describe('model preview contract', () => {
     expect(selectModelPreviewProfile(() => false).key).toBe(
       'desktopStandard',
     )
+  })
+
+  it('invalidates a tilted gallery preview without changing the omitted-pose contract', () => {
+    const presentation: AnimalPresentation = {
+      initialYawDegrees: -155,
+      safeAreaPadding: 0.14,
+      shadow: 'none',
+    }
+    const ordinary = createViewerModelDescriptor(
+      { id: 'dakosaurus', presentation }, 'Dakosaurus', '/model.glb',
+    )
+    const corrected = createViewerModelDescriptor(
+      { id: 'dakosaurus', presentation: { ...presentation, initialRotationZDegrees: 9 } },
+      'Dakosaurus', '/model.glb',
+    )
+    const ordinarySignature = createModelPreviewPresentationSignature(ordinary)
+    const correctedSignature = createModelPreviewPresentationSignature(corrected)
+    const ordinaryPreview = JSON.parse(ordinarySignature) as { presentation: Record<string, unknown> }
+    const correctedPreview = JSON.parse(correctedSignature) as { presentation: Record<string, unknown> }
+
+    expect(ordinary.presentation).not.toHaveProperty('initialRotationZDegrees')
+    expect(ordinaryPreview.presentation).not.toHaveProperty('initialRotationZDegrees')
+    expect(corrected.presentation).toHaveProperty('initialRotationZDegrees', 9)
+    expect(correctedPreview.presentation).toHaveProperty('initialRotationZDegrees', 9)
+    expect(correctedSignature).not.toBe(ordinarySignature)
   })
 })

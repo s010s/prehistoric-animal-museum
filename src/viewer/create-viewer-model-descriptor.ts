@@ -31,6 +31,9 @@ export function createViewerModelDescriptor(
         ? {}
         : { cameraLightScale: animal.presentation.cameraLightScale }),
       initialYawDegrees: animal.presentation.initialYawDegrees,
+      ...(animal.presentation.initialRotationZDegrees === undefined
+        ? {}
+        : { initialRotationZDegrees: animal.presentation.initialRotationZDegrees }),
       horizontalOffset: {
         landscape: animal.presentation.landscapeHorizontalOffset ?? 0,
         portrait: animal.presentation.portraitHorizontalOffset ?? 0,

@@ -1,3 +1,4 @@
+// @vitest-environment node
 /// <reference types="node" />
 
 import { IncomingMessage, ServerResponse } from 'node:http'
@@ -157,6 +158,8 @@ describe('local review server boundary', () => {
     const config = await resolveConfig(
       {
         configFile: join(process.cwd(), 'vite.config.ts'),
+        // Resolve the config's dynamic TypeScript imports through Vite's runner.
+        configLoader: 'runner',
         logLevel: 'silent',
       },
       'serve',
@@ -189,6 +192,7 @@ describe('local review server boundary', () => {
     const server = await createServer({
       appType: 'custom',
       configFile: join(process.cwd(), 'vite.config.ts'),
+      configLoader: 'runner',
       logLevel: 'silent',
       mode: 'review',
       server: { middlewareMode: true },
@@ -299,6 +303,7 @@ describe('local review server boundary', () => {
     const server = await createServer({
       appType: 'custom',
       configFile: join(process.cwd(), 'vite.config.ts'),
+      configLoader: 'runner',
       logLevel: 'silent',
       mode: 'development',
       server: { middlewareMode: true },
@@ -331,6 +336,7 @@ describe('local review server boundary', () => {
     const server = await createServer({
       appType: 'custom',
       configFile: join(process.cwd(), 'vite.config.ts'),
+      configLoader: 'runner',
       logLevel: 'silent',
       mode: 'development',
       server: { middlewareMode: true },

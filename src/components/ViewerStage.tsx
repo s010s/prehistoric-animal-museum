@@ -9,6 +9,7 @@ import type { ModelCache } from '../viewer/model-cache'
 import { modelPreviewProfiles } from '../viewer/model-preview-profiles'
 import { modelPreviewFor } from '../viewer/responsive-model-stills'
 import { useModelPreviewProfile } from '../viewer/use-model-preview-profile'
+import { saveSkyCapture } from '../review/sky-capture'
 
 interface ViewerStageProps {
   animalId: string
@@ -68,6 +69,7 @@ export function ViewerStage({
   const requestedCaptureTime = Number(
     captureSearchParams.get('modelPreviewTime') ?? 0,
   )
+  const saveSkyDerivative = captureSearchParams.get('skyCapture') === '1'
   const captureProfile =
     import.meta.env.MODE === 'review'
       ? modelPreviewProfiles.find(
@@ -194,8 +196,13 @@ export function ViewerStage({
       if (canvas && frame) {
         canvas.dataset.reviewCapturePng = frame
       }
+      if (saveSkyDerivative && stageRef.current && controller) {
+        void saveSkyCapture(animalId, captureProfile.key, controller, stageRef.current).catch(error => {
+          if (stageRef.current) stageRef.current.dataset.skyCaptureResult = JSON.stringify({ error: String(error) })
+        })
+      }
     }
-  }, [captureProfile, modelReady, requestedCaptureTime])
+  }, [animalId, captureProfile, modelReady, requestedCaptureTime, saveSkyDerivative])
 
   useEffect(() => {
     if (!modelReady) {
@@ -334,7 +341,7 @@ export function ViewerStage({
             : undefined
         }
       >
-        {showModelStill ? (
+        {showModelStill && previewUrl ? (
           <picture aria-hidden="true" className="model-still">
             {responsivePreviewSources.map((source) => (
               <source

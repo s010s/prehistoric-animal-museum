@@ -21,6 +21,9 @@ import { multilingualSeoPlugin } from './scripts/multilingual-seo'
 import { scaleEncounterGlacierAssetUrls } from './scripts/scale-encounter-glacier-assets'
 import { availableFlightSpecies } from './src/flight-experience/species/profiles'
 import { expansionNarrationTracks, readExpansionReviewManifest } from './scripts/expansion-review'
+import { readSkyExpansionReviewManifest } from './scripts/sky-expansion-review'
+import { saveSkyReviewCapture } from './scripts/sky-review-capture'
+import { saveSkyMotionRecording } from './scripts/sky-review-recording'
 import { saveMotionReviewCapture } from './scripts/motion-review-capture'
 import { resolve } from 'node:path'
 
@@ -189,8 +192,11 @@ function streamReviewAsset(
   stream.pipe(response)
 }
 
-function localReview(enabled: boolean, expansion = false): Plugin {
-  const manifest = readExpansionReviewManifest(enabled && expansion)
+function localReview(enabled: boolean, expansion = false, skyExpansion = false): Plugin {
+  if (expansion && skyExpansion) throw new Error('Select one private review catalog per server.')
+  const manifest = skyExpansion
+    ? readSkyExpansionReviewManifest(enabled)
+    : readExpansionReviewManifest(enabled && expansion)
   // Freeze validated candidate bytes for this server session. Blender can
   // continue writing the working files without changing a calibrated preview.
   const candidateModels = new Map(manifest.animals.map((animal) => {
@@ -223,7 +229,7 @@ function localReview(enabled: boolean, expansion = false): Plugin {
         return undefined
       }
       return enabled
-        ? `export { localReviewAnimals } from '/src/review/${expansion ? 'expansion-catalog' : 'catalog'}.ts'`
+        ? `export { localReviewAnimals } from '/src/review/${expansion || skyExpansion ? 'expansion-catalog' : 'catalog'}.ts'`
         : 'export const localReviewAnimals = []'
     },
     configureServer(server) {
@@ -237,8 +243,18 @@ function localReview(enabled: boolean, expansion = false): Plugin {
           return
         }
         const pathname = new URL(requestUrl, 'http://localhost').pathname
+        if (skyExpansion && pathname === '/__museum-sky-capture') {
+          void saveSkyReviewCapture(request, response, manifest)
+          return
+        }
+        if (skyExpansion && pathname === '/__museum-sky-motion-recording') {
+          void saveSkyMotionRecording(request, response, manifest)
+          return
+        }
         if (expansion && pathname === '/__museum-motion-capture') {
-          void saveMotionReviewCapture(request, response, manifest.modelHashes, manifest.evidenceVersion, Object.fromEntries(manifest.animals.map(animal => [animal.id, animal.animation?.clip ?? ''])), manifest.clipDurations)
+          void saveMotionReviewCapture(request, response, manifest.modelHashes,
+            manifest.evidenceVersion === 'sky-integration-v1' ? undefined : manifest.evidenceVersion,
+            Object.fromEntries(manifest.animals.map(animal => [animal.id, animal.animation?.clip ?? ''])), manifest.clipDurations)
           return
         }
         if (!pathname.startsWith(`${localReviewAssetPrefix}/`)) {
@@ -367,7 +383,10 @@ export default defineConfig(async ({ command, mode }) => {
 
   return {
     base: './',
-    define: { __MUSEUM_RELEASE_CANDIDATE__: mode === 'release-candidate' },
+    define: {
+      __MUSEUM_RELEASE_CANDIDATE__: mode === 'release-candidate',
+      __MUSEUM_SKY_EXPANSION_REVIEW__: command === 'serve' && mode === 'review' && process.env.MUSEUM_SKY_EXPANSION_REVIEW === '1',
+    },
     resolve: {
       alias: {
         'virtual:flight-experience-entry': fileURLToPath(new URL(
@@ -394,10 +413,17 @@ export default defineConfig(async ({ command, mode }) => {
         command === 'serve' &&
           (mode === 'review' || mode === 'development'),
         mode === 'review' && process.env.MUSEUM_EXPANSION_REVIEW === '1',
+        mode === 'review' && process.env.MUSEUM_SKY_EXPANSION_REVIEW === '1',
       ),
     ],
     server: {
       allowedHosts,
+      // Private generators write manifests/listening pages during a batch.
+      // The review catalog is a startup snapshot, so these must not reload
+      // the headed tab while it is capturing or playing narration.
+      watch: {
+        ignored: ['**/.handoff/**', '**/assets/candidates/**'],
+      },
       fs: {
         allow: [process.cwd(), dependencyNodeModulesRoot],
         deny: [...privateLocalMaterialDenyForRoot(process.cwd())],

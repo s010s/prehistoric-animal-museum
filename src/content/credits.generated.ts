@@ -488,6 +488,121 @@ export const credits = [
     ]
   },
   {
+    "id": "anurognathus:audio/narration.en.mp3",
+    "animalId": "anurognathus",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Anurognathus English narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "anurognathus:audio/narration.zh-CN.mp3",
+    "animalId": "anurognathus",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Anurognathus Mandarin narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "anurognathus:backgrounds/landscape.webp",
+    "animalId": "anurognathus",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Anurognathus landscape palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "anurognathus:backgrounds/portrait.webp",
+    "animalId": "anurognathus",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Anurognathus portrait palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "anurognathus:images/poster-portrait.webp",
+    "animalId": "anurognathus",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Anurognathus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Robert_the_whale (https://sketchfab.com/Robert_the_whale); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "anurognathus:images/poster.webp",
+    "animalId": "anurognathus",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Anurognathus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Robert_the_whale (https://sketchfab.com/Robert_the_whale); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "anurognathus:images/thumbnail.webp",
+    "animalId": "anurognathus",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "Anurognathus thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Robert_the_whale (https://sketchfab.com/Robert_the_whale); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native transparent model silhouette composited over the independently generated landscape background."
+    ]
+  },
+  {
+    "id": "anurognathus:model/model.glb",
+    "animalId": "anurognathus",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Anurognathus pterosaur",
+    "author": "Robert_the_whale (https://sketchfab.com/Robert_the_whale)",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/anurognathus-pterosaur-bc7fe93b9c254bd2bd9f905e063ec86c",
+    "attribution": "Model by Robert_the_whale (https://sketchfab.com/Robert_the_whale); museum preparation by Leon Made This.",
+    "modifications": [
+      "Preserved the source mesh identity, UV and colour texture; refined matte materials and recessed eyes, with bounded articulated jaw motion.",
+      "Normalised to glTF Y-up, head +X, with a centred stationary exhibition rig.",
+      "Rebuilt the eight-second 24 fps Idle with articulated shoulder, elbow, wrist and outer-wing motion, membrane recovery and bounded head glances."
+    ]
+  },
+  {
     "id": "apatosaurus:audio/narration.en.mp3",
     "animalId": "apatosaurus",
     "assetPath": "audio/narration.en.mp3",
@@ -973,6 +1088,233 @@ export const credits = [
     "modifications": [
       "Removed the separate rock, calibrated both feet to a grounded pose, and compressed the model for browser delivery.",
       "Retained the original left forelimb, adjusted the original right forelimb, bound lower teeth to the jaw, kept the tongue independent, and authored a closed eight-second jaw-and-tail Idle."
+    ]
+  },
+  {
+    "id": "dakosaurus:audio/narration.en.mp3",
+    "animalId": "dakosaurus",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Dakosaurus English narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "dakosaurus:audio/narration.zh-CN.mp3",
+    "animalId": "dakosaurus",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Dakosaurus Mandarin narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "dakosaurus:backgrounds/landscape.webp",
+    "animalId": "dakosaurus",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Dakosaurus landscape palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "dakosaurus:backgrounds/portrait.webp",
+    "animalId": "dakosaurus",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Dakosaurus portrait palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "dakosaurus:images/poster-portrait.webp",
+    "animalId": "dakosaurus",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Dakosaurus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "dakosaurus:images/poster.webp",
+    "animalId": "dakosaurus",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Dakosaurus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "dakosaurus:images/thumbnail.webp",
+    "animalId": "dakosaurus",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "Dakosaurus thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native transparent model silhouette composited over the independently generated landscape background."
+    ]
+  },
+  {
+    "id": "dakosaurus:model/model.glb",
+    "animalId": "dakosaurus",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Dakosaurus",
+    "author": "Julian Johnson-Mortimer (FreddyFoxFreddy)",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/dakosaurus-a531d5bca7f3477d97b50212300c8271",
+    "attribution": "Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Mesh decimation, texture repacking, existing Idle, static normalization; gentle skin colour lift and roughness adjustment.",
+      "Repaired attached-island skin weights locally while preserving geometry, textures, global transforms and animation."
+    ]
+  },
+  {
+    "id": "dallasaurus:audio/narration.en.mp3",
+    "animalId": "dallasaurus",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Dallasaurus English narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "dallasaurus:audio/narration.zh-CN.mp3",
+    "animalId": "dallasaurus",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Dallasaurus Mandarin narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "dallasaurus:backgrounds/landscape.webp",
+    "animalId": "dallasaurus",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Dallasaurus landscape palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "dallasaurus:backgrounds/portrait.webp",
+    "animalId": "dallasaurus",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Dallasaurus portrait palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "dallasaurus:images/poster-portrait.webp",
+    "animalId": "dallasaurus",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Dallasaurus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "dallasaurus:images/poster.webp",
+    "animalId": "dallasaurus",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Dallasaurus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "dallasaurus:images/thumbnail.webp",
+    "animalId": "dallasaurus",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "Dallasaurus thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native transparent model silhouette composited over the independently generated landscape background."
+    ]
+  },
+  {
+    "id": "dallasaurus:model/model.glb",
+    "animalId": "dallasaurus",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Dallasaurus",
+    "author": "Julian Johnson-Mortimer (FreddyFoxFreddy)",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/dallasaurus-bfec76fbd5624d9fa9375668565af45c",
+    "attribution": "Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Mesh decimation, texture repacking, existing Idle, static normalization; existing warm skin colour retained."
     ]
   },
   {
@@ -2950,6 +3292,119 @@ export const credits = [
     ]
   },
   {
+    "id": "phorusrhacos:audio/narration.en.mp3",
+    "animalId": "phorusrhacos",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Phorusrhacos English narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "phorusrhacos:audio/narration.zh-CN.mp3",
+    "animalId": "phorusrhacos",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Phorusrhacos Mandarin narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "phorusrhacos:backgrounds/landscape.webp",
+    "animalId": "phorusrhacos",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Phorusrhacos landscape palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "phorusrhacos:backgrounds/portrait.webp",
+    "animalId": "phorusrhacos",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Phorusrhacos portrait palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "phorusrhacos:images/poster-portrait.webp",
+    "animalId": "phorusrhacos",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Phorusrhacos poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena; museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "phorusrhacos:images/poster.webp",
+    "animalId": "phorusrhacos",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Phorusrhacos poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena; museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "phorusrhacos:images/thumbnail.webp",
+    "animalId": "phorusrhacos",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "Phorusrhacos thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena; museum preparation by Leon Made This.",
+    "modifications": [
+      "Native transparent model silhouette composited over the independently generated landscape background."
+    ]
+  },
+  {
+    "id": "phorusrhacos:model/model.glb",
+    "animalId": "phorusrhacos",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Phorusrhacos longissimus (terror bird)",
+    "author": "Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/phorusrhacos-longissimus-terror-bird-31a09128a2114480b62feeef92a9fba0",
+    "attribution": "Model by Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena; museum preparation by Leon Made This.",
+    "modifications": [
+      "Merged/welded source chunks, mild scan and sole-edge smoothing, grounded both soles, 120k geometry, 2K high-to-low tangent normals, mild colour lift, matte material, new anchored-foot rig and exact eight-second Idle. Original jaw pose retained; no jaw motion."
+    ]
+  },
+  {
     "id": "plesiosaurus:audio/narration.en.mp3",
     "animalId": "plesiosaurus",
     "assetPath": "audio/narration.en.mp3",
@@ -3199,6 +3654,248 @@ export const credits = [
     ]
   },
   {
+    "id": "quetzalcoatlus:audio/narration.en.mp3",
+    "animalId": "quetzalcoatlus",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Quetzalcoatlus English narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "quetzalcoatlus:audio/narration.zh-CN.mp3",
+    "animalId": "quetzalcoatlus",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Quetzalcoatlus Mandarin narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "quetzalcoatlus:backgrounds/landscape.webp",
+    "animalId": "quetzalcoatlus",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Quetzalcoatlus landscape palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "quetzalcoatlus:backgrounds/portrait.webp",
+    "animalId": "quetzalcoatlus",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Quetzalcoatlus portrait palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "quetzalcoatlus:images/poster-portrait.webp",
+    "animalId": "quetzalcoatlus",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Quetzalcoatlus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by seirogan (https://sketchfab.com/seirogan); flight motion adapted from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello (https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "quetzalcoatlus:images/poster.webp",
+    "animalId": "quetzalcoatlus",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Quetzalcoatlus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by seirogan (https://sketchfab.com/seirogan); flight motion adapted from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello (https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "quetzalcoatlus:images/thumbnail.webp",
+    "animalId": "quetzalcoatlus",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "Quetzalcoatlus thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by seirogan (https://sketchfab.com/seirogan); flight motion adapted from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello (https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native transparent model silhouette composited over the independently generated landscape background."
+    ]
+  },
+  {
+    "id": "quetzalcoatlus:model/model.glb",
+    "animalId": "quetzalcoatlus",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Pterosaur Quetzalcoatlus",
+    "author": "seirogan (https://sketchfab.com/seirogan)",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/pterosaur-quetzalcoatlus-5ef112b3208d4444a51e480beca56277",
+    "attribution": "Model by seirogan (https://sketchfab.com/seirogan); flight motion adapted from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello (https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); museum preparation by Leon Made This.",
+    "modifications": [
+      "Welded split source chunks while preserving source UV and 37-joint skeleton.",
+      "Locally smoothed and thinned lumpy outer wing membranes, reduced crown height and cheek width.",
+      "Removed clearcoat and reduced specular reflection; source colour image remains 512 px, without upsampling.",
+      "Normalised to Y-up glTF with head +X; identity armature and stationary zero root.",
+      "Locally smoothed the rear membrane / hind-limb weight transition; inverse-skin compensated rest coordinates to retain the initial appearance.",
+      "Replaced the source fast flight with a restrained two-beat eight-second exhibition Idle on the existing 37-joint skeleton, with phased wings, head and foot motion; no forward travel or added biting.",
+      "Animated verified lower-jaw Bone.006_019 through two gentle13-degree closures per eight-second loop; upper-beak Bone.007_00 is not animated as a jaw.",
+      "2026-10-30: adapted actual Pteranodon clavicle/upper-arm/forearm/wrist/wingfinger gesture through anatomical basis retargeting, with a longer complete beat than its authored0.7 App speed, a compact powerstroke and longer recovery followed by long glide; fixedRoot and original37-bone mesh/materials/initial pose retained; bounded proximal membrane field repaired with inverse-skin compensation.",
+      "True humerus posture compensation addresses Quetz versus reference initial elevation during active beat, returning exactly to original initial pose. Distributed power response and recovery/settling through neck-base,mid-neck,upper-neck,skull with a small glide glance. Original verified13-degree jaw local curves retained exactly.",
+      "Adapted flight rotations from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello, CC BY 4.0, https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b; no reference mesh, textures or rig copied."
+    ]
+  },
+  {
+    "id": "regaliceratops:audio/narration.en.mp3",
+    "animalId": "regaliceratops",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Regaliceratops English narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "regaliceratops:audio/narration.zh-CN.mp3",
+    "animalId": "regaliceratops",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Regaliceratops Mandarin narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "regaliceratops:backgrounds/landscape.webp",
+    "animalId": "regaliceratops",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Regaliceratops landscape palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "regaliceratops:backgrounds/portrait.webp",
+    "animalId": "regaliceratops",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Regaliceratops portrait palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "regaliceratops:images/poster-portrait.webp",
+    "animalId": "regaliceratops",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Regaliceratops poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "regaliceratops:images/poster.webp",
+    "animalId": "regaliceratops",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Regaliceratops poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "regaliceratops:images/thumbnail.webp",
+    "animalId": "regaliceratops",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "Regaliceratops thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native transparent model silhouette composited over the independently generated landscape background."
+    ]
+  },
+  {
+    "id": "regaliceratops:model/model.glb",
+    "animalId": "regaliceratops",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Regaliceratops",
+    "author": "Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy)",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/regaliceratops-fb292480dc88483f919c3b11637da3da",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Welded material chunks before reduction",
+      "Reduced geometry while allocating more faces to horns and frill",
+      "Shifted repeated colA UV island from U=-1..0 to U=0..1",
+      "Baked high-source tangent normals at 1536px; neutralized invalid projections",
+      "Corrected overly glossy skin and horn roughness",
+      "Normalized glTF Y-up, head +X, horizontal center, planted feet, length about 3.2",
+      "New weighted skeleton and one eight-second 24fps stationary Idle",
+      "v2: moderately lifted dark-green and warm-brown sRGB albedo midtones; unchanged normal maps, geometry, weights, skeleton and eight-second Idle."
+    ]
+  },
+  {
     "id": "rhamphorhynchus:audio/narration.en.mp3",
     "animalId": "rhamphorhynchus",
     "assetPath": "audio/narration.en.mp3",
@@ -3324,6 +4021,119 @@ export const credits = [
     ]
   },
   {
+    "id": "sarcosuchus:audio/narration.en.mp3",
+    "animalId": "sarcosuchus",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Sarcosuchus English narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "sarcosuchus:audio/narration.zh-CN.mp3",
+    "animalId": "sarcosuchus",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Sarcosuchus Mandarin narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "sarcosuchus:backgrounds/landscape.webp",
+    "animalId": "sarcosuchus",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Sarcosuchus landscape palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "sarcosuchus:backgrounds/portrait.webp",
+    "animalId": "sarcosuchus",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Sarcosuchus portrait palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "sarcosuchus:images/poster-portrait.webp",
+    "animalId": "sarcosuchus",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Sarcosuchus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "sarcosuchus:images/poster.webp",
+    "animalId": "sarcosuchus",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Sarcosuchus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "sarcosuchus:images/thumbnail.webp",
+    "animalId": "sarcosuchus",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "Sarcosuchus thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native transparent model silhouette composited over the independently generated landscape background."
+    ]
+  },
+  {
+    "id": "sarcosuchus:model/model.glb",
+    "animalId": "sarcosuchus",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Sarcosuchus",
+    "author": "Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy)",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/sarcosuchus-6cb4e0c2b53447409cc092f9cfa97c51",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Merged/welded source chunks; 250k geometry; high-to-low tangent normals; roughness correction; new skin and stationary 8-second Idle with breathing, head/neck/tail and 9-degree jaw closing; brighter warm green/ochre skin midtones."
+    ]
+  },
+  {
     "id": "sauropelta:audio/narration.en.mp3",
     "animalId": "sauropelta",
     "assetPath": "audio/narration.en.mp3",
@@ -3445,6 +4255,121 @@ export const credits = [
       "Align length to X, center the visible bounds, and apply habitat grounding. Operation: canonical-transform.",
       "Export one traceable, closed-loop, in-place project Idle. Operation: replace-runtime-animation.",
       "Authored and validator-checked one closed eight-second land-breathe-tail Idle for the shared museum viewer."
+    ]
+  },
+  {
+    "id": "sordes:audio/narration.en.mp3",
+    "animalId": "sordes",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Sordes English narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "sordes:audio/narration.zh-CN.mp3",
+    "animalId": "sordes",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Sordes Mandarin narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "sordes:backgrounds/landscape.webp",
+    "animalId": "sordes",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Sordes landscape palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "sordes:backgrounds/portrait.webp",
+    "animalId": "sordes",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Sordes portrait palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "sordes:images/poster-portrait.webp",
+    "animalId": "sordes",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Sordes poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "sordes:images/poster.webp",
+    "animalId": "sordes",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Sordes poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "sordes:images/thumbnail.webp",
+    "animalId": "sordes",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "Sordes thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native transparent model silhouette composited over the independently generated landscape background."
+    ]
+  },
+  {
+    "id": "sordes:model/model.glb",
+    "animalId": "sordes",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Sordes Pilosus — mesh and rig only",
+    "author": "victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner)",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/sordes-pilosus-45afc7fc47f3402db1bca10e5b1ca6c5",
+    "attribution": "Model by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner); museum preparation by Leon Made This.",
+    "modifications": [
+      "Preserved the source mesh, UVs, skinning, rig and wing, head and long-tail motion; retimed the stationary loop to exactly eight seconds at 24 fps.",
+      "Excluded the original AMNH illustration completely; replaced all original image payloads with independent original procedural body-fur and membrane textures.",
+      "Applied uniform axis and scale normalisation and matte warm-brown materials."
     ]
   },
   {
@@ -3812,6 +4737,119 @@ export const credits = [
     "modifications": [
       "Prepared a self-contained budgeted derivative while preserving source appearance and the original Swim clip.",
       "Authored a closed eight-second in-place Idle with clearly visible strokes of all four flippers and a larger tail follow-through, preserving the other animation clips."
+    ]
+  },
+  {
+    "id": "therizinosaurus:audio/narration.en.mp3",
+    "animalId": "therizinosaurus",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Therizinosaurus English narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "therizinosaurus:audio/narration.zh-CN.mp3",
+    "animalId": "therizinosaurus",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Therizinosaurus Mandarin narration",
+    "author": "Qwen3-TTS",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-authored script, generated with Qwen3-TTS Serena.",
+    "modifications": [
+      "Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback."
+    ]
+  },
+  {
+    "id": "therizinosaurus:backgrounds/landscape.webp",
+    "animalId": "therizinosaurus",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Therizinosaurus landscape palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "therizinosaurus:backgrounds/portrait.webp",
+    "animalId": "therizinosaurus",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Therizinosaurus portrait palaeoenvironment",
+    "author": "OpenAI image generation",
+    "licenseName": "OpenAI generated output",
+    "licenseUrl": "https://openai.com/policies/terms-of-use/",
+    "attribution": "Environment generated for Prehistoric Animal Museum.",
+    "modifications": [
+      "Independently generated composition for this orientation; resized and encoded as WebP without changing the scene."
+    ]
+  },
+  {
+    "id": "therizinosaurus:images/poster-portrait.webp",
+    "animalId": "therizinosaurus",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Therizinosaurus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "therizinosaurus:images/poster.webp",
+    "animalId": "therizinosaurus",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "Therizinosaurus poster",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame."
+    ]
+  },
+  {
+    "id": "therizinosaurus:images/thumbnail.webp",
+    "animalId": "therizinosaurus",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "Therizinosaurus thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "Native transparent model silhouette composited over the independently generated landscape background."
+    ]
+  },
+  {
+    "id": "therizinosaurus:model/model.glb",
+    "animalId": "therizinosaurus",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Therizinosaurus",
+    "author": "Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy)",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/therizinosaurus-1fa8b9e2dd4b40c9b8ffcaead0bd8e66",
+    "attribution": "Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.",
+    "modifications": [
+      "adult-only connected component cleanup; selective decimation preserving head and claws; original alpha feather cards removed; compact opaque textured feathers rebuilt; skin textures resized and gently brightened/desaturated; roughness adjusted; 15-bone custom deformation rig; true stationary eight-second Idle; museum coordinate and scale normalization"
     ]
   },
   {

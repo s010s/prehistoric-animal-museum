@@ -257,6 +257,57 @@ describe('scale encounter geometry', () => {
     }
   })
 
+  it.each(['review', 'production'])('keeps a Dakosaurus default encounter spacious while allowing a nearer volume-safe approach in %s mode', (mode) => {
+    vi.stubEnv('MODE', mode)
+    try {
+      // Final headed Dako body bounds; this fixture changes neither the model
+      // calibration nor any other water animal's authored spacing policy.
+      const definition = {
+        ...SCALE_ENCOUNTER_DEFINITIONS.mosasaurus,
+        id: 'dakosaurus' as const,
+        displayedMeters: 4.8,
+        defaultDistance: 5.28,
+        minimumDistance: 1.2,
+        maximumDistance: 14.4,
+      }
+      const base = createScaleEncounterPlacement('mosasaurus',
+        new Vector3(-1.601616153, .601880892, -.746585917),
+        new Vector3(3.199400637, 2.005074858, .720249767), 1)
+      const placement = {
+        ...base,
+        animalId: definition.id,
+        defaultDistance: definition.defaultDistance,
+        minimumDistance: definition.minimumDistance,
+        maximumDistance: definition.maximumDistance,
+        defaultEyePosition: positionOnScaleEncounterRail(base.target, base.observerRailDirection, definition.defaultDistance),
+      }
+      expect(placement.defaultEyePosition.distanceTo(placement.target)).toBeCloseTo(5.28, 10)
+      for (const approach of ['comfortable', 'close'] as const) {
+        for (const heightCm of [90, 110, 130]) {
+          const profile = normalizeScaleEncounterProfile({ approach, gender: 'boy', heightCm })
+          for (const angle of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+            const minimum = minimumScaleEncounterDistanceForProfile(placement, definition, profile, angle)
+            const eye = computeScaleEncounterOrbitedEyePosition(placement, 'water', minimum, angle)
+            const nearest = new Vector3(
+              MathUtils.clamp(eye.x, placement.animalBoundsMinimum.x, placement.animalBoundsMaximum.x),
+              MathUtils.clamp(eye.y, placement.animalBoundsMinimum.y, placement.animalBoundsMaximum.y),
+              MathUtils.clamp(eye.z, placement.animalBoundsMinimum.z, placement.animalBoundsMaximum.z),
+            )
+            expect(eye.distanceTo(nearest)).toBeGreaterThanOrEqual(Math.max(.55, profile.heightMeters * .5) - 1e-5)
+            expect(minimum).toBeLessThan(definition.defaultDistance - 1)
+          }
+        }
+      }
+      // The prior, separately authored ocean spacing still permits its same
+      // comfortable minimum; the Dako fix cannot become a global clamp.
+      const otherDefinition = SCALE_ENCOUNTER_DEFINITIONS.mosasaurus
+      expect(minimumScaleEncounterDistanceForProfile(base, otherDefinition,
+        normalizeScaleEncounterProfile({ gender: 'boy', heightCm: 110 }), 0)).toBe(otherDefinition.minimumDistance)
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('places the Archaeopteryx child on a short diagonal rail without changing the half-metre animal scale', () => {
     const definition = SCALE_ENCOUNTER_DEFINITIONS.archaeopteryx
     const placement = createScaleEncounterPlacement(

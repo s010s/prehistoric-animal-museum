@@ -6,6 +6,7 @@ import {
   type GuidedLineKind,
   type ScaleEncounterAnimalId,
 } from '../src/scale-encounter/content'
+import { validateNarrationPublicationAuthorization } from '../scripts/narration-publication-authorization'
 import type { Locale } from '../src/i18n/locale'
 import {
   SCALE_ENCOUNTER_ANIMAL_IDS,
@@ -377,5 +378,19 @@ describe('scale encounter narration candidates', () => {
         }
       }
     }
+  })
+})
+
+
+describe('publication-authorized narration additions', () => {
+  it('binds all 72 new gallery and comparison files without claiming complete listening', async () => {
+    const publication = JSON.parse(readFileSync(resolve(process.cwd(), 'src/content/narration-publication-authorization.json'), 'utf8')) as { readonly tracks: readonly { readonly animalId: string; readonly locale: string; readonly phase: string }[] }
+    expect(publication).toMatchObject({ owner: 'Leon', recordedOn: '2026-10-30', action: 'public-distribution', completeListening: 'unverified' })
+    expect(publication.tracks).toHaveLength(72)
+    const ids = ['regaliceratops', 'sarcosuchus', 'anurognathus', 'therizinosaurus', 'phorusrhacos', 'sordes', 'quetzalcoatlus', 'dallasaurus', 'dakosaurus']
+    for (const animalId of ids) for (const locale of locales) {
+      expect(publication.tracks.filter((track: { animalId: string; locale: string }) => track.animalId === animalId && track.locale === locale).map((track: { phase: string }) => track.phase).sort()).toEqual(['arrival', 'gallery', 'intro', 'transition'])
+    }
+    expect(await validateNarrationPublicationAuthorization(process.cwd())).toBe(true)
   })
 })

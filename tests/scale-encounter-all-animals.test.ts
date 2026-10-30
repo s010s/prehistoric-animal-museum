@@ -202,7 +202,8 @@ describe('legacy twenty-four-animal scale encounter compatibility', () => {
   it('faces the reviewed air animals toward the child and measures their rotated wing axes', () => {
     for (const animalId of ['rhamphorhynchus', 'tupandactylus'] as const) {
       expect(SCALE_ENCOUNTER_DEFINITIONS[animalId]).toMatchObject({
-        measurementAxis: 'z',
+        // Their source wing axis is Z; the reference yaw rotates it onto X.
+        measurementAxis: 'x',
         modelYawRadians: Math.PI / 2,
       })
     }

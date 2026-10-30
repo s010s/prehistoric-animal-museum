@@ -52,6 +52,9 @@ export function createModelPreviewPresentationSignature(
         portrait: presentation.horizontalOffset?.portrait ?? 0,
       },
       initialYawDegrees: presentation.initialYawDegrees,
+      ...(presentation.initialRotationZDegrees === undefined
+        ? {}
+        : { initialRotationZDegrees: presentation.initialRotationZDegrees }),
       preciseBounds: presentation.preciseBounds ?? false,
       safeAreaPadding: {
         landscape: presentation.safeAreaPadding.landscape,

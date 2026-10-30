@@ -1,0 +1,24 @@
+Qwen3-TTS Serena narration rights
+
+Project-authored bilingual scripts generated offline using Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice, revision 85e237c12c027371202489a0ec509ded67b5e4b5, built-in Serena speaker. Chinese and English are generated independently. No endorsement by Qwen or Alibaba is implied.
+
+Project-authored scripts and generated narration: CC BY-NC-SA 4.0, following the project licensing policy.
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+Code and official model card: Apache-2.0.
+https://github.com/QwenLM/Qwen3-TTS/blob/main/LICENSE
+https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+https://qwen.ai/blog/?id=qwen3tts-0115
+
+The official materials do not separately disclose the speaker training or performance rights chain.
+
+Language: Chinese
+Language: English
+The project owner authorized public distribution of the current audio bytes.
+Publication owner: Leon
+Publication date: 2026-10-30
+Publication action: public-distribution
+Publication record: src/content/narration-publication-authorization.json
+Publication record SHA-256: 54e19bc6d0b22915d45a95327157d7b279497ad786d150500c2eddd02b765de1
+Human listening review: pending
+Complete listening: unverified.

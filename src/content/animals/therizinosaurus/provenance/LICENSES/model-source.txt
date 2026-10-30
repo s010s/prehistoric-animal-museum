@@ -1,0 +1,9 @@
+Therizinosaurus
+Source: https://sketchfab.com/3d-models/therizinosaurus-1fa8b9e2dd4b40c9b8ffcaead0bd8e66
+Source bytes: 117492832
+Source SHA-256: 72ba0e59b4bafd65336c002734a9a410c0690d3461ecab1571001543fae1da81
+Runtime bytes: 16199980
+Runtime SHA-256: 9311e4108c29cfc9f5efe78ea4335a7a6a247a96a068a8559ae25facf13af440
+
+Changes:
+- adult-only connected component cleanup; selective decimation preserving head and claws; original alpha feather cards removed; compact opaque textured feathers rebuilt; skin textures resized and gently brightened/desaturated; roughness adjusted; 15-bone custom deformation rig; true stationary eight-second Idle; museum coordinate and scale normalization

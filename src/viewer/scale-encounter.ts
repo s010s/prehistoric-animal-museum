@@ -159,7 +159,7 @@ export interface ScaleEncounterDefinition {
   readonly calibratedModelSha256: string
   readonly displayedMeters: number
   readonly scaleConfidence: ScaleEncounterScaleConfidence
-  readonly measurement: 'body-length' | 'wingspan' | 'shoulder-height'
+  readonly measurement: 'body-length' | 'wingspan' | 'shoulder-height' | 'standing-height'
   readonly measurementAxis: 'x' | 'y' | 'z'
   readonly modelYawRadians: number
   readonly support: 'ground' | 'centre'
@@ -418,9 +418,10 @@ const productionScaleEncounterDefinitions: Readonly<
     displayedMeters: 1.5,
     scaleConfidence: 'range-midpoint',
     measurement: 'wingspan',
-    // Turn the animal across the child's +Z flight rail, then measure the
-    // now-world-Z wing axis so the reviewed 1.5 m wingspan stays unchanged.
-    measurementAxis: 'z',
+    // Its source wings lie on Z; +pi/2 yaw puts those same wing tips on
+    // world X. Measuring Z here calibrated its 2.22m rendered wings to a
+    // 1.5m label using the body length instead of the anatomical wing span.
+    measurementAxis: 'x',
     modelYawRadians: Math.PI / 2,
     support: 'centre',
     animalPosition: new Vector3(0, 3.8, 0),
@@ -561,9 +562,9 @@ const productionScaleEncounterDefinitions: Readonly<
     displayedMeters: 2.7,
     scaleConfidence: 'range-midpoint',
     measurement: 'wingspan',
-    // Face the head toward the child without turning the 2.7 m wing axis into
-    // a body-length calibration.
-    measurementAxis: 'z',
+    // The source wing axis is Z and rotates onto world X at +pi/2. Keep the
+    // real 2.7m wingtip span; world Z after this yaw measures its short body.
+    measurementAxis: 'x',
     modelYawRadians: Math.PI / 2,
     support: 'centre',
     animalPosition: new Vector3(0, 4.2, 0),
@@ -946,17 +947,28 @@ const productionScaleEncounterDefinitions: Readonly<
 // Only canonical entries selected by the build catalog are present here.
 for (const [id, item] of Object.entries(comparisonMetadata)) {
   const water = item.habitat === 'water'
+  const air = item.habitat === 'air'
   Object.defineProperty(productionScaleEncounterDefinitions, id, { enumerable: true,
     value: Object.freeze({
       id: id as ScaleEncounterAnimalId, habitat: item.habitat,
-      environmentTheme: water ? 'ocean' : 'forest', avatarProfile: water ? 'water-diver' : 'land-explorer',
-      avatarMotionPolicy: water ? 'swim' : 'adaptive-land', calibratedModelSha256: item.modelSha256,
-      displayedMeters: item.meters, scaleConfidence: 'representative', measurement: 'body-length',
-      measurementAxis: 'x', modelYawRadians: item.modelYawRadians, support: water ? 'centre' : 'ground',
-      animalPosition: new Vector3(water ? 0.8 : 2.2, water ? 1.25 : 0, 0),
-      defaultDistance: Math.max(3, item.meters * .65), minimumDistance: Math.max(1.2, item.meters * .25),
-      maximumDistance: Math.max(12, item.meters * 3), overviewFieldOfView: 36, povFieldOfView: 58,
-      overviewDirection: new Vector3(0, .035, 1).normalize(), overviewUp: new Vector3(0, 1, 0),
+      environmentTheme: water ? 'ocean' : air ? 'sky' : 'forest',
+      avatarProfile: water ? 'water-diver' : air ? 'air-wingsuit' : 'land-explorer',
+      avatarMotionPolicy: water ? 'swim' : air ? 'glide' : 'adaptive-land',
+      calibratedModelSha256: item.modelSha256,
+      displayedMeters: item.meters, scaleConfidence: 'representative',
+      measurement: item.measurement ?? 'body-length',
+      measurementAxis: item.measurementAxis ?? 'x', modelYawRadians: item.modelYawRadians,
+      support: water || air ? 'centre' : 'ground',
+      animalPosition: new Vector3(water ? 0.8 : air ? 0 : 2.2, water ? 1.25 : air ? 3.8 : 0, 0),
+      defaultDistance: Math.max(3, item.meters * (air || (water && id === 'dakosaurus') ? 1.1 : .65)),
+      minimumDistance: Math.max(1.2, item.meters * (air ? .5 : .25)),
+      maximumDistance: Math.max(12, item.meters * 3), overviewFieldOfView: air ? 32 : 36, povFieldOfView: air ? 60 : 58,
+      overviewDirection: air
+        ? new Vector3(Math.cos(70 * Math.PI / 180), Math.sin(70 * Math.PI / 180), 0)
+        : new Vector3(0, .035, 1).normalize(),
+      overviewUp: air
+        ? new Vector3(-Math.sin(70 * Math.PI / 180), Math.cos(70 * Math.PI / 180), 0)
+        : new Vector3(0, 1, 0),
       guidedTransitionDurationMs: 4500, referenceAnimationTimeSeconds: 0,
     } satisfies ScaleEncounterDefinition),
   })

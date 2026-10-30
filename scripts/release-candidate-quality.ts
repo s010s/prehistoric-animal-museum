@@ -37,7 +37,7 @@ export async function validateReleaseCandidate(bindingsOnly = false): Promise<vo
   const { mainCollection } = await import('../src/content/collections/main')
   const evidence = resolve('.handoff/expansion-12/release-fix/integration')
   await mkdir(evidence, { recursive: true })
-  if (mainCollection.animalIds.length !== 36 || new Set(mainCollection.animalIds).size !== 36) {
+  if (Number(mainCollection.animalIds.length) !== 36 || new Set(mainCollection.animalIds).size !== 36) {
     throw new Error('Local candidate must select36unique canonical gallery IDs.')
   }
   const metadata = await readJson<Record<string, CanonicalComparisonMetadata>>('src/scale-encounter/canonical-comparison-metadata.json')

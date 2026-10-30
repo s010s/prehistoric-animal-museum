@@ -1188,6 +1188,7 @@ export function registerReviewScaleEncounterCopy(
   names: Record<Locale, string>,
   measurements: Record<Locale, string>,
   narration?: ExpansionComparisonNarration,
+  scripts?: Readonly<Record<Locale, Readonly<Record<'intro' | 'transition' | 'arrival', string>>>>,
 ): void {
   if (import.meta.env.MODE !== 'review') throw new Error('Local review only.')
   if (narration) localReviewNarration.set(id, narration)
@@ -1196,15 +1197,17 @@ export function registerReviewScaleEncounterCopy(
       animalId: id, sceneLabel: `${names['zh-CN']} · 比一比预览`,
       transitionDurationMs: 4500,
       copy: { ...sharedZhCNCopy(), title: `和${names['zh-CN']}比一比`,
-        measurement: measurements['zh-CN'], intro: measurements['zh-CN'],
-        transition: '慢慢靠近，看看身体各个部分的大小。', arrival: '可以绕着观察，或切换到小朋友视角。' },
+        measurement: measurements['zh-CN'], intro: scripts?.['zh-CN'].intro ?? measurements['zh-CN'],
+        transition: scripts?.['zh-CN'].transition ?? '慢慢靠近，看看身体各个部分的大小。',
+        arrival: scripts?.['zh-CN'].arrival ?? '可以绕着观察，或切换到小朋友视角。' },
     },
     en: {
       animalId: id, sceneLabel: `${names.en} · comparison preview`,
       transitionDurationMs: 4500,
       copy: { ...sharedEnCopy(), title: `Compare with ${names.en}`,
-        measurement: measurements.en, intro: measurements.en,
-        transition: 'Approach gently and look at the animal.', arrival: 'Look around or switch to the child’s viewpoint.' },
+        measurement: measurements.en, intro: scripts?.en.intro ?? measurements.en,
+        transition: scripts?.en.transition ?? 'Approach gently and look at the animal.',
+        arrival: scripts?.en.arrival ?? 'Look around or switch to the child’s viewpoint.' },
     },
   })
 }

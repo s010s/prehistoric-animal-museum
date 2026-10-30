@@ -353,8 +353,10 @@ export function resetStagedModelPose(
 ): void {
   staged.action?.reset().play()
   staged.mixer?.setTime(0)
-  staged.modelRoot.rotation.y = MathUtils.degToRad(
-    staged.descriptor.presentation.initialYawDegrees,
+  staged.modelRoot.rotation.set(
+    0,
+    MathUtils.degToRad(staged.descriptor.presentation.initialYawDegrees),
+    MathUtils.degToRad(staged.descriptor.presentation.initialRotationZDegrees ?? 0),
   )
   staged.modelRoot.updateMatrixWorld(true)
 }
@@ -486,7 +488,7 @@ export class ViewerController {
     if (wasReduced && !this.reducedMotion) {
       this.resumeRotationAt = 0
     }
-    this.updateAutoRotation(performance.now())
+    this.updateAutoRotation()
   }
   private readonly handleContextLost = (event: Event) => {
     event.preventDefault()
@@ -657,7 +659,11 @@ export class ViewerController {
       gltf.animations = preparePterosaurMotion(gltf.scene, descriptor.id, gltf.animations)
       const modelRoot = gltf.scene
       modelRoot.name = `${descriptor.id}-model`
-      modelRoot.rotation.y = (descriptor.presentation.initialYawDegrees * Math.PI) / 180
+      modelRoot.rotation.set(
+        0,
+        MathUtils.degToRad(descriptor.presentation.initialYawDegrees),
+        MathUtils.degToRad(descriptor.presentation.initialRotationZDegrees ?? 0),
+      )
       modelRoot.updateMatrixWorld(true)
 
       const preciseBounds = descriptor.presentation.preciseBounds ?? false
@@ -836,7 +842,7 @@ export class ViewerController {
     resetStagedModelPose(current)
     this.fitCurrentModel()
     this.resumeRotationAt = this.reducedMotion ? Number.POSITIVE_INFINITY : 0
-    this.updateAutoRotation(performance.now())
+    this.updateAutoRotation()
   }
 
   /**
@@ -867,7 +873,7 @@ export class ViewerController {
       this.resumeRotationAt = this.reducedMotion
         ? Number.POSITIVE_INFINITY
         : 0
-      this.updateAutoRotation(performance.now())
+      this.updateAutoRotation()
       this.renderer.domElement.dataset.animationPaused = 'false'
       return true
     }
@@ -1130,6 +1136,8 @@ export class ViewerController {
       this.renderer.domElement.dataset.initialYawDegrees = String(
         staged.descriptor.presentation.initialYawDegrees,
       )
+      this.renderer.domElement.dataset.initialRotationZDegrees = String(staged.descriptor.presentation.initialRotationZDegrees ?? 0)
+      this.renderer.domElement.dataset.modelRootRotationRadians = staged.modelRoot.rotation.toArray().slice(0, 3).join(',')
     }
     const cameraLightScale =
       staged.descriptor.presentation.cameraLightScale ?? 1
@@ -1142,9 +1150,10 @@ export class ViewerController {
       DEFAULT_TONE_MAPPING_EXPOSURE
   }
 
-  private updateAutoRotation(now: number): void {
-    this.controls.autoRotate = !this.reducedMotion && now >= this.resumeRotationAt
-    this.renderer.domElement.dataset.autoRotate = String(this.controls.autoRotate)
+  private updateAutoRotation(): void {
+    // Keep the authored heading while Idle and manual orbit remain active.
+    this.controls.autoRotate = false
+    this.renderer.domElement.dataset.autoRotate = 'false'
   }
 
   private updateCameraLighting(): void {
@@ -1257,7 +1266,7 @@ export class ViewerController {
         this.controls.autoRotate = false
         this.renderer.domElement.dataset.autoRotate = 'false'
       } else {
-        this.updateAutoRotation(time)
+        this.updateAutoRotation()
       }
       if (this.current?.mixer && this.current.action) {
         if (this.reviewAnimationTime === null) {

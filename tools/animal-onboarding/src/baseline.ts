@@ -27,6 +27,8 @@ export const expectedProductionIds = immutableProductionBaselineIds
 
 export const goldenIds = ['maiasaura', 'plesiosaurus', 'megalodon'] as const
 
+const publishedStatusPattern = /(?:^|[{,])\s*(?:status|['"]status['"])\s*:\s*['"]published['"]/m
+
 export async function verifyProductionBaseline(): Promise<{
   readonly pass: boolean
   readonly actualIds: readonly string[]
@@ -78,7 +80,7 @@ export async function verifyProductionBaseline(): Promise<{
       resolve(`src/content/animals/${id}/package.ts`),
       'utf8',
     ).catch(() => '')
-    if (!packageSource.includes("status: 'published'") && !packageSource.includes('"status": "published"')) {
+    if (!publishedStatusPattern.test(packageSource)) {
       errors.push(`${id} is not published`)
     }
   }
@@ -87,7 +89,7 @@ export async function verifyProductionBaseline(): Promise<{
       resolve(`src/content/animals/${id}/package.ts`),
       'utf8',
     )
-    if (!packageSource.includes("status: 'published'")) {
+    if (!publishedStatusPattern.test(packageSource)) {
       errors.push(`${id} is not published`)
     }
   }

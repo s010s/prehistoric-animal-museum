@@ -1,0 +1,67 @@
+{
+  "animalId": "sordes",
+  "contractVersion": 3,
+  "generatedAt": "2026-10-29T18:14:49.375Z",
+  "presentationSignature": "{\"contractVersion\":3,\"renderer\":{\"cameraFieldOfViewDegrees\":34,\"maxPixelRatio\":2},\"layout\":{\"coordinateSystem\":\"fixed-fullscreen-canvas+composition-frame-v1\",\"phonePortraitModelScale\":1.15,\"previewObjectFit\":\"contain\",\"referenceViewports\":[{\"key\":\"landscapeCompact\",\"width\":844,\"height\":390},{\"key\":\"desktopWide\",\"width\":1280,\"height\":720},{\"key\":\"phonePortraitCompact\",\"width\":360,\"height\":640},{\"key\":\"phonePortraitTall\",\"width\":390,\"height\":844},{\"key\":\"tabletPortrait\",\"width\":768,\"height\":1024},{\"key\":\"desktopStandard\",\"width\":1440,\"height\":900}]},\"animation\":{\"clip\":\"Idle\",\"loop\":\"repeat\",\"speed\":1},\"presentation\":{\"cameraLightScale\":1.35,\"horizontalOffset\":{\"landscape\":0,\"portrait\":0},\"initialYawDegrees\":-130,\"preciseBounds\":true,\"safeAreaPadding\":{\"landscape\":0.15,\"portrait\":0.2},\"shadow\":{\"depthOffset\":0,\"depthScale\":1,\"horizontalOffset\":0,\"opacity\":0,\"scale\":0.62,\"yOffset\":0},\"toneMappingExposure\":1.15,\"verticalOffset\":{\"landscape\":0,\"portrait\":0}}}",
+  "profiles": {
+    "landscapeCompact": {
+      "fileName": "preview-landscape-compact.webp",
+      "sha256": "ea7826bea89e5c862d78359f7c6893353892e412c14520de613e71b4abcda98a",
+      "bytes": 36270,
+      "width": 1250,
+      "height": 650
+    },
+    "desktopWide": {
+      "fileName": "preview-desktop-wide.webp",
+      "sha256": "8798c7f902b66470f83d47305867b08efe15b3044148faf219f449c6c7b913b8",
+      "bytes": 35012,
+      "width": 1200,
+      "height": 800
+    },
+    "phonePortraitCompact": {
+      "fileName": "preview-phone-compact.webp",
+      "sha256": "02f11b764aabe5e3e1ef82509ab2ca65abb94094abeb3e8117c02110a78c1d7d",
+      "bytes": 27356,
+      "width": 875,
+      "height": 1000
+    },
+    "phonePortraitTall": {
+      "fileName": "preview-phone-tall.webp",
+      "sha256": "81d683c6e76d484245001c250fba8c647b6c125388c31c693bbe5ea78c3490f5",
+      "bytes": 17034,
+      "width": 640,
+      "height": 1000
+    },
+    "tabletPortrait": {
+      "fileName": "preview-tablet-portrait.webp",
+      "sha256": "6a5d6302091100ed9ceabfe0c503b23534ace7e5a0a11f15ad5a05fd4f101996",
+      "bytes": 21000,
+      "width": 900,
+      "height": 960
+    },
+    "desktopStandard": {
+      "fileName": "preview-desktop-standard.webp",
+      "sha256": "122e1c560dcc4de9291bcbe1a7413384797a6266d6caf857be6d0b28da770917",
+      "bytes": 37230,
+      "width": 1200,
+      "height": 960
+    }
+  },
+  "sourceModel": {
+    "bytes": 1928200,
+    "sha256": "4a21b059e3a3d820eaf19dcced5b8eba079af7a69dd6457ce70956c92fd1adae"
+  },
+  "target": "production",
+  "sourceModelMetadataRevision": {
+    "kind": "asset-metadata-only",
+    "capturedSourceModel": {
+      "bytes": 1927916,
+      "sha256": "fc828d28712c293c719b6d38384c46ff276f3d2514141e5b960320e0e90b2eb2"
+    },
+    "renderDataUnchanged": true,
+    "nonAssetJSONSha256": "3faa4abeba476bd4906ad5f7d70f7ec1eccebeb336f7c02f5aac3312e157ac06",
+    "binaryPayloadSha256": [
+      "f449a7814f5027b4d988514b40f3f507aa0ba27a636c73b26e650d6dccd1e510"
+    ]
+  }
+}

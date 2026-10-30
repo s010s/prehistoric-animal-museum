@@ -1,0 +1,9 @@
+Dallasaurus
+Source: https://sketchfab.com/3d-models/dallasaurus-bfec76fbd5624d9fa9375668565af45c
+Source bytes: 54302092
+Source SHA-256: 4a1a08cfd51e2d2e02360167b99fffe509c1a530f416cfc0ca24391e39b2a2f0
+Runtime bytes: 12114960
+Runtime SHA-256: dbc02f36ad7e9dddcf8ad38b59068ab95f3bdd85b77a932ae95fa1096f2cac8f
+
+Changes:
+- Mesh decimation, texture repacking, existing Idle, static normalization; existing warm skin colour retained.
