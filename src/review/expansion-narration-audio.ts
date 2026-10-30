@@ -1,5 +1,6 @@
 import type { Locale } from '../i18n/locale'
 import type { ExpansionReviewManifest, ExpansionNarrationTrack } from './expansion-manifest'
+import { SKY_EXPANSION_REVIEW_ID_SET } from './sky-expansion-config'
 
 type AudioPhase = 'gallery' | 'intro' | 'transition' | 'arrival' | 'toChildEyes' | 'toChildRear'
 interface AudioIdentity {
@@ -40,7 +41,7 @@ export function observeExpansionNarrationMedia(
 ): void {
   if (import.meta.env.MODE !== 'review' || observed.has(audio)) return
   const identity: AudioIdentity | undefined = tracks.get(source) ?? (
-    sharedPrompt?.animalId.startsWith('expansion-') &&
+    sharedPrompt && (sharedPrompt.animalId.startsWith('expansion-') || SKY_EXPANSION_REVIEW_ID_SET.has(sharedPrompt.animalId)) &&
     ['toChildEyes', 'toChildRear'].includes(sharedPrompt.phase)
       ? sharedPrompt
       : undefined

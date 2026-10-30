@@ -23,19 +23,11 @@ describe('SceneAtmosphere', () => {
 
     rerender(<SceneAtmosphere kind="forest" />)
     expect(container.querySelectorAll('.scene-atmosphere')).toHaveLength(1)
-    expect(container.querySelectorAll('.forest-sunbeam')).toHaveLength(2)
-    expect(container.querySelectorAll('.forest-dust-particle')).toHaveLength(
-      12,
-    )
-    expect(container.querySelectorAll('.forest-leaf')).toHaveLength(4)
-
-    rerender(
-      <SceneAtmosphere diffuseForestLight kind="forest" />,
-    )
     expect(container.querySelectorAll('.forest-sunbeam')).toHaveLength(0)
     expect(container.querySelectorAll('.forest-dust-particle')).toHaveLength(
       12,
     )
+    expect(container.querySelectorAll('.forest-leaf')).toHaveLength(4)
 
     rerender(<SceneAtmosphere kind="plains" />)
     expect(container.querySelectorAll('.scene-atmosphere')).toHaveLength(1)

@@ -1,4 +1,5 @@
 import { comparisonMetadata } from 'virtual:canonical-comparison-extension'
+import { SKY_EXPANSION_REVIEW_ID_SET, type SkyExpansionReviewAnimalId } from '../review/sky-expansion-config'
 export const SCALE_ENCOUNTER_ANIMAL_IDS = [
   'stegosaurus',
   'pteranodon',
@@ -39,6 +40,7 @@ export type ProductionScaleEncounterAnimalId =
   (typeof SCALE_ENCOUNTER_ANIMAL_IDS)[number]
 
 export type ReviewScaleEncounterAnimalId =
+  | SkyExpansionReviewAnimalId
   | 'expansion-parasaurolophus'
   | 'expansion-dimetrodon'
   | 'expansion-gallimimus'
@@ -89,7 +91,8 @@ const SCALE_ENCOUNTER_ANIMAL_ID_SET = new Set<string>(
 
 /** Called only after a local candidate has a definition and calibrated model. */
 export function registerReviewScaleEncounterAnimal(id: ReviewScaleEncounterAnimalId): void {
-  if ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE !== 'review' || !/^expansion-[a-z0-9-]+$/.test(id)) {
+  if ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE !== 'review' ||
+      (!/^expansion-[a-z0-9-]+$/.test(id) && !SKY_EXPANSION_REVIEW_ID_SET.has(id))) {
     throw new Error('Candidate comparison registration is local-review only.')
   }
   SCALE_ENCOUNTER_ANIMAL_ID_SET.add(id)

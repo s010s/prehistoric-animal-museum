@@ -58,7 +58,9 @@ findings.push(
 const glbFiles = files.filter((file) => extname(file) === '.glb')
 const mp3Files = files.filter((file) => extname(file) === '.mp3')
 const sourceMaps = files.filter((file) => extname(file) === '.map')
-const expectedAnimalAssetCount = mainCollection.animalIds.length
+// Keep the historical candidate guard runtime-checked even when the normal
+// collection's readonly tuple has a different literal length.
+const expectedAnimalAssetCount = Number(mainCollection.animalIds.length)
 const expectedNarrationAssetCount =
   expectedAnimalAssetCount * supportedLocales.length
 const expectedScaleEncounterGlbCount = 12

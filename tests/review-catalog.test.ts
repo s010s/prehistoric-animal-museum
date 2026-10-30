@@ -1,10 +1,12 @@
 /// <reference types="node" />
 
 import { stat } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
 import { localReviewAssetFiles } from '../scripts/review-assets'
 import { mainAnimals } from '../src/content/catalog'
 import { modelPreviewProfiles } from '../src/viewer/model-preview-profiles'
+import { modelPreviewFor } from '../src/viewer/responsive-model-stills'
 import {
   buildLocalReviewCatalog,
   localReviewAnimals,
@@ -24,6 +26,32 @@ const expansionAnimalIds = [
   'carnotaurus',
   'anomalocaris',
 ] as const
+
+// These canonical scripts were authored separately from the visible-feature
+// caption. Keep their exact spoken wording alongside the legacy verbatim rule.
+const canonicalSecondNarrationSentences: Readonly<Record<string, string>> = {
+  'allosaurus-pandras': '张开你的小手和它比一比，再找找它眼睛上方的小突起。',
+  ammonite: '用眼睛沿着螺旋慢慢往里走，一直找到最里面的那一圈。',
+  ankylosaurus: '从背上顺着尾巴往后找，末端还有一个圆钝的尾槌。',
+  anurognathus: '看看它宽宽的小脸和展开的皮膜翅膀。',
+  dakosaurus: '顺着身体找到尾巴，看看末端像鱼尾一样的尾鳍。',
+  dallasaurus: '看看它的四条小腿和脚趾，再顺着身体找到长长的尾巴。',
+  dimetrodon: '它生活得比恐龙还早，和今天的哺乳动物有亲缘关系。',
+  gallimimus: '似鸡龙有长长的腿和像鸟一样的喙，嘴巴里面没有牙齿。',
+  hallucigenia: '它的背上有成对的尖刺，身体下面还排着一条条细腿。',
+  livyatan: '把它转到侧面，顺着嘴边慢慢找，上下两排你都发现了吗？',
+  opabinia: '再沿着它细长的吻部往前找，最前端还有一对小爪子。',
+  parasaurolophus: '用手指跟着它的轮廓画一画，头冠里面还有弯弯曲曲的通道。',
+  phorusrhacos: '把它转到侧面，找一找嘴巴尖尖的地方朝哪边弯。',
+  quetzalcoatlus: '看看它长长的脖子和展开的大翅膀。',
+  regaliceratops: '再看看它的鼻子和眼睛上方，哪边的角更长？',
+  sarcosuchus: '顺着它的背往后找，一块块硬硬的骨甲一直排到尾巴上。',
+  sordes: '它身上有毛一样的细丝，翅膀由薄薄的皮膜组成。',
+  styxosaurus: '身体两侧还有四只鳍状肢，像四把划水的小桨。',
+  therizinosaurus: '把它转到侧面，看看这些爪子伸出去有多远。',
+  tullimonstrum: '你能在眼睛前面，找到那条细长的吻部吗？',
+  xiphactinus: '有的从头到尾超过五米，这样的大鱼装得进小小的鱼缸吗？',
+}
 
 describe('local collection review catalog', () => {
   it('switches an allowlisted draft to production assets without a catalog edit', () => {
@@ -56,44 +84,53 @@ describe('local collection review catalog', () => {
     )
   })
 
-  it('keeps all thirty-six production animals in the accepted collection order', () => {
+  it('keeps all forty-five production animals in the accepted collection order', () => {
     expect(localReviewAnimals.map(({ id }) => id)).toEqual([
       'stegosaurus',
       'pteranodon',
       'pachycephalosaurus',
+      'ankylosaurus',
+      'regaliceratops',
       'ichthyosaur',
+      'opabinia',
       'tyrannosaurus-rex',
       'rhamphorhynchus',
+      'anurognathus',
+      'hallucigenia',
       'triceratops',
       'apatosaurus',
+      'livyatan',
+      'sarcosuchus',
       'plesiosaurus',
       'gigantoraptor',
+      'parasaurolophus',
       'tupandactylus',
+      'therizinosaurus',
       'mammoth',
+      'gallimimus',
       'megalodon',
+      'tullimonstrum',
+      'phorusrhacos',
       'maiasaura',
       'sauropelta',
+      'allosaurus-pandras',
       'meganeura',
+      'sordes',
       'dilophosaurus',
+      'dimetrodon',
       'mosasaurus',
       'spinosaurus',
+      'quetzalcoatlus',
+      'xiphactinus',
       'lystrosaurus',
       'baryonyx',
+      'ammonite',
+      'dallasaurus',
       'archaeopteryx',
       'carnotaurus',
-      'anomalocaris',
-      'tullimonstrum',
-      'hallucigenia',
-      'parasaurolophus',
-      'ammonite',
-      'dimetrodon',
-      'gallimimus',
-      'ankylosaurus',
       'styxosaurus',
-      'livyatan',
-      'opabinia',
-      'allosaurus-pandras',
-      'xiphactinus',
+      'anomalocaris',
+      'dakosaurus',
     ])
     expect(
       localReviewAnimals.every(({ status }) => status === 'published'),
@@ -102,15 +139,15 @@ describe('local collection review catalog', () => {
       localReviewAnimals
         .map(({ habitat }, index) => habitat === 'water' ? index : -1)
         .filter((index) => index >= 0),
-    ).toEqual([3, 8, 12, 17, 23])
+    ).toEqual([5, 6, 10, 13, 15, 22, 23, 32, 35, 38, 39, 42, 43, 44])
     expect(
       localReviewAnimals
         .map(({ habitat }, index) => habitat === 'air' ? index : -1)
         .filter((index) => index >= 0),
-    ).toEqual([1, 5, 10, 15, 21])
+    ).toEqual([1, 8, 9, 18, 28, 29, 34, 40])
   })
 
-  it('provides complete visual assets and locally reviewable narration', () => {
+  it('provides complete visual assets and locally reviewable narration', async () => {
     const publishedIds = new Set(mainAnimals.map(({ id }) => id))
     for (const animal of localReviewAnimals) {
       if (publishedIds.has(animal.id)) {
@@ -161,11 +198,11 @@ describe('local collection review catalog', () => {
           `/__museum-review-assets/${animal.id}/narration.mp3`,
         )
       }
-      expect(
-        localReviewAssetFiles.has(
-          `/__museum-review-assets/${animal.id}/narration.mp3`,
-        ),
-      ).toBe(true)
+      const narrationPath = publishedIds.has(animal.id)
+        ? resolve(`src/content/animals/${animal.id}/audio/narration.zh-CN.mp3`)
+        : localReviewAssetFiles.get(`/__museum-review-assets/${animal.id}/narration.mp3`)
+      expect(narrationPath, animal.id).toBeDefined()
+      expect((await stat(narrationPath!)).isFile(), animal.id).toBe(true)
       if (animal.review) {
         expect(animal.review.checks.length).toBeGreaterThanOrEqual(2)
       } else {
@@ -255,27 +292,48 @@ describe('local collection review catalog', () => {
       ['stegosaurus', 'forest'],
       ['pteranodon', 'air'],
       ['pachycephalosaurus', 'forest'],
+      ['ankylosaurus', 'forest'],
+      ['regaliceratops', 'forest'],
       ['ichthyosaur', 'underwater'],
+      ['opabinia', 'underwater'],
       ['tyrannosaurus-rex', 'forest'],
       ['rhamphorhynchus', 'air'],
+      ['anurognathus', 'air'],
+      ['hallucigenia', 'underwater'],
       ['triceratops', 'plains'],
       ['apatosaurus', 'plains'],
+      ['livyatan', 'underwater'],
+      ['sarcosuchus', 'forest'],
       ['plesiosaurus', 'underwater'],
       ['gigantoraptor', 'plains'],
+      ['parasaurolophus', 'forest'],
       ['tupandactylus', 'air'],
+      ['therizinosaurus', 'forest'],
       ['mammoth', 'ice'],
+      ['gallimimus', 'forest'],
       ['megalodon', 'underwater'],
+      ['tullimonstrum', 'underwater'],
+      ['phorusrhacos', 'plains'],
       ['maiasaura', 'plains'],
       ['sauropelta', 'plains'],
+      ['allosaurus-pandras', 'forest'],
       ['meganeura', 'air'],
+      ['sordes', 'air'],
       ['dilophosaurus', 'plains'],
+      ['dimetrodon', 'forest'],
       ['mosasaurus', 'underwater'],
       ['spinosaurus', 'plains'],
+      ['quetzalcoatlus', 'air'],
+      ['xiphactinus', 'underwater'],
       ['lystrosaurus', 'plains'],
       ['baryonyx', 'plains'],
+      ['ammonite', 'underwater'],
+      ['dallasaurus', 'underwater'],
       ['archaeopteryx', 'air'],
       ['carnotaurus', 'plains'],
+      ['styxosaurus', 'underwater'],
       ['anomalocaris', 'underwater'],
+      ['dakosaurus', 'underwater'],
     ])
   })
 
@@ -348,7 +406,7 @@ describe('local collection review catalog', () => {
     }
   })
 
-  it('serves shared-profile first-frame previews for every review model', () => {
+  it('serves shared-profile first-frame previews for every review model', async () => {
     for (const animal of localReviewAnimals) {
       const animalId = animal.id
       const routePrefix = `/__museum-review-assets/${animalId}`
@@ -357,9 +415,13 @@ describe('local collection review catalog', () => {
 
       for (const { fileName } of modelPreviewProfiles) {
         const route = `${routePrefix}/${fileName}`
-        expect(localReviewAssetFiles.get(route)).toContain(
-          `${expectedPathFragment}${fileName}`,
-        )
+        const canonicalPath = `src/content/animals/${animalId}/images/${fileName}`
+        expect(modelPreviewFor(animalId, fileName), animalId).toContain(`/${canonicalPath}`)
+        expect((await stat(resolve(canonicalPath))).isFile(), animalId).toBe(true)
+        const legacyReviewPath = localReviewAssetFiles.get(route)
+        if (animal.review) {
+          expect(legacyReviewPath).toContain(`${expectedPathFragment}${fileName}`)
+        }
       }
     }
   })
@@ -779,11 +841,15 @@ describe('local collection review catalog', () => {
     })
   })
 
-  it('keeps each two-sentence narration exactly aligned with the visible feature', () => {
+  it('keeps each two-sentence narration aligned with its exact authored wording', () => {
+    expect(localReviewAnimals.filter(({ review }) => !review).map(({ id }) => id).sort())
+      .toEqual(Object.keys(canonicalSecondNarrationSentences).sort())
     for (const animal of localReviewAnimals) {
       const content = animal.content['zh-CN']
       expect(content.narration.sentences).toHaveLength(2)
-      expect(content.narration.sentences[1]).toBe(content.visibleFeature)
+      expect(content.narration.sentences[1]).toBe(
+        canonicalSecondNarrationSentences[animal.id] ?? content.visibleFeature,
+      )
       expect(content.narration.sentences.join('')).not.toContain('undefined')
     }
   })

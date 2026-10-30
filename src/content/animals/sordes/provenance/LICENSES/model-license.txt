@@ -1,0 +1,11 @@
+Model license record
+
+Asset: Sordes Pilosus — mesh and rig only
+Creator: victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner)
+License: Creative Commons Attribution 4.0 International
+License URL: https://creativecommons.org/licenses/by/4.0/
+Source URL: https://sketchfab.com/3d-models/sordes-pilosus-45afc7fc47f3402db1bca10e5b1ca6c5
+
+Model by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner); museum preparation by Leon Made This.
+
+Only the mesh and rig are used. The original AMNH illustration is excluded and was replaced by independent original materials.

@@ -1058,6 +1058,9 @@ export function createReviewCandidateAvatarLoader(
         }
         root.userData.scaleEncounterAvatarMotion = motionState.kind
         root.userData.scaleEncounterAvatarTravelSpeed = 0
+        root.userData.scaleEncounterAvatarAnimationTimeSeconds = mixer.time
+        root.userData.scaleEncounterAvatarAnimationRate = 1
+        root.userData.scaleEncounterAvatarAnimationDeltaSeconds = 0
         let transientAction: ScaleEncounterAvatarAction | null = null
 
         const playbackRateFor = (
@@ -1187,6 +1190,8 @@ export function createReviewCandidateAvatarLoader(
 
             if (reducedMotion) {
               previousElapsedSeconds = elapsedSeconds
+              root.userData.scaleEncounterAvatarAnimationRate = 0
+              root.userData.scaleEncounterAvatarAnimationDeltaSeconds = 0
               if (!reducedMotionActive) {
                 reducedMotionActive = true
                 mixer.stopAllAction()
@@ -1211,6 +1216,7 @@ export function createReviewCandidateAvatarLoader(
               reducedMotionActive = false
               activeAction.paused = false
               activateMotionClip(motionState, false)
+              root.userData.scaleEncounterAvatarAnimationRate = activeAction.getEffectiveTimeScale()
               previousElapsedSeconds = elapsedSeconds
               poseController.apply(mixer.time, false, motionState.kind)
               return
@@ -1230,8 +1236,17 @@ export function createReviewCandidateAvatarLoader(
                 ? maxStepSeconds
                 : stableFrameDeltaSeconds * stallBaselineMultiplier,
             )
-            const delta = Math.min(rawDelta, frameBudget)
+            // A flight can legitimately render below 30fps when its islands
+            // occupy more of the frame. Clipping *every* such frame to 1/30
+            // made the child slow down in the wide scene and speed up when
+            // approaching. Real frames up to 100ms retain one clock second
+            // per second; longer stalls still get one small bounded step.
+            const delta = presentation.profile === 'air-wingsuit' && rawDelta <= .1 + 1e-9
+              ? rawDelta : Math.min(rawDelta, frameBudget)
             mixer.update(delta)
+            root.userData.scaleEncounterAvatarAnimationTimeSeconds = mixer.time
+            root.userData.scaleEncounterAvatarAnimationRate = activeAction.getEffectiveTimeScale()
+            root.userData.scaleEncounterAvatarAnimationDeltaSeconds = delta
             // The stationary land presentation normally restores a reviewed
             // relaxed stance after every mixer update. Doing that during the
             // transient jump erased the authored hip and knee rotations, so

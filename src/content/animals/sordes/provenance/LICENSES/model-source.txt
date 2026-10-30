@@ -1,0 +1,11 @@
+Sordes Pilosus — mesh and rig only
+Source: https://sketchfab.com/3d-models/sordes-pilosus-45afc7fc47f3402db1bca10e5b1ca6c5
+Source bytes: 761452
+Source SHA-256: e252e472ba3916b7a4557ce3d5080fac0d6a712201950380efaf493c81dcfeef
+Runtime bytes: 1928200
+Runtime SHA-256: 4a21b059e3a3d820eaf19dcced5b8eba079af7a69dd6457ce70956c92fd1adae
+
+Changes:
+- Preserved the source mesh, UVs, skinning, rig and wing, head and long-tail motion; retimed the stationary loop to exactly eight seconds at 24 fps.
+- Excluded the original AMNH illustration completely; replaced all original image payloads with independent original procedural body-fur and membrane textures.
+- Applied uniform axis and scale normalisation and matte warm-brown materials.

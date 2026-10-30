@@ -7,6 +7,11 @@ import { createExpansionWorldWalk, advanceExpansionWorldWalk, translateExpansion
 import { installExpansionWalkContacts, updateExpansionWalkContacts } from '../review/expansion-walk-contacts'
 import { createEncounterMotionFootprint } from './scale-encounter-motion-footprint'
 import { installExpansionFootContacts } from '../review/expansion-foot-contacts'
+import {
+  applyPhorusrhacosSubjectGrade,
+  PHORUSRHACOS_SUBJECT_GRADE_REVISION,
+  type PhorusrhacosSubjectGradeLease,
+} from './phorusrhacos-subject-grade'
 import { comparisonMetadata as canonicalComparisonMetadata } from 'virtual:canonical-comparison-extension'
 import {
   installPublicIdleContacts,
@@ -65,7 +70,6 @@ import {
 import type { ViewerModelDescriptor } from './viewer-model-descriptor'
 import {
   SCALE_ENCOUNTER_DEFINITIONS,
-  SCALE_ENCOUNTER_LAND_RUN_SPEED_METERS_PER_SECOND,
   SCALE_ENCOUNTER_LAND_WALK_SPEED_METERS_PER_SECOND,
   clampScaleEncounterValue,
   computeScaleEncounterAvatarGroundedEyeHeight,
@@ -100,6 +104,11 @@ import {
   type ScaleEncounterEnvironmentVariant,
   type ScaleEncounterSurfaceTextures,
 } from './scale-encounter-environment'
+import {
+  scaleEncounterAirHeadAxisFor,
+  scaleEncounterAirPresentationYawRadians,
+  scaleEncounterOrbitAngularSpeedRadiansPerSecond,
+} from './scale-encounter-air-presentation'
 import type { RiverVisitor } from './scale-encounter-water-interaction'
 import { createAnimalPresence, type AnimalPresence } from './scale-encounter-animal-presence'
 import type { ScaleEncounterEcologyDensity } from './scale-encounter-ecology-density'
@@ -409,6 +418,7 @@ interface ScaleEncounterRuntime {
   mammothAnimalGrade: MammothSubjectGradeLease | null
   oceanAnimalGrade: OceanSubjectGradeLease | null
   oceanAvatarGrade: OceanSubjectGradeLease | null
+  phorusrhacosAnimalGrade: PhorusrhacosSubjectGradeLease | null
   transition: ScaleEncounterCameraTransition | null
 }
 
@@ -441,20 +451,18 @@ const SCALE_ENCOUNTER_OVERVIEW_ZOOM_MAXIMUM = 1.18
 const SCALE_ENCOUNTER_OVERVIEW_ZOOM_STEP = 0.08
 const SCALE_ENCOUNTER_OVERVIEW_HOLD_SPEED_PER_SECOND = 0.15
 const SCALE_ENCOUNTER_ORBIT_STEP_RADIANS = MathUtils.degToRad(30)
-// Dividing the scene-appropriate travel speed by the current horizontal radius
-// avoids the former 42°/s rule accelerating from roughly 4 m/s near a small
-// animal to almost 20 m/s in the ocean scene.
-function scaleEncounterOrbitTravelSpeedMetersPerSecond(
-  definition: ScaleEncounterDefinition,
-): number {
-  if (definition.habitat === 'air') return 4
-  if (definition.habitat === 'water') return 1.2
-  return SCALE_ENCOUNTER_LAND_RUN_SPEED_METERS_PER_SECOND
-}
 const SCALE_ENCOUNTER_ORBIT_EASING_PER_SECOND = 10
 const SCALE_ENCOUNTER_AIR_BOOST_MULTIPLIER = 1.6
 const SCALE_ENCOUNTER_WATER_BOOST_MULTIPLIER = 1.4
 const SCALE_ENCOUNTER_BOOST_EASING_PER_SECOND = 8
+// These four subjects share the approved land comparison fill. Keep the scope
+// explicit so adding another catalog animal cannot change its authored light.
+const SCALE_ENCOUNTER_LAND_FRONT_FILL_IDS: ReadonlySet<string> = new Set([
+  'regaliceratops',
+  'sarcosuchus',
+  'therizinosaurus',
+  'phorusrhacos',
+])
 interface ScaleEncounterJumpMotionPolicy {
   readonly airborneSeconds: number
   readonly anticipationSeconds: number
@@ -951,10 +959,13 @@ export function minimumScaleEncounterDistanceForProfile(
   profile: NormalizedScaleEncounterProfile,
   orbitAngleRadians: number,
 ): number {
+  const requiresWaterVolumeSafety =
+    definition.habitat === 'water' && definition.id === 'dakosaurus'
   if (
     profile.approach !== 'close' &&
     placement.animalId !== 'apatosaurus' &&
-    !placement.groundFootprint
+    !placement.groundFootprint &&
+    !requiresWaterVolumeSafety
   ) {
     return definition.minimumDistance
   }
@@ -1192,7 +1203,7 @@ export function resetStagedModelPose(
   staged.modelRoot.rotation.set(
     0,
     MathUtils.degToRad(staged.descriptor.presentation.initialYawDegrees),
-    0,
+    MathUtils.degToRad(staged.descriptor.presentation.initialRotationZDegrees ?? 0),
   )
   staged.modelRoot.updateMatrixWorld(true)
 }
@@ -1347,7 +1358,7 @@ export class ViewerController {
     if (wasReduced && !this.reducedMotion) {
       this.resumeRotationAt = 0
     }
-    this.updateAutoRotation(performance.now())
+    this.updateAutoRotation()
   }
   private readonly handleContextLost = (event: Event) => {
     event.preventDefault()
@@ -1667,7 +1678,7 @@ export class ViewerController {
       modelRoot.rotation.set(
         0,
         (descriptor.presentation.initialYawDegrees * Math.PI) / 180,
-        0,
+        MathUtils.degToRad(descriptor.presentation.initialRotationZDegrees ?? 0),
       )
       modelRoot.updateMatrixWorld(true)
 
@@ -2129,6 +2140,7 @@ export class ViewerController {
     let mammothAnimalGrade: MammothSubjectGradeLease | null = null
     let oceanAnimalGrade: OceanSubjectGradeLease | null = null
     let oceanAvatarGrade: OceanSubjectGradeLease | null = null
+    let phorusrhacosAnimalGrade: PhorusrhacosSubjectGradeLease | null = null
 
     try {
       // A gallery still must not freeze a comparison journey. Restore it with
@@ -2182,12 +2194,22 @@ export class ViewerController {
         throw new RangeError('active-model-has-no-measurable-span')
       }
       const metersPerUnit = definition.displayedMeters / rawSpanUnits
-      const rawCentre = rawBounds.getCenter(new Vector3())
+      // Keep calibration at its immutable reference yaw/axis. Facing belongs
+      // to presentation and must never change a wingspan to a body measure.
+      const airYaw = definition.habitat === 'air'
+        ? scaleEncounterAirPresentationYawRadians(definition.id) : null
+      let placementRawBounds = rawBounds
+      if (airYaw !== null) {
+        current.modelRoot.rotation.set(0, airYaw, 0)
+        current.modelRoot.updateMatrixWorld(true)
+        placementRawBounds = computeModelBounds(current.modelRoot, true)
+      }
+      const rawCentre = placementRawBounds.getCenter(new Vector3())
       current.group.scale.setScalar(metersPerUnit)
       current.group.position.set(
         definition.animalPosition.x - rawCentre.x * metersPerUnit,
         definition.support === 'ground'
-          ? definition.animalPosition.y - rawBounds.min.y * metersPerUnit
+          ? definition.animalPosition.y - placementRawBounds.min.y * metersPerUnit
           : definition.animalPosition.y - rawCentre.y * metersPerUnit,
         definition.animalPosition.z - rawCentre.z * metersPerUnit,
       )
@@ -2299,6 +2321,13 @@ export class ViewerController {
         })
       }
 
+      if (definition.id === 'phorusrhacos') {
+        phorusrhacosAnimalGrade = applyPhorusrhacosSubjectGrade(current.modelRoot, {
+          animalId: definition.id,
+          mode: 'comparison',
+        })
+      }
+
       this.camera.clearViewOffset()
       this.scaleEncounter = {
         animalPresence: createAnimalPresence(definition.id, current.modelRoot, placement.defaultEyePosition),
@@ -2339,12 +2368,15 @@ export class ViewerController {
         mammothAnimalGrade,
         oceanAnimalGrade,
         oceanAvatarGrade,
+        phorusrhacosAnimalGrade,
         transition: null,
       }
       this.resize()
       const candidateOwnsLighting = environment?.ownsLighting === true
       const skyCandidateSubjectFill =
         environment?.sceneCandidateSemantic === 'sky'
+      const calibratedLandSubjectFill = definition.habitat === 'land' &&
+        SCALE_ENCOUNTER_LAND_FRONT_FILL_IDS.has(definition.id)
       this.scaleEncounterSunLight.visible =
         definition.habitat === 'land' && !candidateOwnsLighting
       this.scaleEncounterSkyFillLight.visible =
@@ -2362,12 +2394,16 @@ export class ViewerController {
       this.cameraKeyLight.intensity =
         skyCandidateSubjectFill
           ? 0.95
+          : calibratedLandSubjectFill
+            ? 0.75
           : definition.habitat === 'land' || candidateOwnsLighting
             ? 0
             : 1.1
       this.cameraFillLight.intensity =
         skyCandidateSubjectFill
           ? 0.44
+          : calibratedLandSubjectFill
+            ? 0.35
           : definition.habitat === 'land' || candidateOwnsLighting
             ? 0
             : 0.42
@@ -2411,17 +2447,35 @@ export class ViewerController {
       this.renderer.domElement.dataset.scaleEncounterBoostFlow =
         boostFlow?.habitat ?? 'none'
       this.renderer.domElement.dataset.scaleEncounterSubjectLighting =
-        skyCandidateSubjectFill
+        calibratedLandSubjectFill
+          ? 'review-land-front-fill-v1'
+          : skyCandidateSubjectFill
           ? 'rear-upper-camera-fill-v1'
           : candidateOwnsLighting
             ? 'environment-owned'
             : 'legacy-camera-lighting'
+      if (calibratedLandSubjectFill) {
+        this.renderer.domElement.dataset.scaleEncounterReviewSubjectFill = JSON.stringify({
+          cameraKey: this.cameraKeyLight.intensity,
+          cameraFill: this.cameraFillLight.intensity,
+          exposure: this.renderer.toneMappingExposure,
+          worldSun: this.scaleEncounterSunLight.intensity,
+          worldSkyFill: this.scaleEncounterSkyFillLight.intensity,
+          hemisphere: this.scaleEncounterHemisphereLight.intensity,
+        })
+      } else {
+        delete this.renderer.domElement.dataset.scaleEncounterReviewSubjectFill
+      }
       if (environment?.sceneCandidateSemantic === 'ocean') {
         this.renderer.domElement.dataset.scaleEncounterSubjectColour =
           OCEAN_SUBJECT_GRADE_REVISION
       } else if (definition.environmentTheme === 'glacier') {
         this.renderer.domElement.dataset.scaleEncounterSubjectColour =
           MAMMOTH_SUBJECT_GRADE_REVISION
+      }
+      if (phorusrhacosAnimalGrade) {
+        this.renderer.domElement.dataset.scaleEncounterSubjectColour = PHORUSRHACOS_SUBJECT_GRADE_REVISION
+        this.renderer.domElement.dataset.scaleEncounterReviewSubjectGradeMaterials = String(phorusrhacosAnimalGrade.materialCount)
       }
       this.renderer.domElement.dataset.scaleEncounterProductionApproved =
         'false'
@@ -2439,6 +2493,7 @@ export class ViewerController {
       this.renderer.render(this.scene, this.camera)
       return true
     } catch (cause) {
+      phorusrhacosAnimalGrade?.restore()
       mammothAnimalGrade?.restore()
       oceanAvatarGrade?.restore()
       oceanAnimalGrade?.restore()
@@ -3478,6 +3533,9 @@ export class ViewerController {
     now: number,
   ): void {
     const encounter = this.scaleEncounter
+    if (encounter) {
+      this.renderer.domElement.dataset.scaleEncounterOrbitAngularSpeedDegreesPerSecond = '0.0000'
+    }
     if (!encounter || encounter.transition || encounter.view !== 'pov') return
     if (
       encounter.definition.habitat === 'land' &&
@@ -3507,11 +3565,12 @@ export class ViewerController {
         .length(),
       0.001,
     )
-    const maximumAngularStep =
-      (scaleEncounterOrbitTravelSpeedMetersPerSecond(encounter.definition) /
-        horizontalOrbitRadius) *
-      (encounter.actionBoostMultiplier ?? 1) *
-      Math.max(deltaSeconds, 0)
+    const angularSpeed = scaleEncounterOrbitAngularSpeedRadiansPerSecond(
+      encounter.definition,
+      horizontalOrbitRadius,
+      encounter.actionBoostMultiplier ?? 1,
+    )
+    const maximumAngularStep = angularSpeed * Math.max(deltaSeconds, 0)
     let settled = false
     if (encounter.orbitMotionDirection !== 0) {
       encounter.orbitAngleRadians +=
@@ -3540,6 +3599,9 @@ export class ViewerController {
     }
 
     if (Math.abs(encounter.orbitAngleRadians - previous) <= 1e-7) return
+    this.renderer.domElement.dataset.scaleEncounterOrbitAngularSpeedDegreesPerSecond = (
+      deltaSeconds > 0 ? MathUtils.radToDeg((encounter.orbitAngleRadians - previous) / deltaSeconds) : 0
+    ).toFixed(4)
     encounter.observerDistance = clampScaleEncounterDistanceForProfile(
       encounter.placement,
       encounter.definition,
@@ -3588,6 +3650,7 @@ export class ViewerController {
     encounter.mammothAnimalGrade?.restore()
     encounter.oceanAvatarGrade?.restore()
     encounter.oceanAnimalGrade?.restore()
+    encounter.phorusrhacosAnimalGrade?.restore()
     encounter.boostFlow?.dispose()
     encounter.animalPresence?.dispose()
     encounter.environment?.root.removeFromParent()
@@ -3632,7 +3695,9 @@ export class ViewerController {
     delete this.renderer.domElement.dataset.scaleEncounterBoostFlow
     delete this.renderer.domElement.dataset.scaleEncounterBoostFlowIntensity
     delete this.renderer.domElement.dataset.scaleEncounterSubjectLighting
+    delete this.renderer.domElement.dataset.scaleEncounterReviewSubjectFill
     delete this.renderer.domElement.dataset.scaleEncounterSubjectColour
+    delete this.renderer.domElement.dataset.scaleEncounterReviewSubjectGradeMaterials
     delete this.renderer.domElement.dataset.scaleEncounterProductionApproved
     delete this.renderer.domElement.dataset
       .scaleEncounterPrototypeFlightApproximation
@@ -3651,6 +3716,18 @@ export class ViewerController {
     delete this.renderer.domElement.dataset.scaleEncounterAvatarEquipment
     delete this.renderer.domElement.dataset.scaleEncounterAvatarHeading
     delete this.renderer.domElement.dataset.scaleEncounterAvatarMotion
+    delete this.renderer.domElement.dataset.scaleEncounterAvatarAnimationTimeSeconds
+    delete this.renderer.domElement.dataset.scaleEncounterAvatarAnimationRate
+    delete this.renderer.domElement.dataset.scaleEncounterAvatarAnimationDeltaSeconds
+    delete this.renderer.domElement.dataset.scaleEncounterOrbitAngularSpeedDegreesPerSecond
+    delete this.renderer.domElement.dataset.scaleEncounterOrbitAngularSpeedLimitDegreesPerSecond
+    delete this.renderer.domElement.dataset.scaleEncounterOrbitRadiusMeters
+    delete this.renderer.domElement.dataset.scaleEncounterOrbitMotionDirection
+    delete this.renderer.domElement.dataset.scaleEncounterAirHeadAxis
+    delete this.renderer.domElement.dataset.scaleEncounterAnimalPresentationYawRadians
+    delete this.renderer.domElement.dataset.scaleEncounterReferenceMeasurementAxis
+    delete this.renderer.domElement.dataset.scaleEncounterReferenceYawRadians
+    delete this.renderer.domElement.dataset.scaleEncounterReviewSpacing
     delete this.renderer.domElement.dataset.scaleEncounterAvatarOrientation
     delete this.renderer.domElement.dataset.scaleEncounterAvatarPose
     delete this.renderer.domElement.dataset
@@ -3719,7 +3796,7 @@ export class ViewerController {
     resetStagedModelPose(current)
     this.fitCurrentModel()
     this.resumeRotationAt = this.reducedMotion ? Number.POSITIVE_INFINITY : 0
-    this.updateAutoRotation(performance.now())
+    this.updateAutoRotation()
   }
 
   /**
@@ -3753,7 +3830,7 @@ export class ViewerController {
       this.resumeRotationAt = this.reducedMotion
         ? Number.POSITIVE_INFINITY
         : 0
-      this.updateAutoRotation(performance.now())
+      this.updateAutoRotation()
       this.renderer.domElement.dataset.animationPaused = 'false'
       return true
     }
@@ -4036,7 +4113,7 @@ export class ViewerController {
     current.modelRoot.rotation.set(
       0,
       MathUtils.degToRad(current.descriptor.presentation.initialYawDegrees),
-      0,
+      MathUtils.degToRad(current.descriptor.presentation.initialRotationZDegrees ?? 0),
     )
     current.modelRoot.scale.copy(saved.modelRootScale)
     current.group.position.copy(saved.groupPosition)
@@ -4948,6 +5025,28 @@ export class ViewerController {
     )
       ? speed.toFixed(3)
       : '0.000'
+    for (const key of [
+      'scaleEncounterAvatarAnimationTimeSeconds',
+      'scaleEncounterAvatarAnimationRate',
+      'scaleEncounterAvatarAnimationDeltaSeconds',
+    ] as const) {
+      const value = Number(avatarUserData[key])
+      if (Number.isFinite(value)) canvas.dataset[key] = value.toFixed(6)
+      else delete canvas.dataset[key]
+    }
+    const radius = encounter.avatar.eyeAnchor.getWorldPosition(new Vector3())
+      .sub(encounter.placement.orbitCenter).setY(0).length()
+    canvas.dataset.scaleEncounterOrbitRadiusMeters = radius.toFixed(6)
+    canvas.dataset.scaleEncounterOrbitMotionDirection = String(encounter.orbitMotionDirection)
+    canvas.dataset.scaleEncounterOrbitAngularSpeedLimitDegreesPerSecond = MathUtils.radToDeg(
+      scaleEncounterOrbitAngularSpeedRadiansPerSecond(encounter.definition, radius, encounter.actionBoostMultiplier ?? 1),
+    ).toFixed(6)
+    canvas.dataset.scaleEncounterReferenceMeasurementAxis = encounter.definition.measurementAxis
+    canvas.dataset.scaleEncounterReferenceYawRadians = encounter.definition.modelYawRadians.toFixed(6)
+    if (encounter.definition.habitat === 'air') {
+      canvas.dataset.scaleEncounterAirHeadAxis = scaleEncounterAirHeadAxisFor(encounter.definition.id) ?? 'unreviewed'
+      canvas.dataset.scaleEncounterAnimalPresentationYawRadians = String(this.current?.modelRoot.rotation.y ?? '')
+    }
     canvas.dataset.scaleEncounterAvatarHeading = heading
       .toArray()
       .map((component) => component.toFixed(6))
@@ -5346,6 +5445,32 @@ export class ViewerController {
     }
     this.renderer.domElement.dataset.scaleEncounterDistanceMeters =
       encounter.observerDistance.toFixed(3)
+    if (import.meta.env.MODE === 'review' && encounter.definition.id === 'dakosaurus') {
+      const eye = encounter.avatar.eyeAnchor.getWorldPosition(new Vector3())
+      const calibratedBounds = new Box3(
+        encounter.placement.animalBoundsMinimum.clone(),
+        encounter.placement.animalBoundsMaximum.clone(),
+      )
+      this.renderer.domElement.dataset.scaleEncounterReviewSpacing = JSON.stringify({
+        basis: 'reference-pose calibrated complete 3D bounds; no animal rescaling',
+        displayedMeters: encounter.definition.displayedMeters,
+        defaultDistanceMeters: encounter.definition.defaultDistance,
+        authoredMinimumDistanceMeters: encounter.definition.minimumDistance,
+        minimumReachableDistanceMeters: minimumScaleEncounterDistanceForProfile(
+          encounter.placement, encounter.definition, encounter.profile, encounter.orbitAngleRadians,
+        ),
+        actualDistanceMeters: encounter.observerDistance,
+        approach: encounter.profile.approach,
+        childHeightMeters: encounter.profile.heightMeters,
+        marginMeters: Math.max(.55, encounter.profile.heightMeters * .5),
+        target: encounter.placement.target.toArray(),
+        observerEye: eye.toArray(),
+        observerRail: encounter.placement.observerRailDirection.toArray(),
+        animalBounds: { min: calibratedBounds.min.toArray(), max: calibratedBounds.max.toArray() },
+        eyeInsideCalibratedBounds: calibratedBounds.containsPoint(eye),
+        eyeToCalibratedBoundsDistanceMeters: calibratedBounds.distanceToPoint(eye),
+      })
+    }
     this.renderer.domElement.dataset.scaleEncounterAvatarVariant =
       encounter.avatar.root.name
     const avatarUserData = encounter.avatar.root.userData as Record<
@@ -5595,6 +5720,8 @@ export class ViewerController {
       this.renderer.domElement.dataset.initialYawDegrees = String(
         staged.descriptor.presentation.initialYawDegrees,
       )
+      this.renderer.domElement.dataset.initialRotationZDegrees = String(staged.descriptor.presentation.initialRotationZDegrees ?? 0)
+      this.renderer.domElement.dataset.modelRootRotationRadians = staged.modelRoot.rotation.toArray().slice(0, 3).join(',')
     }
     const cameraLightScale =
       staged.descriptor.presentation.cameraLightScale ?? 1
@@ -5607,12 +5734,11 @@ export class ViewerController {
       DEFAULT_TONE_MAPPING_EXPOSURE
   }
 
-  private updateAutoRotation(now: number): void {
-    this.controls.autoRotate =
-      this.scaleEncounter === null &&
-      !this.reducedMotion &&
-      now >= this.resumeRotationAt
-    this.renderer.domElement.dataset.autoRotate = String(this.controls.autoRotate)
+  private updateAutoRotation(): void {
+    // Keep the authored head direction stable. Idle and intentional orbit
+    // controls remain independent of this automatic camera motion.
+    this.controls.autoRotate = false
+    this.renderer.domElement.dataset.autoRotate = 'false'
   }
 
   private updateCameraLighting(): void {
@@ -5761,7 +5887,7 @@ export class ViewerController {
         this.controls.autoRotate = false
         this.renderer.domElement.dataset.autoRotate = 'false'
       } else {
-        this.updateAutoRotation(time)
+        this.updateAutoRotation()
       }
       if (this.current?.mixer && this.current.action) {
         if (this.scaleEncounter?.reviewWalk && this.reviewAnimationTime === null) {
@@ -5887,6 +6013,15 @@ export class ViewerController {
       }
       this.updateCameraLighting()
       this.renderer.render(this.scene, this.camera)
+      if (import.meta.env.MODE === 'review' &&
+          new URLSearchParams(window.location.search).get('skyMotionRecord') === '1') {
+        this.renderer.domElement.dataset.reviewMotionCamera = JSON.stringify({
+          position: this.camera.position.toArray(),
+          quaternion: this.camera.quaternion.toArray(),
+          fov: this.camera.fov,
+          aspect: this.camera.aspect,
+        })
+      }
       if (import.meta.env.MODE === 'review' && this.renderer.domElement.dataset.motionRecording === 'true') {
         this.renderer.domElement.dispatchEvent(new Event('museum-review-frame'))
       }

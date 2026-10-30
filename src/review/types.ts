@@ -75,10 +75,30 @@ export type LegacyLocalReviewAnimalPackage = Omit<
   readonly draftNotes?: CompleteDraftAnimalPackage['draftNotes']
 }
 
+/** Live local capture draft. Missing derivatives are absent, never substitutes. */
+export type RenderableReviewDraftAnimalPackage = Omit<
+  CompleteDraftAnimalPackage,
+  'status' | 'assets' | 'review'
+> & {
+  readonly status: 'draft'
+  readonly content: Record<Locale, AnimalContent>
+  readonly assets: Omit<ReviewAnimalAssets, 'poster' | 'thumbnail' | 'backgrounds'> & {
+    readonly poster?: string
+    readonly thumbnail?: string
+    readonly backgrounds: {
+      readonly landscape?: string
+      readonly portrait?: string
+    }
+  }
+  readonly review?: LocalReviewInfo
+  readonly modelCredit?: NonNullable<LocalReviewInfo['modelCredit']>
+}
+
 export type DisplayableAnimalPackage =
   | (ReleaseCandidateAnimalPackage & { readonly review?: LocalReviewInfo })
   | (PublishedAnimalPackage & { readonly review?: LocalReviewInfo })
   | LegacyLocalReviewAnimalPackage
+  | RenderableReviewDraftAnimalPackage
 
 export function reviewNarrationPlanFor<Language extends Locale>(
   narration: ReviewNarrationPlans,

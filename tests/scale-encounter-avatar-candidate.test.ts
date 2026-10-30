@@ -1006,6 +1006,26 @@ describe('scale encounter complete Meshy V4 scene avatars', () => {
     update.mockRestore()
   })
 
+  it('keeps air animation at one real second per second at 20 and 60 fps', async () => {
+    const update = vi.spyOn(AnimationMixer.prototype, 'update')
+    const { loader } = loaderFixture()
+    const lease = await loader.acquire({ gender: 'boy', heightCm: 110 }, 'pteranodon')
+    const totals: number[] = []
+    for (const fps of [20, 60]) {
+      const avatar = lease.factory({ gender: 'boy', heightCm: 110 }, 'air', 'pteranodon')
+      avatar.setMotionState?.({ kind: 'glide', speedMetersPerSecond: fps === 20 ? 0 : 4 })
+      update.mockClear()
+      avatar.updateIdle?.(100, false)
+      for (let frame = 1; frame <= fps; frame++) avatar.updateIdle?.(100 + frame / fps, false)
+      totals.push(update.mock.calls.reduce((total, [delta]) => total + delta, 0))
+      avatar.dispose?.()
+    }
+    expect(totals[0]).toBeCloseTo(1, 10)
+    expect(totals[1]).toBeCloseTo(1, 10)
+    lease.release()
+    update.mockRestore()
+  })
+
   it('preserves imported land gait bones while moving and restores the static review pose for reduced motion', async () => {
     const { loader } = loaderFixture()
     const lease = await loader.acquire(

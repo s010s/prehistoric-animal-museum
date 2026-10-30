@@ -1,26 +1,13 @@
 const dustCount = 12
 const leafCount = 4
 
-/**
- * Forest air keeps a little drifting life while diffuse-light habitats can
- * suppress the optional decorative beams authored for sunnier exhibits.
- */
-export function ForestAtmosphere({
-  diffuseLight = false,
-}: {
-  readonly diffuseLight?: boolean
-}) {
+/** Subtle drifting air without decorative light columns. */
+export function ForestAtmosphere() {
   return (
     <div
       aria-hidden="true"
       className="scene-atmosphere forest-atmosphere"
     >
-      {diffuseLight ? null : (
-        <>
-          <span className="forest-sunbeam forest-sunbeam--wide" />
-          <span className="forest-sunbeam forest-sunbeam--narrow" />
-        </>
-      )}
       <span className="forest-dust">
         {Array.from({ length: dustCount }, (_, index) => (
           <span

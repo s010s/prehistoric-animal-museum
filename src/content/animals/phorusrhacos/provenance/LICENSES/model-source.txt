@@ -1,0 +1,9 @@
+Phorusrhacos longissimus (terror bird)
+Source: https://sketchfab.com/3d-models/phorusrhacos-longissimus-terror-bird-31a09128a2114480b62feeef92a9fba0
+Source bytes: 30772372
+Source SHA-256: 8ed1dd7933958eaac84f413ff9eec1214ce6c0f90b000856d3c8c095c9646ddb
+Runtime bytes: 13688836
+Runtime SHA-256: 9620e5c0ab96b0d4d2d9211780766df1c08c40d1dcfe4400a5a92973745c62eb
+
+Changes:
+- Merged/welded source chunks, mild scan and sole-edge smoothing, grounded both soles, 120k geometry, 2K high-to-low tangent normals, mild colour lift, matte material, new anchored-foot rig and exact eight-second Idle. Original jaw pose retained; no jaw motion.

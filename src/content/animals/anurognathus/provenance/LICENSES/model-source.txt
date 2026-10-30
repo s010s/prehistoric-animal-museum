@@ -1,0 +1,11 @@
+Anurognathus pterosaur
+Source: https://sketchfab.com/3d-models/anurognathus-pterosaur-bc7fe93b9c254bd2bd9f905e063ec86c
+Source bytes: 1384240
+Source SHA-256: c236995e2d9e76eabcf62874c9252ba497194039a14ff428363fcaf640b750dd
+Runtime bytes: 2299268
+Runtime SHA-256: 1111268fa0b96095febb8741053dddc0a2119b4f7f8d671c0c90499e0a0fff70
+
+Changes:
+- Preserved the source mesh identity, UV and colour texture; refined matte materials and recessed eyes, with bounded articulated jaw motion.
+- Normalised to glTF Y-up, head +X, with a centred stationary exhibition rig.
+- Rebuilt the eight-second 24 fps Idle with articulated shoulder, elbow, wrist and outer-wing motion, membrane recovery and bounded head glances.

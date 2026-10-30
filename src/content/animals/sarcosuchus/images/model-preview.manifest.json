@@ -1,0 +1,67 @@
+{
+  "animalId": "sarcosuchus",
+  "contractVersion": 3,
+  "generatedAt": "2026-10-29T16:02:42.538Z",
+  "presentationSignature": "{\"contractVersion\":3,\"renderer\":{\"cameraFieldOfViewDegrees\":34,\"maxPixelRatio\":2},\"layout\":{\"coordinateSystem\":\"fixed-fullscreen-canvas+composition-frame-v1\",\"phonePortraitModelScale\":1.15,\"previewObjectFit\":\"contain\",\"referenceViewports\":[{\"key\":\"landscapeCompact\",\"width\":844,\"height\":390},{\"key\":\"desktopWide\",\"width\":1280,\"height\":720},{\"key\":\"phonePortraitCompact\",\"width\":360,\"height\":640},{\"key\":\"phonePortraitTall\",\"width\":390,\"height\":844},{\"key\":\"tabletPortrait\",\"width\":768,\"height\":1024},{\"key\":\"desktopStandard\",\"width\":1440,\"height\":900}]},\"animation\":{\"clip\":\"Idle\",\"loop\":\"repeat\",\"speed\":1},\"presentation\":{\"cameraLightScale\":1,\"horizontalOffset\":{\"landscape\":0,\"portrait\":0},\"initialYawDegrees\":-160,\"preciseBounds\":true,\"safeAreaPadding\":{\"landscape\":0.14,\"portrait\":0.14},\"shadow\":{\"depthOffset\":0,\"depthScale\":1,\"horizontalOffset\":0,\"opacity\":0.42,\"scale\":0.62,\"yOffset\":0},\"toneMappingExposure\":1.08,\"verticalOffset\":{\"landscape\":0,\"portrait\":0}}}",
+  "profiles": {
+    "landscapeCompact": {
+      "fileName": "preview-landscape-compact.webp",
+      "sha256": "b5077da0d18afb47536ed8461bb8bcf27d25c546512ce4483e3b857987037582",
+      "bytes": 81044,
+      "width": 1250,
+      "height": 650
+    },
+    "desktopWide": {
+      "fileName": "preview-desktop-wide.webp",
+      "sha256": "7263f822b10ac4b7d64ac0224056137b007535f0f157659c35e6b1dd2fd19c3a",
+      "bytes": 83446,
+      "width": 1200,
+      "height": 800
+    },
+    "phonePortraitCompact": {
+      "fileName": "preview-phone-compact.webp",
+      "sha256": "ed7eedcd160910572fb738760c7c449401aa0f2c5eebd419d5c887deaec409fb",
+      "bytes": 61666,
+      "width": 875,
+      "height": 1000
+    },
+    "phonePortraitTall": {
+      "fileName": "preview-phone-tall.webp",
+      "sha256": "f43a09d7c9c5fcb00236c134a8dc223adf82227159f669450c92765285c29d83",
+      "bytes": 40110,
+      "width": 640,
+      "height": 1000
+    },
+    "tabletPortrait": {
+      "fileName": "preview-tablet-portrait.webp",
+      "sha256": "97ff2067d1521aa90af4c9b86021274e51092bfd0b47b7b4a8192a262db8d3e7",
+      "bytes": 57236,
+      "width": 900,
+      "height": 960
+    },
+    "desktopStandard": {
+      "fileName": "preview-desktop-standard.webp",
+      "sha256": "93577b828190fba36b2059cfa9756eeab0b3bf045156bb67f90bfdc2194af061",
+      "bytes": 85818,
+      "width": 1200,
+      "height": 960
+    }
+  },
+  "sourceModel": {
+    "bytes": 17945692,
+    "sha256": "f31490d167289a724a77f33b2040fc66f377c52a7f01bb1e361a2e5f011ceb20"
+  },
+  "target": "production",
+  "sourceModelMetadataRevision": {
+    "kind": "asset-metadata-only",
+    "capturedSourceModel": {
+      "bytes": 17945780,
+      "sha256": "df40ba1c168f98de83467cd80afed0773bc9067054a4fb1f4b19ee9cfc631125"
+    },
+    "renderDataUnchanged": true,
+    "nonAssetJSONSha256": "84d8e7bd444b052e8602077e3d3188617e69ff997ac445149186874ea801bdf2",
+    "binaryPayloadSha256": [
+      "111a83c66f93faa72a87dbc68ba809f9564d3c04748bf3aafecdc4b9fb1494f0"
+    ]
+  }
+}

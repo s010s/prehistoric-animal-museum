@@ -1,0 +1,75 @@
+{
+  "animalId": "therizinosaurus",
+  "contractVersion": 3,
+  "generatedAt": "2026-10-29T16:02:13.751Z",
+  "presentationSignature": "{\"contractVersion\":3,\"renderer\":{\"cameraFieldOfViewDegrees\":34,\"maxPixelRatio\":2},\"layout\":{\"coordinateSystem\":\"fixed-fullscreen-canvas+composition-frame-v1\",\"phonePortraitModelScale\":1.15,\"previewObjectFit\":\"contain\",\"referenceViewports\":[{\"key\":\"landscapeCompact\",\"width\":844,\"height\":390},{\"key\":\"desktopWide\",\"width\":1280,\"height\":720},{\"key\":\"phonePortraitCompact\",\"width\":360,\"height\":640},{\"key\":\"phonePortraitTall\",\"width\":390,\"height\":844},{\"key\":\"tabletPortrait\",\"width\":768,\"height\":1024},{\"key\":\"desktopStandard\",\"width\":1440,\"height\":900}]},\"animation\":{\"clip\":\"Idle\",\"loop\":\"repeat\",\"speed\":1},\"presentation\":{\"cameraLightScale\":1,\"horizontalOffset\":{\"landscape\":0,\"portrait\":0},\"initialYawDegrees\":-155,\"preciseBounds\":true,\"safeAreaPadding\":{\"landscape\":0.14,\"portrait\":0.14},\"shadow\":{\"depthOffset\":0,\"depthScale\":1,\"horizontalOffset\":0,\"opacity\":0.42,\"scale\":0.62,\"yOffset\":0},\"toneMappingExposure\":1.08,\"verticalOffset\":{\"landscape\":0,\"portrait\":0}}}",
+  "profiles": {
+    "landscapeCompact": {
+      "fileName": "preview-landscape-compact.webp",
+      "sha256": "513aa8a049b5e71ea847bf5f2f6fa4745e83e834005baac73a786e0a49ee3e51",
+      "bytes": 98056,
+      "width": 1250,
+      "height": 650
+    },
+    "desktopWide": {
+      "fileName": "preview-desktop-wide.webp",
+      "sha256": "a891529c13840ae9b0363199b41385be98e30c1bc4b150ecff47eef9d4ef196c",
+      "bytes": 144008,
+      "width": 1200,
+      "height": 800
+    },
+    "phonePortraitCompact": {
+      "fileName": "preview-phone-compact.webp",
+      "sha256": "0fcb7668b7aa250971bcfa2fee32c1f4c852850d5cdb6c1c76e5185b41772fa9",
+      "bytes": 137032,
+      "width": 875,
+      "height": 1000
+    },
+    "phonePortraitTall": {
+      "fileName": "preview-phone-tall.webp",
+      "sha256": "c28b1785585ebd935785bb9a832164d98dc38b6f37c484242f7433c7cbfc619f",
+      "bytes": 90266,
+      "width": 640,
+      "height": 1000
+    },
+    "tabletPortrait": {
+      "fileName": "preview-tablet-portrait.webp",
+      "sha256": "25cb38b14122dcde633db599bb7f0482c3e288502d11797bd139ed5b271a7fc5",
+      "bytes": 127116,
+      "width": 900,
+      "height": 960
+    },
+    "desktopStandard": {
+      "fileName": "preview-desktop-standard.webp",
+      "sha256": "ab48b45337e709c588b2cfe20c9b9cf84c0cac54b1a53aeaee11da3fe2425ca9",
+      "bytes": 199124,
+      "width": 1200,
+      "height": 960
+    }
+  },
+  "sourceModel": {
+    "bytes": 16199980,
+    "sha256": "9311e4108c29cfc9f5efe78ea4335a7a6a247a96a068a8559ae25facf13af440"
+  },
+  "target": "production",
+  "sourceModelMetadataRevision": {
+    "kind": "asset-and-node-license-metadata-only",
+    "capturedSourceModel": {
+      "bytes": 16200220,
+      "sha256": "68ade92c0655eb0b30d11d1547759622b35cdb99a296611c06011477201e6b49"
+    },
+    "renderDataUnchanged": true,
+    "nonAssetJSONSha256": "f03b79a452ff33f99666915cc050fa0d4dc3350a2e79e9a3d9c8111067879cb9",
+    "binaryPayloadSha256": [
+      "739e1312d78c3ca58a2c997a8a4542c2863fe254b071f57e572a908b5f24d7af"
+    ],
+    "previousNonAssetJSONSha256": "a3afd4ac7f28e39272fbffeb7b843a1b5ff0e5c3bedcf52581c15fa51fa93288",
+    "additionalMetadataChange": {
+      "path": "nodes[15].extras.license",
+      "previousSourceModel": {
+        "bytes": 16199984,
+        "sha256": "04bc7b0a04691e407beaeb2a003d473cfdec429d469c3a1e7fad0bcddb24ed70"
+      }
+    }
+  }
+}

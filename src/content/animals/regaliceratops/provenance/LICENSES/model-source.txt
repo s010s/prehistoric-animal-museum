@@ -1,0 +1,16 @@
+Regaliceratops
+Source: https://sketchfab.com/3d-models/regaliceratops-fb292480dc88483f919c3b11637da3da
+Source bytes: 69621916
+Source SHA-256: 19c584d91819ae9bb598651755249f3b98bce03b10326a9259c55ac1b068b9c3
+Runtime bytes: 17652732
+Runtime SHA-256: 01d95a9184c58ff23d81c66d9c1b580cda9d4e5369c384835f981527788d25f2
+
+Changes:
+- Welded material chunks before reduction
+- Reduced geometry while allocating more faces to horns and frill
+- Shifted repeated colA UV island from U=-1..0 to U=0..1
+- Baked high-source tangent normals at 1536px; neutralized invalid projections
+- Corrected overly glossy skin and horn roughness
+- Normalized glTF Y-up, head +X, horizontal center, planted feet, length about 3.2
+- New weighted skeleton and one eight-second 24fps stationary Idle
+- v2: moderately lifted dark-green and warm-brown sRGB albedo midtones; unchanged normal maps, geometry, weights, skeleton and eight-second Idle.

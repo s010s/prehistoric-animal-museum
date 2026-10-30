@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "vite",
     "review": "npm run validate:review && vite --mode review",
+    "prepare:sky-review": "node --import tsx scripts/prepare-sky-expansion-review.ts",
+    "review:sky": "npm run prepare:sky-review && MUSEUM_SKY_EXPANSION_REVIEW=1 node --import tsx node_modules/vite/bin/vite.js --mode review --host 127.0.0.1",
     "build": "npm run validate:flight && MUSEUM_FLIGHT=1 MUSEUM_FLIGHT_PUBLIC=1 npm run build:site && node scripts/flight/validate-build.mjs dist --enabled",
     "build:site": "npm run validate:content && npm run validate:model-previews && tsc -b && tsx scripts/build-static-site.ts && npm run validate:production-boundary",
     "build:disabled": "npm run build:site && node scripts/flight/validate-build.mjs dist --disabled",

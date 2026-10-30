@@ -58,6 +58,11 @@ import { ViewerStage } from './components/ViewerStage'
 const MotionReviewRecorder = import.meta.env.MODE === 'review'
   ? lazy(() => import('./review/MotionReviewRecorder'))
   : null
+declare const __MUSEUM_SKY_EXPANSION_REVIEW__: boolean
+const SkyMotionRecorder = import.meta.env.MODE === 'review' &&
+  typeof __MUSEUM_SKY_EXPANSION_REVIEW__ !== 'undefined' && __MUSEUM_SKY_EXPANSION_REVIEW__
+  ? lazy(() => import('./review/sky-motion-recording'))
+  : null
 import { mainAnimals } from './content/catalog'
 import { animalSeoDescription } from './content/animal-seo'
 import { credits } from 'virtual:canonical-credits'
@@ -377,7 +382,7 @@ function RailThumbnail({
       fetchPriority="low"
       loading="lazy"
       ref={imageRef}
-      src={loadImage ? src : undefined}
+      src={loadImage && src ? src : undefined}
     />
   )
 }
@@ -461,8 +466,9 @@ function toRuntimeAnimal(
       sourceTitle: credit.sourceTitle,
       ...('sourceUrl' in credit ? { sourceUrl: credit.sourceUrl } : {}),
     }))
-  if (animal.review?.modelCredit) {
-    assetCredits.push({ ...animal.review.modelCredit })
+  const draftModelCredit = animal.review?.modelCredit ?? ('modelCredit' in animal ? animal.modelCredit : undefined)
+  if (draftModelCredit) {
+    assetCredits.push({ ...draftModelCredit })
   }
   return {
     id: animal.id,
@@ -500,11 +506,11 @@ function toRuntimeAnimal(
     assets: {
       model: animal.assets.model,
       modelBytes: animal.assets.modelBytes,
-      poster: animal.assets.poster,
-      posterPortrait: animal.assets.posterPortrait ?? animal.assets.poster,
-      thumbnail: animal.assets.thumbnail,
-      backgroundLandscape: animal.assets.backgrounds.landscape,
-      backgroundPortrait: animal.assets.backgrounds.portrait,
+      poster: animal.assets.poster ?? '',
+      posterPortrait: animal.assets.posterPortrait ?? animal.assets.poster ?? '',
+      thumbnail: animal.assets.thumbnail ?? '',
+      backgroundLandscape: animal.assets.backgrounds?.landscape ?? '',
+      backgroundPortrait: animal.assets.backgrounds?.portrait ?? '',
       narration: narrationUrlFor(animal, locale),
     },
     viewer: createViewerModelDescriptor(
@@ -2247,6 +2253,7 @@ function MuseumApp({
   return (
     <div className="museum-page">
       {MotionReviewRecorder && <Suspense fallback={null}><MotionReviewRecorder /></Suspense>}
+      {SkyMotionRecorder && <Suspense fallback={null}><SkyMotionRecorder /></Suspense>}
       <main
       className={`museum-experience ${focusMode ? 'museum-experience--focus' : ''}${
         flightOpen ? ' museum-experience--flight' : scaleEncounterOpen ? ' museum-experience--scale-encounter' : ''
@@ -2287,7 +2294,6 @@ function MuseumApp({
         transitionReady={backgroundTransitionReady}
       />
       <SceneAtmosphere
-        diffuseForestLight={activeAnimal.id === 'tyrannosaurus-rex'}
         key={`atmosphere-${activeAnimal.id}`}
         kind={activeAnimal.atmosphere}
       />

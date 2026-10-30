@@ -15,7 +15,7 @@ export function expansionNarrationTracks(manifest: ExpansionReviewManifest): rea
   ]
 }
 
-function validateExpansionNarration(manifest: ExpansionReviewManifest): void {
+export function validateExpansionNarration(manifest: ExpansionReviewManifest): void {
   const locales = ['zh-CN', 'en'] as const
   const phases = ['intro', 'transition', 'arrival'] as const
   const usedUrls = new Set<string>()

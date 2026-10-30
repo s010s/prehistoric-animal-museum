@@ -130,6 +130,9 @@ ${records}`
   const additionalComparisonRights = packages.some(p => p.definition.id === 'parasaurolophus' && (p.definition.status === 'published' || includeCompleteDrafts))
     ? readFileSync(resolve('src/scale-encounter/audio/additions/RIGHTS.md'), 'utf8')
     : ''
+  const skyComparisonRights = packages.some(p => p.definition.id === 'anurognathus' && (p.definition.status === 'published' || includeCompleteDrafts))
+    ? readFileSync(resolve('src/scale-encounter/audio/sky-additions/RIGHTS.md'), 'utf8')
+    : ''
 
   return `# Third-party notices
 
@@ -168,5 +171,5 @@ content, contributions, and Brand Assets follow the separate scopes in
   and encoded as Ogg Vorbis. Runtime SHA-256:
   \`79d427b3d82a6d73b560eb01f3b62ba1b014b718b2ff68724aee446e7d1c497d\`.
 
-${sections}${additionalComparisonRights ? `\n\n${additionalComparisonRights}` : ''}`.trimEnd() + '\n'
+${sections}${additionalComparisonRights ? `\n\n${additionalComparisonRights}` : ''}${skyComparisonRights ? `\n\n${skyComparisonRights}` : ''}`.trimEnd() + '\n'
 }

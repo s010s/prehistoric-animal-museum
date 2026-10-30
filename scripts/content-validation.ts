@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { access, readFile, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { isPublicationAuthorizedNarrationPlan, verifyNarrationPublicationAuthorization, validateNarrationPublicationAuthorization } from './narration-publication-authorization'
 
 import { mainCollection } from '../src/content/collections/main'
 import {
@@ -17,7 +18,7 @@ import {
   type AnimalPackageDefinition,
   type AssetProvenance,
 } from '../src/content/types'
-import type { LoadedAnimalDefinition } from './content-data'
+import { repositoryRoot, type LoadedAnimalDefinition } from './content-data'
 
 const MEBIBYTE = 1024 * 1024
 const KIBIBYTE = 1024
@@ -218,7 +219,7 @@ function incompletePublicContentPaths(value: Record<string, unknown>): string[] 
   const size = isRecord(facts.size) ? facts.size : {}
   const sizeKind = readString(size.kind)
   const validUnknownSize = sizeKind === 'unknown' && isNonEmptyString(size.note)
-  const validMeasuredSize = ['body-length', 'shoulder-height', 'wingspan', 'group-range'].includes(sizeKind ?? '') &&
+  const validMeasuredSize = ['body-length', 'shoulder-height', 'standing-height', 'wingspan', 'group-range'].includes(sizeKind ?? '') &&
     isPositiveFiniteNumber(size.minMeters) && isPositiveFiniteNumber(size.maxMeters) &&
     size.maxMeters >= size.minMeters && (sizeKind !== 'group-range' || isNonEmptyString(size.note))
   if (!validUnknownSize && !validMeasuredSize) paths.push('facts.size')
@@ -449,12 +450,12 @@ export function validateLocaleCompleteness(
           ),
         )
       }
-      if (localeNarration.humanReviewStatus !== 'approved') {
+      if (localeNarration.humanReviewStatus !== 'approved' && !isPublicationAuthorizedNarrationPlan(localeNarration)) {
         issues.push(
           issue(
             'error',
             'PUBLISHED_LOCALE_NARRATION_REVIEW_MISSING',
-            `已发布动物的 ${locale} 旁白必须有明确的完整听审通过记录。`,
+            `已发布动物的 ${locale} 旁白必须有完整听审通过记录或明确的公开发布授权。`,
             {
               animalId: definition.id,
               path: `narration.${locale}.humanReviewStatus`,
@@ -1144,6 +1145,12 @@ async function validatePublishedPackage(
     const listeningApproved =
       /human listening review:\s*approved/iu.test(evidenceText) ||
       /listened to and approved by the project owner/iu.test(evidenceText)
+    const publicationPlan = isPublicationAuthorizedNarrationPlan(definition.narration[locale])
+    const publicationAcceptance = publicationPlan
+      ? await verifyNarrationPublicationAuthorization(definition.narration[locale], {
+        animalId: definition.id, locale, phase: 'gallery', sha256: record.runtime.sha256,
+      }, resolve(directoryPath, '../../../..'))
+      : false
     const languageEvidence = `${generatedSource?.title ?? ''}\n${evidenceText}`
     const languageRecorded =
       locale === 'zh-CN'
@@ -1151,15 +1158,17 @@ async function validatePublishedPackage(
         : /language:\s*English|English narration/iu.test(languageEvidence)
     if (
       !/Serena/iu.test(evidenceText) ||
-      !listeningApproved ||
+      !(publicationPlan ? publicationAcceptance : listeningApproved) ||
       !/project owner/iu.test(evidenceText) ||
       !languageRecorded
     ) {
       issues.push(
         issue(
           'error',
-          'NARRATION_LISTENING_EVIDENCE_INVALID',
-          `${locale} 旁白缺少 Serena 与项目所有者完整听审通过证据。`,
+          publicationPlan ? 'NARRATION_PUBLICATION_AUTHORIZATION_INVALID' : 'NARRATION_LISTENING_EVIDENCE_INVALID',
+          publicationPlan
+            ? `${locale} 旁白缺少当前音频与所有者公开发布授权的精确绑定。`
+            : `${locale} 旁白缺少 Serena 与项目所有者完整听审通过证据。`,
           { ...context, path: record.assetPath },
         ),
       )
@@ -1434,5 +1443,11 @@ export async function validateContent(
   return [
     ...packageIssues.flat(),
     ...validateCollection(collection, definitions),
+    ...(await validateNarrationPublicationAuthorization(repositoryRoot) ? [] : [issue(
+      'error',
+      'NARRATION_PUBLICATION_AUTHORIZATION_INVALID',
+      '公开发布授权没有精确绑定当前旁白文件与比较场景元数据。',
+      { path: 'src/content/narration-publication-authorization.json' },
+    )]),
   ]
 }

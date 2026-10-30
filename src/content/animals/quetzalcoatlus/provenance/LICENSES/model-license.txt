@@ -1,0 +1,12 @@
+Model license record
+
+Asset: Pterosaur Quetzalcoatlus
+Creator: seirogan (https://sketchfab.com/seirogan)
+License: Creative Commons Attribution 4.0 International
+License URL: https://creativecommons.org/licenses/by/4.0/
+Source URL: https://sketchfab.com/3d-models/pterosaur-quetzalcoatlus-5ef112b3208d4444a51e480beca56277
+
+Model by seirogan (https://sketchfab.com/seirogan); flight motion adapted from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello (https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); museum preparation by Leon Made This.
+
+
+Flight motion adaptation: Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello, CC BY 4.0, https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b

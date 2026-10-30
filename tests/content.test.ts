@@ -119,19 +119,24 @@ describe('explicit looping collection', () => {
     expect(wrapCollectionIndex(7, 3)).toBe(1)
   })
 
-  it('loops the thirty-six-animal production collection in its explicit order', () => {
-    expect(previousAnimalId(mainCollection, 'stegosaurus')).toBe('anomalocaris')
+  it('loops the forty-five-animal production collection in its explicit order', () => {
+    expect(previousAnimalId(mainCollection, 'stegosaurus')).toBe('dakosaurus')
     expect(nextAnimalId(mainCollection, 'stegosaurus')).toBe(
       'pteranodon',
     )
     expect(stepCollection(mainCollection, 'stegosaurus', 1_001)).toBe(
-      'lystrosaurus',
+      'triceratops',
     )
   })
 })
 
 describe('authored exhibit scenes', () => {
-  it('wires distinct, reviewed narration assets for both public locales', () => {
+  it('wires distinct bilingual narration with exact listening-approved or publication-authorized states', () => {
+    const publicationAuthorizedIds = new Set([
+      'regaliceratops', 'sarcosuchus', 'anurognathus', 'therizinosaurus',
+      'phorusrhacos', 'sordes', 'quetzalcoatlus', 'dallasaurus', 'dakosaurus',
+    ])
+    const evidenceDigests = new Set<string>()
     for (const animal of productionAnimals) {
       const zhCNRecord = animal.provenance.find(
         ({ assetPath }) => assetPath === 'audio/narration.zh-CN.mp3',
@@ -140,8 +145,29 @@ describe('authored exhibit scenes', () => {
         ({ assetPath }) => assetPath === 'audio/narration.en.mp3',
       )
 
-      expect(animal.narration['zh-CN'].humanReviewStatus).toBe('approved')
-      expect(animal.narration.en.humanReviewStatus).toBe('approved')
+      for (const locale of ['zh-CN', 'en'] as const) {
+        const plan = animal.narration[locale]
+        if (publicationAuthorizedIds.has(animal.id)) {
+          if (!('publicationAuthorization' in plan)) throw new Error(`Missing publication authorization: ${animal.id}/${locale}`)
+          const evidenceSha256 = plan.publicationAuthorization.recordSha256
+          expect(evidenceSha256).toMatch(/^[a-f0-9]{64}$/)
+          expect(plan).toEqual({
+            status: 'ready', sourcePath: `audio/narration.${locale}.mp3`,
+            mimeType: 'audio/mpeg', speaker: 'Serena',
+            language: locale === 'zh-CN' ? 'Chinese' : 'English',
+            humanReviewStatus: 'pending',
+            publicationAuthorization: {
+              scope: 'owner-publication-authorized',
+              recordSha256: evidenceSha256,
+              completeListening: 'unverified',
+            },
+          })
+          evidenceDigests.add(evidenceSha256)
+        } else {
+          expect(plan.humanReviewStatus).toBe('approved')
+        }
+        expect(animal.assets.narration[locale]).toMatchObject(plan)
+      }
       expect(animal.assets.narration['zh-CN'].url).toBeTruthy()
       expect(animal.assets.narration.en.url).toBeTruthy()
       expect(animal.assets.narration.en.url).not.toBe(
@@ -152,6 +178,7 @@ describe('authored exhibit scenes', () => {
       expect(enRecord?.runtime.sha256).not.toBe(zhCNRecord?.runtime.sha256)
       expect(enRecord?.license.spdx).toBe('CC-BY-NC-SA-4.0')
     }
+    expect(evidenceDigests.size).toBe(1)
   })
 
   it('uses a distinct responsive background pair for every production animal', () => {

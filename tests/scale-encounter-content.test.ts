@@ -18,8 +18,8 @@ const expansionAnimalIds = [
 ] as const
 
 describe('scale encounter content', () => {
-  it('enables all thirty-two published comparison scenes from one catalog', () => {
-    expect(selectedScaleEncounterAnimalIds).toHaveLength(32)
+  it('enables all forty-one published comparison scenes from one catalog', () => {
+    expect(selectedScaleEncounterAnimalIds).toHaveLength(41)
     for (const animalId of selectedScaleEncounterAnimalIds) {
       expect(isScaleEncounterAnimal(animalId)).toBe(true)
     }

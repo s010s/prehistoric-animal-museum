@@ -1,0 +1,18 @@
+Pterosaur Quetzalcoatlus
+Source: https://sketchfab.com/3d-models/pterosaur-quetzalcoatlus-5ef112b3208d4444a51e480beca56277
+Source bytes: 22134100
+Source SHA-256: a58eca9afb14947f31919437057bd059ae344ed9890b78958b2797213ea1a29f
+Runtime bytes: 6627276
+Runtime SHA-256: e9950c23d9ba58536466cfa72846dac66e1c79981a5328660f9dfcb0a1a70fe5
+
+Changes:
+- Welded split source chunks while preserving source UV and 37-joint skeleton.
+- Locally smoothed and thinned lumpy outer wing membranes, reduced crown height and cheek width.
+- Removed clearcoat and reduced specular reflection; source colour image remains 512 px, without upsampling.
+- Normalised to Y-up glTF with head +X; identity armature and stationary zero root.
+- Locally smoothed the rear membrane / hind-limb weight transition; inverse-skin compensated rest coordinates to retain the initial appearance.
+- Replaced the source fast flight with a restrained two-beat eight-second exhibition Idle on the existing 37-joint skeleton, with phased wings, head and foot motion; no forward travel or added biting.
+- Animated verified lower-jaw Bone.006_019 through two gentle13-degree closures per eight-second loop; upper-beak Bone.007_00 is not animated as a jaw.
+- 2026-10-30: adapted actual Pteranodon clavicle/upper-arm/forearm/wrist/wingfinger gesture through anatomical basis retargeting, with a longer complete beat than its authored0.7 App speed, a compact powerstroke and longer recovery followed by long glide; fixedRoot and original37-bone mesh/materials/initial pose retained; bounded proximal membrane field repaired with inverse-skin compensation.
+- True humerus posture compensation addresses Quetz versus reference initial elevation during active beat, returning exactly to original initial pose. Distributed power response and recovery/settling through neck-base,mid-neck,upper-neck,skull with a small glide glance. Original verified13-degree jaw local curves retained exactly.
+- Adapted flight rotations from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello, CC BY 4.0, https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b; no reference mesh, textures or rig copied.

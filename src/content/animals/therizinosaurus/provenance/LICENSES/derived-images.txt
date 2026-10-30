@@ -1,0 +1,3 @@
+Posters, responsive model stills and thumbnail derivation
+
+Native transparent WebGL exports from the museum application at Idle time zero are resized for six responsive profiles and two posters. The square thumbnail composites the silhouette over the final landscape environment. Model attribution and CC BY 4.0 continue to apply; see model-license.txt. No browser controls or page text are included.

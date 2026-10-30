@@ -397,37 +397,6 @@ a:focus-visible {
   animation-duration: 16.5s;
 }
 
-.forest-sunbeam {
-  position: absolute;
-  top: -26%;
-  left: 15%;
-  width: clamp(170px, 24vw, 380px);
-  height: 116%;
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      rgb(255 236 159 / 14%) 24%,
-      rgb(255 244 190 / 28%) 54%,
-      transparent 100%
-    );
-  clip-path: polygon(34% 0, 66% 0, 100% 100%, 0 100%);
-  filter: blur(8px);
-  opacity: 0.48;
-  transform: rotate(-16deg);
-  animation: forest-beam-breathe 9s ease-in-out infinite alternate;
-  transform-origin: top center;
-  will-change: transform, opacity;
-}
-
-.forest-sunbeam--narrow {
-  left: 46%;
-  width: clamp(90px, 12vw, 190px);
-  opacity: 0.32;
-  animation-delay: -5s;
-  animation-duration: 12s;
-}
-
 .forest-dust-particle {
   --dust-x: 16px;
   --dust-y: -18px;
@@ -2518,18 +2487,6 @@ html[data-model-preview-capture] .viewer-host::after {
   100% {
     opacity: 0;
     transform: translate3d(var(--crystal-drift), 104dvh, 0) rotate(260deg);
-  }
-}
-
-@keyframes forest-beam-breathe {
-  from {
-    opacity: 0.32;
-    transform: translate3d(-1%, 0, 0) rotate(-16deg) scaleX(0.96);
-  }
-
-  to {
-    opacity: 0.52;
-    transform: translate3d(2%, 0, 0) rotate(-14deg) scaleX(1.04);
   }
 }
 
@@ -6092,7 +6049,6 @@ html[data-locale="en"] .collection-card__copy strong {
 
   .air-cloud,
   .air-streamline,
-  .forest-sunbeam,
   .ice-ground-haze,
   .plains-haze {
     animation: none !important;

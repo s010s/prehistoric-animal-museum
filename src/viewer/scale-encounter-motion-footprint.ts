@@ -3,6 +3,7 @@ import { Vector3, type Object3D } from 'three'
 import { convexGroundFootprint, createAnimalGroundFootprint } from './scale-encounter-ground-footprint'
 import footprints from './scale-encounter-motion-footprints.json'
 import type { ScaleEncounterDefinition } from './scale-encounter'
+import { SKY_EXPANSION_REVIEW_ID_SET } from '../review/sky-expansion-config'
 
 export interface ReviewMotionFootprint {
   readonly modelSha256: string
@@ -13,7 +14,8 @@ export interface ReviewMotionFootprint {
 }
 const reviewFootprints = new Map<string, ReviewMotionFootprint>()
 export function registerReviewMotionFootprint(id: string, footprint: ReviewMotionFootprint): void {
-  if ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE !== 'review' || !id.startsWith('expansion-')) throw new Error('Private review footprint only')
+  if ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE !== 'review' ||
+      (!id.startsWith('expansion-') && !SKY_EXPANSION_REVIEW_ID_SET.has(id))) throw new Error('Private review footprint only')
   reviewFootprints.set(id, footprint)
 }
 

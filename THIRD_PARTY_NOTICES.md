@@ -364,6 +364,82 @@ content, contributions, and Brand Assets follow the separate scopes in
 - Modifications:
   - Compressed textures and geometry and added 28 rigid swimming-flap bones plus two segmented frontal-appendage chains.
   - Authored a varied metachronal flap wave, subtle body drift and frontal-appendage motion as a smooth closed eight-second swimming Idle.
+## 蛙嘴翼龙 (`anurognathus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Anurognathus English narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `d51c8f59eac02e8265038e21b4b760a3471ee9f5f0e23db8c6e7246b69fac529`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Anurognathus Mandarin narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `b3394baa4832659b8467488da03d567430f57b5528f2e0d7f86598f8d92197da`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Anurognathus landscape palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `3ceae6078d3d576200d7daaaf6ad5fa099ebe78f6df12f04d38feee929533695`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Anurognathus portrait palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `0ddb1e1441089e9cde4f02bc90371fd2e01d913c770f885622dd41f844f82e82`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Anurognathus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Robert_the_whale (https://sketchfab.com/Robert_the_whale); museum preparation by Leon Made This.
+- Runtime SHA-256: `8716a77e79ca2110a76e8753b1bb899c65d44faf93a00baaa75847b63c6d6f4a`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Anurognathus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Robert_the_whale (https://sketchfab.com/Robert_the_whale); museum preparation by Leon Made This.
+- Runtime SHA-256: `3de9805987a6a3d9b0c96541ee28eb2bd340b524fe7058d2a73910c2007dfe04`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Anurognathus thumbnail, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Robert_the_whale (https://sketchfab.com/Robert_the_whale); museum preparation by Leon Made This.
+- Runtime SHA-256: `366e85e5c0a66118c78f7936f16f795abb2055e175c58d867b452c898c3bc703`
+- Modifications:
+  - Native transparent model silhouette composited over the independently generated landscape background.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Anurognathus pterosaur](https://sketchfab.com/3d-models/anurognathus-pterosaur-bc7fe93b9c254bd2bd9f905e063ec86c) by Robert_the_whale (https://sketchfab.com/Robert_the_whale)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Robert_the_whale (https://sketchfab.com/Robert_the_whale); museum preparation by Leon Made This.
+- Runtime SHA-256: `1111268fa0b96095febb8741053dddc0a2119b4f7f8d671c0c90499e0a0fff70`
+- Modifications:
+  - Preserved the source mesh identity, UV and colour texture; refined matte materials and recessed eyes, with bounded articulated jaw motion.
+  - Normalised to glTF Y-up, head +X, with a centred stationary exhibition rig.
+  - Rebuilt the eight-second 24 fps Idle with articulated shoulder, elbow, wrist and outer-wing motion, membrane recovery and bounded head glances.
 ## 迷惑龙 (`apatosaurus`)
 
 ### `audio/narration.en.mp3`
@@ -696,6 +772,155 @@ content, contributions, and Brand Assets follow the separate scopes in
 - Modifications:
   - Removed the separate rock, calibrated both feet to a grounded pose, and compressed the model for browser delivery.
   - Retained the original left forelimb, adjusted the original right forelimb, bound lower teeth to the jaw, kept the tongue independent, and authored a closed eight-second jaw-and-tail Idle.
+## 达科龙 (`dakosaurus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Dakosaurus English narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `023f0ca3436b30e9e191e730e206835c7cf5b7c26c94c7fad992c6109fb9d4bf`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Dakosaurus Mandarin narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `bd2631de203d8ab8df378854297af7186b22be9b90dd847bfe046d42e84f0a9c`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Dakosaurus landscape palaeoenvironment, generated with OpenAI image generation on 2026-10-29
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `567646fe919baf9da22119c9881d82829d2fd5bfc8aaf8847bf63fd0f2f5f9a7`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Dakosaurus portrait palaeoenvironment, generated with OpenAI image generation on 2026-10-29
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `923cf9654971cb7391f895de0c185f473317ccfac407168abd05fb0f920fa331`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Dakosaurus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `8372d817a8b20a908960bb2dc6c8282badf5e7d3b1bf2d062bae9ec7d8248688`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Dakosaurus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `743f1fb21c858db4fcef2df1037453ca3b3eea07880ebcf558203916785118ce`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Dakosaurus thumbnail, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `64dcea6ef18b2c10926a0a36b13c709e36af6768ea970465da2b3457f7896902`
+- Modifications:
+  - Native transparent model silhouette composited over the independently generated landscape background.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Dakosaurus](https://sketchfab.com/3d-models/dakosaurus-a531d5bca7f3477d97b50212300c8271) by Julian Johnson-Mortimer (FreddyFoxFreddy)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `20de5bdd4423fb6cf46bd7fd2756ccb44aa879b3557b4daa8a6da26e611b06b0`
+- Modifications:
+  - Mesh decimation, texture repacking, existing Idle, static normalization; gentle skin colour lift and roughness adjustment.
+  - Repaired attached-island skin weights locally while preserving geometry, textures, global transforms and animation.
+## 达拉斯蜥蜴 (`dallasaurus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Dallasaurus English narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `678b8755e9445abdca05fa12f2bef2c274dc1bd335a4f3ff0ace9ae05e54ff97`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Dallasaurus Mandarin narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `302b6802d16ec051ac6857e6b02cc0f3b90cc1ced362636c1cd075cba6cf1f7b`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Dallasaurus landscape palaeoenvironment, generated with OpenAI image generation on 2026-10-29
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `64b04f2739f462a2d7ada5840eb5a4ee26bb02357c793ba430d65c0a842b641a`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Dallasaurus portrait palaeoenvironment, generated with OpenAI image generation on 2026-10-29
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `70aa83e2a765100b8131b41e6154d06085ec4bf2cd100e821f4bda69114e1f2c`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Dallasaurus poster, derived on 2026-10-28
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `312d5301dc508a1f8593134cb84a81cfe4aae725719e82b7fcd57789a1b01850`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Dallasaurus poster, derived on 2026-10-28
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `2772139f62e929e16a717ad0a1f8e6d88985692de27a6f7bb2f826698ab694ef`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Dallasaurus thumbnail, derived on 2026-10-28
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `4560817d2e85c0d57fc5d6c03dbb741af88d3a1a7472346461cd046dbfde3834`
+- Modifications:
+  - Native transparent model silhouette composited over the independently generated landscape background.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Dallasaurus](https://sketchfab.com/3d-models/dallasaurus-bfec76fbd5624d9fa9375668565af45c) by Julian Johnson-Mortimer (FreddyFoxFreddy)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `dbc02f36ad7e9dddcf8ad38b59068ab95f3bdd85b77a932ae95fa1096f2cac8f`
+- Modifications:
+  - Mesh decimation, texture repacking, existing Idle, static normalization; existing warm skin colour retained.
 ## 双冠龙 (`dilophosaurus`)
 
 ### `audio/narration.en.mp3`
@@ -2046,6 +2271,80 @@ content, contributions, and Brand Assets follow the separate scopes in
 - Modifications:
   - Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
   - Authored an eight-second standing Idle with a larger continuous-chain tail sway, retained the existing head-look and breathing, and preserved the Walk clip.
+## 骇鸟 (`phorusrhacos`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Phorusrhacos English narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `f7e8b3b8c119df91c0baaace13c7a602977267fa155124d0722c73289848fe30`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Phorusrhacos Mandarin narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `1d5c45843a1261e1232fa93ebf37963cbcd74a314630c1736e4e57042dc9a88d`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Phorusrhacos landscape palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `16e0ee708c4ffede46c4cb67e5061628ca7c7fb2eeb0b08932ca9152c8e86d21`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Phorusrhacos portrait palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `e90947eae917c6d6462c14a212243cd4dcffcae964dfc04c70a2e035bb2c2307`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Phorusrhacos poster, derived on 2026-10-28
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena; museum preparation by Leon Made This.
+- Runtime SHA-256: `e0b152ae21758c65f8ae0efb1dfff65235b119b2cd6d573206db89e9007b1040`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Phorusrhacos poster, derived on 2026-10-28
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena; museum preparation by Leon Made This.
+- Runtime SHA-256: `a264eb6e0823282b9f718b4903bc62a21650cc32195c649b710c55ba1650de09`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Phorusrhacos thumbnail, derived on 2026-10-28
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena; museum preparation by Leon Made This.
+- Runtime SHA-256: `85ad877104e4162678ca74f7134d3655c12e73288c441899cb94c1d3036ff532`
+- Modifications:
+  - Native transparent model silhouette composited over the independently generated landscape background.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Phorusrhacos longissimus (terror bird)](https://sketchfab.com/3d-models/phorusrhacos-longissimus-terror-bird-31a09128a2114480b62feeef92a9fba0) by Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena; museum preparation by Leon Made This.
+- Runtime SHA-256: `9620e5c0ab96b0d4d2d9211780766df1c08c40d1dcfe4400a5a92973745c62eb`
+- Modifications:
+  - Merged/welded source chunks, mild scan and sole-edge smoothing, grounded both soles, 120k geometry, 2K high-to-low tangent normals, mild colour lift, matte material, new anchored-foot rig and exact eight-second Idle. Original jaw pose retained; no jaw motion.
 ## 蛇颈龙类 (`plesiosaurus`)
 
 ### `audio/narration.en.mp3`
@@ -2217,6 +2516,170 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Used Blender 5.2 to transfer the source flying action onto the normalized runtime rig, rebase the root to the museum rest origin, and reduce its translation to 3.5%.
   - Retained the repaired in-place flight loop as the single Idle clip.
   - Deduplicated, pruned, repacked, validated, and reviewed the derivative.
+## 风神翼龙 (`quetzalcoatlus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Quetzalcoatlus English narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `b7a8f884abe356f6604e0735539a877caade3e0a6636016ca4255f7400190423`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Quetzalcoatlus Mandarin narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `e927840192249938731da65e549ccb857cef3bfb02b4692665cec8b6829b10f9`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Quetzalcoatlus landscape palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `20ef4122b9990a69979f75d324006546285689adb3b31e7e8600b71e185d0a7f`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Quetzalcoatlus portrait palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `8c8602a2fc855f879d9bee7560e0cca67d1836742ef09140736a1c1a730baff2`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Quetzalcoatlus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by seirogan (https://sketchfab.com/seirogan); flight motion adapted from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello (https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); museum preparation by Leon Made This.
+- Runtime SHA-256: `63edf8d0e2fb20198dd6d6e4f810ee543644e90a9e65b597dc64bcf0edd1183f`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Quetzalcoatlus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by seirogan (https://sketchfab.com/seirogan); flight motion adapted from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello (https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); museum preparation by Leon Made This.
+- Runtime SHA-256: `42ac040f0322010c349eafb00937ba5df28ddd23b73168d84947fcc470487c99`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Quetzalcoatlus thumbnail, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by seirogan (https://sketchfab.com/seirogan); flight motion adapted from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello (https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); museum preparation by Leon Made This.
+- Runtime SHA-256: `f77e3126fa81c8e417efa36960a91e9d8c50a17aaecb9fa0a029a7e1d9c60019`
+- Modifications:
+  - Native transparent model silhouette composited over the independently generated landscape background.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Pterosaur Quetzalcoatlus](https://sketchfab.com/3d-models/pterosaur-quetzalcoatlus-5ef112b3208d4444a51e480beca56277) by seirogan (https://sketchfab.com/seirogan)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by seirogan (https://sketchfab.com/seirogan); flight motion adapted from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello (https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); museum preparation by Leon Made This.
+- Runtime SHA-256: `e9950c23d9ba58536466cfa72846dac66e1c79981a5328660f9dfcb0a1a70fe5`
+- Modifications:
+  - Welded split source chunks while preserving source UV and 37-joint skeleton.
+  - Locally smoothed and thinned lumpy outer wing membranes, reduced crown height and cheek width.
+  - Removed clearcoat and reduced specular reflection; source colour image remains 512 px, without upsampling.
+  - Normalised to Y-up glTF with head +X; identity armature and stationary zero root.
+  - Locally smoothed the rear membrane / hind-limb weight transition; inverse-skin compensated rest coordinates to retain the initial appearance.
+  - Replaced the source fast flight with a restrained two-beat eight-second exhibition Idle on the existing 37-joint skeleton, with phased wings, head and foot motion; no forward travel or added biting.
+  - Animated verified lower-jaw Bone.006_019 through two gentle13-degree closures per eight-second loop; upper-beak Bone.007_00 is not animated as a jaw.
+  - 2026-10-30: adapted actual Pteranodon clavicle/upper-arm/forearm/wrist/wingfinger gesture through anatomical basis retargeting, with a longer complete beat than its authored0.7 App speed, a compact powerstroke and longer recovery followed by long glide; fixedRoot and original37-bone mesh/materials/initial pose retained; bounded proximal membrane field repaired with inverse-skin compensation.
+  - True humerus posture compensation addresses Quetz versus reference initial elevation during active beat, returning exactly to original initial pose. Distributed power response and recovery/settling through neck-base,mid-neck,upper-neck,skull with a small glide glance. Original verified13-degree jaw local curves retained exactly.
+  - Adapted flight rotations from Pteranodon (Animated) by Chistodrako._. / Oscar López Riviello, CC BY 4.0, https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b; no reference mesh, textures or rig copied.
+## 帝王角龙 (`regaliceratops`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Regaliceratops English narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `52dec52f8117a388e2b73d18e049537218263882c8121ffa5ea81dd113d5d633`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Regaliceratops Mandarin narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `1a27c3caeaafde5a3785ea76076d338d11626e52570aa58c1856cfaf41875df0`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Regaliceratops landscape palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `3df9d61a65bca94a9e3d45ad93ef35efe384aa599b5ce25f738b37fbea7eb0b8`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Regaliceratops portrait palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `80042ed58d83fd1cfcb1af1998c5178dde10f1d5d4df3c5afb795a348ae2332a`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Regaliceratops poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `660c390897fbb07c0540d7fd7216765379578bf1f6fe6224a97dbf6c468a84e8`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Regaliceratops poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `c697e92857d3838dcdeee81b46a9443c16bc5abafe8076cda95042d23345d6b4`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Regaliceratops thumbnail, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `77e7c5cc146bae6cbb369e0b1ec85e2df581e17d66cb42b94e1d0a771bb2b488`
+- Modifications:
+  - Native transparent model silhouette composited over the independently generated landscape background.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Regaliceratops](https://sketchfab.com/3d-models/regaliceratops-fb292480dc88483f919c3b11637da3da) by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `01d95a9184c58ff23d81c66d9c1b580cda9d4e5369c384835f981527788d25f2`
+- Modifications:
+  - Welded material chunks before reduction
+  - Reduced geometry while allocating more faces to horns and frill
+  - Shifted repeated colA UV island from U=-1..0 to U=0..1
+  - Baked high-source tangent normals at 1536px; neutralized invalid projections
+  - Corrected overly glossy skin and horn roughness
+  - Normalized glTF Y-up, head +X, horizontal center, planted feet, length about 3.2
+  - New weighted skeleton and one eight-second 24fps stationary Idle
+  - v2: moderately lifted dark-green and warm-brown sRGB albedo midtones; unchanged normal maps, geometry, weights, skeleton and eight-second Idle.
 ## 喙嘴翼龙 (`rhamphorhynchus`)
 
 ### `audio/narration.en.mp3`
@@ -2303,6 +2766,80 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Align length to X, center the visible bounds, and apply habitat grounding. Operation: canonical-transform.
   - Export one traceable, closed-loop, in-place project Idle. Operation: replace-runtime-animation.
   - Authored and validator-checked one closed eight-second flying-wing Idle for the shared museum viewer.
+## 帝鳄 (`sarcosuchus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Sarcosuchus English narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `691a47e4e5de36851a53e52079fc05932306198e5a0108ac9bc41f1d7d49df63`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Sarcosuchus Mandarin narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `31057fe0538f318c67998e4c1b3878d093da92781e735eeae598b13486a265c0`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Sarcosuchus landscape palaeoenvironment, generated with OpenAI image generation on 2026-10-29
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `be3d05103fa65731ccbdaaed2ca9de05c4088fef26d9f0b10750ae56046d348c`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Sarcosuchus portrait palaeoenvironment, generated with OpenAI image generation on 2026-10-29
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `10b0111547cadba2186ac9a45318465c94c237b235a0ba39874cdf67649ee9aa`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Sarcosuchus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `09a86aa8017d805eca1545462add09ddc452dd74465393afd1ebd6331bd3fba8`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Sarcosuchus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `fad48c532671b0f63d6e3bdae41dbedf95f5298f7dd6fab99473862ab1f3ed8b`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Sarcosuchus thumbnail, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `035925a28dc386502133d855df3bbd35343308ec1ffa1cdec57a05ddbcaa60f7`
+- Modifications:
+  - Native transparent model silhouette composited over the independently generated landscape background.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Sarcosuchus](https://sketchfab.com/3d-models/sarcosuchus-6cb4e0c2b53447409cc092f9cfa97c51) by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `f31490d167289a724a77f33b2040fc66f377c52a7f01bb1e361a2e5f011ceb20`
+- Modifications:
+  - Merged/welded source chunks; 250k geometry; high-to-low tangent normals; roughness correction; new skin and stationary 8-second Idle with breathing, head/neck/tail and 9-degree jaw closing; brighter warm green/ochre skin midtones.
 ## 胄甲龙 (`sauropelta`)
 
 ### `audio/narration.en.mp3`
@@ -2388,6 +2925,82 @@ content, contributions, and Brand Assets follow the separate scopes in
   - Align length to X, center the visible bounds, and apply habitat grounding. Operation: canonical-transform.
   - Export one traceable, closed-loop, in-place project Idle. Operation: replace-runtime-animation.
   - Authored and validator-checked one closed eight-second land-breathe-tail Idle for the shared museum viewer.
+## 索德斯翼龙 (`sordes`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Sordes English narration, generated with Qwen3-TTS on 2026-10-29
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `b72b150575119fae3a459ae797412ceb0c86d7224d28dec327e5b3bb3c55769a`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Sordes Mandarin narration, generated with Qwen3-TTS on 2026-10-29
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `66be037fcd3b62c3d7695b179f496af7b58149afa5ea5e13eeb1d1713cc532a3`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Sordes landscape palaeoenvironment, generated with OpenAI image generation on 2026-10-29
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `4b392b262e0b3598192c1b4f1dd15bd1b1e4db7173fe41de2825db30607ecd2e`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Sordes portrait palaeoenvironment, generated with OpenAI image generation on 2026-10-29
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `d98cb4cc421beb7aa01914b98a285f919122d7701d1b886a74efc120b46e0f24`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Sordes poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner); museum preparation by Leon Made This.
+- Runtime SHA-256: `2c00b5456eef05c82b34bc83565cd9c70f0ad00ce323f011ba0ce5f299c3f3b7`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Sordes poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner); museum preparation by Leon Made This.
+- Runtime SHA-256: `3106f3b2a73d0ddfdb97d430846d0628a7ea0284edafb9a2dd79b96fc8a01dbe`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Sordes thumbnail, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner); museum preparation by Leon Made This.
+- Runtime SHA-256: `d75a976475c8d192f001e529b98e34f8ef149756fecb4d4afbcb9b48772f8857`
+- Modifications:
+  - Native transparent model silhouette composited over the independently generated landscape background.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Sordes Pilosus — mesh and rig only](https://sketchfab.com/3d-models/sordes-pilosus-45afc7fc47f3402db1bca10e5b1ca6c5) by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner); museum preparation by Leon Made This.
+- Runtime SHA-256: `4a21b059e3a3d820eaf19dcced5b8eba079af7a69dd6457ce70956c92fd1adae`
+- Modifications:
+  - Preserved the source mesh, UVs, skinning, rig and wing, head and long-tail motion; retimed the stationary loop to exactly eight seconds at 24 fps.
+  - Excluded the original AMNH illustration completely; replaced all original image payloads with independent original procedural body-fur and membrane textures.
+  - Applied uniform axis and scale normalisation and matte warm-brown materials.
 ## 棘龙 (`spinosaurus`)
 
 ### `audio/narration.en.mp3`
@@ -2638,6 +3251,80 @@ content, contributions, and Brand Assets follow the separate scopes in
 - Modifications:
   - Prepared a self-contained budgeted derivative while preserving source appearance and the original Swim clip.
   - Authored a closed eight-second in-place Idle with clearly visible strokes of all four flippers and a larger tail follow-through, preserving the other animation clips.
+## 镰刀龙 (`therizinosaurus`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Therizinosaurus English narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `454c00d0528ea5e0577b0da8b67427827912a8aa7a5f95d96a21d48d875046fa`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: Therizinosaurus Mandarin narration, generated with Qwen3-TTS on 2026-10-28
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-authored script, generated with Qwen3-TTS Serena.
+- Runtime SHA-256: `e9ffda753cf399ab6d2af7275dd45bf2f7217f1b4ab5e3619ec2587bc309e1f4`
+- Modifications:
+  - Generated independently in Chinese or English with the Serena speaker; encoded as mono MP3 for browser playback.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Therizinosaurus landscape palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `0a304aee257ecf93648dcf670edad09e36fa6cae9cbb06fc7f6390689af88fe5`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Therizinosaurus portrait palaeoenvironment, generated with OpenAI image generation on 2026-10-28
+- License: [OpenAI generated output](https://openai.com/policies/terms-of-use/)
+- Attribution: Environment generated for Prehistoric Animal Museum.
+- Runtime SHA-256: `f6eeacafa42896774a080b215ef4293f2e3e57237cc5898811b923cfd0624a03`
+- Modifications:
+  - Independently generated composition for this orientation; resized and encoded as WebP without changing the scene.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: Therizinosaurus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `dc237627e71a1d2638e5bfc4b5c9d35c4d00480eabeca9973003d71e67ac1aa7`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: Therizinosaurus poster, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `4746b3cf6155e5c0deba673a4c943d7bd106e839c1574a0bfe8c57ffa60c4278`
+- Modifications:
+  - Native headed application WebGL export at Idle time zero; transparent silhouette resized to the delivery frame.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: Therizinosaurus thumbnail, derived on 2026-10-29
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `72741b1a7ba24d520dafc848fb177e397bfc17678758f431c570a7ab8513d201`
+- Modifications:
+  - Native transparent model silhouette composited over the independently generated landscape background.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Therizinosaurus](https://sketchfab.com/3d-models/therizinosaurus-1fa8b9e2dd4b40c9b8ffcaead0bd8e66) by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: Model by Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy); museum preparation by Leon Made This.
+- Runtime SHA-256: `9311e4108c29cfc9f5efe78ea4335a7a6a247a96a068a8559ae25facf13af440`
+- Modifications:
+  - adult-only connected component cleanup; selective decimation preserving head and claws; original alpha feather cards removed; compact opaque textured feathers rebuilt; skin textures resized and gently brightened/desaturated; roughness adjusted; 15-bone custom deformation rig; true stationary eight-second Idle; museum coordinate and scale normalization
 ## 三角龙 (`triceratops`)
 
 ### `audio/narration.en.mp3`
@@ -3129,3 +3816,22 @@ The original scripts and generated narration are project content, synthesized of
 | `xiphactinus-intro.en.mp3` | `a040f3975d43bd9bea93923c67ae3026d275b94048f7cad99a3f137debfd89b4` | `149e90daa4535078ac04bd56de44980cbe61afc79b96064872c68a6bb8885ca5` | 0–600569 |
 | `xiphactinus-transition.en.mp3` | `dcb6bfce5146474879dd8db1f358e35547df7f9554f9afb882a33d07f4aba5a3` | `149e90daa4535078ac04bd56de44980cbe61afc79b96064872c68a6bb8885ca5` | 600569–1055478 |
 | `xiphactinus-arrival.en.mp3` | `5ccc9363eae5d4ebd07ab148c9da239da6a6a3a4c6db5f63453c4dcc832198cf` | `149e90daa4535078ac04bd56de44980cbe61afc79b96064872c68a6bb8885ca5` | 1055478–1821188 |
+
+
+# Comparison narration rights
+
+Project-authored scripts generated independently in Chinese and English with
+Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice, revision
+85e237c12c027371202489a0ec509ded67b5e4b5, built-in Serena speaker.
+Three phases are cut contiguously from one continuous master per locale.
+
+Project writing and generated narration use [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), following the project licensing policy. The model and code use Apache-2.0. Generated speech does not imply endorsement
+by Qwen or Alibaba. The official materials do not separately disclose the
+speaker training or performance rights chain.
+
+[Qwen3-TTS license](https://github.com/QwenLM/Qwen3-TTS/blob/main/LICENSE)
+[Official model card](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice)
+
+
+Leon authorized public distribution on 2026-10-30 for the 54 comparison files bound by the [publication authorization record](../../../content/narration-publication-authorization.json).
+Complete human listening review remains pending and unverified.
