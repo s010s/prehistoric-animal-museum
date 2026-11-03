@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import { GITHUB_LICENSING_URL, GITHUB_REPOSITORY_URL } from '../github'
 import { useI18n } from '../i18n/I18nProvider'
+import type { Locale } from '../i18n/locale'
 import { IconButton } from './IconButton'
 import { LanguageMenu } from './LanguageMenu'
 import { OfficialLinks } from './OfficialLinks'
@@ -48,6 +49,7 @@ export interface ParentFacts {
 }
 
 interface ParentDrawerProps {
+  localeHrefs?: Readonly<Record<Locale, string>>
   facts: ParentFacts
   onClose: () => void
   open: boolean
@@ -69,6 +71,7 @@ function displaySourceTitle(title: string): string {
 }
 
 export function ParentDrawer({
+  localeHrefs,
   facts,
   onClose,
   open,
@@ -185,7 +188,7 @@ export function ParentDrawer({
             <h2 id={titleId}>{messages.parent.title}</h2>
           </div>
           <div className="drawer-header__actions">
-            <LanguageMenu />
+            <LanguageMenu localeHrefs={localeHrefs} />
             <IconButton
               hideTooltipOnFocus
               icon={X}

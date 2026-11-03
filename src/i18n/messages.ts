@@ -148,7 +148,7 @@ const zhCN = {
     heading: '一个程序员爸爸，为女儿做的小博物馆',
     paragraphs: [
       '我是 Leon，一个程序员爸爸。女儿三岁时会害怕电视里的恐龙追逐，所以我给她做了这座可以安静观察、想听再听的 3D 史前动物博物馆。',
-      '这里免费访问，不用注册，没有广告，也不做访问统计。一次发现一个有趣的细节，就已经足够。',
+      '这里免费访问，不用注册，也没有广告。一次发现一个有趣的细节，就已经足够。',
     ],
     source: '在 GitHub 查看源码',
     licensing: '查看许可与素材说明',
@@ -352,7 +352,7 @@ const en = {
     heading: 'A little museum made by a developer dad for his daughter',
     paragraphs: [
       'I’m Leon, a developer and a dad. When my daughter was three, dinosaur chases on television frightened her, so I made a 3D prehistoric animal museum where she could look quietly and listen only when she wanted to.',
-      'The museum is free, with no sign-up, adverts or visitor tracking. Finding one interesting detail at a time is plenty.',
+      'The museum is free, with no sign-up or adverts. Finding one interesting detail at a time is plenty.',
     ],
     source: 'View the source on GitHub',
     licensing: 'Read the licence and asset notes',

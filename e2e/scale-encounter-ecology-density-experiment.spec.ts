@@ -302,9 +302,21 @@ async function captureLayout(
       path: path.join(densityOutput, `${viewport.label}-overview.png`),
     })
 
-    await opened.dialog
-      .getByRole('button', { name: '开关讲解员姐姐的声音' })
-      .click()
+    const playbackSettings = opened.dialog.getByRole('button', {
+      name: '打开声音与文字设置',
+      exact: true,
+    })
+    await expect(playbackSettings).toBeVisible()
+    await playbackSettings.click()
+    const narration = opened.dialog
+      .getByRole('group', { name: '声音与文字', exact: true })
+      .getByRole('button', { name: '开关讲解旁白', exact: true })
+    await expect(narration).toHaveAttribute('aria-pressed', 'true')
+    await narration.click()
+    await expect(narration).toHaveAttribute('aria-pressed', 'false')
+    await expect(opened.dialog).toHaveAttribute('data-narration', 'off')
+    await playbackSettings.click()
+    await expect(playbackSettings).toHaveAttribute('aria-expanded', 'false')
     await opened.canvas.evaluate((element: HTMLCanvasElement) => {
       element.dataset.scaleEncounterReviewTransitionProgress = '1'
     })

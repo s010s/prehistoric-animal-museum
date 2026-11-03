@@ -372,6 +372,10 @@ export type ReleaseCandidateAnimalPackage = Omit<PublishedAnimalPackage, 'status
   readonly draftNotes: readonly [string, ...string[]]
 }
 
+/** Browser projection; complete provenance remains in authoring and credits. */
+export type RuntimePublishedAnimalPackage = Omit<PublishedAnimalPackage, 'provenance' | 'narration'>
+export type RuntimeReleaseCandidateAnimalPackage = Omit<ReleaseCandidateAnimalPackage, 'provenance' | 'narration'>
+
 export type CompleteAnimalDefinition = Omit<PublishedAnimalDefinition, 'status'> & {
   readonly status: AnimalStatus
 }

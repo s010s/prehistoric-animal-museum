@@ -1,3 +1,4 @@
+import { mainCollection } from '../src/content/collections/main'
 import { expect, test, type Page } from '@playwright/test'
 
 const nestedPath = '/prehistoric-animal-museum/'
@@ -90,7 +91,7 @@ test('hydrates the real English museum first frame without replacing it', async 
       name: 'Prehistoric Animal Museum',
     }),
   ).toBeVisible()
-  await expect(page.locator('a[data-animal-detail-link]')).toHaveCount(18)
+  await expect(page.locator('a[data-animal-detail-link]')).toHaveCount(mainCollection.animalIds.length)
   await expect(
     page.locator('a[data-animal-detail-link][data-animal-id="mosasaurus"]'),
   ).toHaveAttribute('href', './animals/mosasaurus/')
@@ -143,7 +144,7 @@ for (const detailCase of noJsDetailCases) {
       await expect(
         page.getByText(detailCase.introduction, { exact: true }),
       ).toBeVisible()
-      await expect(page.locator('.animal-card[data-animal-id]')).toHaveCount(18)
+      await expect(page.locator('.animal-card[data-animal-id]')).toHaveCount(mainCollection.animalIds.length)
       await expect(page.locator('script[type="module"][src]')).toHaveCount(1)
 
       const still = page.locator('.model-still img')
@@ -650,6 +651,6 @@ test('uses an explicit CSR boundary for E2E fixtures without hydration recovery'
   const hydrationErrors = collectHydrationErrors(page)
 
   await page.goto('./zh-CN/?fixtures=1')
-  await expect(page.locator('.animal-card[data-animal-id]')).toHaveCount(21)
+  await expect(page.locator('.animal-card[data-animal-id]')).toHaveCount(mainCollection.animalIds.length + 3)
   expect(hydrationErrors).toEqual([])
 })

@@ -3768,7 +3768,7 @@ html[data-model-preview-capture] .viewer-host::after {
 }
 
 .animal-rail {
-  grid-auto-columns: 90px;
+  grid-auto-columns: 96px;
   scrollbar-width: none;
 }
 
@@ -5302,7 +5302,7 @@ html[data-model-preview-capture] .viewer-host::after {
   }
 
   .animal-rail {
-    grid-auto-columns: 72px;
+    grid-auto-columns: 84px;
     gap: 5px;
     padding: 0 2px;
   }
@@ -5554,7 +5554,7 @@ html[data-model-preview-capture] .viewer-host::after {
   .animal-rail {
     grid-area: rail;
     height: auto;
-    grid-auto-columns: 72px;
+    grid-auto-columns: 84px;
     grid-auto-flow: column;
     grid-auto-rows: auto;
     align-content: normal;
@@ -5865,6 +5865,8 @@ html[data-locale="en"] .collection-card__copy strong {
 }
 
 .language-menu__choice {
+  color: inherit;
+  text-decoration: none;
   display: grid;
   min-height: 48px;
   grid-template-columns: 18px minmax(0, 1fr) 18px;

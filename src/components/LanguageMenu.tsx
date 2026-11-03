@@ -6,18 +6,28 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n/I18nProvider'
-import { systemLocale, type LocalePreference } from '../i18n/locale'
+import { buildLocaleUrl, systemLocale, type Locale, type LocalePreference } from '../i18n/locale'
 
 const choices: readonly LocalePreference[] = ['system', 'zh-CN', 'en']
 const popoverGap = 9
 const viewportMargin = 12
 const preferredPopoverWidth = 304
+
+function subscribeSystemLocale(change: () => void): () => void {
+  window.addEventListener('languagechange', change)
+  return () => window.removeEventListener('languagechange', change)
+}
+
+function readSystemLocale(): Locale {
+  return systemLocale(navigator.languages.length > 0 ? navigator.languages : [navigator.language])
+}
 
 interface PopoverPosition {
   readonly accentSoft: string
@@ -26,7 +36,9 @@ interface PopoverPosition {
   readonly width: number
 }
 
-export function LanguageMenu() {
+export function LanguageMenu({ localeHrefs }: {
+  readonly localeHrefs?: Readonly<Record<Locale, string>> | undefined
+} = {}) {
   const { locale, messages, preference, setPreference } = useI18n()
   const [open, setOpen] = useState(false)
   const [popoverPosition, setPopoverPosition] =
@@ -35,15 +47,13 @@ export function LanguageMenu() {
   const menuRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const itemRefs = useRef(new Map<LocalePreference, HTMLButtonElement>())
+  const itemRefs = useRef(new Map<LocalePreference, HTMLButtonElement | HTMLAnchorElement>())
+  const detectedSystemLocale = useSyncExternalStore(subscribeSystemLocale, readSystemLocale, () => locale)
+  const [browserLocation, setBrowserLocation] = useState<string | null>(null)
 
   const labelFor = (choice: LocalePreference): ReactNode => {
     if (choice === 'system') {
-      const resolved = systemLocale(
-        navigator.languages.length > 0
-          ? navigator.languages
-          : [navigator.language],
-      )
+      const resolved = detectedSystemLocale
       const resolvedLabel =
         resolved === 'zh-CN'
           ? messages.language.chinese
@@ -76,6 +86,7 @@ export function LanguageMenu() {
   }
 
   const openAt = (choice: LocalePreference) => {
+    setBrowserLocation(window.location.href)
     setOpen(true)
     queueMicrotask(() => itemRefs.current.get(choice)?.focus())
   }
@@ -232,6 +243,79 @@ export function LanguageMenu() {
     if (choice) itemRefs.current.get(choice)?.focus()
   }
 
+  const menu = (
+    <div
+      aria-label={messages.language.menuLabel}
+      className="language-menu__popover"
+      data-positioned={popoverPosition !== null}
+      hidden={!open}
+      id={menuId}
+      onKeyDown={handleMenuKeyDown}
+      ref={menuRef}
+      role="menu"
+      style={{
+        '--animal-accent-soft': popoverPosition?.accentSoft || undefined,
+        display: open ? undefined : 'none',
+        left: popoverPosition?.left ?? 0,
+        top: popoverPosition?.top ?? 0,
+        width: popoverPosition?.width ?? preferredPopoverWidth,
+      } as CSSProperties}
+    >
+      {choices.map((choice) => {
+        const props = {
+          'aria-checked': preference === choice,
+          className: 'language-menu__choice',
+          ref: (element: HTMLAnchorElement | HTMLButtonElement | null) => {
+            if (element) itemRefs.current.set(choice, element)
+            else itemRefs.current.delete(choice)
+          },
+          role: 'menuitemradio' as const,
+          tabIndex: -1,
+        }
+        const contents = <>
+          <span aria-hidden="true" className="language-menu__radio" />
+          <span>{labelFor(choice)}</span>
+          <span aria-hidden="true" className="language-menu__selected-mark">
+            <Check size={17} strokeWidth={3} />
+          </span>
+        </>
+        const choose = () => {
+          setPreference(choice)
+          close(true)
+        }
+        return choice === 'system' ? (
+          <button {...props} key={choice} onClick={choose} type="button">
+            {contents}
+          </button>
+        ) : (
+          <a
+            {...props}
+            data-locale-link={choice}
+            href={browserLocation
+              ? buildLocaleUrl(browserLocation, choice)
+              : localeHrefs?.[choice]}
+            hrefLang={choice}
+            key={choice}
+            lang={choice}
+            onClick={(event) => {
+              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+              event.preventDefault()
+              choose()
+            }}
+            onKeyDown={(event) => {
+              if (event.key === ' ') {
+                event.preventDefault()
+                choose()
+              }
+            }}
+          >
+            {contents}
+          </a>
+        )
+      })}
+    </div>
+  )
+
   return (
     <div className="language-menu" ref={rootRef}>
       <button
@@ -247,9 +331,7 @@ export function LanguageMenu() {
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
-            openAt(
-              event.key === 'ArrowDown' ? choices[0]! : choices.at(-1)!,
-            )
+            openAt(event.key === 'ArrowDown' ? choices[0]! : choices.at(-1)!)
           }
         }}
         ref={triggerRef}
@@ -258,57 +340,7 @@ export function LanguageMenu() {
         <Languages aria-hidden="true" size={20} strokeWidth={2.1} />
         <span>{locale === 'zh-CN' ? '中' : 'EN'}</span>
       </button>
-      {open
-        ? createPortal(
-            <div
-              aria-label={messages.language.menuLabel}
-              className="language-menu__popover"
-              data-positioned={popoverPosition !== null}
-              id={menuId}
-              onKeyDown={handleMenuKeyDown}
-              ref={menuRef}
-              role="menu"
-              style={
-                {
-                  '--animal-accent-soft':
-                    popoverPosition?.accentSoft || undefined,
-                  left: popoverPosition?.left ?? 0,
-                  top: popoverPosition?.top ?? 0,
-                  width: popoverPosition?.width ?? preferredPopoverWidth,
-                } as CSSProperties
-              }
-            >
-              {choices.map((choice) => (
-                <button
-                  aria-checked={preference === choice}
-                  className="language-menu__choice"
-                  key={choice}
-                  onClick={() => {
-                    setPreference(choice)
-                    close(true)
-                  }}
-                  ref={(element) => {
-                    if (element) itemRefs.current.set(choice, element)
-                    else itemRefs.current.delete(choice)
-                  }}
-                  role="menuitemradio"
-                  tabIndex={-1}
-                  type="button"
-                >
-                  <span aria-hidden="true" className="language-menu__radio" />
-                  <span>{labelFor(choice)}</span>
-                  <span
-                    aria-hidden="true"
-                    className="language-menu__selected-mark"
-                  >
-                    <Check size={17} strokeWidth={3} />
-                  </span>
-                </button>
-              ))}
-            </div>,
-            document.body,
-          )
-        : null}
+      {open ? createPortal(menu, document.body) : menu}
     </div>
   )
 }

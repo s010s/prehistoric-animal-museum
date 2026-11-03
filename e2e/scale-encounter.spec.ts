@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { requireHardwareWebGl } from './support/webgl-hardware'
 
 test.setTimeout(60_000)
@@ -10,16 +10,23 @@ const cases = [
     animalId: 'tyrannosaurus-rex',
     avatarClip: 'Idle_Forest',
     avatarMotion: 'idle',
-    avatarAsset: 'child-avatar-v4-boy-land-explorer-review-v01',
+    avatarAsset: 'child-avatar-v4-boy-land-explorer-v01',
     avatarRootName:
-      'scale-encounter-child-boy-land-explorer-review-candidate',
+      'scale-encounter-child-boy-land-explorer-runtime-v1',
     bodyOrientation: 'upright',
     defaultDistance: '12.500',
     name: '霸王龙',
     equipment: 'trail-daypack',
-    panoramaTheme: 'land-cretaceous',
+    panoramaAssets: ['panorama-land-cretaceous-v5-farfield-4096'],
     pose: 'grounded-observer',
-    relation: '共同地面 · 侧面相遇',
+    sceneCandidate: 'off',
+    sceneLabel: '河岸森林',
+    sceneSemantic: 'legacy-environment',
+    surfaceAssets: [
+      'surface-land-albedo-2048',
+      'surface-land-normal-2048',
+      'surface-land-roughness-2048',
+    ],
     travelClip: 'Walk_Forest',
     travelMotion: 'walk',
   },
@@ -27,16 +34,19 @@ const cases = [
     animalId: 'pteranodon',
     avatarClip: 'Glide_Static',
     avatarMotion: 'glide',
-    avatarAsset: 'child-avatar-v4-boy-air-wingsuit-review-v01',
+    avatarAsset: 'child-avatar-v4-boy-air-wingsuit-v01',
     avatarRootName:
-      'scale-encounter-child-boy-air-wingsuit-review-candidate',
+      'scale-encounter-child-boy-air-wingsuit-runtime-v1',
     bodyOrientation: 'prone',
     defaultDistance: '15.000',
     name: '无齿翼龙',
     equipment: 'helmeted-wingsuit-and-parachute',
-    panoramaTheme: 'air-cretaceous',
+    panoramaAssets: [],
     pose: 'prone-wingsuit-glide',
-    relation: '俯视翼展 · 随后平视',
+    sceneCandidate: 'D',
+    sceneLabel: '空中相遇',
+    sceneSemantic: 'sky',
+    surfaceAssets: [],
     travelClip: 'Glide_Static',
     travelMotion: 'glide',
   },
@@ -44,16 +54,19 @@ const cases = [
     animalId: 'mosasaurus',
     avatarClip: 'Scuba_Trim_Static',
     avatarMotion: 'idle',
-    avatarAsset: 'child-avatar-v4-boy-water-diver-review-v01',
+    avatarAsset: 'child-avatar-v4-boy-water-diver-v01',
     avatarRootName:
-      'scale-encounter-child-boy-water-diver-review-candidate',
+      'scale-encounter-child-boy-water-diver-runtime-v1',
     bodyOrientation: 'prone',
     defaultDistance: '20.000',
     name: '沧龙',
     equipment: 'scuba-kit',
-    panoramaTheme: 'water-cretaceous',
+    panoramaAssets: [],
     pose: 'horizontal-scuba-trim',
-    relation: '水下错层 · 斜向上观察',
+    sceneCandidate: 'D',
+    sceneLabel: '海底相遇',
+    sceneSemantic: 'ocean',
+    surfaceAssets: [],
     travelClip: 'Scuba_Trim_Static',
     travelMotion: 'swim',
   },
@@ -61,16 +74,25 @@ const cases = [
     animalId: 'mammoth',
     avatarClip: 'Idle_Snow',
     avatarMotion: 'idle',
-    avatarAsset: 'child-avatar-v4-boy-snow-expedition-review-v01',
+    avatarAsset: 'child-avatar-v4-boy-snow-expedition-v01',
     avatarRootName:
-      'scale-encounter-child-boy-snow-expedition-review-candidate',
+      'scale-encounter-child-boy-snow-expedition-runtime-v1',
     bodyOrientation: 'upright',
     defaultDistance: '10.000',
     name: '长毛猛犸象',
     equipment: 'insulated-cold-weather-kit',
-    panoramaTheme: 'snow-ice-age',
+    panoramaAssets: [],
     pose: 'cold-weather-observer',
-    relation: '寒冷草原 · 共同地面侧视',
+    sceneCandidate: 'E',
+    sceneLabel: '寒冷草原',
+    sceneSemantic: 'mammoth-palaeoenvironment',
+    surfaceAssets: [
+      'surface-snow-albedo-1024',
+      'surface-snow-normal-1024',
+      'surface-snow-roughness-1024',
+      'surface-land-albedo-1024',
+      'surface-land-normal-1024',
+    ],
     travelClip: 'Walk_Snow',
     travelMotion: 'walk',
   },
@@ -84,26 +106,37 @@ const viewports = [
 const mobileHeightEndpoints = [
   {
     animalId: 'pteranodon',
-    avatarAsset: 'child-avatar-v4-girl-air-wingsuit-review-v01',
+    avatarAsset: 'child-avatar-v4-girl-air-wingsuit-v01',
     avatarRootName:
-      'scale-encounter-child-girl-air-wingsuit-review-candidate',
+      'scale-encounter-child-girl-air-wingsuit-runtime-v1',
     heightCm: 90,
     name: '无齿翼龙',
-    panoramaTheme: 'air-cretaceous',
+    environmentAsset: 'island-landforms-v2',
   },
   {
     animalId: 'mammoth',
-    avatarAsset: 'child-avatar-v4-girl-snow-expedition-review-v01',
+    avatarAsset: 'child-avatar-v4-girl-snow-expedition-v01',
     avatarRootName:
-      'scale-encounter-child-girl-snow-expedition-review-candidate',
+      'scale-encounter-child-girl-snow-expedition-runtime-v1',
     heightCm: 130,
     name: '长毛猛犸象',
-    panoramaTheme: 'snow-ice-age',
+    environmentAsset: 'forest-props-real-v1',
   },
 ] as const
 
 function isChildCandidateRequest(url: string): boolean {
   return url.includes('child-avatar-v4-')
+}
+
+async function muteNarration(dialog: Locator): Promise<void> {
+  const settings = dialog.getByRole('button', { name: '打开声音与文字设置' })
+  await settings.click()
+  const narration = dialog.getByRole('button', { name: '开关讲解旁白' })
+  await expect(narration).toHaveAttribute('aria-pressed', 'true')
+  await narration.click()
+  await expect(narration).toHaveAttribute('aria-pressed', 'false')
+  await expect(dialog).toHaveAttribute('data-narration', 'off')
+  await settings.click()
 }
 
 async function saveVisual(
@@ -186,7 +219,14 @@ async function openEncounter(
   })
   await expect(dialog).toBeVisible()
   await saveVisual(page, `${visualPrefix}-${animal.animalId}-setup.png`)
-  await expect(dialog.getByRole('radio')).toHaveCount(2)
+  const gender = dialog.getByRole('group', { name: '小朋友是男孩还是女孩？' })
+  const approach = dialog.getByRole('group', { name: '想离动物多近？' })
+  await expect(gender.getByRole('radio')).toHaveCount(2)
+  await expect(gender.getByRole('radio', { name: /男孩/ })).not.toBeChecked()
+  await expect(gender.getByRole('radio', { name: /女孩/ })).not.toBeChecked()
+  await expect(approach.getByRole('radio')).toHaveCount(2)
+  await expect(approach.getByRole('radio', { name: /留点距离/ })).toBeChecked()
+  await expect(approach.getByRole('radio', { name: /靠近观察/ })).not.toBeChecked()
   await expect(dialog.getByRole('slider')).toHaveValue('110')
   expect(glbRequests.filter(isChildCandidateRequest)).toHaveLength(0)
   await dialog.getByRole('radio', { name: /男孩/ }).check({ force: true })
@@ -199,8 +239,13 @@ async function openEncounter(
   )
   await expect(dialog.getByText('想象相遇', { exact: true })).toBeVisible()
   await expect(
-    dialog.getByText(animal.relation, { exact: true }).last(),
+    dialog.locator('.scale-encounter-scene-heading').getByText(animal.sceneLabel, { exact: true }),
   ).toBeVisible()
+  await expect(dialog).toHaveAttribute('data-scene-candidate', animal.sceneCandidate)
+  await expect(canvas).toHaveAttribute(
+    'data-scale-encounter-scene-semantic',
+    animal.sceneSemantic,
+  )
   await expect(canvas).toHaveAttribute('data-scale-encounter', 'true')
   await expect(canvas).toHaveAttribute(
     'data-scale-encounter-animal-id',
@@ -261,21 +306,19 @@ async function openEncounter(
   await expect
     .poll(
       () => panoramaRequests.length,
-      { message: 'the animal-specific 4K first-frame panorama should load' },
+      { message: 'only the panorama used by the selected environment should load' },
     )
-    .toBe(1)
-  expect(panoramaRequests[0]).toContain(
-    `panorama-${animal.panoramaTheme}-4096`,
-  )
-  if (animal.animalId === 'pteranodon') {
-    expect(surfaceRequests).toHaveLength(0)
-  } else {
-    await expect
-      .poll(() => surfaceRequests.length, {
-        message: 'land, snow and water should load all three PBR maps',
-      })
-      .toBe(3)
-    expect(surfaceRequests.every((url) => url.includes('-2048'))).toBe(true)
+    .toBe(animal.panoramaAssets.length)
+  for (const asset of animal.panoramaAssets) {
+    expect(panoramaRequests.filter((url) => url.includes(asset))).toHaveLength(1)
+  }
+  await expect
+    .poll(() => surfaceRequests.length, {
+      message: 'the selected environment should load its exact PBR surface set',
+    })
+    .toBe(animal.surfaceAssets.length)
+  for (const asset of animal.surfaceAssets) {
+    expect(surfaceRequests.filter((url) => url.includes(asset))).toHaveLength(1)
   }
   await expect
     .poll(() => background.evaluate((image: HTMLImageElement) => image.currentSrc))
@@ -397,9 +440,7 @@ test('mobile controls stay compact and expose 360-degree orbit only in POV', asy
     'data-scale-encounter-orbit-angle-degrees',
     '0.00',
   )
-  await dialog
-    .getByRole('button', { name: '开关讲解员姐姐的声音' })
-    .click()
+  await muteNarration(dialog)
   await viewButton.click()
   await expect(dialog).toHaveAttribute('data-phase', 'eyes', {
     timeout: 15_000,
@@ -432,27 +473,60 @@ test('mobile controls stay compact and expose 360-degree orbit only in POV', asy
         await canvas.getAttribute('data-scale-encounter-orbit-angle-degrees'),
       )
       return Math.min(angle, 360 - angle)
+    }, {
+      // Sky orbit travels at min(20 deg/s, 4 / maximumDistance rad/s).
+      // Pteranodon's 21 m limit makes a complete turn take about 33 seconds.
+      timeout: 35_000,
     })
     .toBeLessThan(0.05)
-  await page.keyboard.press('ArrowLeft')
-  await expect
-    .poll(async () =>
-      Number(
-        await canvas.getAttribute('data-scale-encounter-orbit-angle-degrees'),
-      ),
-    )
-    .toBeCloseTo(330, 1)
+  await saveVisual(page, 'mobile-pteranodon-complete-orbit.png')
+})
 
-  for (let step = 0; step < 5; step += 1) {
-    await page.keyboard.press('ArrowLeft')
-  }
+test('mobile keyboard orbit stops on release and returns through the original eye position', async ({
+  page,
+}) => {
+  await requireHardwareWebGl(page)
+  await page.setViewportSize(viewports[1])
+  await openEncounter(page, cases[1], 'mobile-orbit-return')
+  const dialog = page.getByTestId('scale-encounter')
+  const canvas = page.locator('.viewer-canvas')
+  await muteNarration(dialog)
+  await dialog.getByRole('button', { name: '从我的眼睛看' }).click()
+  await expect(dialog).toHaveAttribute('data-phase', 'eyes', {
+    timeout: 15_000,
+  })
+
+  const left = dialog.getByRole('button', { name: '向左绕着动物看' })
+  const right = dialog.getByRole('button', { name: '向右绕着动物看' })
+  for (let step = 0; step < 6; step += 1) await left.click()
   await expect
     .poll(async () =>
       Number(
         await canvas.getAttribute('data-scale-encounter-orbit-angle-degrees'),
       ),
-    )
+    // The same 10.9 deg/s sky cadence needs about 16.5 seconds for 180 degrees.
+    { timeout: 20_000 })
     .toBeCloseTo(180, 1)
+
+  // Keys drive continuous motion; releasing one must freeze its current angle.
+  await page.keyboard.down('ArrowLeft')
+  try {
+    await expect
+      .poll(async () => Number(
+        await canvas.getAttribute('data-scale-encounter-orbit-angle-degrees'),
+      ))
+      .toBeLessThan(178)
+  } finally {
+    await page.keyboard.up('ArrowLeft')
+  }
+  const releasedAngle = await canvas.getAttribute(
+    'data-scale-encounter-orbit-angle-degrees',
+  )
+  await page.waitForTimeout(160)
+  await expect(canvas).toHaveAttribute(
+    'data-scale-encounter-orbit-angle-degrees',
+    releasedAngle ?? '',
+  )
 
   await dialog.getByRole('button', { name: '退后看全身' }).click()
   await expect(dialog).toHaveAttribute('data-phase', 'returning')
@@ -543,9 +617,7 @@ for (const viewport of viewports) {
         )
       }
 
-      await dialog
-        .getByRole('button', { name: '开关讲解员姐姐的声音' })
-        .click()
+      await muteNarration(dialog)
       await dialog.getByRole('button', { name: '从我的眼睛看' }).click()
       await expect(canvas).toHaveAttribute(
         'data-scale-encounter-camera-stage',
@@ -584,14 +656,14 @@ for (const viewport of viewports) {
         const guideCopy = await dialog
           .locator('.scale-encounter-caption p')
           .innerText()
-        expect(guideCopy).toContain('一样高')
-        expect(guideCopy).toContain('正前方')
+        expect(guideCopy).toContain('两只大翅膀从左到右足有七米')
+        expect(guideCopy).toContain('飞到对面')
         expect(guideCopy).not.toMatch(/低头|下面|俯视/)
       }
       if (animal.animalId === 'mosasaurus') {
         const copy = await dialog.innerText()
         expect(copy).toContain('斜上方')
-        expect(copy).toContain('水面')
+        expect(copy).toContain('身体两侧的四只鳍')
       }
 
       await saveVisual(page, `${viewport.label}-${animal.animalId}-pov.png`)
@@ -620,7 +692,23 @@ for (const viewport of viewports) {
         distanceBeforeDrag ?? '',
       )
       if (animal.animalId === 'tyrannosaurus-rex') {
+        const closer = dialog.getByRole('button', { name: '靠近一点' })
         const farther = dialog.getByRole('button', { name: '退后一点' })
+        await closer.click()
+        await expect(canvas).toHaveAttribute(
+          'data-scale-encounter-distance-meters',
+          '12.150',
+        )
+        await farther.click()
+        await expect(canvas).toHaveAttribute(
+          'data-scale-encounter-distance-meters',
+          animal.defaultDistance,
+        )
+        // World eye height includes the terrain's local height. Retracing to
+        // the same point must restore the original height at the same precision.
+        expect(Number(await canvas.getAttribute(
+          'data-scale-encounter-eye-height-meters',
+        ))).toBeCloseTo(initialPovEyeHeight, 6)
         for (let step = 0; step < 20; step += 1) {
           await farther.click()
         }
@@ -631,11 +719,9 @@ for (const viewport of viewports) {
         const farPovEyeHeight = Number(
           await canvas.getAttribute('data-scale-encounter-eye-height-meters'),
         )
-        // The child-eye camera remains on its grounded horizontal dolly instead
-        // of extending the old diagonal rail below the land plane. The unit
-        // controller test separately checks all four near-plane corners.
+        // The terrain can change the world's Y coordinate along this dolly;
+        // its far endpoint must still keep the eye above the safety floor.
         expect(farPovEyeHeight).toBeGreaterThan(0.35)
-        expect(farPovEyeHeight).toBeCloseTo(initialPovEyeHeight, 6)
         await saveVisual(
           page,
           `${viewport.label}-${animal.animalId}-pov-farthest.png`,
@@ -739,11 +825,9 @@ for (const endpoint of mobileHeightEndpoints) {
       (candidate) =>
         isChildCandidateRequest(candidate.url()) && candidate.ok(),
     )
-    const panoramaResponse = page.waitForResponse(
+    const environmentResponse = page.waitForResponse(
       (candidate) =>
-        candidate.url().includes(
-          `panorama-${endpoint.panoramaTheme}-4096`,
-        ) && candidate.ok(),
+        candidate.url().includes(endpoint.environmentAsset) && candidate.ok(),
     )
     await page
       .getByRole('button', {
@@ -771,9 +855,9 @@ for (const endpoint of mobileHeightEndpoints) {
     )
     await expect(canvas).toHaveAttribute('data-first-frame-rendered', 'true')
 
-    const [childAsset, panorama] = await Promise.all([
+    const [childAsset, environment] = await Promise.all([
       childAssetResponse,
-      panoramaResponse,
+      environmentResponse,
     ])
     expect(childAsset.url()).toContain(
       endpoint.avatarAsset,
@@ -782,20 +866,18 @@ for (const endpoint of mobileHeightEndpoints) {
     // Vite's dev server streams these files without a Content-Length header,
     // so measure the delivered payload instead of relying on response headers.
     const childBytes = (await childAsset.body()).byteLength
-    const panoramaBytes = (await panorama.body()).byteLength
+    const environmentBytes = (await environment.body()).byteLength
     expect(childBytes).toBeGreaterThan(0)
     expect(childBytes).toBeLessThanOrEqual(4_000_000)
-    expect(panoramaBytes).toBeGreaterThan(0)
-    expect(childBytes + panoramaBytes).toBeLessThanOrEqual(5 * 1024 * 1024)
+    expect(environmentBytes).toBeGreaterThan(0)
+    expect(childBytes + environmentBytes).toBeLessThanOrEqual(5 * 1024 * 1024)
 
     const overviewFrame = await canvas.screenshot({ animations: 'allow' })
     await page.waitForTimeout(450)
     const laterOverviewFrame = await canvas.screenshot({ animations: 'allow' })
     expect(laterOverviewFrame.equals(overviewFrame)).toBe(false)
 
-    await dialog
-      .getByRole('button', { name: '开关讲解员姐姐的声音' })
-      .click()
+    await muteNarration(dialog)
     await dialog.getByRole('button', { name: '从我的眼睛看' }).click()
     await expect(dialog).toHaveAttribute('data-phase', 'eyes', {
       timeout: 15_000,
@@ -839,7 +921,7 @@ test('same-page close and reopen reuses both the animal and child GLBs', async (
   ).length
   expect(childRequestsAfterFirstOpen).toBe(1)
   const panoramaRequestsAfterFirstOpen = panoramaRequests.length
-  expect(panoramaRequestsAfterFirstOpen).toBe(1)
+  expect(panoramaRequestsAfterFirstOpen).toBe(animal.panoramaAssets.length)
   const surfaceRequestsAfterFirstOpen = surfaceRequests.length
 
   const dialog = page.getByTestId('scale-encounter')
@@ -861,4 +943,85 @@ test('same-page close and reopen reuses both the animal and child GLBs', async (
   )
   expect(panoramaRequests).toHaveLength(panoramaRequestsAfterFirstOpen)
   expect(surfaceRequests).toHaveLength(surfaceRequestsAfterFirstOpen)
+})
+
+test('explorer gender, height and approach persist in local storage across tabs', async ({
+  context,
+  page,
+}, testInfo) => {
+  const animal = cases[0]
+  const storageKey = 'museum.scaleEncounterProfile.v1'
+  const expectedProfile = { approach: 'close', gender: 'girl', heightCm: 125 }
+  const response = await page.goto(`./zh-CN/?animal=${animal.animalId}`)
+  expect(response?.ok()).toBe(true)
+  await expect(page.locator('#museum-experience')).toHaveAttribute(
+    'data-ready-animal-id', animal.animalId, { timeout: 30_000 },
+  )
+  await page.getByRole('button', { name: /打开和霸王龙比一比/ }).click()
+  const dialog = page.getByTestId('scale-encounter')
+  await expect(dialog).toHaveAttribute('data-phase', 'setup')
+  await dialog.getByRole('radio', { name: /女孩/ }).check({ force: true })
+  await dialog.getByRole('slider').fill('125')
+  await dialog.getByRole('radio', { name: /靠近观察/ }).check({ force: true })
+  await dialog.getByRole('button', { name: '进入比一比' }).click()
+  await expect(dialog).toHaveAttribute('data-phase', 'overview')
+
+  const storedProfile = await page.evaluate((key) => ({
+    local: JSON.parse(window.localStorage.getItem(key) ?? 'null') as unknown,
+    session: window.sessionStorage.getItem(key),
+  }), storageKey)
+  expect(storedProfile.local).toEqual({ profile: expectedProfile, version: 1 })
+  expect(storedProfile.session).toBeNull()
+
+  const observeSavedExplorer = async (target: Page) => {
+    const encounter = target.getByTestId('scale-encounter')
+    const canvas = target.locator('.viewer-canvas')
+    await expect(encounter).toHaveAttribute('data-phase', 'overview')
+    await expect(encounter.getByRole('slider')).toHaveCount(0)
+    await expect(canvas).toHaveAttribute(
+      'data-scale-encounter-avatar-variant',
+      'scale-encounter-child-girl-land-explorer-runtime-v1',
+    )
+    await muteNarration(encounter)
+    await encounter.getByRole('button', { name: '从我的眼睛看' }).click()
+    await expect(encounter).toHaveAttribute('data-phase', 'eyes', {
+      timeout: 15_000,
+    })
+    const eyeHeight = Number(await canvas.getAttribute('data-scale-encounter-eye-height-meters'))
+    expect(eyeHeight).toBeGreaterThan(0)
+    const closer = encounter.getByRole('button', { name: '靠近一点' })
+    for (let step = 0; step < 20; step += 1) await closer.click()
+    // A comfortable T. rex encounter stops at 6.5 m. The saved close approach
+    // must continue inside that limit while keeping the child's eyes grounded.
+    await expect.poll(async () => Number(
+      await canvas.getAttribute('data-scale-encounter-distance-meters'),
+    ), { timeout: 10_000 }).toBeLessThan(6.5)
+    return { eyeHeight }
+  }
+
+  const original = await observeSavedExplorer(page)
+  const restoredPage = await context.newPage()
+  const url = page.url()
+  await page.close()
+  const restoredResponse = await restoredPage.goto(url)
+  expect(restoredResponse?.ok()).toBe(true)
+  await expect(restoredPage.locator('#museum-experience')).toHaveAttribute(
+    'data-ready-animal-id', animal.animalId, { timeout: 30_000 },
+  )
+  await restoredPage.getByRole('button', { name: /打开和霸王龙比一比/ }).click()
+  const restored = await observeSavedExplorer(restoredPage)
+  expect(restored.eyeHeight).toBeCloseTo(original.eyeHeight, 6)
+  const restoredStorage = await restoredPage.evaluate((key) => ({
+    local: JSON.parse(window.localStorage.getItem(key) ?? 'null') as unknown,
+    session: window.sessionStorage.getItem(key),
+  }), storageKey)
+  expect(restoredStorage).toEqual(storedProfile)
+  await testInfo.attach('persisted-explorer-profile', {
+    body: JSON.stringify({ expectedProfile, storedProfile, original, restored, restoredStorage }, null, 2),
+    contentType: 'application/json',
+  })
+  await testInfo.attach('restored-explorer', {
+    body: await restoredPage.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  })
 })

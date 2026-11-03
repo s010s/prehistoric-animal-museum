@@ -77,9 +77,21 @@ for (const viewport of viewports) {
       })
       await capture(page, `${viewport.label}-production-slice-overview`)
 
-      await dialog
-        .getByRole('button', { name: '开关讲解员姐姐的声音' })
-        .click()
+      const playbackSettings = dialog.getByRole('button', {
+        name: '打开声音与文字设置',
+        exact: true,
+      })
+      await expect(playbackSettings).toBeVisible()
+      await playbackSettings.click()
+      const narration = dialog
+        .getByRole('group', { name: '声音与文字', exact: true })
+        .getByRole('button', { name: '开关讲解旁白', exact: true })
+      await expect(narration).toHaveAttribute('aria-pressed', 'true')
+      await narration.click()
+      await expect(narration).toHaveAttribute('aria-pressed', 'false')
+      await expect(dialog).toHaveAttribute('data-narration', 'off')
+      await playbackSettings.click()
+      await expect(playbackSettings).toHaveAttribute('aria-expanded', 'false')
       await dialog.getByRole('button', { name: '从我的眼睛看' }).click()
       const canvas = page.locator('.viewer-canvas')
       await canvas.evaluate((element: HTMLCanvasElement) => {
