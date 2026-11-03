@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from 'react'
 import { Code2, ExternalLink, X } from 'lucide-react'
 import { GITHUB_LICENSING_URL, GITHUB_REPOSITORY_URL } from '../github'
 import { useI18n } from '../i18n/I18nProvider'
+import type { Locale } from '../i18n/locale'
 import { IconButton } from './IconButton'
 import { LanguageMenu } from './LanguageMenu'
 import { OfficialLinks } from './OfficialLinks'
@@ -9,6 +10,7 @@ import { TransientScrollbar } from './TransientScrollbar'
 import { useTransientScrollbar } from './useTransientScrollbar'
 
 interface AboutDrawerProps {
+  readonly localeHrefs?: Readonly<Record<Locale, string>>
   readonly onClose: () => void
   readonly open: boolean
   readonly returnFocusTo: React.RefObject<HTMLElement | null>
@@ -21,6 +23,7 @@ const focusableSelector = [
 ].join(',')
 
 export function AboutDrawer({
+  localeHrefs,
   onClose,
   open,
   returnFocusTo,
@@ -93,7 +96,7 @@ export function AboutDrawer({
             <h2 id={titleId}>{messages.about.title}</h2>
           </div>
           <div className="drawer-header__actions">
-            <LanguageMenu />
+            <LanguageMenu localeHrefs={localeHrefs} />
             <IconButton
               hideTooltipOnFocus
               icon={X}

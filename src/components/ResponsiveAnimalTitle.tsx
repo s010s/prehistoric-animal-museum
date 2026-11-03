@@ -47,7 +47,7 @@ export function ResponsiveAnimalTitle({
       const naturalFontSize = Number.parseFloat(getComputedStyle(title).fontSize)
       if (
         availableWidth <= 0 ||
-        requiredWidth <= availableWidth + 1 ||
+        requiredWidth <= availableWidth ||
         !Number.isFinite(naturalFontSize)
       ) {
         return

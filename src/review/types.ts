@@ -12,6 +12,8 @@ import type {
   PublishedNarrationPlans,
   PublishedAnimalPackage,
   ReleaseCandidateAnimalPackage,
+  RuntimePublishedAnimalPackage,
+  RuntimeReleaseCandidateAnimalPackage,
 } from '../content/types'
 
 export interface LocalReviewInfo {
@@ -99,6 +101,12 @@ export type DisplayableAnimalPackage =
   | (PublishedAnimalPackage & { readonly review?: LocalReviewInfo })
   | LegacyLocalReviewAnimalPackage
   | RenderableReviewDraftAnimalPackage
+
+/** Rendering accepts browser projections; review/authoring keeps its full contract. */
+export type RenderableAnimalPackage =
+  | DisplayableAnimalPackage
+  | (RuntimePublishedAnimalPackage & { readonly review?: LocalReviewInfo })
+  | (RuntimeReleaseCandidateAnimalPackage & { readonly review?: LocalReviewInfo })
 
 export function reviewNarrationPlanFor<Language extends Locale>(
   narration: ReviewNarrationPlans,

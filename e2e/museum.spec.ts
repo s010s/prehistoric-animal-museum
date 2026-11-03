@@ -1,3 +1,4 @@
+import { mainCollection } from '../src/content/collections/main'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import sharp from 'sharp'
 import { GITHUB_STAR_PROMPT_STORAGE_KEY } from '../src/github'
@@ -215,7 +216,7 @@ async function expectEnglishAnimalRailNamesContained(page: Page): Promise<void> 
       }
     })
   )()`)
-  expect(animalNameLayouts).toHaveLength(18)
+  expect(animalNameLayouts).toHaveLength(mainCollection.animalIds.length)
   const railFailures = animalNameLayouts.flatMap((layout) => {
     const failures: string[] = []
     if (layout.lineCount < 1 || layout.lineCount > 2) {
@@ -274,10 +275,10 @@ async function expectEnglishTitleContained(
       wordBreak: style.wordBreak,
     }
   })
-  expect(layout.lineCount).toBe(1)
+  expect(layout.lineCount, JSON.stringify({ name, viewport: page.viewportSize(), layout })).toBe(1)
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1)
   expect(layout.textLeft).toBeGreaterThanOrEqual(layout.titleLeft - 1)
-  expect(layout.textRight).toBeLessThanOrEqual(layout.titleRight + 1)
+  expect(layout.textRight, JSON.stringify({ name, viewport: page.viewportSize(), layout })).toBeLessThanOrEqual(layout.titleRight + 1)
   expect(layout.textLeft).toBeGreaterThanOrEqual(layout.storyCardLeft - 1)
   expect(layout.textRight).toBeLessThanOrEqual(layout.storyCardRight + 1)
   expect(layout.wordBreak).toBe('normal')
@@ -342,13 +343,14 @@ async function expectEnglishResponsiveLayout(
       .click()
     const collection = page.getByRole('dialog', { name: 'Museum guide' })
     await expect(collection).toBeVisible()
-    const columnCount = await collection.locator('.collection-grid').evaluate(
-      (grid) =>
+    const columnCounts = await collection.locator('.collection-grid').evaluateAll(
+      (grids) => grids.map((grid) =>
         getComputedStyle(grid)
           .gridTemplateColumns.split(' ')
           .filter(Boolean).length,
+      ),
     )
-    expect(columnCount).toBe(2)
+    expect(columnCounts).toEqual([2, 2, 2])
     await expectNoHorizontalOverflow(page)
     await page.getByRole('button', { name: 'Close the museum guide' }).click()
   }
@@ -458,7 +460,7 @@ test('loads from the nested static base with Chinese semantics and accessible to
   )
   await expect(page.locator('.viewer-canvas')).toHaveAttribute(
     'data-auto-rotate',
-    'true',
+    'false',
   )
   await expect(page.locator('.viewer-canvas')).toHaveAttribute(
     'aria-label',
@@ -591,8 +593,9 @@ test('eagerly loads every thumbnail in the complete museum index', async ({
     ),
   ).toBe(true)
 
-  await dialog.locator('.collection-grid').evaluate((grid) => {
-    grid.scrollTop = grid.scrollHeight
+  await expect(dialog.locator('.collection-grid')).toHaveCount(3)
+  await dialog.locator('.elevator-scrollable').evaluate((scrollport) => {
+    scrollport.scrollTop = scrollport.scrollHeight
   })
   await expect
     .poll(() =>
@@ -700,6 +703,13 @@ test('shows a browser-cached model without fading after a hard refresh', async (
   await expect
     .poll(() => finishedModelUrls.size, { timeout: 10_000 })
     .toBe(3)
+  const modelResponse = await page.request.head([...finishedModelUrls][0])
+  expect(modelResponse.ok()).toBe(true)
+  expect(modelResponse.headers()['cache-control']).toBe(
+    'public, max-age=31536000, immutable',
+  )
+  const documentResponse = await page.request.head('./zh-CN/')
+  expect(documentResponse.headers()['cache-control']).toBe('no-store')
   await page.reload()
   const museum = page.locator('#museum-experience')
   await expect(museum).toHaveAttribute(
@@ -828,13 +838,13 @@ test('keeps a distant full-museum selection and its feedback inside the visible 
   ).toBe(false)
 })
 
-test('pauses focus-mode rotation for four idle seconds after a drag', async ({
+test('keeps automatic rotation off before and after a focus-mode drag', async ({
   page,
 }) => {
   await openMuseum(page)
   await page.getByRole('button', { name: '专注看模型' }).click()
   const canvas = page.locator('.viewer-canvas')
-  await expect(canvas).toHaveAttribute('data-auto-rotate', 'true')
+  await expect(canvas).toHaveAttribute('data-auto-rotate', 'false')
   const box = await canvas.boundingBox()
   expect(box).not.toBeNull()
   if (!box) {
@@ -846,11 +856,10 @@ test('pauses focus-mode rotation for four idle seconds after a drag', async ({
   await page.mouse.move(box.x + box.width / 2 + 36, box.y + box.height / 2)
   await expect(canvas).toHaveAttribute('data-auto-rotate', 'false')
   await page.mouse.up()
-  await page.waitForTimeout(3_600)
+  // Manual input must not restart the retired idle camera spin.
+  await page.waitForTimeout(4_300)
   await expect(canvas).toHaveAttribute('data-auto-rotate', 'false')
-  await expect(canvas).toHaveAttribute('data-auto-rotate', 'true', {
-    timeout: 1_000,
-  })
+  await expect(canvas).toHaveAttribute('data-first-frame-rendered', 'true')
 })
 
 test('shows a distinct stage loader while the first animal is arriving', async ({
@@ -1295,8 +1304,8 @@ test('keeps the fast selection when an uncancellable slow result arrives later',
   await expect(museum).toHaveAttribute('data-requested-animal-id', 'fixture-fast')
   await expect(page.getByRole('heading', { name: '快快龙' })).toBeVisible()
   await page.getByRole('button', { name: '给家长的资料' }).click()
-  await expect(page.getByText('测试时期：快快龙')).toBeVisible()
-  await expect(page.getByText('测试展区：快快龙')).toBeVisible()
+  await expect(page.getByText('测试时期：快快龙', { exact: true })).toBeVisible()
+  await expect(page.getByText('测试展区：快快龙', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '关闭家长资料' }).click()
 })
 
@@ -1477,7 +1486,7 @@ test('honors reduced motion for loading and viewer startup', async ({
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await expect(page.locator('.viewer-canvas')).toHaveAttribute(
       'data-auto-rotate',
-      'true',
+      'false',
     )
   } finally {
     await context.close()
@@ -1695,7 +1704,7 @@ test('all English animal titles stay whole at every required viewport', async ({
   const englishNames = await page
     .locator('.animal-card:not([data-animal-id^="fixture-"]) strong')
     .allTextContents()
-  expect(englishNames).toHaveLength(18)
+  expect(englishNames).toHaveLength(mainCollection.animalIds.length)
 
   for (const viewport of requiredViewports) {
     await page.setViewportSize(viewport)
@@ -1931,7 +1940,7 @@ test.describe('first-frame preview silhouette', () => {
   for (const viewport of previewViewports) {
     test(`${viewport.name} keeps Pachycephalosaurus aligned through its first reveal`, async ({
       page,
-    }) => {
+    }, testInfo) => {
       test.setTimeout(60_000)
       await page.setViewportSize(viewport)
       await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -1966,6 +1975,7 @@ test.describe('first-frame preview silhouette', () => {
           html,
           body,
           #root,
+          .museum-page,
           .museum-experience,
           .stage-panel,
           .viewer-stage,
@@ -1978,6 +1988,7 @@ test.describe('first-frame preview silhouette', () => {
           html::after,
           body::before,
           body::after,
+          .scene-background,
           .museum-experience > :not(.stage-panel),
           .stage-panel > :not(.viewer-stage),
           .stage-loading,
@@ -2069,6 +2080,8 @@ test.describe('first-frame preview silhouette', () => {
         scale: 'css',
         type: 'png',
       })
+      await testInfo.attach('static-preview', { body: stillPng, contentType: 'image/png' })
+      await testInfo.attach('webgl-first-frame', { body: webglPng, contentType: 'image/png' })
       const [stillBounds, webglBounds] = await Promise.all([
         normalizedAlphaBounds(stillPng),
         normalizedAlphaBounds(webglPng),
@@ -2084,6 +2097,12 @@ test.describe('first-frame preview silhouette', () => {
       if (!stillBounds || !webglBounds) {
         throw new Error(`${viewport.name} did not produce two silhouettes.`)
       }
+      for (const bounds of [stillBounds, webglBounds]) {
+        expect(
+          bounds.width * bounds.height,
+          `${viewport.name} capture must isolate the model, not an opaque page background`,
+        ).toBeLessThan(0.95)
+      }
       if (!stillCompositionBox || !webglCompositionBox) {
         throw new Error(`${viewport.name} did not produce two composition boxes.`)
       }
@@ -2094,6 +2113,7 @@ test.describe('first-frame preview silhouette', () => {
         webglBounds,
         webglCompositionBox,
       })
+      await testInfo.attach('silhouette-measurements', { body: diagnostics, contentType: 'application/json' })
       for (const dimension of ['width', 'height'] as const) {
         expect(
           Math.abs(stillBounds[dimension] - webglBounds[dimension]),
@@ -2435,6 +2455,7 @@ test.describe('required responsive viewports', () => {
           clientWidth: number
           labelTop: number
           lineCount: number
+          name: string
           scrollWidth: number
           thumbnailBottom: number
         }>
@@ -2450,6 +2471,7 @@ test.describe('required responsive viewports', () => {
               clientWidth: label.clientWidth,
               labelTop: label.getBoundingClientRect().top,
               lineCount: range.getClientRects().length,
+              name: label.textContent ?? '',
               scrollWidth: label.scrollWidth,
               thumbnailBottom:
                 thumbnail?.getBoundingClientRect().bottom ??
@@ -2463,10 +2485,11 @@ test.describe('required responsive viewports', () => {
         animalNameLayouts.every(({ lineCount }) => lineCount === 1),
       ).toBe(true)
       expect(
-        animalNameLayouts.every(
-          ({ clientWidth, scrollWidth }) => scrollWidth <= clientWidth + 1,
+        animalNameLayouts.filter(
+          ({ clientWidth, scrollWidth }) => scrollWidth > clientWidth + 1,
         ),
-      ).toBe(true)
+        JSON.stringify({ viewport, animalNameLayouts }),
+      ).toEqual([])
       expect(
         animalNameLayouts.every(
           ({ labelTop, thumbnailBottom }) => thumbnailBottom <= labelTop,
@@ -2580,7 +2603,7 @@ test.describe('required responsive viewports', () => {
         expect(
           (settledDrawerBox?.x ?? 0) + (settledDrawerBox?.width ?? 0),
         ).toBeLessThan(viewport.width * 0.56)
-        await expect(page.locator('.drawer-backdrop')).toHaveCSS(
+        await expect(page.locator('.drawer-layer:not([hidden]) > .drawer-backdrop')).toHaveCSS(
           'backdrop-filter',
           'none',
         )

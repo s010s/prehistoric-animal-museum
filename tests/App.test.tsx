@@ -10,7 +10,7 @@ import {
 import userEvent from '@testing-library/user-event'
 import { App } from '../src/App'
 import { NARROW_TOUCH_MEDIA_QUERY } from '../src/model-policy'
-import { mainAnimals } from '../src/content/catalog'
+import { mainAnimals } from '../src/content/runtime-catalog'
 import { SCALE_ENCOUNTER_PROFILE_STORAGE_KEY } from '../src/scale-encounter/profile-storage'
 
 interface Deferred<T> {

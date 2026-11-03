@@ -20,6 +20,7 @@ it('keeps stable ownership and physical dimensions for positive/negative cells a
   expect(propLod(140, 0)).toBe(0); expect(propLod(151, 0)).toBe(1)
   expect(propLod(300, 2)).toBe(1); expect(propLod(500,2)).toBe(2); expect(propLod(284, 2)).toBe(1)
 })
+// Real GLB preparation and 650 updates exceeded Vitest's generic 5s default on CI.
 it('bounds cells, pooled allocations and one-cell installation through route, quality and origins', async () => {
   vi.spyOn(GLTFLoader.prototype, 'loadAsync').mockResolvedValue(await realPropFixture())
   vi.spyOn(TextureLoader.prototype, 'loadAsync').mockResolvedValue(new Texture())
@@ -40,7 +41,7 @@ it('bounds cells, pooled allocations and one-cell installation through route, qu
   surface.mockClear(); stream.update(2000, 100, -900, 'balanced'); expect(surface).not.toHaveBeenCalled()
   stream.markGroundDirty(['193706:1:1:3,-2']); stream.update(2000, 100, -900, 'balanced'); expect(surface.mock.calls.length).toBeLessThanOrEqual(16)
   stream.dispose(); stream.dispose(); expect(stream.root.parent).toBeNull(); expect(stream.metrics.bytes).toBe(0)
-})
+}, 12_000)
 it('releases late resources and exits busy on asynchronous or synchronous loading failure', async () => {
   vi.spyOn(GLTFLoader.prototype, 'loadAsync').mockImplementation(() => { throw new Error('offline') })
   const stream = new PropStream(new Group(), () => {}, () => 0)

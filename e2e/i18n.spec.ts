@@ -216,7 +216,7 @@ async function expectReadableEnglishStoryLayout(
     const stageActions = requireElement('.stage-actions')
     const museumName = requireElement('.museum-kicker > span:nth-child(2)')
 
-    const buttonLayouts = Array.from(actions.querySelectorAll('button')).map(
+    const buttonLayouts = Array.from(actions.querySelectorAll('button')).filter(button => button.getClientRects().length > 0).map(
       (button) => {
         const label = button.querySelector(':scope > span:not(.narration-wave)')
         const labelVisible =
@@ -229,7 +229,7 @@ async function expectReadableEnglishStoryLayout(
     )
     const stageActionButtons = Array.from(
       stageActions.querySelectorAll('button'),
-    ).map(rect)
+    ).filter(button => button.getClientRects().length > 0).map(rect)
 
     return {
       actions: rect(actions),
@@ -899,7 +899,7 @@ test('keeps the English guide heading and both header actions contained on narro
       const titleBox = title.getBoundingClientRect()
       const actionsBox = actions.getBoundingClientRect()
       return {
-        actionCount: actions.querySelectorAll('button').length,
+        actionCount: Array.from(actions.querySelectorAll('button')).filter(button => button.getClientRects().length > 0).length,
         actionsBottom: actionsBox.bottom,
         actionsLeft: actionsBox.left,
         actionsRight: actionsBox.right,

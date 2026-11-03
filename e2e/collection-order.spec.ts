@@ -30,18 +30,18 @@ const originalAnimalIds = [
 
 
 for (const locale of ['zh-CN', 'en'] as const) {
-  test(`${locale} mixes the twelve additions and keeps Stegosaurus first`, async ({ page }, testInfo) => {
+  test(`${locale} preserves the expanded collection order and interleaved additions`, async ({ page }, testInfo) => {
     await page.goto(`./${locale}/`)
     const museum = page.locator('#museum-experience')
     await expect(museum).toHaveAttribute('data-ready-animal-id', 'stegosaurus', { timeout: 20_000 })
     const cards = page.locator('.animal-card[data-animal-id]')
-    await expect(cards).toHaveCount(36)
+    await expect(cards).toHaveCount(mainCollection.animalIds.length)
     const order = await cards.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-animal-id')!))
     const additions = new Set<string>(releaseCandidateAnimalIds)
     const positions = order.flatMap((id, index) => additions.has(id) ? [index] : [])
     expect(order[0]).toBe('stegosaurus')
-    expect(new Set(order).size).toBe(36)
-    expect(order.filter((id) => !additions.has(id))).toEqual(originalAnimalIds)
+    expect(new Set(order).size).toBe(mainCollection.animalIds.length)
+    expect(order.filter((id) => (originalAnimalIds as readonly string[]).includes(id))).toEqual(originalAnimalIds)
     expect(order.filter((id) => additions.has(id)).sort()).toEqual([...additions].sort())
     expect(positions[0]).toBeLessThan(6)
     expect(positions.at(-1)).toBeGreaterThan(30)
@@ -50,7 +50,7 @@ for (const locale of ['zh-CN', 'en'] as const) {
       expect(positions[index] - positions[index - 1]).toBeLessThanOrEqual(4)
     }
     await page.reload()
-    await expect(cards).toHaveCount(36)
+    await expect(cards).toHaveCount(mainCollection.animalIds.length)
     expect(await cards.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-animal-id')))).toEqual(order)
     await expect(museum).toHaveAttribute('data-ready-animal-id', 'stegosaurus', { timeout: 20_000 })
     await page.getByRole('button', { name: locale === 'zh-CN' ? '上一只动物' : 'Previous animal', exact: true }).click()

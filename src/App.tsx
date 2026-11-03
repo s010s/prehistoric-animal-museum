@@ -63,8 +63,8 @@ const SkyMotionRecorder = import.meta.env.MODE === 'review' &&
   typeof __MUSEUM_SKY_EXPANSION_REVIEW__ !== 'undefined' && __MUSEUM_SKY_EXPANSION_REVIEW__
   ? lazy(() => import('./review/sky-motion-recording'))
   : null
-import { mainAnimals } from './content/catalog'
-import { animalSeoDescription } from './content/animal-seo'
+import { mainAnimals } from './content/runtime-catalog'
+import { animalSeoDescription, animalSeoTitle } from './content/animal-seo'
 import { credits } from 'virtual:canonical-credits'
 import { staticAnimalDetailIds } from './content/static-animal-details'
 import { I18nProvider, useI18n } from './i18n/I18nProvider'
@@ -83,7 +83,7 @@ import {
   formatModelSize,
   isLargeModel,
 } from './model-policy'
-import type { DisplayableAnimalPackage } from './review/types'
+import type { RenderableAnimalPackage } from './review/types'
 import {
   AnimalLoadCoordinator,
   IdlePreloadCoordinator,
@@ -170,8 +170,8 @@ interface RuntimeAnimal {
   readonly id: string
   readonly name: string
   readonly intro: string
-  readonly habitat: DisplayableAnimalPackage['habitat']
-  readonly atmosphere: DisplayableAnimalPackage['atmosphere']
+  readonly habitat: RenderableAnimalPackage['habitat']
+  readonly atmosphere: RenderableAnimalPackage['atmosphere']
   readonly classification: string
   readonly accent: string
   readonly accentSoft: string
@@ -268,6 +268,19 @@ function animalDetailHref(
   return needsLocaleSegment
     ? `./${locale}/animals/${animalId}/`
     : `./animals/${animalId}/`
+}
+
+function localeNavigationHref(
+  locale: Locale,
+  animalId: string,
+  rootFallback: boolean,
+  pageKind: AppPageKind,
+): string {
+  if (pageKind === 'animal-detail') return '../../../' + locale + '/animals/' + animalId + '/'
+  const atRoot = typeof window === 'undefined'
+    ? rootFallback
+    : localeFromPath(window.location.pathname) === null
+  return (atRoot ? './' : '../') + locale + '/'
 }
 
 function museumExhibitHref(locale: Locale, animalId: string): string {
@@ -396,7 +409,7 @@ if (!defaultPackage) {
 }
 
 function narrationUrlFor(
-  animal: DisplayableAnimalPackage,
+  animal: RenderableAnimalPackage,
   locale: Locale,
 ): string | null {
   const narration = animal.assets.narration as unknown
@@ -427,7 +440,7 @@ function narrationUrlFor(
 }
 
 function toRuntimeAnimal(
-  animal: DisplayableAnimalPackage,
+  animal: RenderableAnimalPackage,
   locale: Locale,
 ): RuntimeAnimal {
   const content =
@@ -1041,11 +1054,20 @@ function MuseumApp({
     [animals],
   )
 
+  const localeHrefs: Readonly<Record<Locale, string>> = {
+    'zh-CN': localeNavigationHref('zh-CN', activeAnimal.id, rootFallback, pageKind),
+    en: localeNavigationHref('en', activeAnimal.id, rootFallback, pageKind),
+  }
+
   useEffect(() => {
     const animalDetail =
       pageKind === 'animal-detail'
         ? {
-            description: animalSeoDescription(activeAnimal.narrationScript),
+            description: animalSeoDescription(activeAnimal.narrationScript, {
+              id: activeAnimal.id,
+              locale,
+              name: activeAnimal.name,
+            }),
             id: activeAnimal.id,
             name: activeAnimal.name,
           }
@@ -1053,7 +1075,7 @@ function MuseumApp({
     updateLocalizedMetadata({
       locale,
       documentTitle: animalDetail
-        ? `${activeAnimal.name} | ${messages.museumName}`
+        ? animalSeoTitle(activeAnimal.name, locale)
         : messages.documentTitle,
       museumTitle: messages.museumName,
       creatorBrand: messages.creatorBrand,
@@ -2516,7 +2538,7 @@ function MuseumApp({
         </button>}
         {!focusMode ? (
           <div aria-hidden={overlayOpen} className="stage-actions" inert={overlayOpen}>
-            <LanguageMenu />
+            <LanguageMenu localeHrefs={localeHrefs} />
             <IconButton
               icon={Share2}
               label={locale === 'zh-CN' ? `分享${activeAnimal.name}` : `Share ${activeAnimal.name}`}
@@ -2567,7 +2589,7 @@ function MuseumApp({
               {messages.focusReturnHint}
             </p>
             <div className="focus-actions">
-              <LanguageMenu />
+              <LanguageMenu localeHrefs={localeHrefs} />
               <IconButton
                 className="focus-exit"
                 hideTooltipOnFocus
@@ -2834,6 +2856,7 @@ function MuseumApp({
       />
       </main>
       <ParentDrawer
+        localeHrefs={localeHrefs}
         facts={activeAnimal.facts}
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen && !focusMode}
@@ -2841,6 +2864,7 @@ function MuseumApp({
         showReviewDetails={localReviewMode}
       />
       <AboutDrawer
+        localeHrefs={localeHrefs}
         onClose={() => setAboutOpen(false)}
         open={aboutOpen && !focusMode}
         returnFocusTo={aboutTriggerRef}

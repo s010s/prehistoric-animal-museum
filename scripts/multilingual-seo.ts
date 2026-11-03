@@ -7,7 +7,7 @@ import sharp from 'sharp'
 import type { Plugin } from 'vite'
 
 import { loadAnimalDefinitions } from './content-data'
-import { animalSeoDescription } from '../src/content/animal-seo'
+import { animalSeoDescription, animalSeoTitle } from '../src/content/animal-seo'
 import { mainCollection } from '../src/content/collections/main'
 import { staticAnimalDetailIds } from '../src/content/static-animal-details'
 import type {
@@ -194,7 +194,7 @@ const pageCopy = {
     heading: 'Prehistoric Animal Museum | 史前动物博物馆',
     introduction:
       'A gentle 3D museum for children aged 2–6 and the grown-ups exploring with them. 一座为 2–6 岁孩子和陪伴探索的家长准备的 3D 史前动物博物馆。',
-    privacy: `Explore ${catalogueAnimalCount} prehistoric animals from land, sky and sea. No account, advertising or page analytics are used, and narration never starts by itself. 展厅收录陆地、天空与水中的 ${catalogueAnimalCount} 位史前动物，无需账号，没有广告和页面分析，也不会自动播放声音。`,
+    privacy: `Explore ${catalogueAnimalCount} prehistoric animals from land, sky and sea. No account or advertising is used, and narration never starts by itself. 展厅收录陆地、天空与水中的 ${catalogueAnimalCount} 位史前动物，无需账号，没有广告，也不会自动播放声音。`,
     catalogueHeading: 'Museum collection | 博物馆藏品',
     languageLabel: 'Choose a language | 选择语言',
     systemLanguageLabel: 'Follow system | 跟随系统',
@@ -211,7 +211,7 @@ const pageCopy = {
     heading: '史前动物博物馆',
     introduction:
       '这是一座面向 2–6 岁孩子和家长的 3D 史前动物博物馆。一起转动模型，听观察引导，再读给家长的科学资料。',
-    privacy: `展厅收录 ${catalogueAnimalCount} 位来自陆地、天空与水中的史前动物。无需账号，没有广告和页面分析，声音只会在你主动点击后播放。`,
+    privacy: `展厅收录 ${catalogueAnimalCount} 位来自陆地、天空与水中的史前动物。无需账号，没有广告，声音只会在你主动点击后播放。`,
     catalogueHeading: '博物馆藏品',
     languageLabel: '选择语言',
     systemLanguageLabel: '跟随系统',
@@ -227,7 +227,7 @@ const pageCopy = {
     heading: 'Prehistoric Animal Museum',
     introduction:
       'A gentle 3D museum for children aged 2–6 and the grown-ups exploring with them. Turn each model, listen to a short observation guide and open the grown-up notes when you want to go deeper.',
-    privacy: `Meet ${catalogueAnimalCount} prehistoric animals from land, sky and sea. There are no accounts, adverts or page analytics, and narration only plays when you choose it.`,
+    privacy: `Meet ${catalogueAnimalCount} prehistoric animals from land, sky and sea. There are no accounts or adverts, and narration only plays when you choose it.`,
     catalogueHeading: 'Museum collection',
     languageLabel: 'Choose a language',
     systemLanguageLabel: 'Follow system',
@@ -467,7 +467,7 @@ function renderShell(copy: SeoPageCopy, entryFallback = false): string {
       : escapeHtml(copy.introduction)
   const privacy =
     copy.locale === 'x-default'
-      ? `<span lang="en">Explore ${catalogueAnimalCount} prehistoric animals from land, sky and sea. No account, advertising or page analytics are used, and narration never starts by itself.</span> <span lang="zh-CN">展厅收录陆地、天空与水中的 ${catalogueAnimalCount} 位史前动物，无需账号，没有广告和页面分析，也不会自动播放声音。</span>`
+      ? `<span lang="en">Explore ${catalogueAnimalCount} prehistoric animals from land, sky and sea. No account or advertising is used, and narration never starts by itself.</span> <span lang="zh-CN">展厅收录陆地、天空与水中的 ${catalogueAnimalCount} 位史前动物，无需账号，没有广告，也不会自动播放声音。</span>`
       : escapeHtml(copy.privacy)
   const catalogueHeading =
     copy.locale === 'x-default'
@@ -567,11 +567,12 @@ function renderAnimalDetailDocument(
   const copy = animalPageCopy[locale]
   const canonical = animalCanonicalUrl(locale, definition.id, options)
   const otherLocale = locale === 'zh-CN' ? 'en' : 'zh-CN'
-  const description = animalSeoDescription(content.narration.sentences)
-  const title =
-    locale === 'zh-CN'
-      ? `${content.name} | 史前动物博物馆`
-      : `${content.name} | Prehistoric Animal Museum`
+  const description = animalSeoDescription(content.narration.sentences, {
+    id: definition.id,
+    locale,
+    name: content.name,
+  })
+  const title = animalSeoTitle(content.name, locale)
   const heroPath = `../../../animals/${definition.id}/hero.webp`
   const heroPortraitPath = `../../../animals/${definition.id}/hero-portrait.webp`
   const museumHref = `../../../${locale}/`

@@ -6,6 +6,13 @@ declare module 'virtual:canonical-animal-catalog' {
   export const animalModules: Readonly<Record<string, import('./types').AnimalModule>>
 }
 
+declare module 'virtual:canonical-runtime-animal-catalog' {
+  export const mainAnimals: readonly (
+    import('./types').RuntimePublishedAnimalPackage |
+    import('./types').RuntimeReleaseCandidateAnimalPackage
+  )[]
+}
+
 declare module 'virtual:canonical-model-previews' {
   export const modelPreviewModules: Readonly<Record<string, string>>
 }

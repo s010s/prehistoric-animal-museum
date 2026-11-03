@@ -32,6 +32,7 @@ const host = option('--host', process.env.HOST ?? '127.0.0.1')
 const rawBase = option('--base', '/')
 const base = `/${rawBase.split('/').filter(Boolean).join('/')}${rawBase === '/' ? '' : '/'}`
 const fixtureModelDelayMs = Number(option('--fixture-model-delay', '0'))
+const cacheHashedAssets = args.includes('--cache-hashed-assets')
 
 if (!Number.isFinite(fixtureModelDelayMs) || fixtureModelDelayMs < 0) {
   console.error('--fixture-model-delay must be a non-negative number')
@@ -44,12 +45,17 @@ if (!existsSync(root) || !statSync(root).isDirectory()) {
 }
 
 function sendFile(filePath, response, delayMs = 0, statusCode = 200) {
+  const isHashedAsset = /[/\\]assets[/\\][^/\\]+-[\w-]{8}\.[^/\\]+$/.test(filePath)
   response.writeHead(statusCode, {
     'Content-Type': mimeTypes.get(extname(filePath).toLowerCase()) ?? 'application/octet-stream',
     // This server is only used for local review. Keeping JS, GLB, and audio in
     // Chrome's HTTP cache made a newly synced 4190 build appear to retain old
     // behavior for up to an hour, even though dist had already been replaced.
-    'Cache-Control': 'no-store',
+    // Cache tests opt into production-like caching for fingerprinted assets.
+    // Normal local review still always sees newly synced builds immediately.
+    'Cache-Control': cacheHashedAssets && isHashedAsset
+      ? 'public, max-age=31536000, immutable'
+      : 'no-store',
     'X-Content-Type-Options': 'nosniff',
   })
   if (delayMs > 0) {

@@ -32,6 +32,7 @@ export async function canonicalAnimalCatalog(mode: string): Promise<{
   const previews = packages.flatMap(({ definition }) => readdirSync(resolve('src/content/animals', definition.id, 'images'), { withFileTypes: true }).filter(f => f.isFile() && /^preview-.*\.webp$/.test(f.name)).map(f => ({id:definition.id,file:f.name})))
   const extensionId = '\0virtual:canonical-comparison-extension'
   const id = '\0virtual:canonical-animal-catalog'
+  const runtimeId = '\0virtual:canonical-runtime-animal-catalog'
   const creditsId = '\0virtual:canonical-credits'
   return {
     ...(candidate ? { notices: renderThirdPartyNotices(packages, true) } : {}),
@@ -39,11 +40,54 @@ export async function canonicalAnimalCatalog(mode: string): Promise<{
       name: 'canonical-animal-catalog',
       resolveId(source) {
         if (source === 'virtual:canonical-animal-catalog') return id
+        if (source === 'virtual:canonical-runtime-animal-catalog') return runtimeId
         if (source === 'virtual:canonical-comparison-extension') return extensionId
         if (source === 'virtual:canonical-model-previews') return previewId
         if (source === 'virtual:canonical-credits') return creditsId
       },
       load(source) {
+        if (source === runtimeId) {
+          const byId = new Map(packages.map(({ definition }) => [definition.id, definition]))
+          const imports: string[] = []
+          const entries = mainCollection.animalIds.map((animalId, index) => {
+            const definition = byId.get(animalId)
+            if (!definition) throw new Error(`Missing runtime animal: ${animalId}`)
+            const model = definition.provenance.find(record => record.assetPath === 'model/model.glb')
+            if (!model) throw new Error(`Missing runtime model provenance: ${animalId}`)
+            const asset = (name: string, path: string) => {
+              const binding = `${name}${index}`
+              imports.push(`import ${binding} from ${JSON.stringify(`/src/content/animals/${animalId}/${path}?url`)}`)
+              return binding
+            }
+            const modelUrl = asset('model', 'model/model.glb')
+            const poster = asset('poster', 'images/poster.webp')
+            const posterPortrait = asset('posterPortrait', 'images/poster-portrait.webp')
+            const thumbnail = asset('thumbnail', 'images/thumbnail.webp')
+            const landscape = asset('landscape', 'backgrounds/landscape.webp')
+            const portrait = asset('portrait', 'backgrounds/portrait.webp')
+            const narration = (['zh-CN', 'en'] as const).map(locale => {
+              const plan = definition.narration[locale]
+              if (!plan || plan.status !== 'ready') throw new Error(`Missing runtime narration: ${animalId}/${locale}`)
+              const url = asset(locale === 'en' ? 'narrationEn' : 'narrationZh', `audio/narration.${locale}.mp3`)
+              return `${JSON.stringify(locale)}:{...${JSON.stringify(plan)},url:${url}}`
+            })
+            // Pick fields before serializing. Importing animal.ts here would
+            // pull complete authoring provenance back into the browser graph.
+            const runtime = {
+              id: definition.id,
+              status: definition.status,
+              kind: definition.kind,
+              habitat: definition.habitat,
+              atmosphere: definition.atmosphere,
+              presentation: definition.presentation,
+              animation: definition.animation,
+              content: definition.content,
+              ...(definition.status === 'draft' ? { draftNotes: definition.draftNotes } : {}),
+            }
+            return `{...${JSON.stringify(runtime)},assets:{model:${modelUrl},modelBytes:${model.runtime.bytes},poster:${poster},posterPortrait:${posterPortrait},thumbnail:${thumbnail},backgrounds:{landscape:${landscape},portrait:${portrait}},narration:{${narration.join(',')}}}}`
+          })
+          return `${imports.join('\n')}\nexport const mainAnimals=[${entries.join(',')}]`
+        }
         if (source === previewId) {
           return previews.map((p, i) => `import preview${i} from '/src/content/animals/${p.id}/images/${p.file}?url'`).join('\n') + `\nexport const modelPreviewModules={${previews.map((p, i) => `${JSON.stringify(`../content/animals/${p.id}/images/${p.file}`)}:preview${i}`).join(',')}}`
         }
