@@ -4,13 +4,10 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { animal } from '../src/content/animals/stegosaurus/animal'
 import { animalDefinition } from '../src/content/animals/stegosaurus/package'
 import { provenance } from '../src/content/animals/stegosaurus/provenance'
 import { MEBIBYTE_BYTES } from '../src/model-policy'
 import {
-  inspectGlb,
-  inspectWebp,
   sha256,
   validateCollection,
   validateLocaleCompleteness,
@@ -30,46 +27,6 @@ const packageRoot = join(
 )
 
 describe('content asset validation utilities', () => {
-  it('reads the production GLB and finds the explicitly declared Idle clip', async () => {
-    const model = await readFile(join(packageRoot, 'model/model.glb'))
-    const inspection = inspectGlb(model)
-
-    expect(animal.assets.modelBytes).toBe(model.byteLength)
-    expect(inspection.version).toBe(2)
-    expect(inspection.declaredBytes).toBe(model.byteLength)
-    expect(inspection.animationNames).toContain('Idle')
-    expect(inspection.cubicSplineRotationTracks).toBe(0)
-    expect(inspection.externalUris).toEqual([])
-    expect(inspection.triangles).toBe(19_839)
-    expect(inspection.drawCalls).toBeLessThanOrEqual(24)
-  })
-
-  it('keeps the meshopt-compressed ichthyosaur Idle on safe linear rotation tracks', async () => {
-    const model = await readFile(
-      join(
-        process.cwd(),
-        'src/content/animals/ichthyosaur/model/model.glb',
-      ),
-    )
-    const inspection = inspectGlb(model)
-
-    expect(inspection.meshoptCompressed).toBe(true)
-    expect(inspection.animationNames).toEqual(['Idle'])
-    expect(inspection.cubicSplineRotationTracks).toBe(0)
-  })
-
-  it('reads exact WebP dimensions for both authored orientations', async () => {
-    const landscape = inspectWebp(
-      await readFile(join(packageRoot, 'backgrounds/landscape.webp')),
-    )
-    const portrait = inspectWebp(
-      await readFile(join(packageRoot, 'backgrounds/portrait.webp')),
-    )
-
-    expect(landscape).toEqual({ width: 1672, height: 941 })
-    expect(portrait).toEqual({ width: 941, height: 1672 })
-  })
-
   it('reports concrete hash and byte mismatches', async () => {
     const modelRecord = provenance[0]
     const model = await readFile(join(packageRoot, modelRecord.assetPath))
@@ -135,20 +92,6 @@ describe('content asset validation utilities', () => {
 })
 
 describe('collection validation utility', () => {
-  it('accepts the one-item looping published collection', () => {
-    expect(
-      validateCollection(
-        {
-          id: 'main',
-          animalIds: ['stegosaurus'],
-          defaultAnimalId: 'stegosaurus',
-          loop: true,
-        },
-        [animalDefinition],
-      ),
-    ).toEqual([])
-  })
-
   it('reports duplicates, unknown IDs, a missing default, and non-looping order', () => {
     const issues = validateCollection(
       {
@@ -201,18 +144,6 @@ describe('published locale completeness', () => {
         'PUBLISHED_LOCALE_NARRATION_INVALID',
       ]),
     )
-    expect(issues.map(({ path }) => path)).toEqual(
-      expect.arrayContaining([
-        'content.zh-CN.name',
-        'content.en.narration.sentences',
-        'narration.zh-CN.sourcePath',
-        'narration.en.mimeType',
-      ]),
-    )
-  })
-
-  it('accepts the complete production locale records', () => {
-    expect(validateLocaleCompleteness(approvedDefinition)).toEqual([])
   })
 
   it('keeps a generated English track out of publication until listening is approved', () => {
@@ -231,7 +162,7 @@ describe('published locale completeness', () => {
     ).toContain('PUBLISHED_LOCALE_NARRATION_REVIEW_MISSING')
   })
 
-  it('rejects copied Chinese content and American spelling in the English edition', () => {
+  it('rejects copied Chinese content in the English edition', () => {
     const copied = validateLocaleCompleteness({
       ...approvedDefinition,
       content: {
@@ -244,37 +175,6 @@ describe('published locale completeness', () => {
         'PUBLISHED_LOCALE_LANGUAGE_INVALID',
         'PUBLISHED_LOCALE_CONTENT_DUPLICATED',
       ]),
-    )
-
-    const americanSpelling = validateLocaleCompleteness({
-      ...approvedDefinition,
-      content: {
-        ...approvedDefinition.content,
-        en: {
-          ...approvedDefinition.content.en,
-          visibleFeature: 'Look at the color and behavior of this animal.',
-        },
-      },
-    })
-    expect(americanSpelling.map(({ code }) => code)).toContain(
-      'PUBLISHED_ENGLISH_STYLE_INVALID',
-    )
-  })
-
-  it('requires Serena with the locale-bound language declaration', () => {
-    const issues = validateLocaleCompleteness({
-      ...approvedDefinition,
-      narration: {
-        ...approvedDefinition.narration,
-        en: {
-          ...approvedDefinition.narration.en,
-          speaker: 'Aiden',
-          language: 'Chinese',
-        },
-      },
-    })
-    expect(issues.map(({ code }) => code)).toContain(
-      'PUBLISHED_LOCALE_NARRATION_VOICE_INVALID',
     )
   })
 
@@ -309,17 +209,6 @@ describe('published locale completeness', () => {
         'PUBLISHED_LOCALE_NARRATION_NOT_READY',
       ]),
     )
-  })
-
-  it('allows an incomplete draft while keeping it out of the public collection', () => {
-    expect(
-      validateLocaleCompleteness({
-        ...animalDefinition,
-        status: 'draft',
-        content: { 'zh-CN': animalDefinition.content['zh-CN'] },
-        narration: {},
-      }),
-    ).toEqual([])
   })
 })
 

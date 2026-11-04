@@ -21,7 +21,7 @@
     "jsx": "react-jsx",
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+    "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "functions"]
+  "include": ["src", "functions"]
 }

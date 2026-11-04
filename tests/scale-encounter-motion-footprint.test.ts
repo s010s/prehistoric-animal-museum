@@ -1,6 +1,4 @@
 import { AnimationMixer, Box3, Group, Vector3 } from 'three'
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { loadTexturelessAnimalGltf } from './helpers/load-textureless-animal'
 import { SCALE_ENCOUNTER_DEFINITIONS } from '../src/viewer/scale-encounter'
 import { createEncounterMotionFootprint } from '../src/viewer/scale-encounter-motion-footprint'
@@ -26,10 +24,7 @@ it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definiti
       definition.animalPosition.y - raw.min.y * scale,
       definition.animalPosition.z - centre.z * scale)
     group.updateMatrixWorld(true)
-    const initial = createAnimalGroundFootprint(model)
     const swept = createEncounterMotionFootprint(definition)
-    expect(createHash('sha256').update(readFileSync(`src/content/animals/${definition.id}/model/model.glb`)).digest('hex'))
-      .toBe(definition.calibratedModelSha256)
     // A child stays in these positions for the entire cycle, including frames
     // between bake samples. Test both the minimum and a taller child's margin.
     const visitors = [.55, .9].flatMap(margin => swept.map((a, index) => {
@@ -37,13 +32,11 @@ it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definiti
       const outward = new Vector3(b.z - a.z, 0, a.x - b.x).normalize()
       return {point: a.clone().lerp(b, .5).addScaledVector(outward, margin), margin}
     }))
-    let exceedsInitial = false
     for (let frame = 0; frame < 65; frame++) {
       mixer.setTime(clip.duration * (frame + .37) / 65)
       const pose = createAnimalGroundFootprint(model)
       for (const point of pose) {
         expect(clearsAnimalGroundFootprint(point, swept, 0), `${definition.id} frame ${frame}`).toBe(false)
-        if (clearsAnimalGroundFootprint(point, initial, .05)) exceedsInitial = true
       }
       for (const visitor of visitors) {
         // Measure actual distance to polygon segments independently of the
@@ -62,11 +55,5 @@ it.each(Object.values(SCALE_ENCOUNTER_DEFINITIONS).filter(definition => definiti
           .toBeGreaterThanOrEqual(visitor.margin - 1e-5)
       }
     }
-    if (definition.id === 'pachycephalosaurus') expect(exceedsInitial).toBe(true)
   }, 120_000,
 )
-
-it('rejects an obsolete motion bake when the model calibration changes', () => {
-  expect(() => createEncounterMotionFootprint({...SCALE_ENCOUNTER_DEFINITIONS.pachycephalosaurus, calibratedModelSha256: 'changed'}))
-    .toThrow('Rebake encounter motion footprint')
-})

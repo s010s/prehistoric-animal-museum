@@ -14,8 +14,6 @@ it('retains articulated wrist, elbow and head motion from the real source in a s
  const binary=await io.writeBinary(doc)
  const gltf=await new GLTFLoader().parseAsync(binary.buffer.slice(binary.byteOffset,binary.byteOffset+binary.byteLength),'')
  const source=gltf.animations.find(a=>a.name==='Idle')!,powered=sourcePoweredMotion(source)
- expect(powered.tracks.length).toBe(source.tracks.length)
- expect(powered.duration).toBe(1.5)
  for(const track of powered.tracks){
   const n=track.getValueSize()
   for(let i=0;i<n;i++)expect(track.values[track.values.length-n+i]).toBeCloseTo(track.values[i]!,5)

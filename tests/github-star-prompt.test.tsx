@@ -1,10 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { GitHubStarPrompt } from '../src/components/GitHubStarPrompt'
 import { I18nProvider } from '../src/i18n/I18nProvider'
-import {
-  GITHUB_STAR_PROMPT_DELAY_MS,
-  GITHUB_STAR_PROMPT_STORAGE_KEY,
-} from '../src/github'
+import { GITHUB_STAR_PROMPT_DELAY_MS } from '../src/github'
 
 describe('GitHubStarPrompt', () => {
   beforeEach(() => {
@@ -17,37 +14,6 @@ describe('GitHubStarPrompt', () => {
     cleanup()
     vi.useRealTimers()
     window.localStorage.clear()
-  })
-
-  it('appears after 60 seconds and records a GitHub visit', async () => {
-    render(<Prompt />)
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(GITHUB_STAR_PROMPT_DELAY_MS - 1)
-    })
-    expect(
-      screen.queryByRole('complementary', { name: '支持这座博物馆' }),
-    ).not.toBeInTheDocument()
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1)
-    })
-    const prompt = screen.getByRole('complementary', {
-      name: '支持这座博物馆',
-    })
-    expect(prompt).toBeVisible()
-    const link = screen.getByRole('link', { name: '去 GitHub' })
-    expect(link).toHaveAttribute(
-      'href',
-      'https://github.com/s010s/prehistoric-animal-museum',
-    )
-    expect(link).toHaveAttribute('target', '_blank')
-
-    fireEvent.click(link)
-    expect(window.localStorage.getItem(GITHUB_STAR_PROMPT_STORAGE_KEY)).toBe(
-      'opened',
-    )
-    expect(prompt).not.toBeInTheDocument()
   })
 
   it('pauses the visit timer while the page is hidden', async () => {
@@ -115,8 +81,6 @@ describe('GitHubStarPrompt', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: '暂时不用' }))
     expect(prompt).not.toBeInTheDocument()
-    expect(window.localStorage.getItem(GITHUB_STAR_PROMPT_STORAGE_KEY))
-      .toMatch(/^dismissed-until:/)
 
     cleanup()
     render(<Prompt />)

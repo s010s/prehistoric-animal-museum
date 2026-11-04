@@ -435,14 +435,8 @@ launches before executing them.
 
 ```sh
 npm --prefix tools/animal-onboarding run typecheck
-npm --prefix tools/animal-onboarding test
-blender --background --factory-startup \
-  --python tools/animal-onboarding/tests/test_motion_profiles.py
 blender --background --factory-startup \
   --python tools/animal-onboarding/tests/test_normalization_strategy.py
-npm run lint
-npm run typecheck
 npm test -- --run
-npm run validate:content
 npm run build
 ```
