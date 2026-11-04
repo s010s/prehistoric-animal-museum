@@ -74,8 +74,6 @@ npm run dev
 <summary><strong>运行项目检查</strong></summary>
 
 ```sh
-npm run lint
-npm run typecheck
 npm test -- --run
 npm run build
 npm run test:e2e

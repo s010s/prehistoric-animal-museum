@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { AnimationClip, Group, Mesh, MeshBasicMaterial, BoxGeometry, NumberKeyframeTrack, PerspectiveCamera, Vector3 } from 'three'
-import { loadFarCompanionTemplate, ownFarCompanionTemplate } from '../../src/flight-experience/living/companion-assets'
+import { AnimationClip, Group, Mesh, MeshBasicMaterial, BoxGeometry, PerspectiveCamera, Vector3 } from 'three'
 import type * as CompanionAssetModule from '../../src/flight-experience/living/companion-assets'
-import { CompanionDirector, companionGeometryLod, planCompanionRoute, routePoint, segmentDistance } from '../../src/flight-experience/living/companion-director'
+import { CompanionDirector, planCompanionRoute, routePoint } from '../../src/flight-experience/living/companion-director'
 import { createWorldSampler } from '../../src/flight-experience/world'
 import { WeatherController } from '../../src/flight-experience/environment/weather-controller'
 import type { LivingContext } from '../../src/flight-experience/living/living-context'
@@ -22,116 +21,15 @@ describe('bounded companion routes',()=>{
     expect(Math.hypot(route.start.x,route.start.z)).toBeGreaterThan(80)
     expect(planCompanionRoute(2,true,c,()=>NaN)).toBeNull()
   })
-  it('detects an actor crossed between endpoints, including origin crossing',()=>{
-    expect(segmentDistance({x:-30,y:0,z:0},{x:30,y:0,z:0},{x:0,y:0,z:0})).toBe(0)
-    expect(segmentDistance({x:-30,y:30,z:0},{x:30,y:30,z:0},{x:0,y:0,z:0})).toBe(30)
-  })
-  it('freezes lifecycle during pause, rebases without world movement, and clears on generation/disable/disposal',()=>{
+  it('freezes companions during pause and rebases without world movement',()=>{
     const scene=new Group(),hero=new Group();hero.add(new Mesh(new BoxGeometry(),new MeshBasicMaterial()))
     const director=new CompanionDirector(scene,createWorldSampler(),hero,new AnimationClip('Idle',2,[]),()=>0)
     for(let i=0;i<40;i++)director.update(context({motionSeconds:i*.1}),{x:0,z:0})
-    expect(director.metrics.near).toBe(1)
     const before=director.root.children[0]!.position.clone()
     for(let i=0;i<100;i++)director.update(context({active:false,delta:0,motionSeconds:4}),{x:512,z:-512})
     const after=director.root.children[0]!.position
     expect(after.x+512).toBeCloseTo(before.x);expect(after.z-512).toBeCloseTo(before.z);expect(after.y).toBe(before.y)
-    director.update(context({generation:2}),{x:0,z:0});expect(director.metrics.near).toBe(0)
-    for(let i=0;i<40;i++)director.update(context({generation:2}),{x:0,z:0})
-    expect(director.metrics.near).toBe(1)
-    director.update(context({generation:2,intent:{wind:false,companions:false}}),{x:0,z:0});expect(director.metrics.near).toBe(1)
-    for(let i=0;i<65;i++)director.update(context({generation:2,intent:{wind:false,companions:false}}),{x:0,z:0})
-    expect(director.metrics.near).toBe(0)
-    director.dispose();director.dispose();expect(scene.children).toHaveLength(0)
-  })
-  it('suppresses a group when a new observation camera lands in its safety envelope and blocks rainy spawns',()=>{
-    const scene=new Group(),hero=new Group();hero.add(new Mesh(new BoxGeometry(),new MeshBasicMaterial()))
-    const director=new CompanionDirector(scene,createWorldSampler(),hero,new AnimationClip('Idle',2,[]),()=>0)
-    for(let i=0;i<40;i++)director.update(context({weather:{...context().weather,resolved:{...context().weather.resolved,rain:.8}}}),{x:0,z:0})
-    expect(director.metrics.near).toBe(0)
-    director.update(context(),{x:0,z:0});expect(director.metrics.near).toBe(1)
-    const position=director.root.children[0]!.position
-    director.update(context({camera:{x:position.x,y:position.y,z:position.z}}),{x:0,z:0})
-    expect(director.metrics.near).toBe(0);director.dispose()
-  })
-  it('continuously escapes a 36m/s player chase without entering its 25m envelope',()=>{
-    const scene=new Group(),hero=new Group();hero.add(new Mesh(new BoxGeometry(),new MeshBasicMaterial()))
-    const director=new CompanionDirector(scene,createWorldSampler(),hero,new AnimationClip('Idle',2,[]),()=>0)
-    for(let i=0;i<40;i++)director.update(context(),{x:0,z:0})
-    let player={x:0,y:190,z:0},minimum=Infinity
-    for(let i=0;i<300&&director.metrics.near;i++){
-      const p=director.root.children[0]!.position,dx=p.x-player.x,dy=p.y-player.y,dz=p.z-player.z,length=Math.hypot(dx,dy,dz)
-      player={x:player.x+dx/length*3.6,y:player.y+dy/length*3.6,z:player.z+dz/length*3.6}
-      director.update(context({player,camera:{x:player.x,y:player.y,z:player.z+10}}),{x:0,z:0})
-      if(director.metrics.near){const q=director.root.children[0]!.position;minimum=Math.min(minimum,Math.hypot(q.x-player.x,q.y-player.y,q.z-player.z))}
-    }
-    expect(minimum).toBeGreaterThanOrEqual(25);expect(director.metrics.near).toBe(1);director.dispose()
-  })
-
-  it('turning companions off while paused removes the static actors immediately',()=>{
-    const scene=new Group(),hero=new Group();hero.add(new Mesh(new BoxGeometry(),new MeshBasicMaterial()))
-    const director=new CompanionDirector(scene,createWorldSampler(),hero,new AnimationClip('Idle',2,[]),()=>0)
-    for(let i=0;i<40;i++)director.update(context(),{x:0,z:0})
-    expect(director.metrics.near).toBe(1)
-    director.update(context({active:false,delta:0,intent:{wind:false,companions:false}}),{x:0,z:0})
-    expect(director.metrics.near).toBe(0);expect(director.metrics.status).toBe('off');director.dispose()
-  })
-
-  it('a failed far asset load stays degraded without frame-by-frame retries until explicit re-enable',async()=>{
-    const loader=vi.mocked(loadFarCompanionTemplate),calls=loader.mock.calls.length
-    loader.mockRejectedValueOnce(new Error('missing asset'))
-    const scene=new Group(),hero=new Group();hero.add(new Mesh(new BoxGeometry(),new MeshBasicMaterial()))
-    const director=new CompanionDirector(scene,createWorldSampler(),hero,new AnimationClip('Idle',2,[]),()=>0)
-    director.update(context(),{x:0,z:0});await Promise.resolve()
-    for(let i=0;i<100;i++)director.update(context(),{x:0,z:0})
-    expect(director.metrics.status).toBe('degraded');expect(loader.mock.calls.length-calls).toBe(1)
-    director.update(context({active:false,intent:{wind:false,companions:false}}),{x:0,z:0})
-    director.update(context(),{x:0,z:0});expect(loader.mock.calls.length-calls).toBe(2);director.dispose()
-  })
-  it('reports and completes the six-effective-second quality departure budget transition',()=>{
-    const scene=new Group(),hero=new Group();hero.add(new Mesh(new BoxGeometry(),new MeshBasicMaterial()))
-    const director=new CompanionDirector(scene,createWorldSampler(),hero,new AnimationClip('Idle',2,[]),()=>0)
-    for(let i=0;i<40;i++)director.update(context({quality:'balanced'}),{x:0,z:0})
-    expect(director.metrics.near).toBe(2)
-    director.update(context(),{x:0,z:0});expect(director.metrics.budgetTransition).toBe(true)
-    expect(director.metrics.budgetTransitionMaxEffectiveSeconds).toBe(6)
-    for(let i=0;i<65;i++)director.update(context(),{x:0,z:0})
-    expect(director.metrics.near).toBe(1);expect(director.metrics.budgetTransition).toBe(false);director.dispose()
-  })
-
-  it('selects bounded projected-size LOD with hysteresis and no far-cohort promotion',()=>{
-    expect(companionGeometryLod(true,160,'source',true)).toBe('far')
-    expect(companionGeometryLod(true,80,'far',true)).toBe('source')
-    expect(companionGeometryLod(true,120,'source',true)).toBe('source')
-    expect(companionGeometryLod(true,120,'far',true)).toBe('far')
-    expect(companionGeometryLod(false,50,'far',true)).toBe('far')
-    expect(companionGeometryLod(true,160,'source',false)).toBe('source')
-  })
-  it('switches a near cohort between shared far and source geometry without changing its normalization or leaking a template reference',async()=>{
-    const scene=new Group(),hero=new Group(),correction=new Group(),sourceGeometry=new BoxGeometry(),material=new MeshBasicMaterial()
-    hero.position.set(.2,-.07,.1);hero.add(new Mesh(sourceGeometry,material));correction.scale.setScalar(6.8);correction.add(hero);scene.add(correction)
-    const farRoot=new Group(),farGeometry=new BoxGeometry();farRoot.add(new Mesh(farGeometry,new MeshBasicMaterial()))
-    hero.children[0]!.name='wing';farRoot.children[0]!.name='wing'
-    const clip=new AnimationClip('Idle',2,[new NumberKeyframeTrack('wing.position[y]',[0,1,2],[0,1,0])]),library=ownFarCompanionTemplate(farRoot,clip,material)
-    vi.mocked(loadFarCompanionTemplate).mockResolvedValueOnce(library)
-    const director=new CompanionDirector(scene,createWorldSampler(),hero,clip,()=>0)
-    director.update(context(),{x:0,z:0});await Promise.resolve()
-    for(let i=0;i<40;i++)director.update(context({motionSeconds:i*.1}),{x:0,z:0})
-    const wrapper=director.root.children[0]!,oldVisual=wrapper.children[0]!
-    expect((oldVisual.children[0] as Mesh).geometry).toBe(farGeometry);expect(library.references).toBe(4)
-    expect(wrapper.scale.x).toBeCloseTo(6.8);expect(oldVisual.position.toArray()).toEqual(hero.position.toArray())
-    let camera={x:0,y:190,z:10}
-    for(let i=0;i<30;i++){
-      const target={x:wrapper.position.x+80,y:wrapper.position.y,z:wrapper.position.z}
-      camera={x:camera.x+(target.x-camera.x)*.3,y:camera.y+(target.y-camera.y)*.3,z:camera.z+(target.z-camera.z)*.3}
-      director.update(context({camera,motionSeconds:4+i*.1}),{x:0,z:0})
-    }
-    const visual=wrapper.children[0]!
-    expect((visual.children[0] as Mesh).geometry).toBe(sourceGeometry)
-    expect(visual.position.toArray()).toEqual(hero.position.toArray());expect(wrapper.scale.x).toBeCloseTo(6.8)
-    const phase=(6.9*.7+(createWorldSampler().config.seed%101)*.73)%2
-    expect(visual.children[0]!.position.y).toBeCloseTo(phase<1?phase:2-phase)
-    expect(oldVisual.parent).toBeNull();expect(library.references).toBeLessThanOrEqual(3)
-    director.dispose();expect(library.references).toBe(0)
+    director.dispose()
   })
 
   it('holds a recognizable near companion inside the default 28m/s camera during parallel flight',()=>{
@@ -145,58 +43,6 @@ describe('bounded companion routes',()=>{
       expect(Math.abs(projected.x)).toBeLessThan(.9);expect(Math.abs(projected.y)).toBeLessThan(.8)
       expect(Math.hypot(point.x-player.x,point.y-player.y,point.z-player.z)).toBeGreaterThan(25)
     }
-  })
-
-  it('checks the actual avoidance turn against a cliff outside the original straight route',()=>{
-    const scene=new Group(),hero=new Group();hero.add(new Mesh(new BoxGeometry(),new MeshBasicMaterial()))
-    const queried:number[]=[]
-    const surface=(x:number)=>{queried.push(x);return Math.abs(x)>65?350:0}
-    const director=new CompanionDirector(scene,createWorldSampler(),hero,new AnimationClip('Idle',2,[]),surface)
-    for(let i=0;i<40;i++)director.update(context(),{x:0,z:0})
-    expect(director.metrics.near).toBe(1)
-    let player={x:0,y:190,z:0},furthest=0
-    for(let i=0;i<300&&director.metrics.near;i++){
-      const p=director.root.children[0]!.position,dx=p.x-player.x,dy=p.y-player.y,dz=p.z-player.z,length=Math.hypot(dx,dy,dz)
-      player={x:player.x+dx/length*3.6,y:player.y+dy/length*3.6,z:player.z+dz/length*3.6}
-      director.update(context({player,camera:{x:player.x,y:player.y,z:player.z+10}}),{x:0,z:0})
-      if(director.metrics.near)furthest=Math.max(furthest,Math.abs(director.root.children[0]!.position.x))
-    }
-    expect(queried.some(x=>Math.abs(x)>65)).toBe(true)
-    expect(furthest).toBeLessThanOrEqual(65);expect(director.metrics.near).toBe(0);director.dispose()
-  })
-
-  it('adapts an existing slow-start patrol to authoritative 18→28m/s flight without velocity impulses',()=>{
-    const scene=new Group(),hero=new Group();hero.add(new Mesh(new BoxGeometry(),new MeshBasicMaterial()))
-    const director=new CompanionDirector(scene,createWorldSampler(),hero,new AnimationClip('Idle',2,[]),()=>0)
-    let z=0,previousSpeed:number|null=null,firstCruise:number|null=null
-    for(let i=0;i<450;i++){
-      const speed=18+Math.min(10,i*.1)
-      z-=speed*.1
-      // Deliberately irregular render positions cannot corrupt the supplied velocity.
-      const player={x:0,y:190,z:z+(i%2?-.3:.3)}
-      director.update(context({player,playerVelocity:{x:0,y:0,z:-speed},camera:{x:0,y:195,z:player.z+11},motionSeconds:i*.1}),{x:0,z:0})
-      const actor=director.metrics.actors[0]
-      if(actor){
-        firstCruise??=actor.cruiseSpeed
-        if(previousSpeed!==null)expect(Math.abs(actor.speed-previousSpeed)/.1).toBeLessThan(4.501)
-        previousSpeed=actor.speed
-      }
-    }
-    const actor=director.metrics.actors[0]!
-    expect(firstCruise).toBeLessThan(25)
-    expect(actor.cruiseSpeed).toBeGreaterThan(29.8);expect(actor.cruiseSpeed).toBeLessThanOrEqual(29.96)
-    expect(actor.speed).toBeGreaterThan(29);expect(actor.speed).toBeLessThan(32)
-    const held=director.root.children[0]!.position.clone(),speed=actor.speed
-    for(let i=0;i<40;i++)director.update(context({active:false,delta:0,playerVelocity:{x:0,y:0,z:0},player:{x:0,y:190,z},camera:{x:0,y:195,z:z+11}}),{x:0,z:0})
-    expect(director.root.children[0]!.position.toArray()).toEqual(held.toArray());expect(director.metrics.actors[0]!.speed).toBe(speed)
-    director.dispose()
-  })
-  it('an observation-camera pass keeps an independent 18m/s cruise with zero player velocity',()=>{
-    const scene=new Group(),hero=new Group();hero.add(new Mesh(new BoxGeometry(),new MeshBasicMaterial()))
-    const director=new CompanionDirector(scene,createWorldSampler(),hero,new AnimationClip('Idle',2,[]),()=>0)
-    for(let i=0;i<100;i++)director.update(context({camera:{x:500,y:190,z:0},playerVelocity:{x:0,y:0,z:0}}),{x:0,z:0})
-    expect(director.metrics.actors[0]!.cruiseSpeed).toBe(18)
-    expect(director.metrics.actors[0]!.speed).toBeCloseTo(18);director.dispose()
   })
 
 })

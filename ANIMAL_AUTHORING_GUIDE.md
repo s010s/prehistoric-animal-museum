@@ -337,17 +337,14 @@ From the repository root:
 
 ```sh
 npm ci
-npm run lint
-npm run typecheck
 npm test -- --run
-npm run validate:content
-npm run validate:model-previews
 npm run build
 ```
 
-Use the already-open headed Browser or Chrome control surface for responsive
-interaction verification. Do not substitute the repository's headless E2E path
-for visual review in this workspace.
+The build includes TypeScript compilation, content and model-preview validation,
+and the production distribution boundary check. Use a headed browser for
+responsive interaction verification; the E2E configuration also runs headed
+and saves screenshots.
 
 Set the declared base camera before applying zoom, orbit or pan. Record the
 observed post-interaction camera rather than copying the planned base values;

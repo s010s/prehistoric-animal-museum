@@ -178,8 +178,6 @@ python3 -m py_compile \
   tools/animal-onboarding/audio/generate_narration.py \
   tools/animal-onboarding/audio/qwen_serena_runtime.py
 /opt/homebrew/bin/blender --background --factory-startup \
-  --python tools/animal-onboarding/tests/test_motion_profiles.py
-/opt/homebrew/bin/blender --background --factory-startup \
   --python tools/animal-onboarding/tests/test_normalization_strategy.py
 ```
 

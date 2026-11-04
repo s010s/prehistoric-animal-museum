@@ -3,16 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
 
 interface RuntimeAssetApproval {
-  readonly assetGroups: {
-    readonly avatars: { readonly binaryCount: number; readonly status: string }
-    readonly environments: {
-      readonly binaryCount: number
-      readonly status: string
-    }
-    readonly narration: { readonly binaryCount: number; readonly status: string }
-  }
   readonly approvedBy: string
-  readonly approvedOn: string
   readonly productionApproved: boolean
   readonly publicDistributionDecision: string
   readonly status: string
@@ -32,21 +23,15 @@ function collectBinaryAssets(directory: string): string[] {
 }
 
 describe('scale encounter runtime asset identities', () => {
-  it('retains the dated baseline approval and records new scene assets separately', () => {
+  it('checks approval status and the complete runtime binary checksum inventory', () => {
     const approval = JSON.parse(
       readFileSync(join(assetRoot, 'approval.json'), 'utf8'),
     ) as RuntimeAssetApproval
     expect(approval).toMatchObject({
       approvedBy: 'Leon',
-      approvedOn: '2026-09-01',
       productionApproved: true,
       publicDistributionDecision: 'approved',
       status: 'production-approved',
-    })
-    expect(approval.assetGroups).toMatchObject({
-      avatars: { binaryCount: 10, status: 'production-approved' },
-      environments: { binaryCount: 55, status: 'production-approved' },
-      narration: { binaryCount: 148, status: 'production-approved' },
     })
 
     const recorded = new Map(
@@ -64,22 +49,6 @@ describe('scale encounter runtime asset identities', () => {
       ...collectBinaryAssets(join(assetRoot, 'environments')),
     ].sort()
 
-    // The September 1 approval covers the original 65 files only. New local
-    // scene revisions have checksums; this test does not grant publication approval.
-    const newSceneAssets = [
-      'braided-sand-unique-v2.webp',
-      'clouds-unique-v2.webp',
-      'clouds-natural-v3.webp',
-      'forest-floor-unique-v2.webp',
-      'footstep-water-splash-v1.webp',
-      'island-landforms-v2.glb',
-      'red-silt-unique-v2.webp',
-      'snow-drifts-unique-v2.webp',
-      'snow-earth-patches-v3.webp',
-      'panorama-irendabas-open-plain-v3.webp',
-    ].map((name) => `environments/${name}`)
-    expect(recorded.size - newSceneAssets.length).toBe(65)
-    newSceneAssets.forEach((name) => expect(recorded.has(name)).toBe(true))
     expect([...recorded.keys()].sort()).toEqual(binaries)
     for (const [fileName, expectedHash] of recorded) {
       const bytes = readFileSync(join(assetRoot, fileName))

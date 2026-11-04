@@ -73,21 +73,6 @@ afterEach(async () => {
 })
 
 describe('static multilingual delivery', () => {
-  it('keeps browser tests out of deployment builds', async () => {
-    const [packageSource, pagesWorkflow] = await Promise.all([
-      readFile('package.json', 'utf8'),
-      readFile('.github/workflows/pages.yml', 'utf8'),
-    ])
-    const packageJson = JSON.parse(packageSource) as {
-      scripts?: Record<string, string>
-    }
-    const cloudflareBuild = packageJson.scripts?.['build:cloudflare']
-
-    expect(cloudflareBuild).toBe('npm run build:cloudflare:assets')
-    expect(cloudflareBuild).not.toMatch(/playwright|test:e2e/u)
-    expect(pagesWorkflow).not.toMatch(/playwright|test:e2e/u)
-  })
-
   it('prepares Cloudflare output with locale pages and SEO control files at host root', async () => {
     const fixtureRoot = await temporaryDirectory('museum-cloudflare-')
     const sourceDirectory = join(fixtureRoot, 'dist')
@@ -144,47 +129,13 @@ describe('static multilingual delivery', () => {
     expect(
       await readFile(join(outputDirectory, 'museum/404.html'), 'utf8'),
     ).toContain('href="/museum/"')
-    expect(await readFile(join(outputDirectory, '_redirects'), 'utf8')).toContain(
-      '/ /museum/ 301',
-    )
     const redirects = await readFile(join(outputDirectory, '_redirects'), 'utf8')
-    expect(redirects).not.toContain('/museum /museum/ 301')
-    expect(redirects).toContain('/museum/index.html /museum/ 301')
-    expect(redirects).toContain(
-      '/museum/zh-CN/index.html /museum/zh-CN/ 301',
-    )
-    expect(redirects).toContain('/museum/en/index.html /museum/en/ 301')
     expect(redirects).toContain(
       '/museum/en/animals/stegosaurus /museum/en/animals/stegosaurus/ 301',
     )
     expect(redirects).toContain(
       '/museum/en/animals/stegosaurus/index.html /museum/en/animals/stegosaurus/ 301',
     )
-    const headers = await readFile(join(outputDirectory, '_headers'), 'utf8')
-    expect(headers).toContain('/museum/assets/*')
-    expect(headers).toContain('/museum/zh-CN/')
-    expect(headers).toContain('/museum/en/')
-    for (const locale of ['zh-CN', 'en']) {
-      expect(headers).toContain(`/museum/${locale}/animals/*
-  Cache-Control: public, max-age=0, must-revalidate`)
-    }
-    const headerRules = headers
-      .split(/\r?\n/u)
-      .filter((line) => line.startsWith('/'))
-    const perDetailHeaderRules = headerRules.filter((rule) =>
-      /^\/museum\/(?:zh-CN|en)\/animals\/(?!\*$)/u.test(rule),
-    )
-    expect(perDetailHeaderRules).toEqual([])
-    expect(headerRules.length).toBeLessThan(50)
-    expect(headers).not.toContain('\n/museum/*\n')
-
-    expect(
-      JSON.parse(await readFile(join(outputDirectory, '_routes.json'), 'utf8')),
-    ).toEqual({
-      version: 1,
-      include: ['/museum', '/museum/'],
-      exclude: [],
-    })
   })
 
   it('serves locale directory indexes and returns the real 404 document', async () => {

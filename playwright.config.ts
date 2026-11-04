@@ -8,7 +8,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : 3,
+  workers: 1,
   reporter: [
     ['list'],
     ['html', { open: 'never' }],
@@ -18,8 +18,8 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${port}${nestedBase}`,
     locale: 'zh-CN',
     trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
-    headless: Boolean(process.env.CI) || process.env.MUSEUM_E2E_HEADLESS === '1',
+    screenshot: 'on',
+    headless: false,
     channel: process.env.CI ? undefined : 'chrome',
   },
   projects: [

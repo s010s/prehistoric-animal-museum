@@ -40,9 +40,17 @@ required by section 13.
 Before opening a pull request:
 
 1. keep private work areas and unreviewed assets out of Git;
-2. make the smallest coherent change and add or update tests;
+2. make the smallest coherent change; keep or change a test only when it proves
+   a product assumption, a domain rule, or a build and release requirement;
 3. run the relevant checks listed in the README;
 4. explain any user-visible, privacy, accessibility, or license impact.
+
+A retained test must show a concrete consequence if its assumption is broken.
+Prefer an end-to-end scenario over another check of the same behavior in
+isolation. Do not add tests that lock source text, markup, styling, internal
+calls, rendering parameters, or the configuration of a past prototype.
+TypeScript compilation and checks of actual release artifacts remain part of
+the build.
 
 ## New animals and original museum content
 

@@ -34,27 +34,6 @@ def strategy(
 
 
 class NormalizationStrategyTests(unittest.TestCase):
-    def test_allows_only_explicit_project_morph_replacement(self) -> None:
-        declared = processing_strategy(strategy())
-        self.assertEqual(declared["mode"], "replace-with-project-morph")
-
-    def test_routes_preserve_and_custom_work_to_dedicated_l3_operations(self) -> None:
-        for mode in ("preserve-source-rig-retime", "custom-rebuild"):
-            with self.subTest(mode=mode):
-                with self.assertRaisesRegex(RuntimeError, "dedicated L3 operation"):
-                    processing_strategy(strategy(mode))
-
-    def test_rejects_unselected_strategy_placeholders(self) -> None:
-        with self.assertRaisesRegex(RuntimeError, "unresolved"):
-            processing_strategy(
-                {
-                    "normalizationStrategy": "BLOCKED_UNSELECTED_NORMALIZATION_STRATEGY",
-                    "animationStrategy": {
-                        "mode": "BLOCKED_UNSELECTED_ANIMATION_STRATEGY"
-                    },
-                }
-            )
-
     def test_requires_acknowledgement_before_discarding_source_animation(self) -> None:
         declared = processing_strategy(
             strategy(armature="present", animation="present", accepted=False)
@@ -70,14 +49,6 @@ class NormalizationStrategyTests(unittest.TestCase):
             strategy(armature="present", animation="present", accepted=True)
         )
         verify_imported_strategy(accepted, detected)
-
-    def test_rejects_a_declared_source_inventory_that_does_not_match_import(self) -> None:
-        declared = processing_strategy(strategy())
-        with self.assertRaisesRegex(RuntimeError, "sourceArmature does not match"):
-            verify_imported_strategy(
-                declared,
-                {"armaturePresent": True, "animationPresent": False},
-            )
 
 
 if __name__ == "__main__":

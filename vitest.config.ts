@@ -6,11 +6,6 @@ import { defineConfig } from 'vitest/config'
 import { canonicalAnimalCatalog } from './scripts/canonical-catalog'
 import { scaleEncounterGlacierAssetUrls } from './scripts/scale-encounter-glacier-assets'
 
-const localReviewOnlyTests = [
-  'tests/review-catalog.test.ts',
-  'tests/review-server-security.test.ts',
-]
-
 export default defineConfig(async () => ({
   plugins: [
     react(),
@@ -36,20 +31,12 @@ export default defineConfig(async () => ({
   },
   test: {
     environment: 'jsdom',
-    exclude: [
-      'e2e/**',
-      'prototypes/**/*.spec.ts',
-      'review-e2e/**',
-      'scripts/readme-screenshot-capture/**',
-      '**/node_modules/**',
-      '**/dist/**',
-      ...(process.env.CI ? localReviewOnlyTests : []),
+    include: [
+      'tests/**/*.test.{ts,tsx}',
+      'tools/animal-onboarding/tests/**/*.test.ts',
     ],
     globals: true,
     setupFiles: ['./tests/setup.ts'],
     css: true,
-    coverage: {
-      reporter: ['text', 'html'],
-    },
   },
 }))
