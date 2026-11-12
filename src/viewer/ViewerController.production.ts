@@ -1,4 +1,5 @@
 import { preparePterosaurMotion } from './pterosaur-motion'
+import { CameraReframe } from './CameraReframe'
 import {
   ACESFilmicToneMapping,
   AnimationMixer,
@@ -468,6 +469,7 @@ export class ViewerController {
   private readonly scene = new Scene()
   private readonly renderer: WebGLRenderer
   private readonly controls: OrbitControls
+  private readonly cameraReframe = new CameraReframe(this.camera, () => this.controls.target)
   private readonly cameraKeyLight = new DirectionalLight(
     '#fff0ce',
     CAMERA_KEY_INTENSITY,
@@ -485,6 +487,7 @@ export class ViewerController {
   private readonly handleReducedMotionChange = () => {
     const wasReduced = this.reducedMotion
     this.reducedMotion = this.reducedMotionQuery.matches
+    if (this.reducedMotion) this.cameraReframe.finish()
     if (wasReduced && !this.reducedMotion) {
       this.resumeRotationAt = 0
     }
@@ -500,6 +503,7 @@ export class ViewerController {
     this.stopLoop()
   }
   private readonly handleControlStart = () => {
+    this.cameraReframe.cancel()
     this.resumeRotationAt = Number.POSITIVE_INFINITY
     this.controls.autoRotate = false
   }
@@ -762,6 +766,7 @@ export class ViewerController {
     // incoming model and makes the still-visible outgoing animal jump in size.
     // Instead, retain whichever model is actually visible as the next
     // transition's outgoing model.
+    this.cameraReframe.cancel()
     this.cancelTransitionForReplacement()
     const previous = this.current
     this.scene.add(staged.group)
@@ -831,7 +836,16 @@ export class ViewerController {
     this.renderer.domElement.setAttribute('aria-label', label)
   }
 
-  reset(): void {
+  resetView(duration: number, onFinish?: () => void): void {
+    if (!this.current || (this.transition && !this.transition.cameraSwitched)) return
+    const animated = duration > 0 && !this.reducedMotionQuery.matches
+    this.cameraReframe.start(animated ? duration : 0, true, onFinish)
+    this.reset(true)
+    if (!animated) onFinish?.()
+  }
+
+  reset(preserveReframe = false): void {
+    if (!preserveReframe) this.cameraReframe.cancel()
     if (this.transition && !this.transition.cameraSwitched) {
       return
     }
@@ -991,6 +1005,7 @@ export class ViewerController {
     if (!current) {
       return
     }
+    const visibleCamera = this.cameraReframe.beforeFit()
     const previousAutoRotate = this.controls.autoRotate
     const previousDamping = this.controls.enableDamping
     this.controls.autoRotate = false
@@ -1113,6 +1128,7 @@ export class ViewerController {
     this.controls.update()
     this.controls.enableDamping = previousDamping
     this.controls.autoRotate = previousAutoRotate
+    this.cameraReframe.afterFit(visibleCamera)
   }
 
   private confirmInitialFrame(animalId: string): void {
@@ -1322,7 +1338,7 @@ export class ViewerController {
           morphTargetWeights.join(';')
       }
       this.updateTransition(time)
-      this.controls.update()
+      if (!this.cameraReframe.update(time)) this.controls.update()
       this.updateCameraLighting()
       this.renderer.render(this.scene, this.camera)
     })

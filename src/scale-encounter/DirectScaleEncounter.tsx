@@ -22,9 +22,11 @@ import {
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type RefObject,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
@@ -33,6 +35,11 @@ import type { AtmosphereKind } from '../content/types'
 import type { Locale } from '../i18n/locale'
 import { observeExpansionNarrationMedia } from '../review/expansion-narration-audio'
 import { observeCandidateNarrationMedia } from '../audio/candidate-media-observation'
+import { usePanelMotion } from '../components/usePanelMotion'
+import { useMovingHighlight } from '../components/useMovingHighlight'
+import {
+  encounterCurve, motionTime, playMotion, readOrigin, reducedMotion, sheetCurve, type MotionOrigin,
+} from '../motion'
 import type { ViewerController } from '../viewer/ViewerController'
 import {
   SCALE_ENCOUNTER_DEFINITIONS,
@@ -96,7 +103,10 @@ export interface DirectScaleEncounterProps {
   readonly animal: DirectScaleEncounterAnimal
   readonly controller: ViewerController
   readonly locale: Locale
+  readonly motionOrigin: RefObject<MotionOrigin | null>
+  readonly motionTrigger: RefObject<HTMLElement | null>
   readonly onClose: () => void
+  readonly onMotionIcon: (icon: SVGSVGElement | null) => void
   readonly onPresentationStateChange: (
     state: 'setup' | 'active' | 'transition',
   ) => void
@@ -294,7 +304,10 @@ export function DirectScaleEncounter({
   animal,
   controller,
   locale,
+  motionOrigin,
+  motionTrigger,
   onClose,
+  onMotionIcon,
   onPresentationStateChange,
   onProfileChange,
   onScenePresentationChange,
@@ -334,8 +347,20 @@ export function DirectScaleEncounter({
     useState<ScaleEncounterPerspective>(() =>
       defaultPerspectiveForAnimal(),
     )
+  const perspectiveSwitch = useRef<HTMLDivElement>(null)
+  const perspectiveKeyboard = useRef(false)
+  const perspectiveTarget = useRef<ScaleEncounterPerspective | null>(null)
+  const hasPerspectiveSwitch = phase === 'arrival' || phase === 'eyes' || phase === 'switching'
+  useMovingHighlight({
+    root: perspectiveSwitch,
+    selected: hasPerspectiveSwitch ? activePerspective : null,
+    attribute: 'data-perspective-choice', variant: 'perspective', keyboard: perspectiveKeyboard,
+  })
   const [caption, setCaption] = useState<string | null>(null)
   const [captionVisible, setCaptionVisible] = useState(false)
+  const captionNode = useRef<HTMLElement>(null)
+  const captionStart = useRef<number | null>(null)
+  const captionMotion = useRef<Animation | null>(null)
   const [environmentVariant, setEnvironmentVariant] =
     useState<ScaleEncounterEnvironmentVariant>(() =>
       initialScaleEncounterEnvironmentVariant(animal.id),
@@ -360,6 +385,12 @@ export function DirectScaleEncounter({
   const dialogRef = useRef<HTMLElement>(null)
   const playbackSettingsRef = useRef<HTMLDivElement>(null)
   const setupTitleRef = useRef<HTMLHeadingElement>(null)
+  const setupCard = useRef<HTMLDivElement>(null)
+  const setupOrigin = useRef(motionOrigin.current)
+  const setupMotion = usePanelMotion({
+    open: phase === 'setup', panel: setupCard, trigger: motionTrigger,
+    origin: setupOrigin, phone: 500, desktop: 330, easing: encounterCurve, collapse: false,
+  })
   const primaryActionRef = useRef<HTMLButtonElement>(null)
   const contextActionRef = useRef<HTMLButtonElement>(null)
   const contextActionPointerRef = useRef<number | null>(null)
@@ -420,6 +451,7 @@ export function DirectScaleEncounter({
 
   const setPresentationState = useCallback(
     (nextPhase: ExperiencePhase) => {
+      captionStart.current = captionNode.current?.getBoundingClientRect().bottom ?? null
       setPhase(nextPhase)
       onPresentationStateChange(
         nextPhase === 'setup' ||
@@ -433,6 +465,20 @@ export function DirectScaleEncounter({
     },
     [onPresentationStateChange],
   )
+
+  useLayoutEffect(() => {
+    const start = captionStart.current
+    const node = captionNode.current
+    captionStart.current = null
+    captionMotion.current?.cancel()
+    if (start === null || !node || reducedMotion()) return
+    const delta = start - node.getBoundingClientRect().bottom
+    if (Math.abs(delta) < 1) return
+    captionMotion.current = playMotion(node, [{ translate: `0 ${delta}px` }, { translate: 'none' }],
+      { duration: motionTime(420, 280), easing: sheetCurve })
+  }, [phase])
+
+  useLayoutEffect(() => () => captionMotion.current?.cancel(), [])
 
   const syncScenePresentation = useCallback(() => {
     const snapshot = controller.getScaleEncounterSnapshot()
@@ -558,6 +604,7 @@ export function DirectScaleEncounter({
     stopActiveAudio()
     sequenceRef.current?.abort()
     sequenceRef.current = null
+    perspectiveTarget.current = null
   }, [stopActiveAudio])
 
   const releaseCandidateLease = useCallback((markUnavailable = false) => {
@@ -1376,14 +1423,15 @@ export function DirectScaleEncounter({
     async (targetPerspective: ScaleEncounterPerspective) => {
       if (
         !startedRef.current ||
-        !['arrival', 'eyes'].includes(phase) ||
-        targetPerspective === activePerspective
+        !['arrival', 'eyes', 'switching'].includes(phase) ||
+        targetPerspective === (perspectiveTarget.current ?? activePerspective)
       ) {
         return
       }
       cancelSequence()
       const run = new AbortController()
       sequenceRef.current = run
+      perspectiveTarget.current = targetPerspective
       const previousPerspective = activePerspective
       const lineKind: GuidedLineKind =
         targetPerspective === 'child-eyes'
@@ -1421,6 +1469,7 @@ export function DirectScaleEncounter({
         }
       } finally {
         if (sequenceRef.current === run) {
+          perspectiveTarget.current = null
           sequenceRef.current = null
         }
       }
@@ -1765,7 +1814,7 @@ export function DirectScaleEncounter({
 
       <header className="scale-encounter-topbar">
         <div className="scale-encounter-brand">
-          <span aria-hidden="true"><Scaling size={20} strokeWidth={2.3} /></span>
+          <span aria-hidden="true"><Scaling ref={onMotionIcon} size={20} strokeWidth={2.3} /></span>
           <div>
             <strong>{content.copy.title}</strong>
             <small>{content.sceneLabel}</small>
@@ -1863,7 +1912,10 @@ export function DirectScaleEncounter({
           {phase !== 'setup' && phase !== 'error' ? (
             <button
               aria-label={locale === 'zh-CN' ? '重新设置' : 'Set up again'}
-              onClick={resetProfile}
+              onClick={(event) => {
+                setupOrigin.current = readOrigin(event.currentTarget, event.detail === 0)
+                resetProfile()
+              }}
               type="button"
             >
               <RotateCcw aria-hidden="true" size={18} />
@@ -1922,18 +1974,21 @@ export function DirectScaleEncounter({
         )
       ) : null}
 
-      {phase !== 'setup' && phase !== 'error' &&
-      viewIsPov &&
-      !isTransitionPhase(phase) ? (
+      {hasPerspectiveSwitch ? (
         <div
           aria-label={content.copy.viewSwitcherLabel}
           className="scale-encounter-perspective-switch"
+          ref={perspectiveSwitch}
           role="group"
         >
           <button
             aria-pressed={activePerspective === 'child-eyes'}
             data-active={activePerspective === 'child-eyes' || undefined}
-            onClick={() => void switchPerspective('child-eyes')}
+            data-perspective-choice="child-eyes"
+            onClick={(event) => {
+              perspectiveKeyboard.current = event.detail === 0
+              void switchPerspective('child-eyes')
+            }}
             type="button"
           >
             <Eye aria-hidden="true" size={17} />
@@ -1942,12 +1997,19 @@ export function DirectScaleEncounter({
           <button
             aria-pressed={activePerspective === 'child-rear'}
             data-active={activePerspective === 'child-rear' || undefined}
-            onClick={() => void switchPerspective('child-rear')}
+            data-perspective-choice="child-rear"
+            onClick={(event) => {
+              perspectiveKeyboard.current = event.detail === 0
+              void switchPerspective('child-rear')
+            }}
             type="button"
           >
             <PersonStanding aria-hidden="true" size={17} />
             <span>{content.copy.childRearView}</span>
           </button>
+          <span aria-live="polite" className="sr-only">
+            {phase === 'switching' ? (locale === 'zh-CN' ? '正在切换视角' : 'Changing viewpoint') : ''}
+          </span>
         </div>
       ) : phase !== 'setup' && phase !== 'error' ? (
         <div className="scale-encounter-mode-chip">
@@ -1959,9 +2021,14 @@ export function DirectScaleEncounter({
         </div>
       ) : null}
 
-      {phase === 'setup' ? (
-        <div className="scale-encounter-setup-layer">
-          <div className="scale-encounter-setup-card">
+      {setupMotion.present ? (
+        <div
+          aria-hidden={setupMotion.exiting || undefined}
+          className="scale-encounter-setup-layer"
+          data-exiting={setupMotion.exiting || undefined}
+          inert={setupMotion.exiting || undefined}
+        >
+          <div className="scale-encounter-setup-card" ref={setupCard}>
             <h2 ref={setupTitleRef} tabIndex={-1}>{content.copy.setup.title}</h2>
             <p>{content.copy.setup.subtitle}</p>
 
@@ -2113,6 +2180,7 @@ export function DirectScaleEncounter({
           className="scale-encounter-caption"
           data-visible={captionVisible}
           data-stage={phase}
+          ref={captionNode}
         >
           <span aria-hidden="true" className="scale-encounter-voice-orb">
             <i /><i /><i />

@@ -23,8 +23,8 @@ export class ViewTransition {
       } catch { /* Navigation remains available if a browser cannot copy the frame. */ }
       action(); this.changed()
     } else if (settled && this.canvas && !this.fade) {
-      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){this.release();this.changed()}
-      else this.fade=setTimeout(()=>{this.fade=null;this.release();this.changed()},320)
+      const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 170 : 320
+      this.fade=setTimeout(()=>{this.fade=null;this.release();this.changed()},duration)
     }
   }
   cancelPending() { if (this.action) { this.action = null; this.changed() } }

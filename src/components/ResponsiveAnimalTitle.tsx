@@ -101,7 +101,7 @@ export function ResponsiveAnimalTitle({
   }, [children, locale])
 
   return (
-    <Heading className="animal-title" ref={titleRef}>
+    <Heading className="animal-title" ref={titleRef} tabIndex={-1}>
       {children}
     </Heading>
   )

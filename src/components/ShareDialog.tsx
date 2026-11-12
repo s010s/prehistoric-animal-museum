@@ -1,8 +1,10 @@
 import { ArrowRight, Check, Image as ImageIcon, Link2, X } from 'lucide-react'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { Locale } from '../i18n/locale'
 import { museumOfficialUrl } from '../official-links'
+import { settleCurve, type MotionOrigin } from '../motion'
+import { usePanelMotion } from './usePanelMotion'
 import './share-dialog.css'
 
 interface ShareAnimal {
@@ -16,8 +18,11 @@ interface ShareAnimal {
 interface ShareDialogProps {
   animal: ShareAnimal
   locale: Locale
+  motionOrigin: RefObject<MotionOrigin | null>
   onClose: () => void
+  open: boolean
   returnFocusTo: RefObject<HTMLElement | null>
+  visit: number
 }
 
 const focusableSelector = [
@@ -215,13 +220,20 @@ function ShareAction({
   return <button className={className} onClick={onClick} type="button">{contents}</button>
 }
 
-export default function ShareDialog({ animal, locale, onClose, returnFocusTo }: ShareDialogProps) {
+export default function ShareDialog({ animal, locale, motionOrigin, onClose, open, returnFocusTo, visit }: ShareDialogProps) {
   const zh = locale === 'zh-CN'
   const titleId = useId()
   const panelRef = useRef<HTMLElement>(null)
+  const backdropRef = useRef<HTMLButtonElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
-  const [notice, setNotice] = useState('')
-  const [manualCopyValue, setManualCopyValue] = useState<string | null>(null)
+  const activeVisit = useRef<number | null>(null)
+  const { present, exiting, handle } = usePanelMotion({
+    open, panel: panelRef, backdrop: backdropRef, trigger: returnFocusTo, origin: motionOrigin,
+    phone: 400, desktop: 270, easing: settleCurve, stagger: 25, onDismiss: onClose,
+  })
+  const [feedback, setFeedback] = useState<{ visit: number; notice: string; manualCopyValue?: string } | null>(null)
+  const notice = feedback?.visit === visit ? feedback.notice : ''
+  const manualCopyValue = feedback?.visit === visit ? feedback.manualCopyValue : undefined
   const [cardData, setCardData] = useState<{ key: string; file: File } | null>(null)
   const cardAnimal = useMemo<ShareAnimal>(() => ({
     id: animal.id,
@@ -239,68 +251,50 @@ export default function ShareDialog({ animal, locale, onClose, returnFocusTo }: 
   const threadsIntentUrl = `https://www.threads.com/intent/post?${new URLSearchParams({ text: intentText, url: exhibitUrl })}`
 
   useEffect(() => {
+    if (!open || cardFile) return
     let active = true
     void createCardFile(cardAnimal, locale).then((file) => {
       if (active) setCardData({ key: cardKey, file })
     }).catch(() => {})
     return () => { active = false }
-  }, [cardAnimal, cardKey, locale])
+  }, [cardAnimal, cardFile, cardKey, locale, open])
 
-  useEffect(() => {
-    const returnTarget = returnFocusTo.current
-    closeRef.current?.focus()
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-        return
-      }
-      if (event.key !== 'Tab' || !panelRef.current) return
-      const controls = Array.from(panelRef.current.querySelectorAll<HTMLElement>(focusableSelector))
-      const first = controls[0]
-      const last = controls.at(-1)
-      if (!first || !last) return
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      returnTarget?.focus()
-    }
-  }, [onClose, returnFocusTo])
+  useLayoutEffect(() => {
+    if (!open) return
+    activeVisit.current = visit
+    closeRef.current?.focus({ preventScroll: true })
+    return () => { activeVisit.current = null }
+  }, [open, visit])
 
   const copyLink = async () => {
     if (navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(exhibitUrl)
-        setManualCopyValue(null)
-        setNotice(zh ? '展项链接已复制' : 'Exhibit link copied')
+        if (activeVisit.current === visit) setFeedback({ visit, notice: zh ? '展项链接已复制' : 'Exhibit link copied' })
         return
       } catch {
         // A browser can reject a clipboard write even on HTTPS.
       }
     }
+    if (activeVisit.current !== visit) return
     if (copyWithSelection(exhibitUrl)) {
-      setManualCopyValue(null)
-      setNotice(zh ? '展项链接已复制' : 'Exhibit link copied')
+      setFeedback({ visit, notice: zh ? '展项链接已复制' : 'Exhibit link copied' })
       return
     }
-    setManualCopyValue(exhibitUrl)
-    setNotice(zh ? '请长按下方链接复制' : 'Press and hold the link below to copy it')
+    setFeedback({ visit, manualCopyValue: exhibitUrl, notice: zh ? '请长按下方链接复制' : 'Press and hold the link below to copy it' })
   }
 
   const saveImage = async () => {
+    let notice: string
     try {
       downloadCard(cardFile ?? await createCardFile(cardAnimal, locale))
-      setNotice(zh ? '图片已保存到下载文件夹' : 'Image saved to downloads')
+      notice = zh ? '图片已保存到下载文件夹' : 'Image saved to downloads'
     } catch {
-      setNotice(zh ? '图片暂时无法保存' : 'Could not save image')
+      notice = zh ? '图片暂时无法保存' : 'Could not save image'
     }
+    if (activeVisit.current === visit) setFeedback(previous => ({
+      ...(previous?.visit === visit ? previous : null), visit, notice,
+    }))
   }
 
   const shareImage = async () => {
@@ -316,18 +310,31 @@ export default function ShareDialog({ animal, locale, onClose, returnFocusTo }: 
     }
   }
 
-  return (
-    <div className="share-dialog-layer">
-      <button aria-label={zh ? '关闭分享' : 'Close sharing'} className="share-dialog-backdrop" onClick={onClose} type="button" />
-      <section aria-labelledby={titleId} aria-modal="true" className="share-dialog-panel" ref={panelRef} role="dialog">
+  return present ? (
+    <div className="share-dialog-layer" aria-hidden={exiting || undefined} data-exiting={exiting} inert={exiting}>
+      <button aria-label={zh ? '关闭分享' : 'Close sharing'} className="share-dialog-backdrop" onClick={onClose} ref={backdropRef} tabIndex={-1} type="button" />
+      <section aria-labelledby={titleId} aria-modal={open || undefined} className="share-dialog-panel" ref={panelRef} role={open ? 'dialog' : undefined} onKeyDown={(event) => {
+        if (event.key !== 'Tab') return
+        const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(focusableSelector))
+        const first = controls[0], last = controls.at(-1)
+        if (event.shiftKey && first && document.activeElement === first) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && last && document.activeElement === last) {
+          event.preventDefault()
+          first?.focus()
+        }
+      }}>
         <header className="share-dialog-header">
-          <div>
+          <div className="share-dialog-heading-copy" {...handle} onPointerDown={(event) => {
+            if (window.matchMedia('(max-width: 700px)').matches) handle.onPointerDown(event)
+          }}>
             <span className="share-dialog-eyebrow">{zh ? '史前动物博物馆' : 'Prehistoric Animal Museum'} · {animal.name}</span>
             <h2 id={titleId}>{zh ? '分享这次发现' : 'Share this discovery'}</h2>
           </div>
           <button aria-label={zh ? '关闭' : 'Close'} className="share-dialog-close" onClick={onClose} ref={closeRef} type="button"><X size={22} /></button>
         </header>
-        <div className="share-dialog-scroll">
+        <div className="share-dialog-scroll" data-motion-reveal-pointer="true">
           <div className="share-dialog-content">
             <p className="share-dialog-intro">{zh ? '把展项链接发到 X 或 Threads，也可以分享这张竖图。' : 'Post the exhibit link to X or Threads, or share this portrait image.'}</p>
             <div className="share-dialog-actions">
@@ -339,10 +346,10 @@ export default function ShareDialog({ animal, locale, onClose, returnFocusTo }: 
             <div className="share-dialog-preview"><ShareArt animal={animal} locale={locale} /></div>
             <AuthorLinks locale={locale} />
           </div>
-          {notice ? <p aria-live="polite" className="share-dialog-notice"><Check size={16} />{notice}</p> : null}
+          <div aria-live="polite">{notice ? <p className="share-dialog-notice" key={notice}><Check aria-hidden="true" size={16} />{notice}</p> : null}</div>
           {manualCopyValue ? <input aria-label={zh ? '可手动复制的链接' : 'Link to copy manually'} className="share-dialog-manual-copy" onFocus={(event) => event.currentTarget.select()} readOnly value={manualCopyValue} /> : null}
         </div>
       </section>
     </div>
-  )
+  ) : null
 }
