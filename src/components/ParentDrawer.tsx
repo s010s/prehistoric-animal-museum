@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type MouseEvent } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import { GITHUB_LICENSING_URL, GITHUB_REPOSITORY_URL } from '../github'
 import { useI18n } from '../i18n/I18nProvider'
 import type { Locale } from '../i18n/locale'
+import {
+  captureVisual, drawerCurve, fadeLeaving, motionTime, playMotion, reducedMotion, type MotionOrigin,
+} from '../motion'
 import { IconButton } from './IconButton'
 import { LanguageMenu } from './LanguageMenu'
 import { OfficialLinks } from './OfficialLinks'
 import { TransientScrollbar } from './TransientScrollbar'
 import { useTransientScrollbar } from './useTransientScrollbar'
+import { usePanelMotion } from './usePanelMotion'
 
 export interface ParentReviewFacts {
   readonly badge: string
@@ -53,6 +57,7 @@ interface ParentDrawerProps {
   facts: ParentFacts
   onClose: () => void
   open: boolean
+  motionOrigin: React.RefObject<MotionOrigin | null>
   returnFocusTo: React.RefObject<HTMLElement | null>
   showReviewDetails?: boolean
 }
@@ -75,18 +80,76 @@ export function ParentDrawer({
   facts,
   onClose,
   open,
+  motionOrigin,
   returnFocusTo,
   showReviewDetails = false,
 }: ParentDrawerProps) {
   const { locale, messages } = useI18n()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const drawerRef = useRef<HTMLElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const { present, exiting, handle } = usePanelMotion({
+    open, panel: drawerRef, trigger: returnFocusTo, origin: motionOrigin,
+    backdrop: backdropRef, phone: 390, desktop: 260, easing: drawerCurve, onDismiss: onClose,
+  })
   const [showScrollCue, setShowScrollCue] = useState(false)
   const scrollHintId = useId()
   const titleId = useId()
   const review = showReviewDetails ? facts.review : undefined
   const { handleScroll, isScrolling, metrics, scrollRef } =
     useTransientScrollbar(open)
+  const disclosureMoves = useRef(new Map<Element, Animation>())
+  const leaveDisclosure = useRef<(() => void) | null>(null)
+
+  useEffect(() => () => {
+    for (const animation of disclosureMoves.current.values()) animation.cancel()
+    disclosureMoves.current.clear()
+    leaveDisclosure.current?.()
+  }, [open])
+
+  const toggleDisclosure = (event: MouseEvent<HTMLElement>) => {
+    const details = event.currentTarget.parentElement
+    if (!(details instanceof HTMLDetailsElement) || event.defaultPrevented) return
+    event.preventDefault()
+    const reduced = reducedMotion()
+    const duration = motionTime(220, 160, event.detail === 0)
+    const followers = new Map<Element, number>()
+    for (let sibling = details.nextElementSibling; sibling; sibling = sibling.nextElementSibling) {
+      if (!reduced) followers.set(sibling, sibling.getBoundingClientRect().top)
+    }
+    for (const animation of disclosureMoves.current.values()) animation.cancel()
+    disclosureMoves.current.clear()
+    leaveDisclosure.current?.()
+
+    const body = details.querySelector<HTMLElement>('.source-list')
+    const outgoing = details.open ? captureVisual(body, false, true) : null
+    const scroller = scrollRef.current
+    const summaryTop = event.currentTarget.getBoundingClientRect().top
+    details.open = !details.open
+    if (scroller) {
+      const displacement = event.currentTarget.getBoundingClientRect().top - summaryTop
+      if (Math.abs(displacement) > 1) scroller.scrollTop += displacement
+    }
+    if (outgoing && drawerRef.current && scroller) {
+      leaveDisclosure.current = fadeLeaving(outgoing, drawerRef.current,
+        reduced ? duration : Math.round(duration * 0.3), scroller.getBoundingClientRect())
+    }
+    for (const [element, top] of followers) {
+      const offset = top - element.getBoundingClientRect().top
+      if (Math.abs(offset) < 1) continue
+      const animation = playMotion(element, [{ translate: `0 ${offset}px` }, { translate: 'none' }],
+        { duration, easing: 'ease-in-out' }, () => disclosureMoves.current.delete(element))
+      if (animation) disclosureMoves.current.set(element, animation)
+    }
+    if (details.open && body) {
+      const frames = reduced
+        ? [{ opacity: 0 }, { opacity: 1 }]
+        : [{ opacity: 0 }, { opacity: 0, offset: 0.48 }, { opacity: 1 }]
+      const animation = playMotion(body, frames, { duration, easing: 'linear' },
+        () => disclosureMoves.current.delete(body))
+      if (animation) disclosureMoves.current.set(body, animation)
+    }
+  }
 
   const updateScrollCue = useCallback(() => {
     const scroll = scrollRef.current
@@ -164,24 +227,27 @@ export function ParentDrawer({
   }, [facts, open, scrollRef, updateScrollCue])
 
   return (
-    <div className="drawer-layer" hidden={!open}>
+    <div className="drawer-layer" hidden={!present} data-exiting={exiting || undefined}>
       <div
         aria-hidden="true"
         className="drawer-backdrop"
+        ref={backdropRef}
         onMouseDown={(event) => {
-          if (event.currentTarget === event.target) {
+          if (open && event.currentTarget === event.target) {
             onClose()
           }
         }}
       />
       <section
+        aria-hidden={exiting || undefined}
         aria-labelledby={titleId}
         aria-modal={open || undefined}
         className="parent-drawer"
+        inert={exiting || undefined}
         ref={drawerRef}
-        role="dialog"
+        role={open ? 'dialog' : undefined}
       >
-        <div className="drawer-handle" aria-hidden="true" />
+        <div className="drawer-handle museum-motion-handle" aria-hidden="true" {...handle} />
         <header className="drawer-header">
           <div>
             <p className="drawer-eyebrow">{messages.parent.eyebrow}</p>
@@ -262,7 +328,7 @@ export function ParentDrawer({
               <p>{facts.narrationScript.join(locale === 'zh-CN' ? '' : ' ')}</p>
             </div>
             <details className="research-disclosure source-disclosure">
-              <summary>{messages.parent.research(facts.animalName)}</summary>
+              <summary onClick={toggleDisclosure}>{messages.parent.research(facts.animalName)}</summary>
               <div className="research-disclosure__body source-list">
                 <h3>{messages.parent.researchOverview}</h3>
                 <p>
@@ -303,7 +369,7 @@ export function ParentDrawer({
               </div>
             </details>
             <details className="source-disclosure">
-              <summary>{messages.parent.credits}</summary>
+              <summary onClick={toggleDisclosure}>{messages.parent.credits}</summary>
               <div className="source-list">
                 <ul>
                   {facts.assetCredits.map((credit) => (
@@ -326,7 +392,7 @@ export function ParentDrawer({
               </div>
             </details>
             <details className="source-disclosure">
-              <summary>{messages.parent.licensing}</summary>
+              <summary onClick={toggleDisclosure}>{messages.parent.licensing}</summary>
               <div className="source-list">
                 <p>{messages.parent.licensingBody}</p>
                 <div className="source-link-actions">

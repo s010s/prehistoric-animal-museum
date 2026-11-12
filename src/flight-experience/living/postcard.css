@@ -17,7 +17,7 @@
 
 .flight-postcard-gallery{display:flex;flex-direction:column;overflow:hidden}.flight-postcard-gallery .drawer-scroll-shell{min-height:0;flex:1}.flight-postcard-list{max-height:calc(100dvh - 280px);overflow-y:auto;overscroll-behavior:contain;padding:2px 10px 10px 2px}.flight-postcard-gallery header,.flight-postcard-gallery>p{flex-shrink:0}
 .flight-experience .flight-postcard-pocket{min-height:44px}
-.flight-experience:has(.flight-settings) .flight-postcard-feedback,.flight-postcards:has(.flight-postcard-gallery) .flight-postcard-feedback{display:none}
+.flight-experience[data-settings-open=true] .flight-postcard-feedback,.flight-postcards[data-gallery-open=true] .flight-postcard-feedback{display:none}
 @media(max-width:600px){.flight-postcard-gallery{top:130px;max-height:calc(100dvh - 170px)}.flight-postcard-list{max-height:calc(100dvh - 330px)}}
 @media(max-width:600px){.flight-postcard-feedback{top:120px}}
 .flight-postcard-pocket img{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);max-height:calc(100% - 8px);min-height:0;object-fit:contain}
@@ -26,3 +26,4 @@
 .flight-postcard-gallery h2{font-size:17px}
 .flight-postcard-list figure{padding:0;background:transparent;box-shadow:none}
 .flight-postcard-gallery header button,.flight-postcard-list button{border:0;background:transparent;box-shadow:none;min-height:40px;padding:8px}
+.flight-postcard-gallery[data-exiting=true],.flight-postcard-gallery[data-exiting=true] *{pointer-events:none}

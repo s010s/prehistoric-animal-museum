@@ -3,9 +3,11 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Footprints, X } from 'lucide-react'
 import type { Habitat } from '../content/types'
 import { useI18n } from '../i18n/I18nProvider'
+import { sheetCurve, type MotionOrigin } from '../motion'
 import { IconButton } from './IconButton'
 import { LanguageMenu } from './LanguageMenu'
 import { ElevatorContinuousView } from './schemes/ElevatorContinuousView'
+import { usePanelMotion } from './usePanelMotion'
 
 export type HabitatFilter = 'all' | Habitat
 
@@ -24,8 +26,9 @@ interface AnimalCollectionSheetProps {
   readonly loadingPhase: 'checking-cache' | 'downloading' | 'preparing' | null
   readonly loadingPercent: number | null
   readonly onClose: () => void
-  readonly onSelect: (animalId: string) => void
+  readonly onSelect: (animalId: string, card: HTMLButtonElement, keyboard: boolean) => void
   readonly open: boolean
+  readonly motionOrigin: React.RefObject<MotionOrigin | null>
   readonly returnFocusTo: React.RefObject<HTMLElement | null>
 }
 
@@ -44,12 +47,18 @@ export function AnimalCollectionSheet({
   onClose,
   onSelect,
   open,
+  motionOrigin,
   returnFocusTo,
 }: AnimalCollectionSheetProps) {
   const { messages } = useI18n()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useRef<HTMLElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
+  const { present, exiting: isExiting, handle } = usePanelMotion({
+    open, panel: dialogRef, trigger: returnFocusTo, origin: motionOrigin,
+    backdrop: backdropRef, phone: 420, desktop: 280, easing: sheetCurve, onDismiss: onClose,
+  })
 
   const currentAnimalHabitat = useMemo(() => {
     if (!currentAnimalId) return null
@@ -62,38 +71,15 @@ export function AnimalCollectionSheet({
     return currentAnimalHabitat ?? 'air'
   })
 
-  // Animated mount/unmount lifecycle for organic breathing expand and collapse
-  const [isRendered, setIsRendered] = useState(open)
-  const [isExiting, setIsExiting] = useState(false)
-
-  // Synchronously align activeHabitat and mount state when sheet opens/closes or current animal changes
+  // Align the habitat before the guide paints.
   if (open !== prevOpen || currentAnimalId !== prevAnimalId) {
     setPrevOpen(open)
     setPrevAnimalId(currentAnimalId)
 
-    if (open) {
-      setIsRendered(true)
-      setIsExiting(false)
-      if (currentAnimalHabitat && activeHabitat !== currentAnimalHabitat) {
-        setActiveHabitat(currentAnimalHabitat)
-      }
-    } else if (isRendered) {
-      setIsExiting(true)
+    if (open && currentAnimalHabitat && activeHabitat !== currentAnimalHabitat) {
+      setActiveHabitat(currentAnimalHabitat)
     }
   }
-
-  useEffect(() => {
-    if (!isExiting) return
-
-    const timer = window.setTimeout(() => {
-      setIsRendered(false)
-      setIsExiting(false)
-    }, 260)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [isExiting])
 
   const animalNumberMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -139,7 +125,7 @@ export function AnimalCollectionSheet({
     }
   }, [currentAnimalId, open, returnFocusTo])
 
-  if (!isRendered) {
+  if (!present) {
     return null
   }
 
@@ -167,7 +153,7 @@ export function AnimalCollectionSheet({
           data-current={current}
           data-habitat={animal.habitat}
           data-loading={loading}
-          onClick={() => onSelect(animal.id)}
+          onClick={(event) => onSelect(animal.id, event.currentTarget, event.detail === 0)}
           type="button"
         >
           <span className="collection-card__number" aria-hidden="true">
@@ -205,6 +191,7 @@ export function AnimalCollectionSheet({
         aria-hidden="true"
         className="collection-backdrop"
         data-exiting={isExiting ? 'true' : undefined}
+        ref={backdropRef}
         onMouseDown={(event) => {
           if (!isExiting && event.currentTarget === event.target) {
             handleClose()
@@ -230,7 +217,7 @@ export function AnimalCollectionSheet({
           <div className="collection-atmosphere__strata" />
           <div className="collection-atmosphere__vignette" />
         </div>
-        <div aria-hidden="true" className="collection-sheet__handle" />
+        <div aria-hidden="true" className="collection-sheet__handle museum-motion-handle" {...handle} />
         <header className="collection-sheet__header">
           <div>
             <p className="collection-sheet__eyebrow">

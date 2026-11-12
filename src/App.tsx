@@ -22,6 +22,7 @@ import {
   Suspense,
   useCallback,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useEffect,
@@ -55,6 +56,8 @@ import {
 import { ResponsiveAnimalTitle } from './components/ResponsiveAnimalTitle'
 import { SceneAtmosphere } from './components/SceneAtmosphere'
 import { ViewerStage } from './components/ViewerStage'
+import { useExhibitMotion } from './components/useExhibitMotion'
+import { useAnimalRailHighlight } from './components/useAnimalRailHighlight'
 const MotionReviewRecorder = import.meta.env.MODE === 'review'
   ? lazy(() => import('./review/MotionReviewRecorder'))
   : null
@@ -112,6 +115,10 @@ import {
 import { sceneCandidateSupportedFor } from './scale-encounter/environments/scene-candidate'
 import type { ScaleEncounterEnvironmentVariant } from './viewer/scale-encounter-environment'
 import { loadDirectScaleEncounter } from 'virtual:scale-encounter-entry'
+import {
+  captureVisual, collapseSurface, encounterCurve, fadeLeaving, flyVisual, motionTime, playMotion,
+  readOrigin, reducedMotion, settleCurve, type MotionOrigin, type SharedFlight, type VisualSnapshot,
+} from './motion'
 
 /**
  * The integrated encounter remains a review prototype until its generated
@@ -923,10 +930,21 @@ function MuseumApp({
   const requestTokenRef = useRef(0)
   const viewerRequiresRemountRef = useRef(false)
   const drawerTriggerRef = useRef<HTMLButtonElement>(null)
+  const drawerOrigin = useRef<MotionOrigin | null>(null)
   const collectionTriggerRef = useRef<HTMLElement>(null)
+  const collectionOrigin = useRef<MotionOrigin | null>(null)
   const aboutTriggerRef = useRef<HTMLButtonElement>(null)
+  const aboutOrigin = useRef<MotionOrigin | null>(null)
   const scaleEncounterTriggerRef = useRef<HTMLButtonElement>(null)
   const shareTriggerRef = useRef<HTMLButtonElement>(null)
+  const shareOrigin = useRef<MotionOrigin | null>(null)
+  const encounterOrigin = useRef<MotionOrigin | null>(null)
+  const encounterIcon = useRef<SVGSVGElement | null>(null)
+  const encounterIconSnapshot = useRef<VisualSnapshot | null>(null)
+  const encounterFlight = useRef<SharedFlight | null>(null)
+  const encounterLoading = useRef<HTMLElement | null>(null)
+  const encounterClosing = useRef<{ panel: MotionOrigin | null } | null>(null)
+  const cancelEncounterExit = useRef<(() => void) | null>(null)
   const scaleEncounterPreloadRef = useRef<{
     readonly abort: AbortController
     readonly key: string
@@ -936,7 +954,12 @@ function MuseumApp({
   const scaleEncounterHistoryBackPendingRef = useRef(false)
   const focusTriggerRef = useRef<HTMLButtonElement>(null)
   const focusExitRef = useRef<HTMLButtonElement>(null)
+  const focusFlight = useRef<SharedFlight | null>(null)
+  const focusVisual = useRef<{ snapshot: VisualSnapshot | null; duration: number } | null>(null)
+  const focusChrome = useRef<Array<() => void>>([])
+  const museumRef = useRef<HTMLElement>(null)
   const railRef = useRef<HTMLDivElement>(null)
+  const railKeyboard = useRef(false)
   const narrationScriptId = useId()
   const [viewerController, setViewerController] = useState<ViewerController | null>(null)
   const [viewerRetryKey, setViewerRetryKey] = useState(0)
@@ -964,9 +987,14 @@ function MuseumApp({
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [collectionOpen, setCollectionOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
-  const [shareOpen, setShareOpen] = useState(false)
-  const closeShare = useCallback(() => setShareOpen(false), [])
+  const [sharing, setSharing] = useState<{ open: boolean; visit: number } | null>(null)
+  const shareOpen = sharing?.open === true
+  const closeShare = useCallback(() => setSharing(current => current?.open ? { ...current, open: false } : current), [])
+  useLayoutEffect(() => {
+    if (sharing && !sharing.open) shareTriggerRef.current?.focus({ preventScroll: true })
+  }, [sharing])
   const [focusMode, setFocusMode] = useState(false)
+  useAnimalRailHighlight(railRef, focusMode ? null : loadSnapshot.readyAnimalId, railKeyboard)
   const [flightOpen, setFlightOpen] = useState(false)
   const flightOpenRef = useRef(false)
   const flightHistoryRef = useRef<string | null>(null)
@@ -1005,6 +1033,11 @@ function MuseumApp({
   )
   const activeAnimal = animalIndex.get(activeAnimalId) ?? initialAnimal
   const gestureHintCycle = `${activeAnimal.id}:${loadSnapshot.requestToken}:${viewerRetryKey}`
+  const exhibitMotion = useExhibitMotion({
+    museum: museumRef, rail: railRef, collectionOpen, animalId: activeAnimal.id,
+    readyId: loadSnapshot.readyAnimalId, returnFocusTo: collectionTriggerRef,
+    collectionKeyboard: collectionOrigin.current?.keyboard ?? false,
+  })
   useEffect(() => {
     activeAnimalRef.current = activeAnimal
   }, [activeAnimal])
@@ -1734,22 +1767,75 @@ function MuseumApp({
     loadSnapshot.requestedAnimalId,
   ])
 
-  const exitFocusMode = useCallback(() => {
+  const prepareFocus = useCallback((entering: boolean, keyboard: boolean) => {
+    for (const cancel of focusChrome.current) cancel()
+    focusChrome.current = []
+    const duration = motionTime(500, 330, keyboard)
+    const from = entering ? focusTriggerRef.current : focusExitRef.current
+    focusVisual.current = { snapshot: captureVisual(from), duration }
+    const museum = museumRef.current
+    if (entering && museum && !reducedMotion()) {
+      const story = museum.querySelector<HTMLElement>('.story-panel')
+      const selectors = story?.getBoundingClientRect().width
+        ? '.story-panel, .animal-navigation'
+        : '.story-card, .story-actions, .animal-navigation'
+      for (const element of museum.querySelectorAll<HTMLElement>(selectors)) {
+        const paint = captureVisual(element)
+        if (paint) focusChrome.current.push(fadeLeaving(paint, museum, Math.round(duration * 0.29)))
+      }
+    }
+    viewerControllerRef.current?.setFocusMode(entering, reducedMotion() ? 0 : duration)
+  }, [])
+
+  const exitFocusMode = useCallback((keyboard = false) => {
     focusPointerRef.current = null
-    viewerControllerRef.current?.setFocusMode(false)
+    prepareFocus(false, keyboard)
     setFocusMode(false)
     setLiveMessage(messagesRef.current.focusExited)
     window.setTimeout(() => focusTriggerRef.current?.focus(), 0)
+  }, [prepareFocus])
+
+  useLayoutEffect(() => {
+    const pending = focusVisual.current
+    if (!pending) return
+    focusVisual.current = null
+    const target = focusMode ? focusExitRef.current : focusTriggerRef.current
+    if (focusFlight.current?.running) {
+      focusFlight.current.flyTo(target, pending.duration, settleCurve)
+    } else {
+      focusFlight.current = flyVisual(pending.snapshot, target, pending.duration, settleCurve)
+    }
+    const root = museumRef.current
+    if (!root) return
+    const story = root.querySelector<HTMLElement>('.story-panel')
+    const returnSelectors = story?.getBoundingClientRect().width
+      ? '.story-panel, .animal-navigation'
+      : '.story-card, .story-actions, .animal-navigation'
+    for (const element of root.querySelectorAll(focusMode ? '.focus-actions > .language-menu' : returnSelectors)) {
+      const frames = reducedMotion()
+        ? [{ opacity: 0 }, { opacity: 1 }]
+        : [{ opacity: 0 }, { opacity: 0, offset: 0.48 }, { opacity: 1 }]
+      const fade = playMotion(element, frames, { duration: pending.duration, easing: 'linear' })
+      if (fade) focusChrome.current.push(() => fade.cancel())
+    }
+  }, [focusMode])
+
+  useLayoutEffect(() => () => {
+    focusFlight.current?.cancel()
+    for (const cancel of focusChrome.current) cancel()
   }, [])
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') {
+      if (event.key !== 'Escape' || event.defaultPrevented) {
         return
       }
-      if (focusMode) {
+      if (shareOpen) {
         event.preventDefault()
-        exitFocusMode()
+        closeShare()
+      } else if (focusMode) {
+        event.preventDefault()
+        exitFocusMode(true)
       } else if (collectionOpen) {
         event.preventDefault()
         setCollectionOpen(false)
@@ -1765,7 +1851,7 @@ function MuseumApp({
     return () => {
       document.removeEventListener('keydown', handleEscape)
     }
-  }, [aboutOpen, collectionOpen, drawerOpen, exitFocusMode, focusMode])
+  }, [aboutOpen, closeShare, collectionOpen, drawerOpen, exitFocusMode, focusMode, shareOpen])
 
   useEffect(() => {
     if (focusMode) {
@@ -1795,6 +1881,7 @@ function MuseumApp({
     if (!coordinator) {
       return
     }
+    exhibitMotion.cancelUnless(animalId)
     if (
       flightSwitchRef.current &&
       flightSwitchRef.current !== animalId
@@ -1908,11 +1995,12 @@ function MuseumApp({
     )
   }, [activeAnimal.name, locale, messages, viewerFailure])
 
-  const enterFocusMode = () => {
+  const enterFocusMode = (event: ReactMouseEvent<HTMLButtonElement>) => {
     if (!modelReady) {
       return
     }
-    viewerControllerRef.current?.setFocusMode(true)
+    exhibitMotion.cancel()
+    prepareFocus(true, event.detail === 0)
     // The gesture hint replays when focus mode closes, so restart the card's
     // alignment with that hint before either becomes visible again.
     setGestureHintFinishedCycle(null)
@@ -2120,7 +2208,22 @@ function MuseumApp({
     return () => window.removeEventListener('popstate', pop)
   }, [])
 
-  const openScaleEncounter = useCallback(() => {
+  const attachEncounterIcon = useCallback((node: SVGSVGElement | null) => {
+    if (!node && encounterIcon.current) {
+      encounterIconSnapshot.current = captureVisual(encounterIcon.current) ?? encounterIconSnapshot.current
+    }
+    encounterIcon.current = node
+    if (!node) return
+    const duration = motionTime(500, 330, encounterOrigin.current?.keyboard)
+    if (encounterFlight.current?.running) {
+      encounterFlight.current.flyTo(node, duration, encounterCurve)
+    } else {
+      encounterFlight.current = flyVisual(encounterIconSnapshot.current, node, duration, encounterCurve)
+    }
+    encounterIconSnapshot.current = null
+  }, [])
+
+  const openScaleEncounter = useCallback((event?: ReactMouseEvent<HTMLButtonElement>) => {
     if (
       !DIRECT_SCALE_ENCOUNTER_ENABLED ||
       flightOpenRef.current ||
@@ -2132,13 +2235,16 @@ function MuseumApp({
     ) {
       return
     }
+    cancelEncounterExit.current?.()
+    encounterOrigin.current = readOrigin(event?.currentTarget ?? null, event?.detail === 0)
+    encounterIconSnapshot.current = captureVisual(event?.currentTarget.querySelector('svg') ?? null)
     preloadScaleEncounterForIntent()
     narration.reset()
     idlePreloadCoordinatorRef.current?.cancelAll()
     setDrawerOpen(false)
     setCollectionOpen(false)
     setAboutOpen(false)
-    setScaleEncounterPhase(scaleEncounterProfile ? 'active' : 'setup')
+    setScaleEncounterPhase('setup')
     const historyToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     const historyState = currentHistoryRecord()
     window.history.pushState(
@@ -2154,7 +2260,6 @@ function MuseumApp({
     modelReady,
     narration,
     preloadScaleEncounterForIntent,
-    scaleEncounterProfile,
   ])
 
   const updateScaleEncounterProfile = useCallback(
@@ -2189,6 +2294,13 @@ function MuseumApp({
   ])
 
   const finishScaleEncounterClose = useCallback(() => {
+    const shell = museumRef.current?.querySelector('.scale-encounter-shell')
+    encounterClosing.current = {
+      panel: readOrigin(shell?.querySelector<HTMLElement>(
+        '.scale-encounter-setup-layer:not([data-exiting]) .museum-motion-surface, .scale-encounter-setup-layer:not([data-exiting]) .scale-encounter-setup-card',
+      ) ?? null),
+    }
+    encounterIconSnapshot.current = captureVisual(encounterIcon.current)
     viewerControllerRef.current?.endScaleEncounter()
     setScaleEncounterOpen(false)
     setScaleEncounterPhase('setup')
@@ -2216,6 +2328,53 @@ function MuseumApp({
       window.history.back()
     }
   }, [finishScaleEncounterClose])
+
+  useLayoutEffect(() => {
+    const closing = encounterClosing.current
+    if (scaleEncounterOpen || !closing) return
+    encounterClosing.current = null
+    const trigger = scaleEncounterTriggerRef.current
+    const anchor = readOrigin(trigger)
+    const duration = motionTime(500, 330, encounterOrigin.current?.keyboard)
+    const icon = trigger?.querySelector('svg') ?? null
+    if (encounterFlight.current?.running) {
+      encounterFlight.current.flyTo(icon, duration, encounterCurve)
+    } else {
+      encounterFlight.current = flyVisual(encounterIconSnapshot.current, icon, duration, encounterCurve)
+    }
+    encounterIconSnapshot.current = null
+    const collapse = closing.panel && anchor
+      ? collapseSurface(closing.panel, anchor, duration, encounterCurve)
+      : null
+    const veil = document.createElement('div')
+    veil.className = 'museum-encounter-return'
+    veil.setAttribute('aria-hidden', 'true')
+    museumRef.current?.append(veil)
+    const reveal = playMotion(veil, [{ opacity: 1 }, { opacity: 0 }],
+      { duration: motionTime(180, 180), easing: 'ease-out' }, () => veil.remove())
+    cancelEncounterExit.current = () => {
+      collapse?.()
+      reveal?.cancel()
+      veil.remove()
+    }
+  }, [scaleEncounterOpen])
+
+  useEffect(() => () => {
+    encounterFlight.current?.cancel()
+    cancelEncounterExit.current?.()
+  }, [])
+
+  useEffect(() => {
+    if (!scaleEncounterOpen) return
+    const handleLoadingEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && encounterLoading.current) {
+        event.preventDefault()
+        closeScaleEncounter()
+      }
+    }
+    document.addEventListener('keydown', handleLoadingEscape)
+    return () => document.removeEventListener('keydown', handleLoadingEscape)
+  }, [closeScaleEncounter, scaleEncounterOpen])
 
   useEffect(() => {
     const handlePopState = () => {
@@ -2297,6 +2456,7 @@ function MuseumApp({
           : undefined
       }
       id="museum-experience"
+      ref={museumRef}
       style={interfaceStyle}
     >
       {hasOutgoingBackground ? (
@@ -2347,7 +2507,8 @@ function MuseumApp({
               <button
                 aria-label={messages.creatorAboutLabel}
                 className="creator-signature-button"
-                onClick={() => {
+                onClick={(event) => {
+                  aboutOrigin.current = readOrigin(event.currentTarget, event.detail === 0)
                   setDrawerOpen(false)
                   setCollectionOpen(false)
                   setAboutOpen(true)
@@ -2431,7 +2592,8 @@ function MuseumApp({
             <button
               aria-label={messages.parentInfo}
               className="parent-info-button"
-              onClick={() => {
+              onClick={(event) => {
+                drawerOrigin.current = readOrigin(event.currentTarget, event.detail === 0)
                 setCollectionOpen(false)
                 setAboutOpen(false)
                 setDrawerOpen(true)
@@ -2459,6 +2621,7 @@ function MuseumApp({
                     return
                   }
                   event.preventDefault()
+                  collectionOrigin.current = readOrigin(event.currentTarget, event.detail === 0)
                   leaveAnimalDetailRoute(activeAnimal.id)
                   setDrawerOpen(false)
                   setAboutOpen(false)
@@ -2475,7 +2638,8 @@ function MuseumApp({
               <button
                 aria-label={messages.openCollection}
                 className="collection-open-button"
-                onClick={() => {
+                onClick={(event) => {
+                  collectionOrigin.current = readOrigin(event.currentTarget, event.detail === 0)
                   setDrawerOpen(false)
                   setAboutOpen(false)
                   setCollectionOpen(true)
@@ -2542,7 +2706,12 @@ function MuseumApp({
             <IconButton
               icon={Share2}
               label={locale === 'zh-CN' ? `分享${activeAnimal.name}` : `Share ${activeAnimal.name}`}
-              onClick={() => setShareOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={shareOpen}
+              onClick={(event) => {
+                shareOrigin.current = readOrigin(event.currentTarget, event.detail === 0)
+                setSharing(current => ({ open: true, visit: (current?.visit ?? 0) + 1 }))
+              }}
               ref={shareTriggerRef}
             />
             {DIRECT_SCALE_ENCOUNTER_ENABLED &&
@@ -2569,9 +2738,10 @@ function MuseumApp({
             <IconButton
               icon={RotateCcw}
               label={messages.resetView}
-              onClick={() => {
-                viewerControllerRef.current?.reset()
-                setLiveMessage(messages.resetDone)
+              onClick={(event) => {
+                viewerControllerRef.current?.resetView(motionTime(520, 350, event.detail === 0), () => {
+                  setLiveMessage(messages.resetDone)
+                })
               }}
             />
             <IconButton
@@ -2595,7 +2765,7 @@ function MuseumApp({
                 hideTooltipOnFocus
                 icon={Minimize2}
                 label={messages.exitFocus}
-                onClick={exitFocusMode}
+                onClick={(event) => exitFocusMode(event.detail === 0)}
                 ref={focusExitRef}
               />
             </div>
@@ -2621,7 +2791,10 @@ function MuseumApp({
             className="animal-step animal-step--previous"
             icon={ChevronLeft}
             label={messages.previousAnimal}
-            onClick={() => requestAdjacentAnimal(-1)}
+            onClick={(event) => {
+              railKeyboard.current = event.detail === 0
+              requestAdjacentAnimal(-1)
+            }}
           />
           <div className="animal-rail" ref={railRef} role="list">
             {animals.map((animal) => {
@@ -2632,7 +2805,8 @@ function MuseumApp({
                 loadSnapshot.phase === 'failed' &&
                 loadSnapshot.requestedAnimalId === animal.id
               const selected = loadSnapshot.readyAnimalId === animal.id
-              const activateAnimal = () => {
+              const activateAnimal = (keyboard: boolean) => {
+                railKeyboard.current = keyboard
                 if (failed) {
                   retryAnimal()
                 } else {
@@ -2729,7 +2903,7 @@ function MuseumApp({
                           return
                         }
                         event.preventDefault()
-                        activateAnimal()
+                        activateAnimal(event.detail === 0)
                       }}
                     >
                       {cardContents}
@@ -2737,7 +2911,7 @@ function MuseumApp({
                   ) : (
                     <button
                       {...cardAttributes}
-                      onClick={activateAnimal}
+                      onClick={(event) => activateAnimal(event.detail === 0)}
                       type="button"
                     >
                       {cardContents}
@@ -2751,7 +2925,10 @@ function MuseumApp({
             className="animal-step animal-step--next"
             icon={ChevronRight}
             label={messages.nextAnimal}
-            onClick={() => requestAdjacentAnimal(1)}
+            onClick={(event) => {
+              railKeyboard.current = event.detail === 0
+              requestAdjacentAnimal(1)
+            }}
           />
         </section>
       ) : null}
@@ -2803,11 +2980,16 @@ function MuseumApp({
               aria-label={messages.scaleEncounter.loading}
               aria-modal="true"
               className="scale-encounter-module-loading"
+              ref={(node) => {
+                encounterLoading.current = node
+                node?.focus({ preventScroll: true })
+              }}
               role="dialog"
+              tabIndex={-1}
             >
               <span aria-hidden="true" className="fossil-loader">
                 <span className="fossil-loader__ring" />
-                <Scaling size={28} strokeWidth={2} />
+                <Scaling ref={attachEncounterIcon} size={28} strokeWidth={2} />
               </span>
               <strong>{messages.scaleEncounter.loading}</strong>
             </section>
@@ -2825,7 +3007,10 @@ function MuseumApp({
             }}
             controller={viewerController}
             locale={locale}
+            motionOrigin={encounterOrigin}
+            motionTrigger={scaleEncounterTriggerRef}
             onClose={closeScaleEncounter}
+            onMotionIcon={attachEncounterIcon}
             onPresentationStateChange={setScaleEncounterPhase}
             onProfileChange={updateScaleEncounterProfile}
             onScenePresentationChange={setScaleEncounterScenePresentation}
@@ -2845,19 +3030,23 @@ function MuseumApp({
         loadingPhase={loadingPhase}
         loadingPercent={loadingPercent}
         onClose={() => setCollectionOpen(false)}
-        onSelect={(animalId) => {
+        onSelect={(animalId, card, keyboard) => {
+          railKeyboard.current = keyboard
+          exhibitMotion.select(animalId, card, keyboard)
           setCollectionOpen(false)
           if (animalId !== (loadSnapshot.readyAnimalId ?? activeAnimal.id)) {
             requestAnimal(animalId)
           }
         }}
         open={collectionOpen && !focusMode}
+        motionOrigin={collectionOrigin}
         returnFocusTo={collectionTriggerRef}
       />
       </main>
       <ParentDrawer
         localeHrefs={localeHrefs}
         facts={activeAnimal.facts}
+        motionOrigin={drawerOrigin}
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen && !focusMode}
         returnFocusTo={drawerTriggerRef}
@@ -2865,11 +3054,12 @@ function MuseumApp({
       />
       <AboutDrawer
         localeHrefs={localeHrefs}
+        motionOrigin={aboutOrigin}
         onClose={() => setAboutOpen(false)}
         open={aboutOpen && !focusMode}
         returnFocusTo={aboutTriggerRef}
       />
-      {shareOpen ? (
+      {sharing ? (
         <Suspense fallback={null}>
           <ShareDialog
             animal={{
@@ -2880,8 +3070,11 @@ function MuseumApp({
               posterPortrait: activeAnimal.assets.posterPortrait,
             }}
             locale={locale}
+            motionOrigin={shareOrigin}
             onClose={closeShare}
+            open={shareOpen}
             returnFocusTo={shareTriggerRef}
+            visit={sharing.visit}
           />
         </Suspense>
       ) : null}

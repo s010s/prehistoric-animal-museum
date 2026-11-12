@@ -8,12 +8,17 @@ import {
   useState,
   useSyncExternalStore,
   type CSSProperties,
+  type FocusEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n/I18nProvider'
 import { buildLocaleUrl, systemLocale, type Locale, type LocalePreference } from '../i18n/locale'
+import { readOrigin, settleCurve, type MotionOrigin } from '../motion'
+import { useMovingHighlight } from './useMovingHighlight'
+import { usePanelMotion } from './usePanelMotion'
 
 const choices: readonly LocalePreference[] = ['system', 'zh-CN', 'en']
 const popoverGap = 9
@@ -50,6 +55,17 @@ export function LanguageMenu({ localeHrefs }: {
   const itemRefs = useRef(new Map<LocalePreference, HTMLButtonElement | HTMLAnchorElement>())
   const detectedSystemLocale = useSyncExternalStore(subscribeSystemLocale, readSystemLocale, () => locale)
   const [browserLocation, setBrowserLocation] = useState<string | null>(null)
+  const motionOrigin = useRef<MotionOrigin | null>(null)
+  const focusOnOpen = useRef<LocalePreference | null>(null)
+  const [highlighted, setHighlighted] = useState<LocalePreference | null>(null)
+  const panelMotion = usePanelMotion({
+    open, panel: menuRef, trigger: triggerRef, origin: motionOrigin,
+    ready: popoverPosition !== null, phone: 350, desktop: 230, easing: settleCurve, stagger: 25,
+  })
+  useMovingHighlight({
+    root: menuRef, selected: open ? highlighted : null,
+    attribute: 'data-language-choice', variant: 'language',
+  })
 
   const labelFor = (choice: LocalePreference): ReactNode => {
     if (choice === 'system') {
@@ -79,16 +95,23 @@ export function LanguageMenu({ localeHrefs }: {
 
   const close = (restoreFocus = false) => {
     setOpen(false)
-    setPopoverPosition(null)
+    setHighlighted(null)
+    focusOnOpen.current = null
     if (restoreFocus) {
       queueMicrotask(() => triggerRef.current?.focus())
     }
   }
 
-  const openAt = (choice: LocalePreference) => {
+  const openAt = (choice: LocalePreference, keyboard: boolean) => {
+    if (open) {
+      itemRefs.current.get(choice)?.focus()
+      return
+    }
+    motionOrigin.current = readOrigin(triggerRef.current, keyboard)
+    focusOnOpen.current = choice
+    setPopoverPosition(null)
     setBrowserLocation(window.location.href)
     setOpen(true)
-    queueMicrotask(() => itemRefs.current.get(choice)?.focus())
   }
 
   const positionPopover = useCallback(() => {
@@ -176,6 +199,13 @@ export function LanguageMenu({ localeHrefs }: {
     }
   }, [open, positionPopover])
 
+  useLayoutEffect(() => {
+    const choice = focusOnOpen.current
+    if (!open || !popoverPosition || !choice) return
+    focusOnOpen.current = null
+    itemRefs.current.get(choice)?.focus({ preventScroll: true })
+  }, [open, popoverPosition])
+
   useEffect(() => {
     if (!open) {
       return
@@ -245,17 +275,24 @@ export function LanguageMenu({ localeHrefs }: {
 
   const menu = (
     <div
+      aria-hidden={panelMotion.exiting || undefined}
       aria-label={messages.language.menuLabel}
       className="language-menu__popover"
+      data-exiting={panelMotion.exiting || undefined}
       data-positioned={popoverPosition !== null}
-      hidden={!open}
+      hidden={!panelMotion.present}
       id={menuId}
+      inert={panelMotion.exiting || undefined}
       onKeyDown={handleMenuKeyDown}
+      onPointerLeave={() => {
+        const focused = choices.find((choice) => itemRefs.current.get(choice)?.matches(':focus-visible'))
+        setHighlighted(focused ?? null)
+      }}
       ref={menuRef}
-      role="menu"
+      role={panelMotion.exiting ? undefined : 'menu'}
       style={{
         '--animal-accent-soft': popoverPosition?.accentSoft || undefined,
-        display: open ? undefined : 'none',
+        display: panelMotion.present ? undefined : 'none',
         left: popoverPosition?.left ?? 0,
         top: popoverPosition?.top ?? 0,
         width: popoverPosition?.width ?? preferredPopoverWidth,
@@ -265,6 +302,14 @@ export function LanguageMenu({ localeHrefs }: {
         const props = {
           'aria-checked': preference === choice,
           className: 'language-menu__choice',
+          'data-highlighted': highlighted === choice || undefined,
+          'data-language-choice': choice,
+          onFocus: (event: FocusEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+            if (event.currentTarget.matches(':focus-visible')) setHighlighted(choice)
+          },
+          onPointerEnter: (event: ReactPointerEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+            if (event.pointerType !== 'touch') setHighlighted(choice)
+          },
           ref: (element: HTMLAnchorElement | HTMLButtonElement | null) => {
             if (element) itemRefs.current.set(choice, element)
             else itemRefs.current.delete(choice)
@@ -324,14 +369,17 @@ export function LanguageMenu({ localeHrefs }: {
         aria-haspopup="menu"
         aria-label={messages.language.buttonLabel}
         className="language-menu__trigger"
-        onClick={() => {
+        onClick={(event) => {
           if (open) close()
-          else openAt(preference)
+          else openAt(preference, event.detail === 0)
         }}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
-            openAt(event.key === 'ArrowDown' ? choices[0]! : choices.at(-1)!)
+            openAt(
+              event.key === 'ArrowDown' ? choices[0]! : choices.at(-1)!,
+              true,
+            )
           }
         }}
         ref={triggerRef}
@@ -340,7 +388,7 @@ export function LanguageMenu({ localeHrefs }: {
         <Languages aria-hidden="true" size={20} strokeWidth={2.1} />
         <span>{locale === 'zh-CN' ? '中' : 'EN'}</span>
       </button>
-      {open ? createPortal(menu, document.body) : menu}
+      {panelMotion.present ? createPortal(menu, document.body) : menu}
     </div>
   )
 }

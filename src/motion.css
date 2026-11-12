@@ -1,0 +1,116 @@
+.museum-motion-surface,
+.museum-motion-visual {
+  position: fixed;
+  box-sizing: border-box;
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.museum-motion-surface {
+  background-color: var(--surface);
+}
+
+.museum-motion-surface--detached {
+  z-index: 105;
+}
+
+.museum-motion-visual {
+  z-index: 110;
+}
+
+.museum-motion-panel {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.museum-motion-panel,
+.museum-motion-paint-reset {
+  transition: none !important;
+}
+
+[data-motion-exited="true"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+.collection-backdrop[data-exiting="true"],
+.drawer-layer[data-exiting="true"] > *,
+.language-menu__popover[data-exiting="true"],
+.scale-encounter-setup-layer[data-exiting="true"] {
+  pointer-events: none;
+}
+
+.museum-encounter-return {
+  position: fixed;
+  z-index: 11;
+  inset: 0;
+  background: rgb(19 38 30 / 22%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scale-encounter-shell::after {
+    transition: opacity 150ms ease-out !important;
+  }
+}
+
+.museum-motion-handle {
+  z-index: 2;
+  touch-action: none;
+}
+
+.museum-motion-handle::after {
+  position: absolute;
+  inset: -7px -10px -9px;
+  content: "";
+}
+
+.animal-rail {
+  position: relative;
+}
+
+.museum-motion-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.museum-motion-highlight--rail {
+  z-index: 2;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: transparent;
+}
+
+[data-moving-highlight="rail"] .animal-card[data-selected="true"] {
+  box-shadow: none;
+}
+
+.museum-motion-highlight--perspective {
+  border-radius: 13px;
+  background: rgb(255 253 247 / 94%);
+  box-shadow: 0 5px 14px rgb(9 31 23 / 18%);
+}
+
+[data-moving-highlight="perspective"] > button {
+  position: relative;
+}
+
+[data-moving-highlight="perspective"] > button[data-active="true"] {
+  background: transparent;
+  box-shadow: none;
+}
+
+.museum-motion-highlight--language {
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--animal-accent-soft) 38%, white);
+}
+
+[data-moving-highlight="language"] > .language-menu__choice {
+  position: relative;
+  background: transparent;
+}

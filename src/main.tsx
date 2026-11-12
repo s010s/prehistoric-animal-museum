@@ -8,6 +8,7 @@ import { App } from './App'
 import { readInitialAppState } from './app-bootstrap'
 import { readInitialLocaleState } from './i18n/browser-locale'
 import './styles.css'
+import './motion.css'
 
 const initialState = readInitialAppState()
 const initialLocale = initialState?.locale ?? readInitialLocaleState().locale

@@ -18,6 +18,7 @@ import {
   publicIdleContactEntry,
   updatePublicIdleContacts,
 } from './public-idle-contacts'
+import { CameraReframe } from './CameraReframe'
 import { clearsAnimalGroundFootprint, projectOutsideAnimalGroundFootprint } from './scale-encounter-ground-footprint'
 import {
   ACESFilmicToneMapping,
@@ -1315,6 +1316,7 @@ export class ViewerController {
   private readonly scene = new Scene()
   private readonly renderer: WebGLRenderer
   private readonly controls: OrbitControls
+  private readonly cameraReframe = new CameraReframe(this.camera, () => this.controls.target)
   private readonly cameraKeyLight = new DirectionalLight(
     '#fff0ce',
     CAMERA_KEY_INTENSITY,
@@ -1355,6 +1357,7 @@ export class ViewerController {
     if (this.reducedMotion && this.scaleEncounter?.transition) {
       this.finishScaleEncounterTransition()
     }
+    if (this.reducedMotion) this.cameraReframe.finish()
     if (wasReduced && !this.reducedMotion) {
       this.resumeRotationAt = 0
     }
@@ -1375,6 +1378,7 @@ export class ViewerController {
     this.stopLoop()
   }
   private readonly handleControlStart = () => {
+    this.cameraReframe.cancel()
     this.resumeRotationAt = Number.POSITIVE_INFINITY
     this.controls.autoRotate = false
   }
@@ -1402,6 +1406,7 @@ export class ViewerController {
     // A committed animal may still be fading in. Finish that presentation
     // before leasing the renderer, as the scale experience already does.
     if(this.transition)this.finishTransition()
+    this.cameraReframe.cancel()
     const restoreRenderer = rendererStateLease(this.renderer)
     const controlsEnabled = this.controls.enabled
     const autoRotate = this.controls.autoRotate
@@ -1773,6 +1778,7 @@ export class ViewerController {
   }
 
   commitModel(staged: StagedViewerModel): void {
+    this.cameraReframe.cancel()
     if (this.destroyed || staged.disposed) {
       this.disposeStagedModel(staged)
       return
@@ -2091,6 +2097,7 @@ export class ViewerController {
    * canvas, fetch or GLTF parse is created for the scale encounter.
    */
   beginScaleEncounter(profile: ScaleEncounterProfile): boolean {
+    this.cameraReframe.cancel()
     if (this.destroyed) {
       this.setScaleEncounterUnavailable('viewer-not-ready')
       return false
@@ -3782,7 +3789,17 @@ export class ViewerController {
     }
   }
 
-  reset(): void {
+  resetView(duration: number, onFinish?: () => void): void {
+    if (!this.current || this.scaleEncounter || this.externalExperience ||
+        (this.transition && !this.transition.cameraSwitched)) return
+    const animated = duration > 0 && !this.reducedMotionQuery.matches
+    this.cameraReframe.start(animated ? duration : 0, true, onFinish)
+    this.reset(true)
+    if (!animated) onFinish?.()
+  }
+
+  reset(preserveReframe = false): void {
+    if (!preserveReframe) this.cameraReframe.cancel()
     if (this.scaleEncounter) {
       return
     }
@@ -3880,13 +3897,14 @@ export class ViewerController {
     return this.renderer.domElement.toDataURL('image/png')
   }
 
-  setFocusMode(focused: boolean): void {
+  setFocusMode(focused: boolean, duration = 0): void {
     if (this.scaleEncounter) {
       this.resize()
       return
     }
+    this.cameraReframe.start(this.reducedMotion ? 0 : duration)
     if (focused) {
-      this.reset()
+      this.reset(true)
     } else {
       this.fitCurrentModel()
     }
@@ -5561,6 +5579,7 @@ export class ViewerController {
     if (!current) {
       return
     }
+    const visibleCamera = this.cameraReframe.beforeFit()
     const previousAutoRotate = this.controls.autoRotate
     const previousDamping = this.controls.enableDamping
     this.controls.autoRotate = false
@@ -5696,6 +5715,7 @@ export class ViewerController {
     this.controls.update()
     this.controls.enableDamping = previousDamping
     this.controls.autoRotate = previousAutoRotate
+    this.cameraReframe.afterFit(visibleCamera)
   }
 
   private confirmInitialFrame(animalId: string): void {
@@ -6008,15 +6028,16 @@ export class ViewerController {
           morphTargetWeights.join(';')
       }
       this.updateTransition(time)
-      if (!this.scaleEncounter) {
+      if (!this.scaleEncounter && !this.cameraReframe.update(time)) {
         this.controls.update()
       }
       this.updateCameraLighting()
       this.renderer.render(this.scene, this.camera)
-      if (import.meta.env.MODE === 'review' &&
+      if ((import.meta.env.MODE === 'review' || import.meta.env.MODE === 'e2e') &&
           new URLSearchParams(window.location.search).get('skyMotionRecord') === '1') {
         this.renderer.domElement.dataset.reviewMotionCamera = JSON.stringify({
           position: this.camera.position.toArray(),
+          target: this.controls.target.toArray(),
           quaternion: this.camera.quaternion.toArray(),
           fov: this.camera.fov,
           aspect: this.camera.aspect,

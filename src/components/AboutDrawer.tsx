@@ -3,16 +3,19 @@ import { Code2, ExternalLink, X } from 'lucide-react'
 import { GITHUB_LICENSING_URL, GITHUB_REPOSITORY_URL } from '../github'
 import { useI18n } from '../i18n/I18nProvider'
 import type { Locale } from '../i18n/locale'
+import { drawerCurve, type MotionOrigin } from '../motion'
 import { IconButton } from './IconButton'
 import { LanguageMenu } from './LanguageMenu'
 import { OfficialLinks } from './OfficialLinks'
 import { TransientScrollbar } from './TransientScrollbar'
 import { useTransientScrollbar } from './useTransientScrollbar'
+import { usePanelMotion } from './usePanelMotion'
 
 interface AboutDrawerProps {
   readonly localeHrefs?: Readonly<Record<Locale, string>>
   readonly onClose: () => void
   readonly open: boolean
+  readonly motionOrigin: React.RefObject<MotionOrigin | null>
   readonly returnFocusTo: React.RefObject<HTMLElement | null>
 }
 
@@ -26,11 +29,17 @@ export function AboutDrawer({
   localeHrefs,
   onClose,
   open,
+  motionOrigin,
   returnFocusTo,
 }: AboutDrawerProps) {
   const { messages } = useI18n()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const drawerRef = useRef<HTMLElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const { present, exiting, handle } = usePanelMotion({
+    open, panel: drawerRef, trigger: returnFocusTo, origin: motionOrigin,
+    backdrop: backdropRef, phone: 390, desktop: 260, easing: drawerCurve, onDismiss: onClose,
+  })
   const titleId = useId()
   const { handleScroll, isScrolling, metrics, scrollRef } =
     useTransientScrollbar(open)
@@ -72,24 +81,27 @@ export function AboutDrawer({
   }, [open, returnFocusTo])
 
   return (
-    <div className="drawer-layer" hidden={!open}>
+    <div className="drawer-layer" hidden={!present} data-exiting={exiting || undefined}>
       <div
         aria-hidden="true"
         className="drawer-backdrop"
+        ref={backdropRef}
         onMouseDown={(event) => {
-          if (event.currentTarget === event.target) {
+          if (open && event.currentTarget === event.target) {
             onClose()
           }
         }}
       />
       <section
+        aria-hidden={exiting || undefined}
         aria-labelledby={titleId}
         aria-modal={open || undefined}
         className="parent-drawer about-drawer"
+        inert={exiting || undefined}
         ref={drawerRef}
-        role="dialog"
+        role={open ? 'dialog' : undefined}
       >
-        <div className="drawer-handle" aria-hidden="true" />
+        <div className="drawer-handle museum-motion-handle" aria-hidden="true" {...handle} />
         <header className="drawer-header">
           <div>
             <p className="drawer-eyebrow">{messages.about.eyebrow}</p>

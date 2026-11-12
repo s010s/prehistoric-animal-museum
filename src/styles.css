@@ -116,15 +116,10 @@ a:focus-visible {
 .scene-background--outgoing {
   z-index: -3;
   opacity: 1;
-  transition: opacity 520ms ease;
 }
 
 .scene-background--incoming.scene-background--transition-ready {
   opacity: 1;
-}
-
-.scene-background--outgoing.scene-background--transition-ready {
-  opacity: 0;
 }
 
 .scene-background img {
@@ -1760,8 +1755,7 @@ html[data-model-preview-capture] .viewer-host::after {
   transition:
     transform 150ms ease,
     border-color 150ms ease,
-    background-color 150ms ease,
-    box-shadow 150ms ease;
+    background-color 150ms ease;
 }
 
 .animal-card:hover {
@@ -1908,7 +1902,6 @@ html[data-model-preview-capture] .viewer-host::after {
   background: var(--surface);
   box-shadow: 0 20px 70px rgb(26 43 25 / 28%);
   pointer-events: auto;
-  animation: drawer-enter 290ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .drawer-handle {
@@ -2327,7 +2320,6 @@ html[data-model-preview-capture] .viewer-host::after {
   display: block;
   min-height: 0;
   padding: 0;
-  animation: focus-enter 240ms ease both;
 }
 
 .museum-experience--focus .stage-panel {
@@ -2406,19 +2398,6 @@ html[data-model-preview-capture] .viewer-host::after {
   100% {
     opacity: 0;
     transform: translate(-50%, 0);
-  }
-}
-
-@keyframes drawer-enter {
-  from {
-    transform: translateY(105%);
-  }
-}
-
-@keyframes drawer-enter-side {
-  from {
-    opacity: 0;
-    transform: translateX(-105%);
   }
 }
 
@@ -2580,12 +2559,6 @@ html[data-model-preview-capture] .viewer-host::after {
 
   to {
     transform: translate3d(2.5%, 3%, 0) skewX(5deg);
-  }
-}
-
-@keyframes focus-enter {
-  from {
-    opacity: 0;
   }
 }
 
@@ -3300,7 +3273,6 @@ html[data-model-preview-capture] .viewer-host::after {
     max-height: none;
     margin: 0;
     border-radius: 28px;
-    animation-name: drawer-enter-side;
   }
 
   .drawer-handle {
@@ -3951,29 +3923,6 @@ html[data-model-preview-capture] .viewer-host::after {
   pointer-events: auto;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  animation: collection-backdrop-enter 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.collection-backdrop[data-exiting="true"] {
-  animation: collection-backdrop-exit 260ms cubic-bezier(0.4, 0, 1, 1) both;
-}
-
-@keyframes collection-backdrop-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes collection-backdrop-exit {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
 }
 
 .collection-sheet {
@@ -3992,7 +3941,6 @@ html[data-model-preview-capture] .viewer-host::after {
   background-color: #fffdf7;
   box-shadow: 0 28px 90px rgb(18 32 25 / 34%);
   pointer-events: auto;
-  animation: collection-sheet-expand 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
   transition:
     background-color 650ms cubic-bezier(0.2, 0.8, 0.2, 1),
     border-color 650ms cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -4000,36 +3948,7 @@ html[data-model-preview-capture] .viewer-host::after {
 }
 
 .collection-sheet[data-exiting="true"] {
-  animation: collection-sheet-collapse 260ms cubic-bezier(0.4, 0, 0.2, 1) both;
   pointer-events: none;
-}
-
-@keyframes collection-sheet-expand {
-  0% {
-    opacity: 0;
-    transform: translateY(32px) scale(0.965);
-    filter: blur(4px);
-  }
-  60% {
-    opacity: 1;
-    filter: blur(0);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-
-@keyframes collection-sheet-collapse {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(24px) scale(0.97);
-  }
 }
 
 /* Level 3 Invariant Viewport Stability: Zero Height Jumps */
@@ -5898,8 +5817,7 @@ html[data-locale="en"] .collection-card__copy strong {
     "Nunito Variable", "Avenir Next", Avenir, system-ui, sans-serif;
 }
 
-.language-menu__choice:hover,
-.language-menu__choice:focus-visible {
+.language-menu__choice[data-highlighted="true"] {
   background: color-mix(in srgb, var(--animal-accent-soft) 38%, white);
 }
 
@@ -6243,10 +6161,15 @@ html[data-locale="en"] .collection-card__copy strong {
   );
 }
 
-.scale-encounter-shell[data-phase="setup"]::after,
-.scale-encounter-shell[data-phase="error"]::after {
+.scale-encounter-shell::after {
   background: rgb(19 38 30 / 22%);
   backdrop-filter: blur(1px);
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+.scale-encounter-shell:is([data-phase="setup"], [data-phase="entering"], [data-phase="error"])::after {
+  opacity: 1;
 }
 
 .scale-encounter-gesture-layer {
@@ -6554,7 +6477,6 @@ html[data-locale="en"] .collection-card__copy strong {
   white-space: nowrap;
   transition:
     color 160ms ease,
-    background 160ms ease,
     transform 160ms ease;
 }
 
@@ -7749,13 +7671,6 @@ html[data-locale="en"] .collection-card__copy strong {
   .scale-encounter-voice-orb i {
     animation: none;
     height: 12px;
-  }
-
-  .collection-backdrop,
-  .collection-backdrop[data-exiting="true"],
-  .collection-sheet,
-  .collection-sheet[data-exiting="true"] {
-    animation-duration: 1ms !important;
   }
 
   .collection-card[data-current="true"] {
