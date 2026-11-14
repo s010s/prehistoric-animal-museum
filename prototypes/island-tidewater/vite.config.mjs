@@ -3,11 +3,12 @@ import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { writeBuildInfo } from './tools/write-build-info.mjs';
 import { submergedShadingContract } from './tools/submerged-shading-contract.mjs';
+import { cloudViewContract } from './tools/cloud-view-contract.mjs';
 await writeBuildInfo();
 const path = name => fileURLToPath(new URL(name, import.meta.url));
 export default defineConfig({
   root: path('./'), base: './', publicDir: path('vendor/tidewater/public'),
-  plugins: [submergedShadingContract(),{ name: 'private-native-review', configureServer(server) {
+  plugins: [submergedShadingContract(),cloudViewContract(),{ name: 'private-native-review', configureServer(server) {
     server.middlewares.use('/__native-review', (request, response) => {
       if (request.method !== 'POST' || request.headers.origin !== `http://${request.headers.host}` || !/^127\.0\.0\.1:\d+$/.test(request.headers.host ?? '')) { response.statusCode = 403; response.end(); return; }
       const chunks = []; let bytes = 0;
