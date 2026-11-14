@@ -2,6 +2,7 @@
 // underwater contracts (4811ba48, MIT, DRG Software Solutions LLC).
 import { BufferGeometry, Float32BufferAttribute, Mesh, Sphere, Vector3 } from '../vendor/tidewater/src/engine/index.js';
 import { ShaderModule, UniformBlock } from '../vendor/tidewater/src/engine/gpu/Shader.js';
+import {makeRefractedFloor} from './RefractedFloor.js';
 import {MuseumWaterMaterial} from './MuseumWaterMaterial.js';
 import { RefractionPass } from '../vendor/tidewater/src/ocean/RefractionPass.js';
 import { Underwater } from '../vendor/tidewater/src/post/Underwater.js';
@@ -13,14 +14,14 @@ export function installCreekLighting(field,terrain,clouds,ocean=null) {
   const deps=[field.module,terrain.module,clouds?.module].filter(Boolean);
   const direct=new ShaderModule({name:'creekDirect',deps:[...deps,ocean?.direct].filter(Boolean),code:`
 fn hookDirectModulation(P:vec3f,N:vec3f)->vec3f {
- let inland=museumInlandLightWeight(P.xz);
+ let inland=museumReceiverLightWeight(P.xz);
  ${ocean?'if(inland<.001){return oceanhookDirectModulation(P,N);}':''}
  var atten=vec3f(1.0);
 #if !IS_WATER && UNDERWATER_LIGHTING != 0
  if(inland>.001){
-  let d=max(creekMeanAt(P.xz)-P.y,0.0);
+  let h=museumReceiverField(P.xz).x;let d=max(h-P.y,0.0);
   if(d>0.0){
-  let grad=creekGradient(P.xz);
+  let grad=creekGradientAtHeight(P.xz,h);
   let wn=normalize(vec3f(-grad.x,1.0,-grad.y));
   let up=-refract(-frame.sunDir,wn,1.0/1.333);
   atten=mix(vec3f(1.0),exp(-(frame.waterAbsorption+frame.waterScattering)*d/max(up.y,0.15)),smoothstep(0.0,0.08,d));
@@ -38,11 +39,11 @@ fn hookDirectModulation(P:vec3f,N:vec3f)->vec3f {
 }`});
   const ambient=new ShaderModule({name:'creekAmbient',deps:[field.module,ocean?.ambient].filter(Boolean),code:`
 fn hookAmbientModulation(P:vec3f,N:vec3f)->vec3f {
- let inland=museumInlandLightWeight(P.xz);
+ let inland=museumReceiverLightWeight(P.xz);
  ${ocean?'if(inland<.001){return oceanhookAmbientModulation(P,N);}':''}
  var river=vec3f(1.0);
 #if !IS_WATER && UNDERWATER_LIGHTING != 0
- if(inland>.001){let d=max(creekMeanAt(P.xz)-P.y,0.0);let a=exp(-(frame.waterAbsorption+frame.waterScattering)*d*1.2)*0.85+vec3f(0.0,0.02,0.04)*exp(-d*0.1);river=mix(vec3f(1.0),a,smoothstep(0.0,0.1,d));}
+ if(inland>.001){let d=max(museumReceiverField(P.xz).x-P.y,0.0);let a=exp(-(frame.waterAbsorption+frame.waterScattering)*d*1.2)*0.85+vec3f(0.0,0.02,0.04)*exp(-d*0.1);river=mix(vec3f(1.0),a,smoothstep(0.0,0.1,d));}
 #endif
  ${ocean?'if(inland<.999){return mix(oceanhookAmbientModulation(P,N),river,inland);}':''}
  return river;
@@ -52,10 +53,10 @@ fn hookShadowPosition(P:vec3f,N:vec3f,pixel:vec2f)->vec3f {
 #if IS_WATER || UNDERWATER_LIGHTING == 0
  return P;
 #else
- let inland=museumInlandLightWeight(P.xz);
+ let inland=museumReceiverLightWeight(P.xz);
  if(inland<.001){return ${ocean?'oceanhookShadowPosition(P,N,pixel)':'P'};}
- let h=creekMeanAt(P.xz);let d=h-P.y;if(d<=0.0){return P;}
- let grad=creekGradient(P.xz);let wn=normalize(vec3f(-grad.x,1.0,-grad.y));
+ let h=museumReceiverField(P.xz).x;let d=h-P.y;if(d<=0.0){return P;}
+ let grad=creekGradientAtHeight(P.xz,h);let wn=normalize(vec3f(-grad.x,1.0,-grad.y));
  let up=-refract(-frame.sunDir,wn,1.0/1.333);
  var t=d/max(up.y-dot(grad,up.xz),0.15);
  for(var i=0;i<2;i++){let q=P+up*t;let e=creekMeanAt(q.xz)-q.y;t=max(0.0,t+e/max(up.y,0.15));}
@@ -68,14 +69,23 @@ fn hookShadowPosition(P:vec3f,N:vec3f,pixel:vec2f)->vec3f {
 }
 
 export class CreekRefraction extends RefractionPass {
-  constructor(options,field){super(options);this.field=field;this.maxWaterY=Math.max(...field.g.waterRuns.flat().map(p=>p.level),...(field.island?.lakes.map(p=>p.level)??[]));this._defines={CREEK_REFRACTION:1};}
-  render(){super.render(this.maxWaterY+.05);}
+  constructor(options,field,terrain=null){super(options);this.field=field;this.terrain=terrain;this.floor=terrain?makeRefractedFloor(terrain.lod):null;this.maxWaterY=Math.max(...field.g.waterRuns.flat().map(p=>p.level),...(field.island?.lakes.map(p=>p.level)??[]));this._defines={CREEK_REFRACTION:1};}
+  render(){
+    if(!this.floor)return super.render(this.maxWaterY+.05);
+    const {mesh,lod}=this.terrain;
+    const geometry=mesh.geometry;
+    if(geometry!==lod.geometry||geometry.drawRange.start!==0||geometry.drawRange.count<geometry.index.count)return super.render(this.maxWaterY+.05);
+    this.floor.instanceCount=geometry.instanceCount;
+    mesh.geometry=this.floor;
+    try{return super.render(this.maxWaterY+.05);}
+    finally{mesh.geometry=geometry;}
+  }
 }
 export function clipCreekRefraction(material,field) {
   if(material.userData?.creekClip)return;
   material.modules=[...(material.modules??[]),field.module];
   material.defines.MUSEUM_FULL_SUBMERGED_SHADING=1;
-  material.surface+=`\n#if CREEK_REFRACTION\nlet clipField=creekFieldAt(in.P.xz);let clipInland=smoothstep(0.0,.2,clipField.x-frame.seaLevel)*(1.0-smoothstep(0.0,1.0,clipField.y));\nlet clipY=mix(frame.seaLevel+.4,clipField.x+.06,clipInland);if(in.P.y>clipY){discard;}\n#endif\n`;
+  material.surface+=`\n#if CREEK_REFRACTION\n#if MUSEUM_TERRAIN_RECEIVER\nlet clipField=museumTerrainReceiver;\n#else\nlet clipField=creekFieldAt(in.P.xz);\n#endif\nlet clipInland=smoothstep(0.0,.2,clipField.x-frame.seaLevel)*(1.0-smoothstep(0.0,1.0,clipField.y));\nlet clipY=mix(frame.seaLevel+.4,clipField.x+.06,clipInland);if(in.P.y>clipY){discard;}\n#endif\n`;
   material.userData??={};material.userData.creekClip=true;material.needsUpdate=true;
 }
 

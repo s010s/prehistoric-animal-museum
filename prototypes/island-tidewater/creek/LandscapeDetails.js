@@ -21,14 +21,16 @@ export class LandscapeDetails{
   const terrain=data.terrain,F=data.field,random=mulberry32(197701),sites=[];
   for(let z=-130;z<180;z+=5){const r=F.riverAt(z);if(r)for(const side of [-1,1])sites.push([r.x+side*(r.width-4+random()*12),z+random()*3]);}
   for(const lake of data.island.lakes)for(let n=0;n<500;n++){const a=n/500*Math.PI*2,r=.82+random()*.3;sites.push([lake.center[0]+Math.cos(a)*lake.rx*r,lake.center[1]+Math.sin(a)*lake.rz*r]);}
-  for(let z=5670;z<6230;z+=10)for(let x=5140;x<5660;x+=10)if(random()<.45)sites.push([x+random()*7,z+random()*7]);
+  // Fine reed detail occupies a bounded reach on the marsh’s western bank.
+  const [mx,mz]=data.landforms.climate.wetland.center;
+  for(let z=mz-380;z<mz+180;z+=10)for(let x=mx-460;x<mx+60;x+=10)if(random()<.45)sites.push([x+random()*7,z+random()*7]);
   for(const source of [F.headwater,F.tributarySource])for(let i=0;i<72;i++){
    const z=source.origin.z+4+random()*90,r=source.at(z);if(r)sites.push([r.x+(i%2?1:-1)*(r.width+.3+random()*2.8),z]);
   }
   if(F.continuousSample)for(const p of F.continuousSample.points.filter((p,i)=>i%11===0&&i<780&&p.level>2.0)){
    const q=F.continuousSample.nearest(p.x,p.z);for(const side of [-1,1])if(random()<.65){const d=p.width+.6+random()*1.9;sites.push([p.x+q.dir[1]*side*d,p.z-q.dir[0]*side*d]);}
   }
-  for(const [x,z] of sites){const outcrop=[F.headwater,F.tributarySource].some(s=>Math.hypot((x-s.origin.x)/6.6,(z-s.origin.z+1.8)/5.6)<1);if(outcrop)continue;const y=terrain.heightAt(x,z),f=F.sample(x,z),gap=y-f[0],s=Math.hypot(terrain.heightAt(x+1,z)-terrain.heightAt(x-1,z),terrain.heightAt(x,z+1)-terrain.heightAt(x,z-1))/2;if(gap<-.35||gap>1.25||s>.65||f[1]>12)continue;this.records.push({x,y:y-.045,z,s:(z>5600&&z<6400?1.12:.7)+random()*.45,sy:1,yaw:random()*6.283,seed:random(),H:2,la:0,l:0,qr:80});}
+  for(const [x,z] of sites){const outcrop=[F.headwater,F.tributarySource].some(s=>Math.hypot((x-s.origin.x)/6.6,(z-s.origin.z+1.8)/5.6)<1);if(outcrop)continue;const y=terrain.heightAt(x,z),f=F.sample(x,z),gap=y-f[0],s=Math.hypot(terrain.heightAt(x+1,z)-terrain.heightAt(x-1,z),terrain.heightAt(x,z+1)-terrain.heightAt(x,z-1))/2;if(gap<-.35||gap>1.25||s>.65||f[1]>12)continue;this.records.push({x,y:y-.045,z,s:(.7+.42*data.landforms.climate.wetland.weight(x,z))+random()*.45,sy:1,yaw:random()*6.283,seed:random(),H:2,la:0,l:0,qr:80});}
   const material=new Material({name:'Museum jointed wet-bank plants',side:'double',modules:[vegModule],attributes:{iPos:'vec4f',iDat:'vec4f',aFlex:'f32'},varyings:{vAge:'f32',vStem:'f32'},vertex:`
  let base=v.iPos.xyz;let p=(v.model*vec4f(v.position,1.0)).xyz;let flex=v.aFlex*v.aFlex*.085;let ph=base.x*.37+base.z*.19;
  let sway=vegWindDir3()*sin(frame.time*1.2+ph)*flex*vegWindStrength();let old=vegWindDir3()*sin((frame.time-frame.dt)*1.2+ph)*flex*vegWindStrength();

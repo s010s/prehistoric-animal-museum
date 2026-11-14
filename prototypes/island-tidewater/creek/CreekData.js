@@ -40,8 +40,9 @@ fn creekFieldAt(p:vec2f)->vec4f {
 }
 fn creekMeanAt(p:vec2f)->f32{return creekFieldAt(p).x;}
 fn creekContains(p:vec2f)->bool{return creekFieldAt(p).y<0.05;}
-fn creekGradient(p:vec2f)->vec2f {
- let e=0.5;let h=creekMeanAt(p);var v=vec4f(h);
+fn creekGradient(p:vec2f)->vec2f{return creekGradientAtHeight(p,creekMeanAt(p));}
+fn creekGradientAtHeight(p:vec2f,h:f32)->vec2f {
+ let e=0.5;var v=vec4f(h);
  let p0=p+vec2f(e,0.0);let p1=p-vec2f(e,0.0);let p2=p+vec2f(0.0,e);let p3=p-vec2f(0.0,e);
  let f0=creekFieldAt(p0);let f1=creekFieldAt(p1);let f2=creekFieldAt(p2);let f3=creekFieldAt(p3);
  if(f0.y<0.05){v.x=f0.x;if(abs(v.x-h)>2.0){if(v.x<terrainHeightAt(p0)-0.03){v.x=h;}}}

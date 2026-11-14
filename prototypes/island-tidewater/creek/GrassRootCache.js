@@ -4,6 +4,12 @@ import {vegModule} from '../vendor/tidewater/src/world/vegetation/VegNodes.js';
 import {G} from '../vendor/tidewater/src/core/Globals.js';
 
 const ROWS=4,STRIDE=64;
+// Island cells lie on an integer grid. Keep the public field query usable for
+// fractional cells as well, without collisions or quantising their position.
+function cellKey(x,z){
+ return Number.isInteger(x)&&Number.isInteger(z)&&Math.abs(x)<32768&&Math.abs(z)<32768
+  ? (z+32768)*65536+x+32768 : x+','+z;
+}
 // Literal original CreekGrass vertex placement; compute keeps its f32 order.
 const PLACEMENT=`let cellYaw=floor(vegHash12(cell*.137+vec2f(7.1,19.3))*4.0)*1.57079632679;
  let cs=cos(cellYaw);let sn=sin(cellYaw);let q=slot.xy-vec2f(4.0);
@@ -30,22 +36,24 @@ export class GrassRootCache{
   }
   this.slotCount=slots.length/4;if(!this.slotCount)throw Error('Grass root cache has no template slots');
   this.slotData=new Float32Array(slots);this.cellData=new Float32Array(this.maxCells*4);
+  this.writes=new Float32Array(this.maxCells*4);this.residents=new Map();
+  this.keys=new Array(this.maxCells);this.liveKeys=new Set();this.freeSlots=[];this.filledCells=0;this.lastFill=0;
   this.byteLength=this.maxCells*this.slotCount*STRIDE;
   const limits=GPU.device.limits;
   if(this.byteLength>limits.maxStorageBufferBindingSize||this.byteLength>limits.maxBufferSize||Math.fround((this.maxCells-1)*this.slotCount)!==(this.maxCells-1)*this.slotCount)throw Error('Grass root cache exceeds fixed resource/address limits');
   this.buffer=new StorageBuffer({label:'Museum shared static grass roots',count:this.maxCells*this.slotCount*ROWS,type:'vec4f'});
   this.cellBuffer=new StorageBuffer({label:'Museum selected grass root cells',count:this.maxCells,type:'vec4f'});
   this.slotBuffer=new StorageBuffer({label:'Museum unique exact grass slot XY',count:this.slotCount,type:'vec4f',data:this.slotData});
-  this.review=new UniformBlock('MuseumGrassRootReview',{enabled:['f32',1],ready:['f32',0],cellCount:['u32',0]});
+  this.review=new UniformBlock('MuseumGrassRootReview',{enabled:['f32',1],ready:['f32',0],cellCount:['u32',0],writeCount:['u32',0]});
   this.module=new ShaderModule({name:'museumGrassRootCache',deps:[appearance.module,vegModule],uniforms:this.review,uniformName:'museumGrassRootReview',bindings:{museumGrassRootData:{storage:this.buffer,access:'read'}}});
   this.kernel=new ComputeKernel({label:'Museum static grass roots once per selected cell/slot',modules:[appearance.module,vegModule],bindings:{museumGrassRootReview:{uniform:this.review},museumGrassRootCells:{storage:this.cellBuffer,access:'read'},museumGrassRootSlots:{storage:this.slotBuffer,access:'read'},museumGrassRootOut:{storage:this.buffer,access:'read_write'}},code:`
 @compute @workgroup_size(WG_X,WG_Y,WG_Z)
 fn main(@builtin(global_invocation_id) gid:vec3u){
- let index=gid.x;if(index>=museumGrassRootReview.cellCount*${this.slotCount}u){return;}
- let cell=museumGrassRootCells[index/${this.slotCount}u].xy;let slot=museumGrassRootSlots[index%${this.slotCount}u];
+ let index=gid.x;if(index>=museumGrassRootReview.writeCount*${this.slotCount}u){return;}
+ let record=museumGrassRootCells[index/${this.slotCount}u];let cell=record.xy;let slot=museumGrassRootSlots[index%${this.slotCount}u];
  ${PLACEMENT}
  let forms=museumFloraAt(xz,0.0);let height=terrainHeightAt(xz);let cover=museumCover(xz,0.0).a;
- let water=creekFieldAt(xz);let meadow=museumMeadowAt(xz,0.0);let row=index*4u;
+ let water=creekFieldAt(xz);let meadow=museumMeadowAt(xz,0.0);let row=(u32(record.z)+index%${this.slotCount}u)*4u;
  museumGrassRootOut[row]=forms;museumGrassRootOut[row+1u]=vec4f(xz,height,cover);
  museumGrassRootOut[row+2u]=vec4f(water.xy,meadow.lush,0.0);museumGrassRootOut[row+3u]=vec4f(meadow.tone,meadow.dry);
 }`});
@@ -85,31 +93,68 @@ fn main(@builtin(global_invocation_id) gid:vec3u){
   if(this.material.defines.MUSEUM_GRASS_ROOT_CACHE!==value){this.material.defines.MUSEUM_GRASS_ROOT_CACHE=value;this.material.needsUpdate=true;}
   return this;
  }
- update(levels,{pass=null}={}){
+ update(levels,{pass=null,selectionUnchanged=false}={}){
   if(this.review.fields.enabled.value<=.5){this.invalidate();return false;}
-  let cells=0,selectionChanged=levels.length!==this._counts.length;
-  if(selectionChanged)throw Error('Grass root cache LOD count changed');
-  for(let tier=0;tier<levels.length;tier++){
-   const l=levels[tier];if(l.count<0||l.count>l.max||cells+l.count>this.maxCells)throw Error('Grass root cache selected cells exceed capacity');
-   if(this._counts[tier]!==l.count)selectionChanged=true;let offsetsChanged=false;
-   for(let i=0;i<l.count;i++){
-    const from=i*4,to=(cells+i)*4,x=l.arr[from],z=l.arr[from+1];
-    if(this.cellData[to]!==x||this.cellData[to+1]!==z)selectionChanged=true;
-    this.cellData[to]=x;this.cellData[to+1]=z;
-    const base=(cells+i)*this.slotCount;if(l.arr[from+2]!==base){l.arr[from+2]=base;offsetsChanged=true;}
-   }
-   if(offsetsChanged){l.attr.clearUpdateRanges();l.attr.addUpdateRange(0,Math.max(1,l.count)*4);l.attr.needsUpdate=true;}
-   cells+=l.count;
-  }
+  if(levels.length!==this._counts.length)throw Error('Grass root cache LOD count changed');
   const habitat=this.appearance.review.fields,patchCover=habitat.patchCover.value,legacyWater=habitat.legacyWater.value,seaLevel=G.seaLevel.value;
   const reviewChanged=patchCover!==this._patchCover||legacyWater!==this._legacyWater,seaChanged=seaLevel!==this._seaLevel;
-  if(this._valid&&!selectionChanged&&!reviewChanged&&!seaChanged)return false;
-  this.review.fields.cellCount.value=cells;
-  if(cells){this.cellBuffer.write(this.cellData.subarray(0,cells*4));this.kernel.dispatch(this.kernel.groups(cells*this.slotCount),{pass});this.dispatches++;}
-  this.lastReason=[!this._valid?'invalidated':null,selectionChanged?'selection':null,reviewChanged?'habitat review':null,seaChanged?'sea level':null].filter(Boolean).join(', ');
-  for(let i=0;i<levels.length;i++)this._counts[i]=levels[i].count;
+  const reset=!this._valid||reviewChanged||seaChanged;
+  // Only the native camera selection can certify that its instance arrays were untouched.
+  if(selectionUnchanged&&!reset)return false;
+  let cells=0,changed=reset;
+  for(let tier=0;tier<levels.length;tier++){
+   const l=levels[tier];if(l.count<0||l.count>l.max||cells+l.count>this.maxCells)throw Error('Grass root cache selected cells exceed capacity');
+   if(this._counts[tier]!==l.count)changed=true;
+   for(let i=0;i<l.count;i++){
+    const from=i*4,to=(cells+i)*4,x=l.arr[from],z=l.arr[from+1];
+    if(this.cellData[to]!==x||this.cellData[to+1]!==z)changed=true;
+    this.cellData[to]=x;this.cellData[to+1]=z;
+   }
+   cells+=l.count;
+  }
+  let fills=0;
+  if(changed){
+   if(reset){
+    this.residents.clear();this.freeSlots.length=0;
+    for(let i=this.maxCells-1;i>=0;i--)this.freeSlots.push(i);
+   }
+   // Mark the complete new selection first: a later tier can still reference
+   // a resident that an earlier tier just dropped. Draw order stays native.
+   const live=this.liveKeys;live.clear();
+   for(let i=0;i<cells;i++){const key=cellKey(this.cellData[4*i],this.cellData[4*i+1]);this.keys[i]=key;live.add(key);}
+   for(const [key,slot] of this.residents)if(!live.has(key)){this.residents.delete(key);this.freeSlots.push(slot);}
+   for(let i=0;i<cells;i++){
+    const key=this.keys[i],j=i*4;let slot=this.residents.get(key);
+    if(slot===undefined){
+     slot=this.freeSlots.pop();if(slot===undefined)throw Error('Grass root slot budget exhausted');
+     this.residents.set(key,slot);
+     const k=4*fills++;this.writes[k]=this.cellData[j];this.writes[k+1]=this.cellData[j+1];this.writes[k+2]=slot*this.slotCount;
+    }
+    this.cellData[j+2]=slot*this.slotCount;
+   }
+   this.review.fields.cellCount.value=cells;this.review.fields.writeCount.value=fills;
+   if(fills){
+    // Selection bookkeeping is already updated. A failed upload must never
+    // let the following frame use these slots as if they had been filled.
+    try{this.cellBuffer.write(this.writes.subarray(0,fills*4));this.kernel.dispatch(this.kernel.groups(fills*this.slotCount),{pass});}
+    catch(error){this.invalidate();throw error;}
+    this.dispatches++;this.filledCells+=fills;
+   }
+   this.lastFill=fills;
+   this.lastReason=[!this._valid?'invalidated':null,reviewChanged?'habitat review':null,seaChanged?'sea level':null,reset?null:'selection'].filter(Boolean).join(', ');
+  }
+  let cursor=0;
+  for(let tier=0;tier<levels.length;tier++){
+   const l=levels[tier];let dirty=false;
+   for(let i=0;i<l.count;i++,cursor++){
+    const base=this.cellData[cursor*4+2],k=i*4+2;
+    if(l.arr[k]!==base){l.arr[k]=base;dirty=true;}
+   }
+   if(dirty){l.attr.clearUpdateRanges();l.attr.addUpdateRange(0,Math.max(1,l.count)*4);l.attr.needsUpdate=true;}
+   this._counts[tier]=l.count;
+  }
   this.cells=cells;this._patchCover=patchCover;this._legacyWater=legacyWater;this._seaLevel=seaLevel;this._valid=true;this.review.fields.ready.value=1;
-  return true;
+  return fills>0;
  }
- stats(){return {enabled:this.review.fields.enabled.value>.5,variant:this.material.defines.MUSEUM_GRASS_ROOT_CACHE,materialVersion:this.material.version,ready:this.review.fields.ready.value>.5,cells:this.cells,slotsPerCell:this.slotCount,maxCells:this.maxCells,rootStrideBytes:STRIDE,bufferBytes:this.byteLength,dispatches:this.dispatches,lastReason:this.lastReason,fixedSharedBuffer:true,contents:'forms; XZ/height/cover; waterXY/lush; tone/dry',perBladeGround:'original museumGrassGround(rootXZ) retained',invalidation:'selected cell coordinates/count/order, patchCover, legacyWater, seaLevel, explicit invalidation, reenable'};}
+ stats(){return {enabled:this.review.fields.enabled.value>.5,variant:this.material.defines.MUSEUM_GRASS_ROOT_CACHE,materialVersion:this.material.version,ready:this.review.fields.ready.value>.5,cells:this.cells,slotsPerCell:this.slotCount,maxCells:this.maxCells,rootStrideBytes:STRIDE,bufferBytes:this.byteLength,dispatches:this.dispatches,lastReason:this.lastReason,fixedSharedBuffer:true,residentCells:this.residents.size,filledCells:this.filledCells,lastSelectionFill:this.lastFill,contents:'forms; XZ/height/cover; waterXY/lush; tone/dry',perBladeGround:'original museumGrassGround(rootXZ) retained',invalidation:'entering world cells only, shared across tiers; all residents on patchCover, legacyWater, seaLevel, explicit invalidation or reenable'};}
 }

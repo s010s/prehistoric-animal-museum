@@ -1,5 +1,6 @@
 // One authoritative inland-water registry: the original fine creek, headwater
 // fissures, main river, two lakes, tributary and connected tidal wetland.
+import {packOceanWaterSupport} from './OceanWaterSupport.js';
 import {createHeadwater} from './HeadwaterDesign.js';
 import {createTributarySource} from './TributarySource.js';
 import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
@@ -39,8 +40,10 @@ export function installIslandWater(field,world,headwater){
  if(continuous)for(let j=0;j<512;j++)packed.set(continuous.bytes.subarray(j*512*4,(j+1)*512*4),((j+512)*W+1024)*4);
  packed.set(field.riverProfile,W*n*4);
  const start=field.riverProfile.length/4,trip=world.tributary.flat();packed.set(trip,(W*n+start)*4);
+ const oceanSupport=packOceanWaterSupport(field,world,packed,W,W*n+start+trip.length/4);
  const old=field.texture;field.texture=new Texture({label:'Museum inland-water atlas',width:W,height:H,format:'rgba32float',data:packed,usage:['sample','copyDst']});field.module.bindings.creekFieldTex.texture=field.texture;old.destroy();
  const l=field.riverLayout,T=world.tributary,M=world.marsh;
+ const estuaryBlend='smoothstep(0.0,.2,f.x-frame.seaLevel)*(1.0-smoothstep(1.0,3.0,f.x-frame.seaLevel))*(1.0-smoothstep(-1.0,0.0,f.y))';
  const fineCode=field.module.code.split('fn creekRiverRow')[0];
  const sample=`fn islandWaterBilinear(p:vec2f,c:vec2f,size:f32,res:f32,offset:vec2i)->vec4f{
  let f=(p-c+size*.5)/size*res-.5;if(any(f<vec2f(0.0))||any(f>=vec2f(res-1.0))){return vec4f(0.0,10000.0,0.0,0.0);}
@@ -72,8 +75,33 @@ fn museumWaterOwner(p:vec2f)->f32{
 fn museumEstuaryOwns(p:vec2f)->bool{return creekContains(p)&&creekMeanAt(p)>frame.seaLevel+.5;}
 // Light transport crosses the tidal reach continuously. Mesh ownership is a
 // rasterisation choice, not a physical boundary in the underwater medium.
-fn museumInlandLightWeight(p:vec2f)->f32{let f=creekFieldAt(p);return smoothstep(0.0,1.5,f.x-frame.seaLevel)*(1.0-smoothstep(0.0,8.0,f.y));}
-fn museumEstuaryBlend(p:vec2f)->f32{let f=creekFieldAt(p);return smoothstep(0.0,.2,f.x-frame.seaLevel)*(1.0-smoothstep(1.0,3.0,f.x-frame.seaLevel))*(1.0-smoothstep(-1.0,0.0,f.y));}
+fn museumInlandWeightForField(f:vec4f)->f32{return smoothstep(0.0,1.5,f.x-frame.seaLevel)*(1.0-smoothstep(0.0,8.0,f.y));}
+fn museumInlandLightWeight(p:vec2f)->f32{return museumInlandWeightForField(creekFieldAt(p));}
+// Only the terrain and its footprint material already classified the receiver.
+// Offset shadow rays and gradient neighbours must still query their own position.
+#if MUSEUM_TERRAIN_RECEIVER
+var<private> museumTerrainReceiver:vec4f;
+var<private> museumTerrainLightWeight:f32;
+#endif
+fn museumReceiverField(p:vec2f)->vec4f{
+#if MUSEUM_TERRAIN_RECEIVER
+ return museumTerrainReceiver;
+#else
+ return creekFieldAt(p);
+#endif
+}
+fn museumReceiverLightWeight(p:vec2f)->f32{
+#if MUSEUM_TERRAIN_RECEIVER
+ return museumTerrainLightWeight;
+#else
+ return museumInlandLightWeight(p);
+#endif
+}
+fn museumEstuaryBlend(p:vec2f)->f32{let f=creekFieldAt(p);return ${estuaryBlend};}
+#if MUSEUM_OCEAN_HYDROLOGY
+fn museumEstuaryBlendForField(f:vec4f)->f32{return ${estuaryBlend};}
+${oceanSupport}
+#endif
 `;
  field.module.code=(fineCode+(continuous?.wgsl??sampleDisabledWGSL)+head.wgsl+east.wgsl+sample).replace('return creekFieldAt(p).y<0.05;','return creekFieldAt(p).y<0.05&&creekMeanAt(p)>frame.seaLevel+.5;');
  field.height=(x,z)=>{const f=field.sample(x,z);return f[1]<.05&&f[0]>-.2?f[0]:-90;};

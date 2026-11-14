@@ -7,6 +7,7 @@ import {sculptShallowCove} from './ShallowCove.js';
 import {extendCoastalShelf} from './CoastalShelf.js';
 import {installIslandWater} from './IslandWaterField.js';
 import {applySampleTerrain} from './SampleTerrain.js';
+import {createClimateFields,createIslandLandforms} from './IslandLandforms.js';
 // Explicit URLs keep every generated file in the production asset graph.
 const islandAssets={
  'island-layout.json':new URL('./assets/island-layout.json',import.meta.url),
@@ -55,6 +56,7 @@ export async function expandWholeIsland(data){
  const finePatches=[source,eastSource],patches=[regional,grids[1],grids[2]],baseH=global.heightAt.bind(global),baseB=global.boundsFor.bind(global);
  global.heightAt=(x,z)=>{let h=baseH(x,z);for(const p of patches){const d=Math.max(Math.abs(x-p.center[0]),Math.abs(z-p.center[1])),w=1-smooth(3800,4080,d);if(w>0)h=h*(1-w)+p.heightAt(x,z)*w;}for(const p of finePatches){const d=Math.max(Math.abs(x-p.center[0]),Math.abs(z-p.center[1])),w=1-smooth(112,124,d);if(w>0)h=h*(1-w)+p.heightAt(x,z)*w;}return h;};
  global.boundsFor=(x0,z0,x1,z1)=>{let [lo,hi]=baseB(x0,z0,x1,z1);for(const p of [...patches,...finePatches]){const s=p.size/2,c=p.center;if(x1<c[0]-s||x0>c[0]+s||z1<c[1]-s||z0>c[1]+s)continue;const b=p.boundsFor(x0,z0,x1,z1);lo=Math.min(lo,b[0]);hi=Math.max(hi,b[1]);}return [lo,hi];};
+ const climate=createClimateFields(world);
  data.island=world;data.islandMasks=masks;data.regionTerrains=patches;data.sourceTerrain=source;data.eastSourceTerrain=eastSource;data.terrain=global;data.field.terrain=global;
  // The legacy export used a lake's level over a rectangular bounding box.
  // Recover that lost land cover from the same habitat rules, with the actual
@@ -69,7 +71,7 @@ export async function expandWholeIsland(data){
   const nx=(global.heightAt(x+2,z)-global.heightAt(x-2,z))/4,nz=(global.heightAt(x,z+2)-global.heightAt(x,z-2))/4;
   const ny=1/Math.hypot(nx,1,nz);data.field.sample(x,z,wf);
   const water=wf[1]<=0?Math.max(-.7,wf[0]):-.7;
-  const heath=1-smooth(.5,1.2,Math.hypot((x-3400)/2700,(z+5250)/2400));
+  const heath=climate.sparse.weight(x,z);
   const density=smooth(.70,.94,ny)*smooth(.18,1.2,h-water)*(1-masks[k]/255)*(.38+.46*(1-masks[k+3]/255))*(1-heath*.68);
   const old=masks[k+1],next=Math.round(old*(1-w)+density*255*w);
   if(next!==old){masks[k+1]=next;repaired++;}
@@ -79,6 +81,7 @@ export async function expandWholeIsland(data){
  // global occupancy grid is coarse; roots always sample the composed surface.
  const grass=new Uint8Array(masks.length);for(let i=0;i<masks.length;i+=4)grass[i+1]=masks[i+1];data.grass={res:world.maskRes,data:grass};data.coverTerrain=global;
  applySampleTerrain(data);
+ data.landforms=createIslandLandforms(data,climate);
  return data;
 }
 

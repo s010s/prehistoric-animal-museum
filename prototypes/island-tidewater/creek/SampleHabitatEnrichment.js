@@ -42,6 +42,28 @@ function distanceToTrack(x,z,path){
  return best;
 }
 
+// Two broken lobes grow beside each actual reef. The inner, low Halimeda
+// occupies coarse sediment by carbonate crust; tall blades root farther out
+// in sand. Their two lobes follow the upstream and downstream reef shoulders.
+function reefMargins(data){
+ const bed=data.sampleBenthicDetails;
+ if(!bed?.reefGardens?.length)return [];
+ const obstacles=[...bed.coralSites,...bed.spongeSites,...bed.shellSites].map(p=>({x:p.x,z:p.z,r:p.span*.60}));
+ for(const p of bed.hardSites)obstacles.push({x:p.x,z:p.z,r:p.scale*.75});
+ const gardens=[...bed.reefGardens].sort((a,b)=>a.id.localeCompare(b.id));
+ return gardens.flatMap(g=>{
+  const route=data.field.continuousSample.nearest(g.x,g.z);
+  if(!route)return [];
+  const [dx,dz]=route.dir,side=Math.sign(route.across)||1;
+  // Limit physical checks to this garden and neighbours that reach its lobes.
+  const near=(p,r)=>Math.hypot(p.x-g.x,p.z-g.z)<g.radius+8+r;
+  return [{center:g,axis:Math.atan2(-dx*side,dz*side),
+   profile:data.landforms.profileFor({kind:'tidal-estuary',x:g.x,z:g.z}),
+   gardens:gardens.filter(p=>near(p,p.radius)),obstacles:obstacles.filter(p=>near(p,p.r)),
+   corals:bed.coralSites.filter(p=>near(p,p.span))}];
+ });
+}
+
 // Kept separate from GPU construction so a placement audit uses the exact
 // physical terrain and water fields that will later be rendered.
 export function planSampleHabitat(data,forestRecords=[],trackPath=null){
@@ -52,11 +74,12 @@ export function planSampleHabitat(data,forestRecords=[],trackPath=null){
  const nodes=route.points.filter(p=>p.distance>150&&p.distance<665);
  const lower=nodes.filter(p=>p.distance>445);
  const nearTrack=(x,z)=>distanceToTrack(x,z,trackPath)<1.6;
- const hard=data.sampleBenthicDetails?.coralSites??[];
+ const margins=reefMargins(data);
  for(const spec of SPECS){
   let made=0,rejected=0;
+  const lobes=spec.mode===3?margins.flatMap(margin=>[-1,1].map(side=>({margin,side,roots:0}))):[];
   for(let attempt=0;made<spec.count&&attempt<spec.count*230;attempt++){
-   let x,z,r;
+   let x,z,r,margin,lobe;
    const scale=spec.scale[0]+rng()*(spec.scale[1]-spec.scale[0]);
    if(spec.mode<3){
     const choices=rng()<.73?lower:nodes,p=choices[Math.floor(rng()*choices.length)];
@@ -67,13 +90,18 @@ export function planSampleHabitat(data,forestRecords=[],trackPath=null){
     z=p.z-r.dir[0]*offset*side+(rng()-.5)*1.7;
     r=route.nearest(x,z);
    }else{
-    // Distinct bayside patches around broken hard-bottom; the ebb lane stays
-    // bare. The two plant forms occupy overlapping but unequal pockets.
-    const f=Math.floor(rng()*5),centers=[[-942,157],[-961,126],[-979,174],[-1001,148],[-974,107]],c=centers[f];
-    const angle=rng()*Math.PI*2,rad=Math.sqrt(rng()),rx=spec.id==='halimeda'?12:17,rz=spec.id==='halimeda'?10:13;
-    x=c[0]+Math.cos(angle)*rad*rx;z=c[1]+Math.sin(angle)*rad*rz;r=route.nearest(x,z);
+    if(!lobes.length)break;
+    // Give every flow shoulder several chances for its next root before
+    // filling an easier one. Obstructed sediment remains empty.
+    lobe=lobes[attempt%lobes.length];
+    if(lobe.roots>=1+Math.floor(attempt/(lobes.length*6)))continue;
+    margin=lobe.margin;
+    const algae=spec.id==='halimeda',g=margin.center;
+    const angle=margin.axis+lobe.side*(1.68+(rng()-.5)*1.16);
+    const reach=g.radius+(algae?.15+rng()*1.85:1.05+rng()*3.65);
+    x=g.x+Math.cos(angle)*reach;z=g.z+Math.sin(angle)*reach;r=route.nearest(x,z);
    }
-   const y=ground(x,z),wf=data.field.sample(x,z),water=spec.mode===3?-.7:wf[0],depth=water-y,rise=y-water;
+   const y=ground(x,z),wf=data.field.sample(x,z),water=spec.mode===3?route.sea:wf[0],depth=water-y,rise=y-water;
    const slope=slopeAt(terrain,x,z),lift=spec.mode===1?Math.max(0,depth-.06*scale+.015):0,plantHeight=spec.height*scale+lift;
    let invalid=!Number.isFinite(y)||slope>(spec.mode===0?.49:spec.mode===1?.53:.30)||nearTrack(x,z);
    if(spec.mode===0){
@@ -90,19 +118,29 @@ export function planSampleHabitat(data,forestRecords=[],trackPath=null){
     invalid ||= depth<plantHeight+.24||depth>2.8||wf[1]>-.15||Math.abs(r.across)<r.width*.30;
    }else{
     invalid ||= depth<Math.max(1.45,plantHeight+.35)||depth>4.1;
-    invalid ||= r&&r.distance<880&&Math.abs(r.across)<r.width*.30;
-    invalid ||= hard.some(p=>Math.hypot(p.x-x,p.z-z)<(p.span??.5)*.60+(spec.id==='halimeda'?.25:.75));
+    const algae=spec.id==='halimeda',pad=algae?.25:.75;
+    invalid ||= !r||Math.abs(r.across)<Math.max(5,r.width*.30)+pad;
+    invalid ||= margin.gardens.some(g=>Math.hypot(g.x-x,g.z-z)<g.radius+.10);
+    invalid ||= margin.obstacles.some(p=>Math.hypot(p.x-x,p.z-z)<p.r+pad);
+    const bed=data.landforms.sample(margin.profile,x,z);
+    invalid ||= bed.marine<.6||bed.depth<=0||bed.sand<(algae?.25:.55);
+    const nearCoral=margin.corals.some(p=>Math.hypot(p.x-x,p.z-z)<p.span*.60+(algae?2.7:1.5));
+    invalid ||= algae?!nearCoral:nearCoral;
+    invalid ||= plants.some(p=>p.mode===3&&p.id!==spec.id&&Math.hypot(p.x-x,p.z-z)<.65);
    }
-   // Broken clonal pockets, with clear sediment between them. This function
-   // depends on world coordinates, so revisiting never rearranges a meadow.
-   invalid ||= Math.sin(x*.37+Math.sin(z*.19)*1.9)+Math.sin(z*.29-x*.11)<-.92;
+   // Rooted river plants break into clonal pockets. Offshore the real reef
+   // shoulders and upstream/downstream sand openings already separate them.
+   if(spec.mode<3)invalid ||= Math.sin(x*.37+Math.sin(z*.19)*1.9)+Math.sin(z*.29-x*.11)<-.92;
    invalid ||= plants.some(p=>p.id===spec.id&&Math.hypot(p.x-x,p.z-z)<spec.spacing);
    if(invalid){rejected++;continue;}
+   if(lobe)lobe.roots++;
    plants.push({id:spec.id,kind:SPECS.indexOf(spec),x,z,y:y-.018,ground:y,water,depth,slope,scale,lift,height:plantHeight,mode:spec.mode,range:spec.range,seed:rng(),yaw:rng()*Math.PI*2,flex:spec.flex,flow:spec.mode===2?[wf[2],wf[3]]:[.09,.025]});made++;
   }
   counts[spec.id]=made;rejections[spec.id]=rejected;
  }
- const tracks=planTracks(data,trackPath,rng);
+ // The registered trail has its own frozen random stream, independent of
+ // the number of rejected marine roots or the number of populated reefs.
+ const tracks=planTracks(data,trackPath,mulberry32(0xea2c4f91));
  return {plants,tracks,counts,rejections,trackPath};
 }
 
@@ -254,8 +292,8 @@ function habitatVisits(data,plan){
  if(land){const p=dryFooting(land.x,land.z,2.7);if(p)visits['sample-understory']={id:'sample-understory',title:'林缘苏铁与蕨丛',p,gaze:[land.x,land.ground+land.height*.6,land.z],time:12.6};}
  const margin=plan.plants.filter(p=>p.id==='marsilea').sort((a,b)=>Math.hypot(a.x+744,a.z+33)-Math.hypot(b.x+744,b.z+33))[0];
  if(margin){const p=dryFooting(margin.x,margin.z,2.2);if(p)visits['sample-water-plants']={id:'sample-water-plants',title:'溪岸的四叶水蕨',p,gaze:[margin.x,margin.water+.015,margin.z],time:12.6};}
- const marine=plan.plants.filter(p=>p.id==='halimeda').sort((a,b)=>Math.hypot(a.x+951,a.z-150)-Math.hypot(b.x+951,b.z-150))[0];
- if(marine)visits['sample-sea-plants']={id:'sample-sea-plants',title:'浅海海草与仙掌藻',p:[marine.x+1.6,marine.z+1.0],gaze:[marine.x,marine.ground+marine.height*.7,marine.z],diveLevel:-.7,eyeBelowSurface:Math.max(.9,Math.min(1.7,marine.depth-.55)),time:12.6};
+ // Keep the established dive camera while the vegetation follows actual reef margins.
+ if(plan.counts.halimeda)visits['sample-sea-plants']={id:'sample-sea-plants',title:'浅海海草与仙掌藻',p:[-946.4738452589452,151.7814259099936],gaze:[-948.0738452589452,-2.880036804574163,150.7814259099936],diveLevel:data.field.continuousSample.sea,eyeBelowSurface:1.7,time:12.6};
  const print=plan.tracks[Math.floor(plan.tracks.length*.45)];
  if(print){const p=dryFooting(print.x,print.z,2.2);if(p)visits['sample-tracks']={id:'sample-tracks',title:'湿岸上的三趾步迹',p,gaze:[print.x,print.y+.006,print.z],time:12.6};}
  return visits;

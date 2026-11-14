@@ -87,6 +87,7 @@ export function sampleVisits(data){
   const f=data.field.sample(...visit.p),floor=t.heightAt(...visit.p);
   if(f[1]<.05&&f[0]-floor>.05){const r=data.field.continuousSample.nearest(...visit.p),bank=bankFooting(r.x,r.z,1);visit.p=bank.p;visit.footing=bank;}
  }
+ if(data.sampleStrandVisit) visits[data.sampleStrandVisit.id]=data.sampleStrandVisit;
  Object.assign(visits,data.sampleMuseumLifeVisits??{},data.sampleHabitatEnrichmentVisits??{});
  return visits;
 }

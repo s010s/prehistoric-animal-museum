@@ -21,7 +21,11 @@ fn museumUnderTerrain(P:vec3f,R:vec3f,sigT:vec3f,fallback:vec3f)->vec4f{
    // Classify the reflected receiver through the continuous hydrology field.
    // A height test on the water origin cut a straight colour seam where the
    // descending creek crossed an absolute altitude of one metre.
+#if MUSEUM_OCEAN_HYDROLOGY
+   var fluvial=0.0;if(museumMayHaveInlandWater(H.xz)){fluvial=museumInlandLightWeight(H.xz);}
+#else
    let fluvial=museumInlandLightWeight(H.xz);
+#endif
    let c=mix(sand,gravel,max(smoothstep(.1,.55,1.0-N.y),.6*fluvial));
    let sun=frame.sunColor*max(dot(N,frame.sunDir),0.0)*terrainSunShadowAt(H);
    let depth=max(P.y-H.y,0.0);let lit=c*(frame.skyIrradiance+sun)*exp(-sigT*depth*1.2)*.72;
@@ -44,7 +48,7 @@ fn museumUnderReflection(P:vec3f,R:vec3f,sigT:vec3f,fallback:vec3f)->vec4f{
 export class MuseumWaterMaterial extends WaterMaterial{
  constructor(options){super(options);this.depthReview=new UniformBlock('MuseumWaterReview',{pixelDepth:['f32',1],pathLegacy:['f32',0],skyReuse:['f32',1]});this.depthReviewModule=new ShaderModule({name:'museumWaterReview',uniforms:this.depthReview,uniformName:'museumWaterReview'});}
  _build(){super._build();this.modules.push(shallowReflection,this.depthReviewModule);if(this.inlandField)this.modules.push(this.inlandField.module);
-  if(this.isMuseumOcean){const helper=this.modules.find(m=>m.name==='waterHelpers');if(!helper||!helper.code.includes('frame.seaLevel'))throw Error('Pinned sea SSR seam changed');const local=new ShaderModule({name:'museumSeaWaterHelpers',deps:helper.deps,bindings:helper.bindings,code:helper.code.replaceAll('frame.seaLevel','y0').replace('k < 3','k < 7')});this.modules=this.modules.map(m=>m===helper?local:m);}
+  if(this.isMuseumOcean){this.setDefine('MUSEUM_OCEAN_HYDROLOGY',1);const helper=this.modules.find(m=>m.name==='waterHelpers');if(!helper||!helper.code.includes('frame.seaLevel'))throw Error('Pinned sea SSR seam changed');const local=new ShaderModule({name:'museumSeaWaterHelpers',deps:helper.deps,bindings:helper.bindings,code:helper.code.replaceAll('frame.seaLevel','y0').replace('k < 3','k < 7')});this.modules=this.modules.map(m=>m===helper?local:m);}
  }
  _shadeWGSL(options){
   let code=super._shadeWGSL(options);
@@ -65,8 +69,17 @@ export class MuseumWaterMaterial extends WaterMaterial{
    change('let vHeight = in.vs.vWaveH;','let vHeight=in.vs.vWaveH*(1.0-museumTransition);');
    change('let crestT = shoreCrestPath( lagXZ, vDepth, Tv );','let crestT=mix(shoreCrestPath(lagXZ,vDepth,Tv),1e4,museumTransition);');
    change('let pos = in.P;',`let pos=in.P;
+#if MUSEUM_OCEAN_HYDROLOGY
+ var museumTransition=0.0;
+ if(museumMayHaveInlandWater(pos.xz)){
+  let field=creekFieldAt(pos.xz);if(field.y<.05&&field.x>frame.seaLevel+.5){discard;}
+  museumTransition=museumEstuaryBlendForField(field);
+ }
+#else
  let museumTransition=museumEstuaryBlend(pos.xz);
- if(museumEstuaryOwns(pos.xz)){discard;}`);
+ if(museumEstuaryOwns(pos.xz)){discard;}
+#endif
+`);
   }
   change('var thickness = pos.y - groundH;',`var thickness=pos.y-groundH;
  let receiver=worldFromDepth(screenUV,_waterSceneDepthAt(screenUV));

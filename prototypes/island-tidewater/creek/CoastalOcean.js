@@ -129,7 +129,14 @@ export function createCoastalOcean(app,data){
  y=mix(y,creekMeanAt(worldXZ),estuaryK);total.x*=1.0-estuaryK;total.z*=1.0-estuaryK;total.y=y-frame.seaLevel;
  shoreN=normalize(mix(shoreN,vec3f(0.0,1.0,0.0),estuaryK));
  var o: WaterSurfaceVertex;`);
- oceanModule.code=oceanModule.code.replace('o.normal = normal;',`let estuaryFade=museumEstuaryBlend(lagXZ);let estuaryGrad=creekGradient(lagXZ);
+ oceanModule.code=oceanModule.code.replace('o.normal = normal;',`
+#if MUSEUM_OCEAN_HYDROLOGY
+ var estuaryFade=0.0;var estuaryGrad=vec2f(0.0);
+ if(museumMayHaveInlandWater(lagXZ)){estuaryFade=museumEstuaryBlend(lagXZ);estuaryGrad=creekGradient(lagXZ);}
+#else
+ let estuaryFade=museumEstuaryBlend(lagXZ);let estuaryGrad=creekGradient(lagXZ);
+#endif
+
  o.normal=normalize(mix(normal,normalize(vec3f(-estuaryGrad.x,1.0,-estuaryGrad.y)),estuaryFade));`).replace('o.foam = foam;\n\to.coverage', 'o.foam=foam*(1.0-estuaryFade);\n\to.coverage').replace('o.slopes = slopes;', 'o.slopes=mix(slopes,estuaryGrad,estuaryFade);').replace('o.rough = rough;', 'o.rough=mix(rough,.35,estuaryFade);').replace('o.aeration = sat( aeration );','o.aeration=sat(aeration)*(1.0-estuaryFade);');
  const query=new CreekSeaQuery(engine,surface,data.field,data.terrain);
  const material=new MuseumWaterMaterial({surface,sky,sceneCopy:sceneRenderer.opaqueCopy,sceneDepthHalf:sceneRenderer.opaqueDepthHalf.texture,refraction});material.isMuseumOcean=true;material.inlandField=data.field;

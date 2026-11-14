@@ -1,6 +1,7 @@
 import { GPU } from '../vendor/tidewater/src/engine/gpu/GPU.js';
 import { G } from '../vendor/tidewater/src/core/Globals.js';
 import { FrameTimer } from './FrameTimer.js';
+import {installRouteInput, takeRouteInput} from './RouteInput.js';
 import {RegionMap} from '../creek/RegionMap.js';
 import buildInfo from './build-info.json';
 import {bindSceneReport} from './SceneReport.js';
@@ -18,6 +19,7 @@ export class NativeRuntime {
     this.inFlight = 0; this.maximumInFlight = 2; this.targetFps = 60;
     this.cpu = {}; this.lastFrame = null; this.cancelled = false; this.lost = false;
     this.loaderStarted = performance.now();
+    installRouteInput(this);
     bindSceneReport(this,buildInfo);
     bindSampleInspection(this,buildInfo);
     bindRevisionRoutes(this);
@@ -25,14 +27,16 @@ export class NativeRuntime {
     console.error = (...args) => { reportError(...args); this.fail(args.map(x => x?.message ?? String(x)).join(' ')); };
     const hudToggle=document.querySelector('#hud-toggle');if(hudToggle)hudToggle.onclick=()=>{const collapsed=document.body.classList.toggle('hud-collapsed');hudToggle.textContent=collapsed?'展开导览':'收起导览';hudToggle.setAttribute('aria-expanded',String(!collapsed));hudToggle.setAttribute('aria-label',collapsed?'展开导览面板':'收起导览面板');};
     for(const id of ['inspection','raw-diagnostics'])document.querySelector('#'+id)?.addEventListener('toggle',()=>this.publish());
-    document.querySelector('#pause').onclick = () => this.running ? this.stop('user') : this.resume();
+    document.querySelector('#pause').onclick = () => { if (this.running) this.stop('user'); else if (!this.routeOwnsInput) this.resume(); };
     document.querySelector('#capture').onclick = () => this.saveObservation();
     document.querySelector('#measure').onclick = () => this.measure().catch(e => { if (!e.timingSaveFailed) this.fail(e); });
     const video=document.querySelector('#record-video');if(video)video.onclick=()=>this.recordVideo().catch(error=>{this.videoResult={status:'failed',message:String(error)};this.event('video-unavailable',{message:String(error)});this.publish();document.querySelector('#status').textContent='本次录像未保存 · '+error.message;});
     document.querySelector('#cancel').onclick = () => { this.cancelled = true; this.stop('loading cancelled'); GPU.device?.destroy(); };
     document.querySelector('#scale').onchange = event => {
       if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample || this.recordingVideo) return;
-      this.app.setRenderScale(Number(event.target.value)); this.resetHistory();
+      if (this.app.waterBudget) this.app.waterBudget.setQuality(event.target.value);
+      else this.app.setRenderScale(Number(event.target.value));
+      this.resetHistory();
       this.event('scale', { value: this.app.settings.renderScale }); this.publish();
     };
     const density=document.querySelector('#output-density');if(density)density.onchange=()=>{if(this.phase!=='ready'||this.measuring||this.recordingVideo||this.recordingAudio)return;this.app.engine.setRenderScale(Number(density.value));this.resetHistory();this.event('output-density',{value:Number(density.value)});this.resume();this.publish();};
@@ -98,10 +102,12 @@ export class NativeRuntime {
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === this.app.engine?.domElement;
       const released = this.wasLocked && !locked;
-      this.wasLocked = locked;
+      this.wasLocked = locked && !this.routeOwnsInput;
       const hint=document.querySelector('#pointer-note');if(locked&&hint)hint.hidden=true;
       this.event('pointer-lock', { locked });
-      if (released && this.running) this.stop('pointer-unlocked');
+      // A lock requested by the visitor before a timed route may arrive during its warmup.
+      if (locked && this.routeOwnsInput) document.exitPointerLock();
+      else if (released && this.running && !this.routeOwnsInput) this.stop('pointer-unlocked');
       else this.publish();
     });
     document.addEventListener('pointerlockerror', () => {
@@ -228,6 +234,7 @@ export class NativeRuntime {
     // Follow Tidewater's display-driven loop. A second 60 Hz clock rejects
     // valid refreshes when their timestamps jitter; keep the GPU queue bound.
     const reason = this.phase !== 'ready' ? this.phase : document.hidden ? 'hidden' : !this.running ? 'paused' : this.lost ? 'device-lost' : t >= this.deadline ? 'observation-deadline' : this.inFlight >= this.maximumInFlight ? 'gpu-backpressure' : null;
+    if (reason===null || reason==='gpu-backpressure') this.app.waterBudget?.observe(t, reason==='gpu-backpressure');
     const callback = { t, interval: callbackInterval, callbackStart, latenessMs: callbackStart - t, attempted: !reason, submitted: false, reason };
     if (this.recording) this.callbacks.push(callback);
     if (reason) { if (reason === 'observation-deadline' && this.running) this.stop(reason); return; }
@@ -243,10 +250,20 @@ export class NativeRuntime {
     callback.submitted = true;
     const row = { t, frame: GPU.frame, interval, dt, worldTime: G.time.value, camera: this.app.camera.position.toArray(), quaternion: this.app.camera.quaternion.toArray(), cpuFrameMs: performance.now() - start, cpu: { ...this.cpu } };
     row.outstandingAtSubmission=this.inFlight;
-    completion.then(()=>{this.inFlight--;row.gpuCompletedAt=performance.now();row.queueCompletionDelayMs=row.gpuCompletedAt-start;},error=>{this.inFlight--;this.lost=true;this.fail(error);});
+    completion.then(()=>{this.inFlight--;row.gpuCompletedAt=performance.now();row.queueCompletionDelayMs=row.gpuCompletedAt-start;this.app.waterBudget?.completed(row.queueCompletionDelayMs);},error=>{this.inFlight--;this.lost=true;this.fail(error);});
     this.lastFrame = row;
     if(this.videoRouteFrames)this.videoRouteFrames.push({elapsedMs:this.videoRouteTick*1000/30,tick:this.videoRouteTick,frame:GPU.frame,camera:row.camera,quaternion:row.quaternion,ground:this.app.terrainData?.heightAt(row.camera[0],row.camera[2])??null});
-    if (this.recording) this.frames.push(row);
+    if (this.recording) {
+      this.frames.push(row);
+      const {engine,sceneRenderer,post,waterBudget}=this.app;
+      const rt=sceneRenderer.sceneRT, previous=this.bufferChanges.at(-1);
+      if (!previous || previous.output[0]!==engine.width || previous.output[1]!==engine.height ||
+          previous.internal[0]!==rt.width || previous.internal[1]!==rt.height || previous.scale!==post.scale ||
+          previous.minimumScale!==waterBudget?.viewMinimumScale) {
+        this.bufferChanges.push({frame:row.frame,t,output:[engine.width,engine.height],internal:[rt.width,rt.height],
+          scale:post.scale,automatic:waterBudget?.automatic===true,minimumScale:waterBudget?.viewMinimumScale});
+      }
+    }
     if (!this.lastHUD || t - this.lastHUD > 500) { this.lastHUD = t; this.publish(); }
     row.cpuCallbackMs = performance.now() - callbackStart;
     row.cpuInstrumentationMs = row.cpuCallbackMs - row.cpuFrameMs;
@@ -268,7 +285,7 @@ export class NativeRuntime {
       input: a.input ? { locked:a.input.locked, keys:[...a.input.keys], mouseDown:a.input.mouseDown, rightDown:a.input.rightDown, look:{...a.input.look} } : null,
       interactionEvents:this.events.filter(e=>['pointer-lock','pointer-lock-rejected','canvas-reenter','pause','resume'].includes(e.kind)).slice(-12),
       sceneConditions:{timeOfDay:a.settings.timeOfDay,windSpeed:G.windSpeed.value,exposure:a.settings.exposure,autoExposure:a.post?.autoExposure.enabled.value,filmGrain:a.post?.params.grain.value,sharpen:a.post?.params.sharpen.value,jitterMoving:a.post?.taau?.jitterMoving},
-      renderScale: a.settings.renderScale, aaMode: a.post?.aaMode,
+      renderScale: a.settings.renderScale, waterQuality:a.waterBudget?.state(), aaMode: a.post?.aaMode,
       dynamicMuseumShadows:a.dynamicMuseumShadows?.stats()??null,
       canopyLightFrustum:a.canopyLightFrustum?.stats()??null,
       grassRootCache:a.vegetation?.grass?.rootCache?.stats()??null,
@@ -305,6 +322,7 @@ export class NativeRuntime {
   async measure({warmupMs=3000,durationMs=8000}={}) {
     if(!Number.isFinite(warmupMs)||warmupMs<0||!Number.isFinite(durationMs)||durationMs<1000||durationMs>300000)throw Error('Invalid native timing duration');
     if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample || this.recordingVideo || this.recordingAudio || this.lost) return;
+    const releaseInput = this.videoMotion ? takeRouteInput(this) : null;
     this.measuring = true;
     try {
       // Repainting the live raw JSON panel changes browser presentation cost.
@@ -316,7 +334,7 @@ export class NativeRuntime {
       await pause(warmupMs);
       if (!this.running) { this.event('timing-cancelled-during-warmup'); return; }
       const conditions = this.state();
-      this.callbacks = []; this.frames = []; this.interruptedDuringTiming = false; this.recording = true; this.timer.start();
+      this.callbacks = []; this.frames = []; this.bufferChanges=[]; this.interruptedDuringTiming = false; this.recording = true; this.timer.start();
       const start = performance.now();
       await pause(durationMs);
       const elapsedMs = performance.now() - start;
@@ -328,18 +346,21 @@ export class NativeRuntime {
       // before serializing evidence; this drain is outside elapsedMs.
       await GPU.queue.onSubmittedWorkDone();
       const after = this.state();
-      const fixedBuffers = JSON.stringify(conditions.output) === JSON.stringify(after.output) && JSON.stringify(conditions.internal) === JSON.stringify(after.internal) && conditions.renderScale === after.renderScale;
+      const fixedBuffers = this.bufferChanges.length===1 && JSON.stringify(conditions.output) === JSON.stringify(after.output) && JSON.stringify(conditions.internal) === JSON.stringify(after.internal) && conditions.renderScale === after.renderScale;
+      const validWaterScaling=conditions.waterQuality?.automatic===true && after.waterQuality?.automatic===true &&
+        this.bufferChanges.length>0 && this.bufferChanges.every(b=>b.automatic && b.scale>=b.minimumScale && b.minimumScale>=conditions.waterQuality.minimumScale && b.scale<=1 &&
+          b.output.every((n,i)=>n===conditions.output[i] && n===after.output[i] && b.internal[i]===Math.max(1,Math.round(n*b.scale))));
       const intervals = this.frames.map(f => f.interval).filter(v => v !== null);
       const gpuMs = gpu.rows.filter(r => r.status === 'valid').map(r => r.ms);
       const result = {
-        schema: 'museum-native-timing-v1', requested:{warmupMs,durationMs}, passed: !interrupted && fixedBuffers && this.frames.length > 10 && !this.errors.length,
-        conditions, after, fixedBuffers, interrupted, elapsedMs, submittedFps: this.frames.length / (elapsedMs / 1000),
+        schema: 'museum-native-timing-v1', requested:{warmupMs,durationMs}, passed: !interrupted && (conditions.waterQuality?.automatic ? validWaterScaling : fixedBuffers) && this.frames.length > 10 && !this.errors.length,
+        conditions, after, fixedBuffers, validWaterScaling, bufferChanges:this.bufferChanges, interrupted, elapsedMs, submittedFps: this.frames.length / (elapsedMs / 1000),
         intervalP50: quantile(intervals, .5), intervalP95: quantile(intervals, .95), intervalP99: quantile(intervals, .99),
         cpuP50: quantile(this.frames.map(f => f.cpuFrameMs), .5), cpuP95: quantile(this.frames.map(f => f.cpuFrameMs), .95),
         callbackCpuP50: quantile(this.frames.map(f => f.cpuCallbackMs), .5), callbackCpuP95: quantile(this.frames.map(f => f.cpuCallbackMs), .95),
         gpuP50: quantile(gpuMs, .5), gpuP95: quantile(gpuMs, .95), gpu,
         callbacks: this.callbacks, frames: this.frames, events: this.events,
-        capture: false, pixelReadback: false, timestampReadback: true,
+        capture: false, pixelReadback: false, waterCoverageReadback:conditions.waterQuality?.automatic===true, timestampReadback: true,
         caveat: 'Sparse timestamps on actual native passes and asynchronous readbacks add overhead. No causal comparison or long-duration thermal claim from one short run.',
       };
       try { await this.save('timing', result); }
@@ -353,6 +374,7 @@ export class NativeRuntime {
       document.querySelector('#status').textContent = result.passed ? `计时已保存 · 提交 ${result.submittedFps.toFixed(2)} FPS · GPU pass 区间 p50 ${result.gpuP50?.toFixed(2) ?? '不可用'} ms` : '计时中断或失败 · 原始记录已保存';
       this.publish();
     } finally {
+      releaseInput?.();
       this.measuring = false;
       document.querySelector('#measure').disabled = false;
       this.publish();
@@ -360,6 +382,7 @@ export class NativeRuntime {
   }
   async walkSample() {
     if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample || this.recordingAudio || this.recordingVideo) return;
+    const releaseInput = takeRouteInput(this);
     this.walkingSample = true;
     try {
       if (this.app.showLandmark) this.app.showLandmark(this.app.currentLandmark?.startsWith('sample-')?this.app.currentLandmark:'entrance');
@@ -381,7 +404,7 @@ export class NativeRuntime {
       const after = this.state();
       const travel = points.reduce((sum, p, i) => i ? sum + Math.hypot(p.position[0] - points[i - 1].position[0], p.position[2] - points[i - 1].position[2]) : 0, 0);
       await this.save('observation', { kind: 'ordinary-native-walk', passed: complete && travel > 1, before, after, points, travelMetres: travel, events: this.events });
-    } finally { this.app.input?.keys.delete('KeyW'); this.walkingSample = false; this.publish(); }
+    } finally { releaseInput(); this.walkingSample = false; this.publish(); }
   }
   async recordVideo() {
     if(this.phase!=='ready'||this.recordingVideo||this.recordingAudio||this.recording||this.measuring||this.walkingSample)return;
@@ -395,28 +418,31 @@ export class NativeRuntime {
     if(motion==='catchment'&&!this.app.creekData.field.continuousSample)throw Error('原版无样板水系航拍路线');
     const captureFps=revisionRoute?.wingFollow?60:30;
     const button=document.querySelector('#record-video'),stream=canvas.captureStream(captureFps),chunks=[];
-    this.recordingVideo=true;this.videoResult={status:'recording'};button.disabled=true;document.querySelector('#inspection')?.removeAttribute('open');
-    if(['turn','pitch','aerial','approach','catchment'].includes(motion)&&!this.app.freeCam)this.app.setFreeCam(true);
-    if(motion==='walk'&&this.app.freeCam){this.app.freeCam=false;this.app.dropPlayerAtCamera();}
-    this.resume();const before=this.state(),start=performance.now();
-    this.motionSpeedBefore=this.app.fly?.speed;if(motion==='aerial'||motion==='approach')this.app.fly.speed=this.app.currentLandmark==='review-cove-boundary'?48:12;
-    const turnYaw=this.app.fly?.yaw,turnPitch=this.app.fly?.pitch;
-    if(revisionRoute){this.videoRouteFrames=[];this.videoRouteTick=0;this.videoMotion=now=>applyRevisionTick(this,revisionRoute,now-start);}
-    if(motion==='turn'||motion==='pitch'){this.clearInput();this.app.fly.velocity.set(0,0,0);this.videoMotion=now=>{const t=Math.max(0,Math.min(1,(now-start-2000)/8000)),offset=Math.sin(t*Math.PI*2);if(motion==='turn')this.app.fly.yaw=turnYaw+offset*Math.PI/18;else this.app.fly.pitch=Math.max(-1.45,Math.min(1.45,turnPitch+offset*.65));};}
-    if(motion==='catchment'){
-      const s=this.app.creekData.field.continuousSample,route=s.points;
-      this.videoMotion=now=>{const t=Math.max(0,Math.min(1,(now-start-1500)/9000)),distance=t*s.length;let i=1;while(i<route.length-1&&route[i].distance<distance)i++;const a=route[i-1],b=route[i],u=(distance-a.distance)/Math.max(.001,b.distance-a.distance),x=a.x+(b.x-a.x)*u,z=a.z+(b.z-a.z)*u,r=s.nearest(x,z),h=Math.max(this.app.terrainData.heightAt(x,z),s.sample(x,z)[0])+14;this.app.fly.setPose(this.app.camera.position.clone().set(x,h,z),Math.atan2(-r.dir[0],-r.dir[1]),-.48);this.app.fly.velocity.set(0,0,0);};
-    }
-    const motionTimer=setInterval(()=>{
-      const t=performance.now()-start,keys=this.app.input.keys;
-      if(['walk','approach','aerial'].includes(motion)){keys.delete('KeyA');keys.delete('KeyD');keys.delete('KeyW');keys.delete('KeyS');if(t>2000&&t<10000&&this.running){keys.add(motion==='walk'?'KeyW':motion==='approach'?(t<6000?'KeyW':'KeyS'):t<6000?'KeyD':'KeyA');}}
-      if(motion==='dive'){keys.delete('Space');keys.delete('KeyC');if(t>2000&&t<10000&&this.running)keys.add(t<6000?'Space':'KeyC');}
-      const life=this.app.life;motionPoints.push({elapsedMs:t,camera:this.app.camera.position.toArray(),quaternion:this.app.camera.quaternion.toArray(),running:this.running,grove:this.app.vegetation?.giantWindow?.(this.app.camera.position),museumActors:this.app.sampleMuseumLife?.stats().actors,life:life?{time:life.time,rigs:{pterosaurs:life.pterosaurs?.stats(),insect:life.insect?.stats(),benthos:life.benthos?.stats()},fish:life.frameSight.fish.length,shrimp:life.frameSight.shrimp.length,birds:life.frameSight.birds.length,examples:Object.fromEntries(Object.entries(life.frameSight).map(([k,v])=>[k,v.slice(0,2)]))}:null});
-    },100);
-    const recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:revisionRoute?6000000:4000000});
-    const onHide=()=>{if(recorder.state!=='inactive')recorder.stop();};
-    window.addEventListener('pagehide',onHide,{once:true});
+    const releaseInput=motion==='none'?null:takeRouteInput(this);
+    let recorder,motionTimer,turnYaw,turnPitch;
+    const onHide=()=>{if(recorder&&recorder.state!=='inactive')recorder.stop();};
+    this.recordingVideo=true;
     try {
+      this.videoResult={status:'recording'};button.disabled=true;document.querySelector('#inspection')?.removeAttribute('open');
+      if(['turn','pitch','aerial','approach','catchment'].includes(motion)&&!this.app.freeCam)this.app.setFreeCam(true);
+      if(motion==='walk'&&this.app.freeCam){this.app.freeCam=false;this.app.dropPlayerAtCamera();}
+      this.resume();const before=this.state(),start=performance.now();
+      this.motionSpeedBefore=this.app.fly?.speed;if(motion==='aerial'||motion==='approach')this.app.fly.speed=this.app.currentLandmark==='review-cove-boundary'?48:12;
+      turnYaw=this.app.fly?.yaw;turnPitch=this.app.fly?.pitch;
+      if(revisionRoute){this.videoRouteFrames=[];this.videoRouteTick=0;this.videoMotion=now=>applyRevisionTick(this,revisionRoute,now-start);}
+      if(motion==='turn'||motion==='pitch'){this.clearInput();this.app.fly.velocity.set(0,0,0);this.videoMotion=now=>{const t=Math.max(0,Math.min(1,(now-start-2000)/8000)),offset=Math.sin(t*Math.PI*2);if(motion==='turn')this.app.fly.yaw=turnYaw+offset*Math.PI/18;else this.app.fly.pitch=Math.max(-1.45,Math.min(1.45,turnPitch+offset*.65));};}
+      if(motion==='catchment'){
+        const s=this.app.creekData.field.continuousSample,route=s.points;
+        this.videoMotion=now=>{const t=Math.max(0,Math.min(1,(now-start-1500)/9000)),distance=t*s.length;let i=1;while(i<route.length-1&&route[i].distance<distance)i++;const a=route[i-1],b=route[i],u=(distance-a.distance)/Math.max(.001,b.distance-a.distance),x=a.x+(b.x-a.x)*u,z=a.z+(b.z-a.z)*u,r=s.nearest(x,z),h=Math.max(this.app.terrainData.heightAt(x,z),s.sample(x,z)[0])+14;this.app.fly.setPose(this.app.camera.position.clone().set(x,h,z),Math.atan2(-r.dir[0],-r.dir[1]),-.48);this.app.fly.velocity.set(0,0,0);};
+      }
+      motionTimer=setInterval(()=>{
+        const t=performance.now()-start,keys=this.app.input.keys;
+        if(['walk','approach','aerial'].includes(motion)){keys.delete('KeyA');keys.delete('KeyD');keys.delete('KeyW');keys.delete('KeyS');if(t>2000&&t<10000&&this.running){keys.add(motion==='walk'?'KeyW':motion==='approach'?(t<6000?'KeyW':'KeyS'):t<6000?'KeyD':'KeyA');}}
+        if(motion==='dive'){keys.delete('Space');keys.delete('KeyC');if(t>2000&&t<10000&&this.running)keys.add(t<6000?'Space':'KeyC');}
+        const life=this.app.life;motionPoints.push({elapsedMs:t,camera:this.app.camera.position.toArray(),quaternion:this.app.camera.quaternion.toArray(),running:this.running,grove:this.app.vegetation?.giantWindow?.(this.app.camera.position),museumActors:this.app.sampleMuseumLife?.stats().actors,life:life?{time:life.time,rigs:{pterosaurs:life.pterosaurs?.stats(),insect:life.insect?.stats(),benthos:life.benthos?.stats()},fish:life.frameSight.fish.length,shrimp:life.frameSight.shrimp.length,birds:life.frameSight.birds.length,examples:Object.fromEntries(Object.entries(life.frameSight).map(([k,v])=>[k,v.slice(0,2)]))}:null});
+      },100);
+      recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:revisionRoute?6000000:4000000});
+      window.addEventListener('pagehide',onHide,{once:true});
       await new Promise((resolve,reject)=>{
         recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
         recorder.onstop=resolve;recorder.onerror=e=>reject(e.error??Error('录像编码失败'));
@@ -429,8 +455,8 @@ export class NativeRuntime {
       this.videoResult={status:'saved',artifact:saved.artifact,bytes:bytes.length,motion};
       document.querySelector('#status').textContent='动态画面已保存 · 性能另行计时';
     } finally {
-      clearTimeout(this.videoDeadline);clearInterval(motionTimer);this.videoMotion=null;if(motion==='turn')this.app.fly.yaw=turnYaw;if(motion==='pitch')this.app.fly.pitch=turnPitch;if(motion==='aerial'||motion==='approach')this.app.fly.speed=this.motionSpeedBefore;for(const k of ['KeyA','KeyD','KeyW','KeyS','Space','KeyC'])this.app.input.keys.delete(k);window.removeEventListener('pagehide',onHide);
-      if(recorder.state!=='inactive')recorder.stop();stream.getTracks().forEach(t=>t.stop());
+      releaseInput?.();clearTimeout(this.videoDeadline);clearInterval(motionTimer);this.videoMotion=null;if(motion==='turn'&&turnYaw!==undefined)this.app.fly.yaw=turnYaw;if(motion==='pitch'&&turnPitch!==undefined)this.app.fly.pitch=turnPitch;if((motion==='aerial'||motion==='approach')&&this.motionSpeedBefore!==undefined)this.app.fly.speed=this.motionSpeedBefore;for(const k of ['KeyA','KeyD','KeyW','KeyS','Space','KeyC'])this.app.input.keys.delete(k);window.removeEventListener('pagehide',onHide);
+      onHide();stream.getTracks().forEach(t=>t.stop());
       this.recordingVideo=false;button.disabled=false;this.publish();
       this.videoRouteFrames=null;
     }
