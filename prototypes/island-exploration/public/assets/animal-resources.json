@@ -1,0 +1,29 @@
+{
+  "schema": "island-animal-resources-v1",
+  "animals": [
+    {
+      "id": "apatosaurus",
+      "source": "src/content/animals/apatosaurus/model/model.glb",
+      "url": "assets/apatosaurus.glb",
+      "bytes": 3513136,
+      "sha256": "9d9f151933a33ae5824eb7532e16a7416b012b9ffff154aca2957ad37a2a540a",
+      "animations": [
+        "Idle"
+      ],
+      "materials": 1,
+      "images": 3
+    },
+    {
+      "id": "triceratops",
+      "source": "src/content/animals/triceratops/model/model.glb",
+      "url": "assets/triceratops.glb",
+      "bytes": 3178460,
+      "sha256": "e51eeb1c3b9c890cdef1f78c65a74179f2da6d4ed899b32e8833b87d2777cf33",
+      "animations": [
+        "Idle"
+      ],
+      "materials": 1,
+      "images": 3
+    }
+  ]
+}
