@@ -27,10 +27,9 @@ export function makeRoute(site, body) {
     const next = segments[(i + 1) % segments.length];
     current.entry = .5 * signedAngle(previous.yaw - current.yaw);
     current.exit = .5 * signedAngle(next.yaw - current.yaw);
-    if (site.medium === 'ground' && segments.length >= 3) {
-      // A planted foot should propel the body along its facing direction.
-      // Share a tangent at each surveyed knot instead of rotating toward
-      // the next chord while still travelling along the previous chord.
+    if ((site.medium === 'air' || site.medium === 'ground') && segments.length >= 3) {
+      // Feet and airborne bodies both need to travel along their facing
+      // direction. Share a tangent at each surveyed path knot.
       const start = current.yaw + body.forward + current.entry;
       const end = current.yaw + body.forward + current.exit;
       current.bend = [Math.sin(start), Math.cos(start), Math.sin(end), Math.cos(end)];

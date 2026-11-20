@@ -2,8 +2,7 @@
 // Vault source bytes / licence / changes: sample-habitat.lock.json.
 import {BufferGeometry,BufferAttribute,Float32BufferAttribute,Group,Mesh,Vector3} from '../vendor/tidewater/src/engine/index.js';
 import {UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
-import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
-import {generateMipmaps} from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
+import {uploadHabitatAlbedo} from './VaultEnvironmentAssets.js';
 import {createHabitatPlantMaterial} from './HabitatPlantMaterial.js';
 import {islandEcologyGeometry} from './IslandEcology.js';
 import {loadGLB,decodeImage} from '../vendor/tidewater/src/engine/loaders/GLTF.js';
@@ -199,16 +198,7 @@ function plantGeometry(model, spec) {
 async function plantTexture(model) {
  const image = model.images[model.textures[model.materials[0].pbrMetallicRoughness.baseColorTexture.index].source];
  const px = await decodeImage(image.bytes,image.mimeType);
- const texture = new Texture({label:'Sample foliage albedo',width:px.width,height:px.height,
-  format:'rgba8unorm-srgb',data:px.data,mips:true,usage:['sample','copyDst']});
- try {
-  texture.getGPU();
-  generateMipmaps(texture);
-  return texture;
- } catch (error) {
-  texture.destroy();
-  throw error;
- }
+ return uploadHabitatAlbedo('Sample foliage albedo', px);
 }
 export function footprintGeometry(gltf,prints,terrain){
  const positions=[],data=[],indices=[];

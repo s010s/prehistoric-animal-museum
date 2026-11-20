@@ -53,7 +53,7 @@ export function megalodonPortrait(center, yaw, length, tanX, tanY, surface, isCl
     for (const factor of [.43, .48, .53, .58, .63, .68, .73, .78, .83, .89, .95, 1.04, 1.13]) {
       const distance = length * factor;
       const eye = new Vector3(target.x + Math.sin(bearing) * distance,
-        surface - .66, target.z + Math.cos(bearing) * distance);
+        surface - 1.8, target.z + Math.cos(bearing) * distance);
       const approximate = project(parts, eye, target, tanX, tanY);
       if (!approximate) continue;
 

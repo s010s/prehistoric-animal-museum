@@ -1,13 +1,13 @@
 import './IslandMuseumMaterialLighting.js';
-import { BufferAttribute, BufferGeometry, Color, Mesh } from '../vendor/tidewater/src/engine/index.js';
+import { Color, Mesh } from '../vendor/tidewater/src/engine/index.js';
 import { GPU } from '../vendor/tidewater/src/engine/gpu/GPU.js';
 import { StorageBuffer, Texture } from '../vendor/tidewater/src/engine/gpu/Texture.js';
 import { generateMipmaps } from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
 import { decodeImage } from '../vendor/tidewater/src/engine/loaders/GLTF.js';
 import { Material } from '../vendor/tidewater/src/engine/render/Material.js';
 import { LAYERS } from '../vendor/tidewater/src/engine/render/SceneRenderer.js';
-import { applyIslandHeadTurn, makeIslandHeadTurn, makePlesiosaurSteering } from './IslandMuseumHeadTurn.js';
-import { createIslandModelPose, floatAttribute, islandModelPieces, islandMorphWeights, museumSrgbTextures, museumTextureUsages, parseIslandMuseumModel } from './IslandMuseumModelData.js';
+import { applyIslandHeadTurn, makeIslandHeadTurn, makeAquaticSteering } from './IslandMuseumHeadTurn.js';
+import { createIslandModelPose, islandModelPieces, islandMorphWeights, museumSrgbTextures, museumTextureUsages, parseIslandMuseumModel } from './IslandMuseumModelData.js';
 import { applyIslandAquaticMotion, loadIslandAquaticClips } from './IslandAquaticMotion.js';
 import { applyIslandFlightMotion, loadIslandFlightClip } from './IslandFlightMotion.js';
 import { islandLegRigExtraGpuBytes, syncIslandLegRigPalette } from './IslandMuseumLegRig.js';
@@ -15,12 +15,13 @@ import { createMuseumGroundMotion } from './MuseumGroundMotion.js';
 import { prepareGroundSpecimen } from './PrepareGroundSpecimen.js';
 import { quadrupedExtraGpuBytes } from './QuadrupedStrideRig.js';
 import { augmentIslandMediumRig, islandMediumRigExtraGpuBytes } from './IslandMuseumMediumRig.js';
+import { makeGeometry, makeVertex } from './IslandMuseumVertex.js';
 import lock from './island-museum-models.lock.json';
 
 export const islandMuseumModels = Object.freeze(lock.animals);
 // Extra interleaved joint/weight attributes are shared across instances.
 // Each animated individual needs its own current and previous skin palettes.
-const addedBipedWeights = { carnotaurus: [9195, 41], dilophosaurus: [2052, 15] };
+const addedBipedWeights = { phorusrhacos: [0, 1], carnotaurus: [9195, 41], dilophosaurus: [2052, 16] };
 export function islandMuseumResidencyBudget(metadata) {
   const extra = islandLegRigExtraGpuBytes(metadata.id, metadata.geometry) + islandMediumRigExtraGpuBytes(metadata.id, metadata.geometry);
   const [weightedVertices, rows] = addedBipedWeights[metadata.id] ?? [0, 0];
@@ -32,27 +33,6 @@ const urls = import.meta.glob('./assets/island/*.glb.gz', { eager: true, query: 
 
 function wgsl(value) {
   return Number(value).toFixed(8);
-}
-
-function makeGeometry(piece) {
-  const { primitive, influences } = piece;
-  const geometry = new BufferGeometry();
-  for (const [key, a] of Object.entries(primitive.attributes)) {
-    const name = { POSITION: 'position', NORMAL: 'normal', TANGENT: 'museumTangent', COLOR_0: 'color', TEXCOORD_0: 'uv' }[key]
-      ?? (key.startsWith('TEXCOORD_') ? 'islandUv' + key.slice(9) : null);
-    if (name) geometry.setAttribute(name, new BufferAttribute(floatAttribute(a), a.itemSize));
-  }
-  for (const [i, { joints, weights }] of influences.entries()) {
-    geometry.setAttribute('museumJoint' + i, new BufferAttribute(joints, 4));
-    geometry.setAttribute('museumWeight' + i, new BufferAttribute(weights, 4, true));
-  }
-  if (piece.groundMorphMask) geometry.setAttribute('museumGroundMorph', new BufferAttribute(piece.groundMorphMask, 1));
-  if (primitive.indices) {
-    const indices = primitive.indices instanceof Uint8Array ? Uint16Array.from(primitive.indices) : primitive.indices;
-    geometry.setIndex(new BufferAttribute(indices, 1));
-  }
-  geometry.computeBoundingSphere();
-  return geometry;
 }
 
 function makeMorph({ primitive, groundMorphWeights }) {
@@ -94,51 +74,6 @@ function makeMorph({ primitive, groundMorphWeights }) {
   return { buffer: new StorageBuffer({ label: 'museum morph deltas', count: data.length, type: 'f32', data }), count, vertex, groundMorph: !!groundMorphWeights };
 }
 
-function makeVertex(pose, piece, morph, uvChannels) {
-  const attributes = {}, varyings = {}, storage = {};
-  const vertex = [];
-  for (const channel of uvChannels) {
-    if (channel === 0) continue;
-    const name = 'islandUv' + channel;
-    attributes[name] = varyings[name] = 'vec2f';
-    vertex.push('o.' + name + ' = v.' + name + ';');
-  }
-  const hasTangent = !!piece.primitive.attributes.TANGENT;
-  if (hasTangent) attributes.museumTangent = varyings.museumTangent = 'vec4f';
-  if (!morph && !piece.influences.length && !hasTangent) return { attributes, varyings, storage, vertex: vertex.join('\n') };
-  vertex.push('var point = v.position;', 'var previousPoint = v.position;', 'var normal = v.normal;');
-  if (morph) {
-    storage.museumMorph = morph.buffer;
-    if (morph.groundMorph) attributes.museumGroundMorph = 'f32';
-    vertex.push(morph.vertex);
-  }
-  const sets = piece.influences.length;
-  let matrix = 'v.model', previousMatrix = 'v.prevModel';
-  if (sets) {
-    storage.museumPalette = pose.jointBuffer;
-    const weighted = (frameOffset) => Array.from({ length: sets }, (_, j) => ['x', 'y', 'z', 'w'].map(c =>
-      'museumPalette[v.museumJoint' + j + '.' + c + frameOffset + '] * v.museumWeight' + j + '.' + c).join(' + ')).join(' + ');
-    for (let i = 0; i < sets; i++) {
-      attributes['museumJoint' + i] = 'vec4u';
-      attributes['museumWeight' + i] = 'vec4f';
-    }
-    vertex.push('let joint = ' + weighted('') + ';', 'let previousJoint = ' + weighted(' + ' + pose.joints + 'u') + ';');
-    matrix += ' * joint';
-    previousMatrix += ' * previousJoint';
-  }
-  vertex.push(
-    'let localToWorld = ' + matrix + ';',
-    'v.useWorld = true;',
-    'v.worldPos = (localToWorld * vec4f(point, 1.0)).xyz;',
-    'v.worldNormal = cofactor3(localToWorld) * normal;',
-    'v.prevWorldPos = (' + previousMatrix + ' * vec4f(previousPoint, 1.0)).xyz;',
-  );
-  if (hasTangent) vertex.push(
-    'o.museumTangent = vec4f((localToWorld * vec4f(v.museumTangent.xyz, 0.0)).xyz, v.museumTangent.w);',
-  );
-  return { attributes, varyings, storage, vertex: vertex.join('\n') };
-}
-
 // On a mirrored UV island the bitangent can point opposite cross(N, T).
 // Solve the UV Jacobian when the artist did not provide a tangent frame.
 function museumMappedNormal(uv, scale, tangent) {
@@ -170,6 +105,7 @@ function modelMaterial(id, source, piece, pose, textures, morph) {
   const specular = source.extensions?.KHR_materials_specular;
   const ior = source.extensions?.KHR_materials_ior?.ior ?? 1.5;
   const clearcoat = source.extensions?.KHR_materials_clearcoat;
+  const feathers = id === 'archaeopteryx' && source.name === 'Wing01';
   const uvChannels = new Set(), textureBindings = {}, fragment = [];
   for (const [role, get] of Object.entries(museumTextureUsages)) {
     const info = get(source);
@@ -180,12 +116,14 @@ function modelMaterial(id, source, piece, pose, textures, morph) {
     const uv = channel === 0 ? 'in.uv' : 'in.vs.islandUv' + channel;
     const value = 'tex_' + role;
     textureBindings[key] = textures[role];
-    fragment.push('let ' + value + ' = textureSample(' + key + ', smpAnisoRepeat, ' + uv + ');');
+    const sample = feathers ? 'textureSampleBias(' + key + ', smpAnisoRepeat, ' + uv + ', 0.65)'
+      : 'textureSample(' + key + ', smpAnisoRepeat, ' + uv + ')';
+    fragment.push('let ' + value + ' = ' + sample + ';');
     switch (role) {
       case 'albedo': fragment.push('s.albedo *= ' + value + '.rgb;', 's.alpha *= ' + value + '.a;'); break;
       case 'normal': fragment.push(
         'let detailNormal = ' + value + '.xyz * 2.0 - 1.0;',
-        ...museumMappedNormal(uv, info.scale ?? 1, piece.primitive.attributes.TANGENT),
+        ...museumMappedNormal(uv, (info.scale ?? 1) * (feathers ? .32 : 1), piece.primitive.attributes.TANGENT),
       ); break;
       case 'orm': fragment.push('s.roughness *= ' + value + '.g;', 's.metalness *= ' + value + '.b;'); break;
       case 'occlusion': fragment.push('s.ao *= mix(1.0, ' + value + '.r, ' + wgsl(info.strength ?? 1) + ');'); break;
@@ -207,6 +145,11 @@ function modelMaterial(id, source, piece, pose, textures, morph) {
       's.translucency = vec3f(0.065, 0.058, 0.048) * (1.0 - vein);',
     );
   }
+  // Small overlapping feather vanes contain high-frequency barbs in both
+  // maps. Keep the source's dark tips and cream stripes, with a broad
+  // keratin reflection in daylight rather than sharp per-barb highlights.
+  if (feathers) fragment.push('s.roughness = max(s.roughness, 0.82);', 's.specularIntensity *= 0.50;',
+    's.albedo *= vec3f(0.76);');
   const rgbSpecular = specular?.specularColorFactor ?? [1, 1, 1];
   const reflectance = ((ior - 1) / (ior + 1)) ** 2;
   fragment.unshift('s.museumDielectricF0 = vec3f(' + rgbSpecular.map(channel => wgsl(channel * reflectance)).join(', ') + ');');
@@ -332,7 +275,7 @@ async function buildSpecies(id, signal) {
 function instantiateSpecies(asset, release) {
   const { id, metadata, draws, rig, skin, headTurn, legRig } = asset;
   const pose = createIslandModelPose(rig, skin);
-  const steering = makePlesiosaurSteering(id, rig.nodes, skin);
+  const steering = makeAquaticSteering(id, rig.nodes, skin);
   const group = pose.group, meshes = [], animated = [], materials = new Map(), owned = new Set();
   let disposed = false, headYaw = 0, groundMotion = null, footGrounded = false;
   const dispose = () => {

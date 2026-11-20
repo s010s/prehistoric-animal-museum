@@ -709,12 +709,12 @@
       ],
       "bounds": {
         "min": [
-          -0.391494619,
-          0.001674413,
+          -0.391494507,
+          0.0016744592,
           -1.79121596
         ],
         "max": [
-          0.391494619,
+          0.391494507,
           1.16287913,
           1.52097063
         ]
@@ -722,18 +722,18 @@
       "animatedBounds": {
         "min": [
           -0.476752786,
-          0.001674413,
+          0.0016744592,
           -1.79121596
         ],
         "max": [
-          0.391494619,
+          0.391494507,
           1.18178466,
           1.52295879
         ]
       },
       "dimensions": [
-        0.782989238,
-        1.16120472,
+        0.782989014,
+        1.16120467,
         3.31218658
       ],
       "scale": 3.62298430282,
@@ -745,11 +745,11 @@
           "bounds": {
             "min": [
               -0.476752786,
-              0.001674413,
+              0.0016744592,
               -1.79121596
             ],
             "max": [
-              0.391494619,
+              0.391494507,
               1.18178466,
               1.52295879
             ]
@@ -757,17 +757,17 @@
         }
       ],
       "geometry": {
-        "bytes": 2130340,
+        "bytes": 2131364,
         "triangles": 59310,
         "vertices": 36899,
-        "paletteRows": 26
+        "paletteRows": 34
       },
       "textureBytes": 18175308,
-      "gpuBytes": 20305648,
-      "bytes": 3446847,
-      "unpackedBytes": 4791352,
+      "gpuBytes": 20306672,
+      "bytes": 3467488,
+      "unpackedBytes": 4794536,
       "path": "museum/assets/island/tyrannosaurus-rex.glb.gz",
-      "sha256": "804b9ec93a5dc78cd0746884c979fc4f277cea918192d7afb81763b4a4434450",
+      "sha256": "953fd3d283495d22c5634ddd17cd56fbc1ddf327e630ec21a3d661f14c27cc79",
       "source": "src/content/animals/tyrannosaurus-rex/model/model.glb",
       "sourceSha256": "ea15319ca1fa3724f1a961515c36b4834446f5ac30a9b0de49b62881877efa54",
       "sourceBytes": 6304976,
@@ -1890,8 +1890,8 @@
       "metric": "shoulder-height",
       "metres": 3.25,
       "forward": [
-        -1,
-        0
+        -0.989015863,
+        0.147809411
       ],
       "axis": [
         0,
@@ -4127,25 +4127,25 @@
         ],
         "max": [
           1.59999992,
-          0.445842896,
+          0.445842899,
           0.489709309
         ]
       },
       "animatedBounds": {
         "min": [
-          -1.60118846,
+          -1.60000018,
           -0.476964119,
-          -0.501291137
+          -0.501291122
         ],
         "max": [
           1.60232845,
-          0.577244308,
+          0.445842899,
           0.504352484
         ]
       },
       "dimensions": [
         3.2000001,
-        0.891685846,
+        0.891685849,
         0.979418593
       ],
       "scale": 1.49999995403,
@@ -4156,30 +4156,30 @@
           "channels": 24,
           "bounds": {
             "min": [
-              -1.60118846,
+              -1.60000018,
               -0.476964119,
-              -0.501291137
+              -0.501291122
             ],
             "max": [
               1.60232845,
-              0.577244308,
+              0.445842899,
               0.504352484
             ]
           }
         }
       ],
       "geometry": {
-        "bytes": 4389700,
+        "bytes": 4390724,
         "triangles": 119990,
         "vertices": 76786,
-        "paletteRows": 8
+        "paletteRows": 16
       },
       "textureBytes": 15379104,
-      "gpuBytes": 19768804,
-      "bytes": 3803763,
-      "unpackedBytes": 5621056,
+      "gpuBytes": 19769828,
+      "bytes": 3861655,
+      "unpackedBytes": 5622092,
       "path": "museum/assets/island/dakosaurus.glb.gz",
-      "sha256": "4727cc469da3e708762fd7f0c7591a5f05173bc9adafd6cc0bd83de67f818bb3",
+      "sha256": "55398ab93a46f3e28b9304eec6f41f88b7ab4d2bc1445a850efa2e3d1d1a089f",
       "source": "src/content/animals/dakosaurus/model/model.glb",
       "sourceSha256": "20de5bdd4423fb6cf46bd7fd2756ccb44aa879b3557b4daa8a6da26e611b06b0",
       "sourceBytes": 16936480,

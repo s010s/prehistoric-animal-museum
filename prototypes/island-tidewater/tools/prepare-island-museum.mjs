@@ -1,4 +1,6 @@
+import { bindTyrannosaurus } from './ground-motion/rex/prepare.mjs';
 import { articulateSarcosuchus } from './articulate-sarcosuchus.mjs';
+import { articulateDakosaurus } from './articulate-dakosaurus.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -199,6 +201,7 @@ for (const id of ids) {
   const doc = await io.readBinary(original), gltfRoot = doc.getRoot();
   await doc.transform(dequantize());
   if (id === 'sarcosuchus') articulateSarcosuchus(doc);
+  if (id === 'dakosaurus') articulateDakosaurus(doc);
   const sourceChannelCount = new Map(), animationTiming = new Map();
   for (const animation of gltfRoot.listAnimations()) {
     let start = Infinity, end = -Infinity, trsStart = Infinity;
@@ -255,7 +258,8 @@ for (const id of ids) {
     texture.setImage(data).setMimeType('image/webp').setURI(texture.getName().replace(/[^\w]+/g, '-') + '.webp');
     dimensions.set(hash(data), [info.width, info.height]);
   }
-  const unpacked = islandGlb(await io.writeBinary(doc), dimensions, animationTiming);
+  const packed = islandGlb(await io.writeBinary(doc), dimensions, animationTiming);
+  const unpacked = id === 'tyrannosaurus-rex' ? bindTyrannosaurus(packed) : packed;
   const gltf = parseIslandMuseumModel(Uint8Array.from(unpacked).buffer);
   const { pieces, skin } = islandModelPieces(gltf);
   const pose = createIslandModelPose(gltf, skin);

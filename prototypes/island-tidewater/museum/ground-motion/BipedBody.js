@@ -1,6 +1,7 @@
 import { Vector3 } from '../../vendor/tidewater/src/engine/index.js';
 import { bipedAnatomy } from './BipedAnatomy.js';
 import { bipedActions } from './BipedActions.js';
+import { createRestingMandible } from './RestingMandible.js';
 
 const up = new Vector3(0, 1, 0);
 const degree = Math.PI / 180;
@@ -29,15 +30,21 @@ export function createBipedBodyMotion(id, pose, { branchAt, orientBranch }) {
   }
   const chest = get(rig.chest), neck = get(rig.neck), head = get(rig.head), jaw = get(rig.jaw);
   const tail = rig.tail.map(get);
+  // The Allosaurus tail controls are siblings. Apply its neutral correction
+  // to their union around the tail socket so the three sections stay joined.
+  const allosaurusTail = id === 'allosaurus-pandras'
+    ? { i: tail[0].i, nodes: tail.flatMap(part => part.nodes), joints: tail.flatMap(part => part.joints) } : null;
   const middleNeck = id === 'phorusrhacos' ? get('Neck') : null;
   const neckTip = id === 'gigantoraptor' ? get('neck7_011_9_35') : null;
   const tongue = id === 'gigantoraptor' ? get('tongue5_018_0_42') : null;
   const tailLandmark = id === 'carnotaurus' ? get('Museum Tail tip landmark')
     : id === 'gigantoraptor' ? get('tail10_055_44_80') : null;
   const tailSlopes = id === 'carnotaurus' ? [-2, -3, -4, -5, -6, -8] : [6, 9, 12];
+  const attentiveWalker = id === 'carnotaurus' || id === 'baryonyx' || id === 'therizinosaurus';
   const channels = [chest, neck, head, ...arms, ...tail];
   const buffer = new Float64Array(action[0].length);
   const rotate = (branch, angle, axis) => orientBranch(pose, branch, angle, axis);
+  const restJaw = createRestingMandible(id, pose, head, jaw, rotate, get);
   function align(from, to, forward, right, amount) {
     const a = from.i * 16 + 12, b = to.i * 16 + 12;
     const x = pose.world[b] - pose.world[a], z = pose.world[b + 2] - pose.world[a + 2];
@@ -58,6 +65,12 @@ export function createBipedBodyMotion(id, pose, { branchAt, orientBranch }) {
       rotate(jaw, -51 * degree, right);
       rotate(neck, (6.5 + 2.5 * gaitWeight) * degree, right);
       rotate(head, (5 + 1.5 * gaitWeight) * degree, right);
+    } else if (id === 'baryonyx' || id === 'therizinosaurus') {
+      // The museum rest pose turns the actual muzzle left even in straight
+      // travel. Share its correction between the neck and skull sockets.
+      const yaw = 8.5 * degree;
+      rotate(neck, yaw * .6, up);
+      rotate(head, yaw * .4, up);
     } else if (id === 'gigantoraptor') {
       align(neckTip, head, forward, right, .97);
       align(head, tongue, forward, right, .88);
@@ -71,6 +84,7 @@ export function createBipedBodyMotion(id, pose, { branchAt, orientBranch }) {
       rotate(chest, 9 * degree, up);
       rotate(tail[0], 9 * degree, up);
     }
+    if (allosaurusTail) rotate(allosaurusTail, -8 * degree, up);
     if (tailLandmark) {
       for (let i = 0; i < tail.length; i++) {
         const joint = tail[i], next = tail[i + 1] ?? tailLandmark;
@@ -90,12 +104,18 @@ export function createBipedBodyMotion(id, pose, { branchAt, orientBranch }) {
     const quiet = 1 - gaitWeight;
     const breath = Math.sin(time * (id === 'gallimimus' ? 1.8 : 1.12));
     const scan = Math.sin(time * .61) * .66 + Math.sin(time * 1.09) * .34;
-    const attention = (alert ? .012 : .073) * quiet * scan + clamp(lookYaw, -.20, .20) + turn * .17;
+    // These long-muzzled specimens spend much of a walk on a nearly
+    // straight heading. Brief independent glances survive the foot cycle.
+    const walkingScan = attentiveWalker && !alert
+      ? gaitWeight * (1 - Math.abs(turn)) * (.050 * Math.sin(time * .86) + .019 * Math.sin(time * 1.76 + .8)) : 0;
+    const attention = (alert ? .012 : .073) * quiet * scan + walkingScan
+      + clamp(lookYaw, -.20, .20) + turn * .17;
     rotate(neck, attention * .56, up);
     rotate(head, attention * (neck ? .44 : 1), up);
     rotate(neck, quiet * breath * .018, right);
     rotate(head, quiet * breath * -.012, right);
-    rotate(jaw, (.5 + .5 * breath) * .023 * quiet, right);
+    if (restJaw) restJaw(breath, quiet);
+    else rotate(jaw, (.5 + .5 * breath) * .023 * quiet, right);
     rotate(tail[0], -turn * .12 + quiet * .014 * Math.sin(time * .73), up);
     if (tailLandmark) for (let i = 1; i < tail.length; i++) {
       rotate(tail[i], -turn * .09 / (1 + i * .40) + quiet * .006 * Math.sin(time * .73 - i * .44), up);

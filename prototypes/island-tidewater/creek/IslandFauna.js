@@ -3,6 +3,7 @@ import { islandAssetStats, islandMuseumModels, islandMuseumResidencyBudget, load
 import { FaunaResidency } from './FaunaResidency.js';
 import { landTurnRate, makeRoute, routePoint } from './IslandFaunaRoute.js';
 import { aquaticDrive, aquaticTravel, aquaticYawAmount } from './IslandAquaticLocomotion.js';
+import { flightSpeed } from './IslandFlightTravel.js';
 import { faunaBodyPlacement, faunaMediumLimits } from './IslandFaunaHabitats.js';
 import { faunaTorso, placeFaunaTorso } from './FaunaLandInteraction.js';
 import { groundLookAngle, groundVisitorAttention } from '../museum/GroundVisitorAttention.js';
@@ -50,19 +51,16 @@ function place(app, actor, point, dt, groundGait = 0) {
   const fit = faunaMediumLimits(app.terrainData, app.creekData.field, site, body, x, z, yaw);
   if (!fit) return false;
   const air = site.medium === 'air';
-  const clock = actor.time + actor.phase;
-  const bob = air ? Math.sin(clock * 1.2) * Math.min(.32, body.half[1] * .18) : 0;
-  const boundsY = defaultY + bob;
   const articulationGuard = site.id === 'styxosaurus' ? .12 : site.id === 'quetzalcoatlus' ? .37 : 0;
   const half = body.half;
-  const free = Math.max(0, Math.min(boundsY - fit.min, fit.max - boundsY) - articulationGuard);
+  const free = Math.max(0, Math.min(defaultY - fit.min, fit.max - defaultY) - articulationGuard);
   const maxLean = Math.min(air ? .27 : .12, free / Math.max(.1, half[0] + half[2]));
   const conform = dt ? 1 - Math.exp(-dt * 3) : 1;
   const yawRate = dt ? signedAngle(yaw - currentYaw) / dt : 0;
-  const bank = mix(actor.bank ?? 0, clamp(-yawRate * (air ? .3 : .17), -maxLean, maxLean), conform);
   const horizontal = dt ? Math.hypot(x - actor.x, z - actor.z) : 0;
-  const trim = air ? -Math.cos(clock * 1.2) * .023
-    : horizontal > .0001 ? -Math.atan2(defaultY - actor.pathY, horizontal) : 0;
+  const bankTarget = air ? -Math.atan2(yawRate * (dt ? horizontal / dt : 0), 9.81) : -yawRate * .17;
+  const bank = mix(actor.bank ?? 0, clamp(bankTarget, -maxLean, maxLean), conform);
+  const trim = horizontal > .0001 ? -Math.atan2(defaultY - actor.pathY, horizontal) : 0;
   const pitch = mix(actor.pitch ?? 0, clamp(trim, -maxLean, maxLean), conform);
   attitude.setFromAxisAngle(up, yaw);
   let margin = 0;
@@ -82,7 +80,7 @@ function place(app, actor, point, dt, groundGait = 0) {
       + Math.abs(2 * (qy*qz - qw*qx)) * half[2] - half[1]);
   }
   const guard = Math.min((fit.max - fit.min) / 2, margin + articulationGuard);
-  const y = onGround || benthic ? fit.min : clamp(boundsY, fit.min + guard, fit.max - guard);
+  const y = onGround || benthic ? fit.min : clamp(defaultY, fit.min + guard, fit.max - guard);
   offset.fromArray(body.center).multiplyScalar(body.scale).applyQuaternion(attitude);
   const rootX = x - offset.x, rootY = y - offset.y, rootZ = z - offset.z;
   if (!placeFaunaTorso(app, actor, rootX, rootY, rootZ, yaw + body.forward, dt > 0 && groundGait > 0)) return false;
@@ -234,6 +232,10 @@ function moveActor(app, actor, dt, camera) {
   const metresPerSecond = ground && model.groundMotion ? model.groundMotion.advance(dt, moving, speed)
     : moving ? speed : 0;
   let travelled = metresPerSecond * dt;
+  if (m === 'air' && moving) {
+    const flight = model.layers.find(layer => layer.target === 1 && layer.clip.name === clip);
+    travelled = dt * flightSpeed(site.id, flight, speed, dt * .5);
+  }
   if (wet) {
     const stroke = model.layers.find(layer => layer.target === 1 && layer.clip.name === clips.movement);
     const previousTime = stroke?.time;

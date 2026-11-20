@@ -2,6 +2,8 @@
 // coordinates. Outer radii describe the surface of the limb at each section.
 // Joint centers are the hip, knee and ankle. The last section encloses the sole
 // and the toes, including claws supplied by a separate material primitive.
+// hipFeather extends the skin transition above the pivot in femur heights.
+// hipHalo softens the cross-section boundary around the thigh and hip.
 function leg(side, fore, attach, joints, sections, source = attach ? [attach] : []) {
   return { side, fore, attach, joints, sections, source };
 }
@@ -17,6 +19,7 @@ function mirrored(fore, source, sections, attach = [null, null]) {
 export const islandMuseumLegCalibration = {
   dilophosaurus: {
     forward: [1, 0], materials: ['Body'], groundMorph: true, addedVertexBytes: 20,
+    hipFeather: .28, hipHalo: .35,
     legs: mirrored(false, [], [
       [.35, .63, .12, .145, .095],
       [.449, .426, .124, .09, .074],
@@ -26,6 +29,7 @@ export const islandMuseumLegCalibration = {
   },
   apatosaurus: {
     forward: [-1, 0], addedVertexBytes: 16,
+    hipFeather: .29, hipHalo: .38,
     legs: [
       ...mirrored(true, [], [
         [.85, .49, .12, .125, .112],
@@ -43,6 +47,7 @@ export const islandMuseumLegCalibration = {
   },
   sauropelta: {
     forward: [-1, 0], groundMorph: true, addedVertexBytes: 20,
+    hipFeather: .30, hipHalo: .42,
     legs: [
       leg(-1, true, null, [0, 1, 2], [
         [.70, .54, -.245, .15, .125], [.625, .231, -.222, .13, .115],
@@ -63,7 +68,8 @@ export const islandMuseumLegCalibration = {
     ],
   },
   carnotaurus: {
-    forward: [0, 1], materials: ['BODY', 'CLAW'], upperBlend: .86, upperHalo: .23, addedVertexBytes: 16,
+    forward: [0, 1], materials: ['BODY', 'CLAW'], upperHalo: .23, addedVertexBytes: 16,
+    hipFeather: .40, hipHalo: .54,
     // In the museum pose the trailing foot points down onto three claw tips.
     // Unroll it onto its fleshy toe pads before measuring its support patch.
     solePitch: [0, -.46],
@@ -81,7 +87,8 @@ export const islandMuseumLegCalibration = {
     ],
   },
   therizinosaurus: {
-    forward: [1, 0], root: 'Ground', head: 'Neck', tail: 'TailBase',
+    forward: [1, 0], root: 'Ground', head: 'Neck', tail: 'TailBase', addedVertexBytes: 16,
+    hipFeather: .30, hipHalo: .42, blendSkinSeams: true,
     legs: [
       leg(-1, false, 'Pelvis', [0, 1, 2], [
         [.035, -.15, -.235, .25, .14], [.112, -.475, -.252, .22, .12],
@@ -96,7 +103,8 @@ export const islandMuseumLegCalibration = {
     ],
   },
   phorusrhacos: {
-    forward: [1, 0], root: 'Root', head: 'NeckBase', tail: 'Tail', addedVertexBytes: 16,
+    forward: [1, 0], root: 'Root', head: 'NeckBase', tail: 'Tail', addedVertexBytes: 32,
+    hipFeather: .39, hipHalo: .64,
     // The source stands mid-stride. Leave room for its broad toes when both feet are planted.
     laneOutset: .11,
     // Its thigh vertices also carry native tail weights. Keep the tail's pose out of solved legs.
@@ -116,6 +124,7 @@ export const islandMuseumLegCalibration = {
   },
   regaliceratops: {
     forward: [1, 0], root: 'Root', head: 'Neck', tail: 'TailBase', addedVertexBytes: 16,
+    hipFeather: .31, hipHalo: .36,
     legs: [
       ...mirrored(true, null, [
         [.424, .51, .23, .155, .106], [.331, .227, .216, .103, .096],
@@ -129,6 +138,7 @@ export const islandMuseumLegCalibration = {
   },
   triceratops: {
     forward: [0, 1], root: 'root', head: 'head', tail: 'tail_1',
+    hipFeather: .26, hipHalo: .26, blendSkinSeams: true,
     legs: [
       ...mirrored(true, null, [
         [.433, .986, .47, .282, .214], [.334, .453, .495, .189, .195],
@@ -140,20 +150,12 @@ export const islandMuseumLegCalibration = {
       ], ['leg_rear_left', 'leg_rear_right']),
     ],
   },
-  'tyrannosaurus-rex': {
-    forward: [0, 1], root: 'root', head: 'neck', tail: 'tail_1',
-    legs: mirrored(false, null, [
-      [.021, .679, .17, .208, .163], [.115, .431, .201, .166, .108],
-      [-.076, .216, .211, .083, .065],
-      [-.054, .081, .226, .106, .116],
-      [.033, .048, .234, .194, .188],
-      [.036, -.01, .234, .192, .188],
-    ], ['leg_left', 'leg_right']),
-  },
   mammoth: {
-    forward: [-1, 0], root: 'root', head: 'head', tail: 'tail_1',
+    forward: [-1, 0], root: 'root', head: 'head', tail: 'tail_1', addedVertexBytes: 16,
     // The source labels switch inside the same feet. Follow each anatomical lane.
-    laneDivider: [.445, .324], upperBlend: .83, upperHalo: .24,
+    laneDivider: [.445, .324], upperBlend: .63, upperHalo: .24,
+    // The source switches from pelvis to tail partway across the haunch.
+    hipFeather: .14, hipHalo: .24, blendSkinSeams: true, softenSkinSeams: true,
     legs: [
       leg(-1, true, 'leg_front_right', [0, 1, 2], [
         [.166, .678, .251, .27, .25], [.174, .276, .326, .132, .145],
@@ -166,11 +168,11 @@ export const islandMuseumLegCalibration = {
       leg(-1, false, 'leg_rear_right', [0, 1, 2], [
         [-.50, .67, .162, .22, .147], [-.48, .31, .191, .177, .129],
         [-.528, .077, .201, .112, .097], [-.523, -.052, .215, .130, .094],
-      ], ['leg_rear_right', 'leg_rear_left']),
+      ], ['leg_rear_right', 'leg_rear_left', 'root', 'tail_1']),
       leg(1, false, 'leg_rear_left', [0, 1, 2], [
         [-.493, .672, .645, .236, .148], [-.456, .305, .466, .174, .128],
         [-.461, .077, .435, .107, .099], [-.443, -.052, .435, .123, .092],
-      ], ['leg_rear_right', 'leg_rear_left']),
+      ], ['leg_rear_right', 'leg_rear_left', 'root', 'tail_1']),
     ],
   },
 };

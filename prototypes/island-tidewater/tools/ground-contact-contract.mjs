@@ -1,6 +1,7 @@
 // Reproduce the native skin palette on the CPU and measure both the solved
 // contact point and representative sole vertices in world metres.
 import assert from 'node:assert/strict';
+import { rexRouteCheck } from './ground-motion/rex/route-check.mjs';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { ISLAND_FAUNA_PLAN } from '../creek/IslandFaunaPlan.js';
@@ -55,7 +56,7 @@ function soleVertices(pose, pieces, contacts, rig, height, groupFrame, padTerrai
     const center = new Vector3(...contact.sole);
     const descendants = new Set();
     for (const joint of pose.order) {
-      if (joint === contact.joint || descendants.has(pose.parent[joint])) descendants.add(joint);
+      if (joint === contact.padJoint || descendants.has(pose.parent[joint])) descendants.add(joint);
     }
     const candidates = [], rows = pose.skin.joints.map(i => descendants.has(i));
     for (const [pieceIndex, piece] of pieces.entries()) {
@@ -146,6 +147,7 @@ function run(site, data, terrain, realSite = null, field = null) {
   pose.layers = pose.layers.filter(layer => layer.target === 1);
   for (const layer of pose.layers) { layer.time = 0; layer.weight = 1; }
   pose.update(0);
+  const rex = site.id === 'tyrannosaurus-rex' ? rexRouteCheck(pose, pieces, frameVertex) : null;
   motion.apply(pose, { dt: 0, terrain, travelled: 0, behavior: site.behavior });
   syncIslandLegRigPalette(pose, rig, true, true);
   for (const piece of pieces) islandMorphWeights(piece, pose.layers, piece.morph);
@@ -182,6 +184,7 @@ function run(site, data, terrain, realSite = null, field = null) {
     syncIslandLegRigPalette(pose, rig, false, true);
     for (const piece of pieces) islandMorphWeights(piece, pose.layers, piece.morph);
     const { contacts, mode, phase, speedMetresPerSecond, strideMetres } = motion.diagnostics();
+    if (frame % 3 === 0) rex?.record(contacts, moving && speedMetresPerSecond > site.speed * .8);
     peakSpeed = Math.max(peakSpeed, speedMetresPerSecond);
     const steady = withinCycle >= 420 && withinCycle <= 880 && step > .00001;
     if (!steady) measuredAt.clear();
@@ -253,6 +256,7 @@ function run(site, data, terrain, realSite = null, field = null) {
     }
     previous = contacts;
   }
+  if (rex) console.log(route ? 'Island Rex thigh' : 'Level Rex thigh', rex.finish());
   const steps = Math.min(...previous.map(p => p.steps));
   const kneeArc = Math.min(...angles.map(([low, high]) => high - low));
   return { distance, steps, checkedBeats, minSupport, lift, highestPad, maxSkate, maxError, maxSoleSkate, kneeArc, maxRiseSpeed, maxDropSpeed, maxLoadedExtension,

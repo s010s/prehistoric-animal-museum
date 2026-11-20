@@ -19,7 +19,7 @@
   "livyatan": {"forward": [-1, 0]},
   "lystrosaurus": {"metres": 1.1, "forward": [0, 1]},
   "maiasaura": {"forward": [0, 1]},
-  "mammoth": {"forward": [-1, 0]},
+  "mammoth": {"forward": [-0.989015863, 0.147809411]},
   "megalodon": {"forward": [0, 1]},
   "meganeura": {"forward": [-1, 0]},
   "mosasaurus": {"forward": [-1, 0]},

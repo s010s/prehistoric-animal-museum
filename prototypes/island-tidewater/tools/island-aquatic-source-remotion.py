@@ -41,6 +41,12 @@ FISH_SPINE = {
     "j_spine_10_bind_022": (0.141, 1.66),
     "j_spine_11_bind_023": (0.168, 1.97),
 }
+# The gallery reference forms a curve behind the chest. Register only
+# the four caudal sections so both halves of the stroke clear the trunk.
+FISH_TAIL_TRIM = {
+    "j_spine_08_bind_020": .06, "j_spine_09_bind_021": .065,
+    "j_spine_10_bind_022": .035, "j_spine_11_bind_023": .018,
+}
 FISH_LOBES = (
     ("j_tail1_01_bind_024", "j_tail1_02_bind_025", "j_tail1_03_bind_026"),
     ("j_tail2_01_bind_032", "j_tail2_02_bind_033", "j_tail2_03_bind_034"),
@@ -51,6 +57,9 @@ FISH_FINS = (
     (-1, -0.66, 0.15, ("j_leftFlipper2_01_bind_016", "j_leftFlipper2_02_bind_017")),
     (1, -0.39, 0.15, ("j_rightFlipper2_01_bind_094", "j_rightFlipper2_02_bind_095")),
 )
+# The source tailstock bends below the trunk before the flukes. Adjust
+# its midsection as well as the tips so a quiet beat can rise and fall.
+WHALE_TAIL_TRIM = {"Root.004_12": .14, "Root.008_11": -.075, "Root.010_9": -.19}
 WHALE_TAIL = (
     ("Root.007_15", 0.019, 0.19), ("Root.005_14", 0.032, 0.43),
     ("Root.009_13", 0.059, 0.67), ("Root.004_12", 0.088, 0.92),
@@ -66,7 +75,8 @@ def fish_pose(t, power, hover):
     for name, (amplitude, lag) in FISH_SPINE.items():
         beat = t - lag
         wave = math.sin(beat) + .13 * math.sin(2 * beat - .3)
-        pose[name] = (0, power * amplitude * (.827 * wave + .11), 0)
+        trim = FISH_TAIL_TRIM.get(name, 0)
+        pose[name] = (0, trim + power * amplitude * (.827 * wave + .11), 0)
 
     # The fin lobes share the same stroke at the base and feather progressively
     # behind it. Opposite pitch trim flexes the trailing edges, not their seam.
@@ -88,13 +98,16 @@ def fish_pose(t, power, hover):
     pose["j_fin3_01_bind_087"] = (0, 0, -.036 * power * math.sin(t - 1.54))
 
     breath = .5 - .5 * math.cos(t)
+    exhaust = .5 - .5 * math.cos(t - 1.48)
     for side, groups in (
         (-1, ("j_left_gill_01_bind_0121", "j_left_gill_03_bind_0127")),
         (1, ("j_right_gill_05_bind_0123", "j_right_gill_03_bind_0125")),
     ):
-        for name, amplitude in zip(groups, (.028, .034)):
-            pose[name] = (0, side * amplitude * breath, side * .009 * breath)
-    pose["j_jaw_01_bind_0134"] = (-.018 * breath, 0, 0)
+        for name, amplitude in zip(groups, (.074, .082)):
+            pose[name] = (0, side * (-.075 + amplitude * exhaust), side * .013 * exhaust)
+    # Keep a small oral inlet for ventilation. The opercula open later in
+    # the pump cycle, while the lower jaw returns toward the premaxilla.
+    pose["j_jaw_01_bind_0134"] = (-.355 + (.055 if hover else .036) * breath, 0, 0)
     return pose
 
 
@@ -105,7 +118,7 @@ def whale_pose(t, power, hover):
         return math.sin(phase) + .19 * math.sin(2 * phase - .49)
 
     trims = 1.15 if hover else 1
-    trim_lift = .17 if hover else .29
+    trim_lift = .81 if hover else .78
     pose = {
         "Root.003_16": (power * .010 * beat(t), 0, 0),
         # Match the sibling's tiny chest pitch at the shared start of the neck.
@@ -115,7 +128,7 @@ def whale_pose(t, power, hover):
     }
     for name, amplitude, lag in WHALE_TAIL:
         p = t - lag
-        pose[name] = (amplitude * (trim_lift + .76 * power * beat(p)),
+        pose[name] = (WHALE_TAIL_TRIM.get(name, 0) + amplitude * (trim_lift + .76 * power * beat(p)),
                       .01 * amplitude * power * math.sin(p - .26), 0)
     for side, name, p in ((-1, "PectoralL", t + .38), (1, "PectoralR", t + .62)):
         pose[name] = (.045 * trims * math.cos(p), side * .033 * trims * math.sin(p),

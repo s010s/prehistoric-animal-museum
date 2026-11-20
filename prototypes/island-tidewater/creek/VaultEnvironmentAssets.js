@@ -1,6 +1,7 @@
 import {BufferAttribute, BufferGeometry} from '../vendor/tidewater/src/engine/index.js';
 import {loadGLB, parseGLB, decodeImage} from '../vendor/tidewater/src/engine/loaders/GLTF.js';
 import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
+import {GPU} from '../vendor/tidewater/src/engine/gpu/GPU.js';
 import {generateMipmaps} from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
 
 const sources = {
@@ -36,11 +37,21 @@ export async function reviewedAlbedo(gltf, kind, signal, slot = 0) {
  const image = gltf.images[source];
  const px = await decodeImage(image.bytes, image.mimeType);
  signal?.throwIfAborted();
- const texture = new Texture({label:`Vault ${kind} albedo`, width:px.width, height:px.height, format:'rgba8unorm-srgb',
-  data:px.data, mips:true, usage:['sample','copyDst'], sampler:'anisoRepeat'});
+ return uploadHabitatAlbedo(`Vault ${kind} albedo`, px, 'anisoRepeat');
+}
+
+export function uploadHabitatAlbedo(label, px, sampler = 'linearClamp') {
+ const texture = new Texture({label, width:px.width, height:px.height, format:'rgba8unorm-srgb',
+  data:px.data, mips:true, usage:['sample','copyDst'], sampler});
  try {
   texture.getGPU();
-  generateMipmaps(texture);
+  // A cancelled load may release its atlas while the visitor's frame is paused.
+  // Submit the mip passes before handing the texture to its owner.
+  if (texture.mipLevelCount > 1) {
+   const encoder = GPU.device.createCommandEncoder({label: `${label} mipmaps`});
+   generateMipmaps(texture, encoder);
+   GPU.queue.submit([encoder.finish()]);
+  }
   return texture;
  } catch (error) {
   texture.destroy();

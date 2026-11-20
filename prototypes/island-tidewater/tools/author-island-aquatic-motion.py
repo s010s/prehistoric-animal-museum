@@ -422,10 +422,10 @@ def pulse(t, bias=.18):
     return sin(t) + bias * sin(2 * t - .6)
 
 
-def paired(rig, rotations, limbs, amplitude, sweep, phase, spread=.06, bend=None):
-    for limb in limbs:
-        i = rig.node(limb)
-        side = 1 if rig.world[i].translation.dot(rig.axes["pitch"]) > 0 else -1
+def paired(rotations, limbs, amplitude, sweep, phase, spread=.06, bend=None):
+    # List the positive and negative lateral skin surfaces in that order.
+    # Several original rigs place both pivots on the same midline vertex.
+    for side, limb in zip((1, -1), limbs, strict=True):
         lag = phase + spread * side
         rotations[limb] = lambda t, side=side, lag=lag: {
             "roll": side * amplitude * pulse(t + lag, .21),
@@ -434,10 +434,11 @@ def paired(rig, rotations, limbs, amplitude, sweep, phase, spread=.06, bend=None
         }
 
 
-def spine(rotations, names, amplitudes, lag, power, pitch=0):
+def spine(rotations, names, amplitudes, lag, power, pitch=0, neutral=()):
     for index, (name, amplitude) in enumerate(zip(names, amplitudes)):
-        rotations[name] = lambda t, amplitude=amplitude, index=index: {
-            "yaw": power * amplitude * pulse(t - index * lag, .075),
+        trim = neutral[index] if index < len(neutral) else 0
+        rotations[name] = lambda t, amplitude=amplitude, index=index, trim=trim: {
+            "yaw": trim + power * amplitude * pulse(t - index * lag, .075),
             "pitch": pitch * amplitude * cos(t - index * lag - .5),
         }
 
@@ -475,7 +476,7 @@ def opabinia(rig, power):
     rotations = {}
     for i, pair in enumerate((("BodyA.R_016", "BodyA.L_015"), ("BodyB.R_014", "BodyB.L_013"),
                              ("BodyC.R_012", "BodyC.L_011"))):
-        paired(rig, rotations, pair, (.405 + .061 * i) * power, .108 * power, -i * 1.13)
+        paired(rotations, pair, (.405 + .061 * i) * power, .108 * power, -i * 1.13)
     for i, joint in enumerate(("Body.02_08", "Body.03_09", "Body.04_010")):
         rotations[joint] = lambda t, i=i: {"pitch": .025 * (1 + i) * power * sin(t - .75 * i)}
     for i, name in enumerate(("Probo.01_01", "Probo.02_02", "Probo.03_03", "Probo.04_04")):
@@ -544,7 +545,22 @@ def tullimonstrum(rig, power):
 
 def dakosaurus(rig, power):
     rotations = {}
-    spine(rotations, ("TailBase", "TailTip"), (.117, .254), .89, power, .082)
+    # Angles are the heading of successive sections of the sculpted S-curve.
+    # Unbend each horizontal tangent while retaining the downturned fluke
+    # in side view. The travelling wave enters gently behind the chest and
+    # arrives at the fin later, after the pelvis and peduncle have moved.
+    rest = tuple(map(radians, (5.6, 12.3, 11.7, 3.2, 1.25, -14.0, -26.1, -31.5)))
+    swing = (.045, .106, .205, .325, .475, .62, .74, .80)
+    delay = (0, .39, .81, 1.24, 1.65, 2.03, 2.37, 2.68)
+    def tangent(i, t):
+        return rest[i] + power * swing[i] * sin(t - delay[i]) if i >= 0 else 0.0
+    for index in range(len(rest)):
+        rotations[f"Caudal {index + 1}"] = lambda t, i=index: {
+            "yaw": tangent(i,t) - tangent(i-1,t),
+            # The two tips of the vertical fin were sculpted on opposite
+            # sides of its plane. Carry the blade upright on the peduncle.
+            "roll": .105 if i == len(rest)-1 else 0.0,
+        }
     # The source is sculpted in a turn. Opposing front paddles hang at
     # different angles even in Hover. Re-level each pair about the actual
     # fin sockets and stagger the left and right recovery strokes.
@@ -565,9 +581,9 @@ def dakosaurus(rig, power):
 def ichthyosaur(rig, power):
     rotations = {}
     spine(rotations, [f"tail_{i:02d}" for i in range(1, 7)], (.025, .045, .089, .147, .187, .199),
-          .42, power, .086)
-    paired(rig, rotations, ("front_fin_R", "front_fin_L"), .142 * power, .10 * power, .38, .20)
-    paired(rig, rotations, ("rear_fin_R", "rear_fin_L"), .089 * power, .062 * power, -.67, .16)
+          .42, power, .086, neutral=(0, .005, .055, .10, .11))
+    paired(rotations, ("front_fin_R", "front_fin_L"), .142 * power, .10 * power, .38, .20)
+    paired(rotations, ("rear_fin_R", "rear_fin_L"), .089 * power, .062 * power, -.67, .16)
     rotations["body"] = lambda t: {"roll": .035 * power * cos(t - .30)}
     rotations["neck"] = lambda t: {"yaw": -.021 * power * sin(t + .22)}
     rotations["head"] = lambda t: {"pitch": .017 * power * cos(t - .23), "yaw": -.011 * power * sin(t - .22)}
@@ -599,7 +615,9 @@ def sarcosuchus(rig, power):
     rotations["Body"] = lambda t: {"roll": .026 * power * sin(t - .35), "pitch": .008 * cos(t - .7)}
     rotations["Neck"] = lambda t: {"yaw": -.030 * power * pulse(t + .37)}
     rotations["Head"] = lambda t: {"pitch": .022 * power * cos(t - .35)}
-    rotations["Jaw"] = lambda t: {"pitch": .012 * (1 - cos(t - .35)) - .032 * (1 - power)}
+    # The museum reference holds a display gape. Rest the mandible beneath
+    # the maxilla in both submerged actions; the teeth follow their sockets.
+    rotations["Jaw"] = lambda t: {"pitch": -.25 + (.002 + .001 * power) * (1 - cos(t - .35))}
     # The tail supplies thrust. Sweep the limbs back for cruise, relax them
     # while hovering and make a smaller asymmetric correction with each foot.
     for pair, phase in (("fore", .32), ("hind", 2.45)):
@@ -627,18 +645,23 @@ def dallasaurus(rig, power):
                and int(name.split("_")[2]) >= 6]
     ordered.sort(key=lambda name: int(name.split("_")[2]))
     strength = [.012 + .104 * (i / (len(ordered) - 1)) ** 1.57 for i in range(len(ordered))]
-    spine(rotations, ordered, strength, .231, power, .078)
-    paired(rig, rotations, ("j_leftFrontFlipper_02_093", "j_rightFrontFlipper_010_086"),
+    # Register the sculpted S-curve in the tail. Starting the correction
+    # under the shoulders would redirect the whole animal.
+    trim = {i: -.022 for i in range(13, 17)}
+    trim.update({i: .035 for i in range(19, 27)})
+    neutral = [trim.get(int(name.split("_")[2]), 0) for name in ordered]
+    spine(rotations, ordered, strength, .231, power, .078, neutral=neutral)
+    paired(rotations, ("j_leftFrontFlipper_02_093", "j_rightFrontFlipper_010_086"),
            .205 * power, .145 * power, .44, .23)
-    paired(rig, rotations, ("j_leftRearFlipper_01_Bind_065", "j_rightRearFlipper_01_Bind_034"),
+    paired(rotations, ("j_leftRearFlipper_01_Bind_065", "j_rightRearFlipper_01_Bind_034"),
            .132 * power, .097 * power, -.75, .22)
     return rotations, {}, {}
 
 
 def styxosaurus(rig, power):
     rotations = {}
-    paired(rig, rotations, ("FrontFlipperR", "FrontFlipperL"), .401 * power, .235 * power, .26, .04, .093 * power)
-    paired(rig, rotations, ("RearFlipperR", "RearFlipperL"), .355 * power, .222 * power, -1.33, .055, .087 * power)
+    paired(rotations, ("FrontFlipperR", "FrontFlipperL"), .401 * power, .235 * power, .26, .04, .093 * power)
+    paired(rotations, ("RearFlipperR", "RearFlipperL"), .355 * power, .222 * power, -1.33, .055, .087 * power)
     rotations["Body"] = lambda t: {"pitch": .036 * power * cos(t - .14), "roll": .019 * power * sin(t + .61)}
     rotations["NeckBase"] = lambda t: {"pitch": -.023 * power * cos(t - .26), "yaw": .025 * power * sin(t - .71)}
     rotations["NeckMid"] = lambda t: {"pitch": -.019 * power * cos(t - .46)}
@@ -652,10 +675,10 @@ def styxosaurus(rig, power):
 def megalodon(rig, power):
     rotations = {}
     spine(rotations, ("Bone.003_Armature_5", "Bone.002_Armature_4", "Bone.004_Armature_3"),
-          (.094, .195, .335), .77, power, .045)
+          (.094, .195, .335), .77, power, .045, neutral=(-.033, .019, .157))
     for i, name in enumerate(("Bone.024_Armature_1", "Bone.025_Armature_2")):
         rotations[name] = lambda t, i=i: {"yaw": (.082 - .019 * i) * power * sin(t - 2.10 - .13 * i)}
-    paired(rig, rotations, ("Bone.012_Armature_25", "Bone.011_Armature_22"),
+    paired(rotations, ("Bone.012_Armature_25", "Bone.011_Armature_22"),
            .052 * power, .063 * power, .27, .25)
     rotations["Bone.001_Armature_13"] = lambda t: {"yaw": -.018 * power * cos(t + .13)}
     return rotations, {}, {}

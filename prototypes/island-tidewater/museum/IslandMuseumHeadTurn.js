@@ -49,20 +49,24 @@ export function applyIslandHeadTurn(pose, turn, yaw, resetPrevious = false) {
   if (resetPrevious) jointData.copyWithin(pose.joints * 16, 0, pose.joints * 16);
 }
 
-// Pass the animal's actual change of heading along the neck. A stationary
-// observer or a seam in a patrol path cannot keep pulling the head aside.
-export function makePlesiosaurSteering(id, nodes, skin) {
-  const neck = id === 'plesiosaurus'
+// A neck leads a turn. The tail follows the previous heading and recovers
+// as the animal straightens. Both follow the body's actual change in yaw.
+export function makeAquaticSteering(id, nodes, skin) {
+  const tail = id === 'dakosaurus';
+  const chain = tail ? ['Caudal 2', 'Caudal 4', 'Caudal 6', 'Caudal 8']
+    : id === 'plesiosaurus'
     ? ['Museum lower neck', 'Museum middle neck', 'Museum upper neck', 'Museum head']
     : id === 'styxosaurus' ? ['NeckBase', 'NeckMid', 'NeckTip', 'Head'] : null;
-  if (!neck) return null;
+  if (!chain) return null;
   const shares = [.24, .32, .28, .16];
-  const branches = neck.map((name, i) => headBranch(nodes, skin, name, .18 * shares[i]));
-  const angles = new Float64Array(neck.length);
+  const limit = tail ? .11 : .18;
+  const response = tail ? -.29 : .60;
+  const branches = chain.map((name, i) => headBranch(nodes, skin, name, limit * shares[i]));
+  const angles = new Float64Array(chain.length);
   return {
     follow(yawRate, dt) {
       if (!dt) { angles.fill(0); return; }
-      let desired = Math.max(-.18, Math.min(.18, yawRate * .60));
+      let desired = Math.max(-limit, Math.min(limit, yawRate * response));
       for (let i = 0; i < angles.length; i++) {
         const blend = -Math.expm1(-dt / (.12 + .025 * i));
         angles[i] += (desired - angles[i]) * blend;

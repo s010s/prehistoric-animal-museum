@@ -148,6 +148,10 @@ def archaeopteryx(t):
     ], phase, power)
     # Open the swept resting elbow and hold the remiges spread through recovery.
     for side, label in zip((1, -1), 'LR'):
+        # The exhibition shoulders hold one outer wing lower throughout.
+        # Trim both around the flight axis and retain the individual strokes.
+        roll, sweep, pitch = pose[f'{label}_Shoulder']
+        pose[f'{label}_Shoulder'] = (roll - 5.05, sweep, pitch)
         roll, sweep, pitch = pose[f'{label}_Arm']
         pose[f'{label}_Arm'] = (roll, sweep - side * 12, pitch)
         roll, sweep, pitch = pose[f'{label}_ForeArm']

@@ -100,6 +100,23 @@ function orientBranch(pose, branch, radians, axis) {
   warp(pose, branch, rigidTransform(new Quaternion().setFromAxisAngle(axis, radians), pivot));
 }
 
+// On a digitigrade foot the metatarsus pitches over the bearing digits as
+// the trunk passes. The distal phalanges retain the terrain/touchdown frame.
+function metatarsalPitch(progress) {
+  const keys = [[0, 15], [.10, 25], [.23, 0], [.32, -17], [.50, -12], [.76, 6], [1, 15]];
+  let i = 1;
+  while (i < keys.length - 1 && progress > keys[i][0]) i++;
+  const [a, start] = keys[i - 1], [b, end] = keys[i];
+  const t = clamp((progress - a) / (b - a), 0, 1);
+  return (start + (end - start) * t*t*(3-2*t)) * Math.PI / 180;
+}
+
+function ankleFromSole(leg, target, toeOrientation, metatarsusOrientation) {
+  if (!leg.digits) return target.sub(leg.soleVector.clone().applyQuaternion(toeOrientation));
+  return target.sub(leg.digits.padVector.clone().applyQuaternion(toeOrientation))
+    .sub(leg.digits.metatarsus.clone().applyQuaternion(metatarsusOrientation));
+}
+
 function moveLeg(pose, limb, frame, target, footRotation, bodyRotation, authoredPole) {
   const { upper, lower, foot, pole, soleVector } = limb;
   const hip = positionAt(pose.world, upper.i), knee = positionAt(pose.world, lower.i), ankle = positionAt(pose.world, foot.i);
@@ -123,7 +140,14 @@ function moveLeg(pose, limb, frame, target, footRotation, bodyRotation, authored
   // Restore the reference toe/hoof shape at the new ankle. In particular, a
   // toe curl in a source idle clip must not drag a sole across terrain.
   const solvedAnkle = positionAt(pose.world, foot.i);
-  warp(pose, foot, rigidTransform(footRotation, limb.ankle, solvedAnkle), frame.world, frame.palette);
+  const hockRotation = limb.digits?.orientation ?? footRotation;
+  warp(pose, foot, rigidTransform(hockRotation, limb.ankle, solvedAnkle), frame.world, frame.palette);
+  if (limb.digits) {
+    const { branch, origin, padVector } = limb.digits;
+    const toe = positionAt(pose.world, branch.i);
+    warp(pose, branch, rigidTransform(footRotation, origin, toe), frame.world, frame.palette);
+    return padVector.clone().applyQuaternion(footRotation).add(toe);
+  }
   return soleVector.clone().applyQuaternion(footRotation).add(solvedAnkle);
 }
 
@@ -140,7 +164,7 @@ function buildRig(id, pose, derived) {
     return i;
   };
   const profile = source ?? derived;
-  const definitions = source?.legs.map(([upper, lower, foot, contact, pitch]) => ({ upper, lower, foot, contact, pitch })) ?? derived.chains;
+  const definitions = source?.legs.map(([upper, lower, foot, contact, pitch, toes]) => ({ upper, lower, foot, contact, pitch, toes })) ?? derived.chains;
   const frame = profile.bindFeet ? bindPoseRows(pose) : {
     world: pose.world.slice(), palette: pose.jointData.slice(0, pose.joints * 16),
   };
@@ -155,8 +179,15 @@ function buildRig(id, pose, derived) {
     const axis = ankle.clone().sub(hip).normalize();
     const pole = definition.pole ? new Vector3(...definition.pole) : knee.clone().sub(hip).projectOnPlane(axis).normalize();
     if (!pole.lengthSq()) throw Error('Degenerate museum gait pole ' + id + ' ' + definition.lower);
+    let digits;
+    if (definition.toes) {
+      const branch = branchAt(pose, resolve(definition.toes));
+      const origin = positionAt(frame.world, branch.i);
+      digits = { branch, origin, metatarsus: origin.clone().sub(ankle), padVector: contact.clone().sub(origin),
+        orientation: new Quaternion(), landingOrientation: new Quaternion() };
+    }
     return {
-      upper, lower, foot, ankle, pole, contact,
+      upper, lower, foot, ankle, pole, contact, digits,
       neutral: definition.neutral ? new Vector3(...definition.neutral) : contact.clone(),
       soleVector: contact.clone().sub(ankle),
       reach: knee.distanceTo(hip) + ankle.distanceTo(knee),
@@ -458,8 +489,12 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
     const invGroup = rootMatrix.clone().invert();
     for (const leg of limbs) {
       leg.orientation.premultiply(inverse).multiply(correction.setFromAxisAngle(right, leg.pitch + leg.rock));
-      leg.ankleTarget.copy(leg.target).applyMatrix4(invGroup)
-        .sub(leg.soleVector.clone().applyQuaternion(leg.orientation));
+      if (leg.digits) {
+        const u = leg.stance ? fraction(phase - order.indexOf(leg) * beat) : leg.progress * leg.swingSpan;
+        leg.digits.orientation.copy(leg.orientation)
+          .multiply(correction.setFromAxisAngle(right, metatarsalPitch(u) * gaitWeight));
+      }
+      ankleFromSole(leg, leg.ankleTarget.copy(leg.target).applyMatrix4(invGroup), leg.orientation, leg.digits?.orientation);
     }
 
     // Lower the trunk only as far as required to keep every stance ankle
@@ -502,7 +537,10 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
         const footFrame = inverse.clone().multiply(leg.toHeading)
           .multiply(correction.setFromAxisAngle(right, leg.pitch));
         const landing = leg.landing.clone().addScaledVector(motionDirection, -remaining * leg.stride)
-          .applyMatrix4(invGroup).sub(leg.soleVector.clone().applyQuaternion(footFrame));
+          .applyMatrix4(invGroup);
+        const landingHock = leg.digits?.landingOrientation.copy(footFrame)
+          .multiply(correction.setFromAxisAngle(right, metatarsalPitch(leg.swingSpan) * gaitWeight));
+        ankleFromSole(leg, landing, footFrame, landingHock);
         const reachAtLanding = Math.sqrt(Math.max(0, (reach * extension) ** 2
           - (hip.x - landing.x) ** 2 - (hip.z - landing.z) ** 2));
         // The allowance shrinks to zero at contact and is expressed in leg
@@ -582,7 +620,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
         mode: walked > 0 && stalled < .08 && (desired || speed > cruise * .30) ? 'walking'
           : limbs.some(leg => !leg.stance) ? 'settling' : 'holding',
         contacts: limbs.map(leg => ({
-          joint: leg.foot.i, side: leg.side, lane: leg.lane, planted: leg.stance, steps: leg.steps,
+          joint: leg.foot.i, padJoint: leg.digits?.branch.i ?? leg.foot.i, side: leg.side, lane: leg.lane, planted: leg.stance, steps: leg.steps,
           swing: leg.stance ? 0 : leg.progress, recovery: !leg.stance && leg.recovery,
           sole: leg.sole.toArray(), target: leg.target.toArray(), errorMetres: leg.error,
           terrainClearanceMetres: leg.clearance,

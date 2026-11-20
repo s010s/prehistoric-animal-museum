@@ -7,7 +7,7 @@ export const CORALS = [
   {id:'micrabacia',span:[.05,.11]},
   {id:'thecosmilia',span:[.28,.54]},
 ];
-export const SHELLS = ['neithea','trigonia','naticarius','siphocypraea'];
+export const SHELLS = ['trigonia','naticarius','siphocypraea'];
 export const SPONGES = ['pirania'];
 export const REEF_URLS = {
   acrocyathus:new URL('./assets/acrocyathus-lowpoly-vault.glb',import.meta.url).href,
@@ -16,7 +16,6 @@ export const REEF_URLS = {
   flabellum:new URL('./assets/flabellum-lowpoly-vault.glb',import.meta.url).href,
   micrabacia:new URL('./assets/micrabacia-lowpoly-vault.glb',import.meta.url).href,
   thecosmilia:new URL('./assets/thecosmilia-lowpoly-vault.glb',import.meta.url).href,
-  neithea:new URL('./assets/neithea-lowpoly-vault.glb',import.meta.url).href,
   trigonia:new URL('./assets/trigonia-lowpoly-vault.glb',import.meta.url).href,
   naticarius:new URL('./assets/naticarius-lowpoly-vault.glb',import.meta.url).href,
   siphocypraea:new URL('./assets/siphocypraea-lowpoly-vault.glb',import.meta.url).href,

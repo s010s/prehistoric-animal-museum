@@ -16,9 +16,9 @@ const submerged = medium => ['marine', 'freshwater', 'benthic'].includes(medium)
 const nearbyAngles = Array.from({ length: 16 }, (_, i) => i * TAU / 16);
 const flightViews = {
   meganeura: { distance: 1.95, maxDistance: 3.1, sky: true, altitude: 3.05, incline: .92, sunSide: .12 },
-  anurognathus: { distance: 2.55, sky: true, altitude: 3.1, incline: .85, sunSide: .12, clearSeconds: 4.5 },
-  sordes: { distance: 1.9, sky: true, altitude: 2.75, incline: .92 },
-  archaeopteryx: { distance: 1.95, sky: true, altitude: 3, incline: 1.08 },
+  anurognathus: { distance: 1.16, maxDistance: 1.6, sky: true, altitude: 2.04, incline: .57, sunSide: .65, lit: true, clearSeconds: 2.7 },
+  sordes: { distance: 1.65, maxDistance: 2.5, sky: true, altitude: 2.25, incline: .65, sunSide: .58, lit: true, clearSeconds: 3.85 },
+  archaeopteryx: { distance: 1.65, maxDistance: 2.6, sky: true, altitude: 2.5, incline: .76, backdrop: 24, clearSeconds: 1.6 },
   rhamphorhynchus: { distance: 3.8, maxDistance: 5.6, sky: true, altitude: 3.35, incline: .62 },
   tupandactylus: { distance: 6.2, maxDistance: 9.3, altitude: 3.8 },
 };
@@ -80,7 +80,7 @@ export function faunaBodyPlacement(metadata) {
   };
 }
 
-function treeHeightAt(colliders, x, z, padding, crown = false) {
+function treeHeightAt(colliders, x, z, padding, height) {
   if (!colliders) return -Infinity;
   let top = -Infinity;
   const cellX = Math.floor(x / 32);
@@ -88,7 +88,13 @@ function treeHeightAt(colliders, x, z, padding, crown = false) {
   for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
     const trees = colliders.treeCells.get((cellX + i) + ',' + (cellZ + j)) ?? [];
     for (const tree of trees) {
-      const canopy = crown && tree.tag.endsWith('trunk') ? Math.min(9, (tree.yMax - tree.yMin) * .097) : 0;
+      let canopy = 0;
+      if (height !== undefined && tree.crown) {
+        const band = Math.floor((height - tree.yMin) / (tree.yMax - tree.yMin) * tree.crown.length);
+        if (band >= 0 && band < tree.crown.length) {
+          canopy = tree.crownScale * Math.max(tree.crown[band], tree.crown[band - 1] ?? 0, tree.crown[band + 1] ?? 0);
+        }
+      }
       if (Math.hypot(x - tree.x, z - tree.z) < tree.radius + padding + canopy) top = Math.max(top, tree.yMax);
     }
   }
@@ -160,9 +166,11 @@ function routeAt(context, site, body, x, z, radius, axis, population = null) {
     return { path, minY, maxY: base + 2 * lift };
   }
   const isNearBed = site.behavior === 'hover';
-  const fraction = isNearBed ? .22 : site.behavior === 'ambush' ? .66 : .68;
+  // In the shallow exhibits let the diver see flank markings against the bed.
+  const lowerShelf = !population && (site.id === 'anomalocaris' || site.id === 'dallasaurus');
+  const fraction = lowerShelf ? .15 : isNearBed ? .22 : site.behavior === 'ambush' ? .66 : .68;
   const y = minY + (maxY - minY) * fraction;
-  const rise = Math.min(isNearBed ? .045 : .55, (maxY - y) * .7);
+  const rise = Math.min(isNearBed ? .045 : lowerShelf ? .15 : .55, (maxY - y) * .7, y - minY);
   for (let i = 0; i < steps; i++) path[i][1] = y + Math.sin(i * TAU / steps) * rise;
   return { path, minY, maxY };
 }
@@ -175,7 +183,7 @@ function clearSight(terrain, colliders, p, gaze, crowns = false) {
     const x = p[0] + (gaze[0] - p[0]) * t;
     const y = p[1] + (gaze[1] - p[1]) * t;
     const z = p[2] + (gaze[2] - p[2]) * t;
-    if (Math.max(terrain.heightAt(x, z), treeHeightAt(colliders, x, z, .1, crowns)) >= y) return false;
+    if (Math.max(terrain.heightAt(x, z), treeHeightAt(colliders, x, z, .1, crowns ? y : undefined)) >= y) return false;
   }
   return true;
 }
@@ -190,16 +198,17 @@ function unobstructedView(colliders, eye, gaze, ownCollider) {
   return colliders.sightDistance(origin, direction, distance, ownCollider) >= distance - .01;
 }
 
-function openFlightBackdrop(terrain, colliders, gaze, dx, dz, incline) {
+function openFlightBackdrop(terrain, colliders, gaze, dx, dz, incline, range = Infinity) {
   const skySlope = incline - .075;
   for (const d of [1.5, 3, 5, 8, 11, 14, 18, 22, 27, 32, 38, 45, 53, 62, 73, 85, 100, 120, 146, 180, 222, 280, 365, 480, 660, 920]) {
+    if (d > range) break;
     const x = gaze[0] - dx * d;
     const z = gaze[2] - dz * d;
     const y = gaze[1] + skySlope * d - .35;
     const margin = Math.min(5.8, .9 + d * .065);
     // The projected body needs a little sky around it. Test the lower
     // and outer edges of that window through the local crowns and ridge.
-    if (d <= 120 && treeHeightAt(colliders, x, z, margin, true) > y) return false;
+    if (d <= 120 && treeHeightAt(colliders, x, z, margin, y) > y) return false;
     const left = terrain.heightAt(x - dz * margin, z + dx * margin);
     const right = terrain.heightAt(x + dz * margin, z - dx * margin);
     if (Math.max(terrain.heightAt(x, z), left, right) > y) return false;
@@ -209,15 +218,24 @@ function openFlightBackdrop(terrain, colliders, gaze, dx, dz, incline) {
 
 // Small dark wings vanish against needles. Inspect the actual arc ahead
 // from the standing eye so there is time to recognise the animal in motion.
-function openFlightArc({ terrain, colliders }, site, path, start, eye, seconds) {
+function openFlightSun(terrain, colliders, point, daylight) {
+  for (const d of [1, 2.5, 4, 6, 9, 13, 18, 25, 34, 46, 64, 90, 130, 195, 300, 500, 800]) {
+    const x = point[0] + daylight.x * d, z = point[2] + daylight.z * d;
+    const y = point[1] + daylight.y * d - .15;
+    if (terrain.heightAt(x, z) > y || (d <= 130 && treeHeightAt(colliders, x, z, .45, y) > y)) return false;
+  }
+  return true;
+}
+
+function openFlightArc({ terrain, colliders }, site, path, start, eye, seconds, daylight) {
   let metres = 0;
   for (let n = 1; n <= path.length && metres < site.speed * seconds; n++) {
     const from = path[(start + n - 1) % path.length], next = path[(start + n) % path.length];
     metres += Math.hypot(next[0] - from[0], next[2] - from[2]);
     const dx = eye[0] - next[0], dz = eye[2] - next[2], flat = Math.hypot(dx, dz);
     const incline = (next[1] - eye[1]) / flat;
-    if (!clearSight(terrain, colliders, eye, next, true)
-        || !openFlightBackdrop(terrain, colliders, next, dx/flat, dz/flat, incline)) return false;
+    if ((daylight && !openFlightSun(terrain, colliders, next, daylight)) || !clearSight(terrain, colliders, eye, next, true)
+        || !openFlightBackdrop(terrain, colliders, next, dx/flat, dz/flat, incline, flightViews[site.id]?.backdrop)) return false;
   }
   return true;
 }
@@ -262,7 +280,9 @@ function observationFor(context, site, body, path, frame = null) {
       if (wet) {
         if (inland !== (site.medium === 'freshwater') || level - floor < 1.18) continue;
         const lift = benthic ? .42 : overheadWater ? Math.max(.16, distance * .30) : .12;
-        py = clamp(gaze[1] + lift, floor + SWIM_CLEARANCE, level - (inland ? .26 : .52));
+        // A mean-sea-level eye can cross the wave trough while the visitor is still.
+        const diveDepth = inland ? .26 : Math.min(1.8, level - floor - SWIM_CLEARANCE);
+        py = clamp(gaze[1] + lift, floor + SWIM_CLEARANCE, level - diveDepth);
         if (py - floor < SWIM_CLEARANCE - .01) continue;
       } else if (floor < level + .12 || gradeAt(terrain, px, pz, .7) > .52) continue;
 
@@ -271,7 +291,8 @@ function observationFor(context, site, body, path, frame = null) {
       if (flight?.sky && viewIncline < flight.incline * (frame ? .28 : .62)) continue;
       const sunSide = daylight ? (daylight.x * dx + daylight.z * dz) / Math.hypot(daylight.x, daylight.z) : 1;
       if (daylight && sunSide < sunSideMin) continue;
-      const lightPenalty = mammoth ? (1 - sunSide) * 1.25 : daylight ? Math.abs(sunSide - .52) * .85 : 0;
+      if (flight?.lit && (daylight.x * dx + daylight.z * dz - daylight.y * viewIncline) / Math.hypot(1, viewIncline) < .16) continue;
+      const lightPenalty = mammoth ? (1 - sunSide) * 1.25 : daylight ? Math.abs(sunSide - (flight?.lit ? .86 : .52)) * .85 : 0;
       if (air && (viewIncline > (flight?.sky ? 2.05 : 1.7) || viewIncline < -.12)) continue;
       if (!wet && !air && viewIncline < -.57) continue;
       const oblique = Math.abs(dx * Math.sin(heading) + dz * Math.cos(heading));
@@ -288,9 +309,10 @@ function observationFor(context, site, body, path, frame = null) {
         + (air ? Math.abs(viewIncline - (flight?.incline ?? .14)) * 1.25 : 0)
         + lightPenalty + i * .005;
       if (best && score >= best.score) continue;
-      if (flight?.sky && !openFlightBackdrop(terrain, colliders, gaze, dx, dz, viewIncline)) continue;
+      if (flight?.sky && !openFlightBackdrop(terrain, colliders, gaze, dx, dz, viewIncline, flight.backdrop)) continue;
       if (!clearSight(terrain, colliders, [px, py, pz], gaze, !!flight?.sky)) continue;
-      if (flight?.clearSeconds && !openFlightArc(context, site, path, i, [px, py, pz], flight.clearSeconds)) continue;
+      if (flight?.lit && !openFlightSun(terrain, colliders, gaze, daylight)) continue;
+      if (flight?.clearSeconds && !openFlightArc(context, site, path, i, [px, py, pz], flight.clearSeconds, flight.lit && daylight)) continue;
       if (frame && !unobstructedView(colliders, [px, py, pz], gaze, frame.ownCollider)) continue;
       best = { score, p: [px, pz], eye: [px, py, pz], gaze, i, heading,
         ...(wet ? { diveLevel: level, eyeBelowSurface: level - py } : {}) };
@@ -365,7 +387,7 @@ function solveHabitat(context, spec, metadata, time) {
   const [cx, cz] = site.preferred;
   const step = wet ? Math.max(2, site.radius * .65) : Math.max(4, site.radius * .52);
   const offsets = [[0, 0]];
-  const searchRings = flightViews[site.id]?.sky ? [1, 2, 3, 4, 6, 9, 13] : [1, 2, 3, 4, 6];
+  const searchRings = flightViews[site.id]?.sky ? [1, 2, 3, 4, 6, 9, 13, 18, 24, 32, 40] : [1, 2, 3, 4, 6];
   for (const r of searchRings) for (const a of nearbyAngles) offsets.push([Math.cos(a) * step * r, Math.sin(a) * step * r]);
   // Preserve travel distance first. A shorter route near the intended site is
   // still preferable to snapping an animal into a different part of the island.

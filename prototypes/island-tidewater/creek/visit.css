@@ -51,6 +51,7 @@ body.hud-collapsed #hud #fauna-status:not(:empty) {display:inline;margin-left:9p
 #hud #sea-sound {margin-top:5px}
 @media(max-width:600px){#visit-help{max-width:calc(100vw - 20px);bottom:8px;left:auto}#inspection{bottom:40px}}
 
+body.hud-collapsed #hud #specimen-loupe:not([hidden]),
 body.hud-collapsed #hud #face-animal:not([hidden]) {display:inline-block;margin:7px 0 0 5px;padding:2px 7px;font-size:11px}
 #face-animal[hidden] {display:none}
 

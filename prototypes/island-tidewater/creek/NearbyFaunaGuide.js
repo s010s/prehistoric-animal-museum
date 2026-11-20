@@ -169,9 +169,13 @@ export class NearbyFaunaGuide {
       best = animal; bestScore = score;
       cx = view.x; cy = view.y;
     }
-    this.label.hidden = !best;
+    // In the loupe, the specimen is already named in the HUD. Keep the small
+    // animal's spines and appendages clear of its screen-space nameplate.
+    const identifiedInLoupe = best && camera.zoom > 1 && this.app.loupeActor?.id === best.id;
+    this.label.hidden = !best || identifiedInLoupe;
     this.labelId = best?.id;
     if (!best) return false;
+    if (identifiedInLoupe) return true;
     delete this.label.dataset.marker;
     view.set(best.x, best.y + best.halfHeight, best.z).project(camera);
     const x = clamp((cx*.5+.5)*innerWidth, 75, innerWidth-75);

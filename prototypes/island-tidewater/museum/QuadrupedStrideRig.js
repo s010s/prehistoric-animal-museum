@@ -40,7 +40,15 @@ function addAxialSkin(id, gltf, pieces, skin, metadata, rig) {
     const pivot = new Vector3(f * fx + l * fz, h, f * fz - l * fx).applyMatrix4(inverse);
     const ancestor = bones.get(parent), i = gltf.nodes.length, row = skin.joints.length;
     const offset = ancestor ? pivot.clone().sub(ancestor.pivot) : pivot;
-    gltf.nodes.push({ name: 'Stride ' + name, t: offset.toArray(), r: [0, 0, 0, 1], s: [1, 1, 1], children: [] });
+    const rotation = new Quaternion();
+    if (id === 'sauropelta' && name.startsWith('tail')) {
+      // The prepared skin carries a lateral hook through three tail segments.
+      // Correct their neutral angles, preserving the original caudal sway.
+      const angle = name === 'tail' ? 6 : name === 'tail mid' ? 7 : 4;
+      const up = new Vector3(0, 1, 0).transformDirection(inverse);
+      rotation.setFromAxisAngle(up, angle * Math.PI / 180);
+    }
+    gltf.nodes.push({ name: 'Stride ' + name, t: offset.toArray(), r: rotation.toArray(), s: [1, 1, 1], children: [] });
     gltf.nodes[ancestor?.i ?? source].children.push(i);
     skin.joints.push(i);
     binds.push(...new Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z).elements);
@@ -114,6 +122,11 @@ export function prepareQuadrupedStride(id, gltf, pieces, skin, metadata, legRig)
   const channels = idle.channels.map(channel => {
     const rotation = channel.path === 'rotation', width = rotation ? 4 : 3;
     const values = channel.values.slice(0, width), node = gltf.nodes[channel.node];
+    if (id === 'maiasaura' && rotation && /^tail\./.test(node.name)) {
+      // Leave the browsing sweep in Idle. Begin the walking cycle at the
+      // skeleton's neutral tail, rather than the exhibit's first display key.
+      reference.fromArray(node.r).normalize().toArray(values);
+    }
     if (id === 'stegosaurus' && rotation && /^Tail\d+_/.test(node.name)) {
       // The exhibit idle sweeps its tip two metres across in 1.25s. Keep its
       // relaxed vertical curve, with a much smaller lateral excursion at rest.

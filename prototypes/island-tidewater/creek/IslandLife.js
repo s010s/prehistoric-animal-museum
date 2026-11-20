@@ -96,7 +96,7 @@ export class IslandLife{
   for(const [id,p,count,length,radius,search] of specs){const c=wetNear(p.x,p.z,search);if(!c)continue;const g={id,...c,reviewed:REVIEWED_FISH.includes(search.vault)?search.vault:null,sea:!!search.sea,sampleMarine:!!search.sampleMarine,radius,first:this.fish.length,count,school:!!search.school,routePhase:rng()*6.283,lowerDwell:!!search.lowerDwell,cruise:search.cruise??1};this.groups.push(g);for(let i=0;i<count;i++){
    const vaultFish=g.reviewed;
    const L=length*(.82+rng()*.36);
-   this.fish.push({group:g,caudalLag:vaultFish?REVIEWED_SWIM_RIGS[vaultFish].waveLag.at(-1):0,phase:rng()*Math.PI*2,slot:rng()*6.283,spread:.25+rng()*.75,depth:.26+rng()*.46,L,p:new Vector3(c.x,Math.max(c.floor+.15,c.h-.6),c.z),previous:new Vector3(),fresh:true,sleeping:true,velocity:new Vector3(),panic:0,yaw:rng()*6.283,morph:vaultFish?0:i%5===0?1:0,seed:rng(),vault:vaultFish});
+   this.fish.push({group:g,thrustPhase:vaultFish?REVIEWED_SWIM_RIGS[vaultFish].thrustPhase:0,phase:rng()*Math.PI*2,slot:rng()*6.283,spread:.25+rng()*.75,depth:.26+rng()*.46,L,p:new Vector3(c.x,Math.max(c.floor+.15,c.h-.6),c.z),previous:new Vector3(),fresh:true,sleeping:true,velocity:new Vector3(),panic:0,yaw:rng()*6.283,morph:vaultFish?0:i%5===0?1:0,seed:rng(),vault:vaultFish});
    // Large fish in the shallow sand channel need room for their long snouts
    // on waking. Stagger initial depth and radius without synchronising beats.
    if(id==='sample-sea'||id==='sample-mouth-fish'){
@@ -330,7 +330,7 @@ export class IslandLife{
     // Hydrodynamic drag carries the animal through recovery; positive drive
     // peaks twice a cycle as the caudal blade crosses the body centreline.
     const pose=f.swimPose;
-    const phase=(pose?.phase??f.phase)-f.caudalLag;
+    const phase=(pose?.phase??f.phase)-f.thrustPhase;
     thrust=Math.min(1,(pose?.effort??0)*3.8)*(.72+.28*Math.cos(2*phase));
    }
    let ax=(dx/dl*speed*thrust-v.x)*1.5,az=(dz/dl*speed*thrust-v.z)*1.5;

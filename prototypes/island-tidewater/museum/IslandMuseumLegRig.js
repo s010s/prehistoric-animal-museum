@@ -52,11 +52,10 @@ function smoothstep(min, max, value) {
 }
 
 function sliceWeight(sections, f, y, l, halo) {
-  if (y > sections[0][1]) return 0;
   let i = 1;
   while (i < sections.length - 1 && y < sections[i][1]) i++;
   const a = sections[i - 1], b = sections[i];
-  const t = Math.min(1, (a[1] - y) / (a[1] - b[1]));
+  const t = Math.max(0, Math.min(1, (a[1] - y) / (a[1] - b[1])));
   const u = 1 - t;
   const forward = Math.abs(f - a[0] * u - b[0] * t) / (a[3] * u + b[3] * t);
   const lateral = Math.abs(l - a[2] * u - b[2] * t) / (a[4] * u + b[4] * t);
@@ -73,6 +72,89 @@ function writeInfluence(influences, vertexCount, vertex, slot, row, weight) {
   const index = vertex * 4 + (slot & 3);
   influences[group].joints[index] = row;
   influences[group].weights[index] = weight;
+}
+
+function blendSkinSeams(pieces, soften) {
+  const vertices = new Map(), mesh = [];
+  for (const { nodeIndex, primitive, influences } of pieces) {
+    if (!influences.length || primitive.targets.length || primitive.mode !== 4) continue;
+    const positions = floatAttribute(primitive.attributes.POSITION);
+    const nodes = [];
+    for (let v = 0; v < positions.length; v += 3) {
+      const key = [nodeIndex, positions[v], positions[v + 1], positions[v + 2]].join(',');
+      if (!vertices.has(key)) vertices.set(key, { peers: [], adjacent: new Set() });
+      const node = vertices.get(key);
+      nodes.push(node);
+      node.peers.push({ influences, at: v / 3 * 4 });
+    }
+    mesh.push({ indices: primitive.indices, nodes });
+  }
+  const accumulate = (target, source, amount) => {
+    for (const [row, weight] of source) target.set(row, (target.get(row) ?? 0) + weight * amount);
+  };
+  const read = ({ at, influences }) => {
+    const rows = new Map();
+    for (const { weights, joints } of influences) for (let i = at; i < at + 4; i++) {
+      if (weights[i]) rows.set(joints[i], (rows.get(joints[i]) ?? 0) + weights[i]);
+    }
+    return rows;
+  };
+  // UV seams in these specimens duplicate positions but can carry different
+  // weights. Share the blended influences while preserving the separate UVs.
+  const seams = [];
+  for (const vertex of vertices.values()) {
+    const { peers } = vertex;
+    if (peers.length < 2) continue;
+    const rows = peers.map(read);
+    const first = rows[0];
+    if (rows.every(row => row.size === first.size && [...row].every(([key, value]) => first.get(key) === value))) continue;
+    vertex.weights = new Map();
+    for (const row of rows) accumulate(vertex.weights, row, 1 / peers.length);
+    seams.push(vertex);
+  }
+  const settled = new Set(seams);
+  if (soften) {
+    for (const { indices, nodes } of mesh) for (let i = 0; i < (indices?.length ?? nodes.length); i += 3) {
+      const face = [0, 1, 2].map(k => nodes[indices?.[i + k] ?? i + k]);
+      for (const node of face) for (const neighbor of face) if (neighbor !== node) node.adjacent.add(neighbor);
+    }
+    const firstRing = new Set(seams.flatMap(node => [...node.adjacent]));
+    const secondRing = new Set([...firstRing].flatMap(node => [...node.adjacent]));
+    const near = new Set([...seams, ...firstRing, ...secondRing]);
+    for (const node of near) node.weights ??= read(node.peers[0]);
+    for (let i = 0; i < 3; i++) {
+      const eased = new Map();
+      for (const node of near) {
+        const mix = node.peers.length > 1 ? .73 : firstRing.has(node) ? .60 : .26;
+        const weights = new Map();
+        accumulate(weights, node.weights, 1 - mix);
+        for (const neighbor of node.adjacent) {
+          accumulate(weights, neighbor.weights ?? read(neighbor.peers[0]), mix / node.adjacent.size);
+        }
+        eased.set(node, weights);
+      }
+      for (const [node, weights] of eased) node.weights = weights;
+    }
+    for (const node of near) settled.add(node);
+  }
+  for (const { peers, weights } of settled) {
+    const capacity = Math.min(...peers.map(({ influences }) => influences.length)) * 4;
+    const rows = [...weights].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, capacity);
+    const total = rows.reduce((sum, [, weight]) => sum + weight, 0);
+    if (!total) continue;
+    let cumulative = 0, written = 0;
+    for (const { at, influences } of peers) for (const { weights } of influences) weights.fill(0, at, at + 4);
+    for (const [slot, [row, weight]] of rows.entries()) {
+      cumulative += weight;
+      const end = Math.round(cumulative / total * uintWeight);
+      for (const { at, influences } of peers) {
+        const { joints, weights } = influences[slot >> 2];
+        joints[at + (slot & 3)] = row;
+        weights[at + (slot & 3)] = end - written;
+      }
+      written = end;
+    }
+  }
 }
 
 function solePatch(candidates, ankleHeight, id, side, fore) {
@@ -102,7 +184,7 @@ function solePatch(candidates, ankleHeight, id, side, fore) {
 export function augmentIslandLegRig(id, gltf, pieces, skin) {
   if (!Object.hasOwn(islandMuseumLegCalibration, id)) return null;
   const calibration = islandMuseumLegCalibration[id];
-  const { upperBlend = .58, upperHalo = 0, laneDivider, laneOutset = 0 } = calibration;
+  const { upperBlend = .58, upperHalo = 0, hipFeather = 0, hipHalo = 0, laneDivider, laneOutset = 0 } = calibration;
 
   const reference = visibleReference(gltf, skin);
   const inverseBind = Array.from(skin.inverseBindMatrices);
@@ -213,9 +295,11 @@ export function augmentIslandLegRig(id, gltf, pieces, skin) {
       let leg = null, coverage = 0;
       for (const candidate of legs) {
         const { sections, sourceRows, hip, knee, ankle, side, fore } = candidate;
-        if (y >= hip) continue;
+        const depth = (hip - y) / (hip - knee);
+        if (depth <= -hipFeather) continue;
         const shinHeight = smoothstep(ankle, knee, y);
-        const halo = upperHalo * shinHeight;
+        const hipTransition = smoothstep(0, 1, depth + hipFeather) * (1 - smoothstep(.66, 1.22, depth));
+        const halo = upperHalo * shinHeight + hipHalo * hipTransition;
         const outer = sliceWeight(sections, f, y, l, halo);
         if (!(outer > 0)) continue;
         let authored = 1;
@@ -229,7 +313,7 @@ export function augmentIslandLegRig(id, gltf, pieces, skin) {
         const divider = laneDivider?.[fore ? 0 : 1];
         // Separate close feet and let the shared inner thigh return to its source skin.
         const lane = divider === undefined ? 1 : smoothstep(0, .012 + .055 * shinHeight, (l - divider) * side);
-        const score = lane * outer * authored * smoothstep(0, upperBlend, (hip - y) / (hip - knee));
+        const score = lane * outer * authored * smoothstep(-hipFeather, upperBlend, depth);
         if (score <= coverage) continue;
         coverage = score;
         leg = candidate;
@@ -278,6 +362,7 @@ export function augmentIslandLegRig(id, gltf, pieces, skin) {
       piece.groundMorphWeights = morph;
     }
   }
+  if (calibration.blendSkinSeams) blendSkinSeams(pieces, calibration.softenSkinSeams);
   skin.inverseBindMatrices = Float32Array.from(inverseBind);
 
   const chains = legs.map(({ side, fore, attachment, centers, bones, ankle, candidates }, limbIndex) => {

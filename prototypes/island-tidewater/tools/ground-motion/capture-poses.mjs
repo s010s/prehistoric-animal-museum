@@ -16,8 +16,11 @@ const read = path => readFileSync(new URL('../../museum/' + path, import.meta.ur
 const metadata = JSON.parse(read('island-museum-models.lock.json')).animals;
 const [directory, ...options] = process.argv.slice(2);
 const sequence = options.includes('--sequence');
-const requested = options.filter(option => option !== '--sequence');
-if (!directory) throw Error('Usage: node tools/ground-motion/capture-poses.mjs <output-directory> [--sequence] [specimen ...]');
+const steadyWalk = options.includes('--steady-walk');
+const anatomy = options.includes('--anatomy');
+const reverseTurn = options.includes('--reverse-turn');
+const requested = options.filter(option => !option.startsWith('--'));
+if (!directory) throw Error('Usage: node tools/ground-motion/capture-poses.mjs <output-directory> [--sequence] [--anatomy] [--steady-walk] [--reverse-turn] [specimen ...]');
 mkdirSync(directory, { recursive: true });
 
 function openSpecimen(id) {
@@ -93,7 +96,18 @@ function capture(id) {
     }
     write(name, coords);
     const contacts = motion.diagnostics().contacts;
-    frames.push({ name, phase: motion.diagnostics().phase, planted: contacts.map(contact => contact.planted) });
+    const frame = { name, phase: motion.diagnostics().phase, planted: contacts.map(contact => contact.planted) };
+    if (anatomy) {
+      frame.joints = {};
+      for (const [i, node] of pose.gltf.nodes.entries()) {
+        const [x, y, z] = pose.world.subarray(i * 16 + 12, i * 16 + 15);
+        frame.joints[node.name] = [x * fx + z * fz, z * fx - x * fz, y + pose.group.position.y / meta.scale];
+      }
+      frame.contacts = contacts;
+      frame.origin = pose.group.position.toArray();
+      frame.heading = pose.group.rotation.y;
+    }
+    frames.push(frame);
   }
 
   const { group } = pose;
@@ -109,11 +123,11 @@ function capture(id) {
   snapshot('Stand', true);
   const seen = new Set();
   let heading = 0;
-  for (let frame = 1; frame <= 460; frame++) {
+  for (let frame = 1; frame <= (steadyWalk ? 1140 : 460); frame++) {
     const dt = 1 / 60;
-    const moving = frame < 322;
+    const moving = steadyWalk || frame < 322;
     const step = motion.advance(dt, moving, site.speed) * dt;
-    heading += frame > 218 && frame <= 318 ? dt * .40 : 0;
+    heading += !steadyWalk && frame > 218 && frame <= 318 ? dt * (reverseTurn ? -.40 : .40) : 0;
     group.rotation.y = initialYaw + heading;
     group.position.x += Math.sin(heading) * step;
     group.position.z += Math.cos(heading) * step;
@@ -124,7 +138,9 @@ function capture(id) {
     syncIslandLegRigPalette(pose, rig, false, true);
     const { contacts } = motion.diagnostics();
     // Six seconds at 20 fps include the continuous stride, turn, and stop.
-    if (sequence && frame >= 75 && frame <= 435 && (frame - 75) % 3 === 0) snapshot('Step ' + String(frame).padStart(3, '0'), true);
+    if (sequence && (anatomy || (frame >= 75 && frame <= 435)) && frame % 3 === 0) snapshot('Step ' + String(frame).padStart(3, '0'), true);
+    if (steadyWalk && frame >= 180 && frame % 12 === 0)
+      snapshot('Cruise ' + String(frame).padStart(4, '0'), true);
     const active = contacts.findIndex(contact => !contact.planted);
     if (frame > 55 && frame < 218 && active >= 0) {
       const { swing, side, lane } = contacts[active];
@@ -138,10 +154,10 @@ function capture(id) {
         seen.add(label);
       }
     }
-    if ([249, 301, 460].includes(frame)) snapshot({ 249: 'Turn in', 301: 'Turn out', 460: 'Settle' }[frame], true);
+    if (!steadyWalk && [249, 301, 460].includes(frame)) snapshot({ 249: 'Turn in', 301: 'Turn out', 460: 'Settle' }[frame], true);
   }
   write('topology', indices);
-  writeFileSync(join(directory, id + '.json'), JSON.stringify({ id, count, frames }));
+  writeFileSync(join(directory, id + '.json'), JSON.stringify({ id, count, scale: meta.scale, frames }));
   console.log(id, frames.map(frame => frame.name).join(' | '));
 }
 

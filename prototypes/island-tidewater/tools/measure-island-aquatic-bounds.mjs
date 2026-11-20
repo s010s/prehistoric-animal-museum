@@ -8,7 +8,7 @@ import {
   createIslandModelPose, islandModelPieces, parseIslandMuseumModel,
 } from '../museum/IslandMuseumModelData.js';
 import { visitAquaticSkin } from './visit-aquatic-skin.mjs';
-import { makePlesiosaurSteering } from '../museum/IslandMuseumHeadTurn.js';
+import { makeAquaticSteering } from '../museum/IslandMuseumHeadTurn.js';
 import { augmentIslandMediumRig } from '../museum/IslandMuseumMediumRig.js';
 import lock from '../museum/island-museum-models.lock.json' with { type: 'json' };
 
@@ -53,7 +53,7 @@ async function boundsFor(id) {
   const model = createIslandModelPose(gltf, skin);
   const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
   const turns = [-1, 1].map(rate => {
-    const steering = makePlesiosaurSteering(id, gltf.nodes, skin);
+    const steering = makeAquaticSteering(id, gltf.nodes, skin);
     steering?.follow(rate, 12);
     return steering;
   }).filter(Boolean);

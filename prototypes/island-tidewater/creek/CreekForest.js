@@ -274,7 +274,21 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
     this.geometryCanopies=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}],true);const items=records.filter(r=>r.stableGeometry&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i);return new GeometryCanopy('museum middle '+speciesNames[i],items,geometry,mid,canopyBounds(geometry));});
     this.types.push(...this.geometryCanopies);for(const type of this.geometryCanopies)for(const mesh of type.meshes){mesh.renderOrder=1;mesh.underwaterLighting='none';mesh.material.underwaterLighting='none';this.group.add(mesh);}
     for(const type of this.canopies)for(const mesh of type.meshes){mesh.renderOrder=mesh===type.far.meshes[0]?2:1;mesh.underwaterLighting='none';mesh.material.underwaterLighting='none';this.group.add(mesh);}
-    for(const r of records){let low=r.y;if(r.variant===4)for(let i=0;i<12;i++)low=Math.min(low,terrain.heightAt(r.x+Math.cos(i*Math.PI/6)*.86*r.s,r.z+Math.sin(i*Math.PI/6)*.86*r.s)-.1);colliders.addCylinder(r.x,r.z,(r.variant===4?.53:.24)*r.s,low,r.y+r.H,{tag:r.variant===4?'museum giant trunk':'museum tree trunk'});if(r.variant===4)colliders.addCylinder(r.x,r.z,.82*r.s,low,r.y+2.0,{tag:'museum giant root collar'});}
+    // Survey the rendered sprays by height: the floor below a tall crown
+    // is open, and a treetop is much narrower than its lowest boughs.
+    const crownProfiles = templates.map(template => {
+      const position = template.leaves.attributes.position, layers = new Float32Array(16);
+      for (let i = 0; i < position.count; i++) {
+        const band = Math.max(0, Math.min(15, Math.floor(position.getY(i) / template.height * 16)));
+        const reach = Math.hypot(position.getX(i), position.getZ(i));
+        layers[band] = Math.max(layers[band], reach);
+      }
+      return layers;
+    });
+    for(const r of records){let low=r.y;if(r.variant===4)for(let i=0;i<12;i++)low=Math.min(low,terrain.heightAt(r.x+Math.cos(i*Math.PI/6)*.86*r.s,r.z+Math.sin(i*Math.PI/6)*.86*r.s)-.1);
+      const trunk = colliders.addCylinder(r.x,r.z,(r.variant===4?.53:.24)*r.s,low,r.y+r.H,{tag:r.variant===4?'museum giant trunk':'museum tree trunk'});
+      trunk.crown = crownProfiles[r.variant]; trunk.crownScale = r.s;
+      if(r.variant===4)colliders.addCylinder(r.x,r.z,.82*r.s,low,r.y+2.0,{tag:'museum giant root collar'});}
     this.species=speciesNames.map((name,i)=>({name,variant:i,instances:records.filter(r=>r.variant===i).length,nearGeometryTriangles:(i<2?nearGeometry:variants[i]).index.count/3}));
     this.atlasBudget={variants:templates.length,width:this.atlas.width,height:this.atlas.height,textureCount:2,framePixels:96,mipLevels:6,lastFrameAlignedMip:5,normalMipFilter:new URLSearchParams(location.search).get('atlasMips')==='box'?'box-oct diagnostic':'startup coverage-weight XYZ',angularHandover:"continuous sparse barycentric band .10; 1–3 views",normalViewMix:"decode each oct normal then coverage-weight XYZ",viewGrid:8,viewCoverage:"full sphere including crown undersides",depthParallax:"diagnostic only, off by default",coreNearCanopyUnchanged:true,coniferBaseBurialTemplateUnits:CONIFER_BASE_BURIAL,giantTemplateHeightMetres:[Math.min(...records.filter(r=>r.variant===4).map(r=>r.H)),Math.max(...records.filter(r=>r.variant===4).map(r=>r.H))],giantNearToGeometryMetres:190,atlasTransitionHeightPixels:TREE_ATLAS_PIXELS,giantAtlasUsesNormalisedTreeBounds:true,channels:{A:"linear RGB and coverage",B:"oct-normal RG / leaf B / crown exposure A"},farCrownOcclusion:"native .26–1 exposure-squared compensation for absent crown self-shadow"};
     // Native procedural fern geometry, with our wet-forest placement only.

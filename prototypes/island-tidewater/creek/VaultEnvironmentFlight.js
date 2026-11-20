@@ -2,7 +2,7 @@ import {Euler, Quaternion, Sphere, Vector3} from '../vendor/tidewater/src/engine
 import {ShaderModule} from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {Material} from '../vendor/tidewater/src/engine/render/Material.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
-import {InstanceRecords, instancedMesh, kitModule, TAU, smooth} from '../vendor/tidewater/src/world/wildlife/Kit.js';
+import {InstanceRecords, instancedMesh, kitModule, TAU, smooth, clamp} from '../vendor/tidewater/src/world/wildlife/Kit.js';
 import {loadReviewedFauna, reviewedAlbedo, reviewedGeometry} from './VaultEnvironmentAssets.js';
 import {clipCreekRefraction} from './CreekWater.js';
 
@@ -11,9 +11,9 @@ import { reviewedGeometryLods, loadReviewedIndices } from './VaultGeometryLods.j
 const SEA = -.7;
 const TYPES = {
  ichthyornis: {kind:'bird',span:.82,sourceSpan:.994,range:136,preload:203,frequency:3.9,stroke:.49,
-  root:[.098,.100,.092,.045],tuck:1.10,pitch:.19},
+  root:[.098,.100,.092,.045],hip:[-.068,-.048,1.49],ankle:[-.133,-.046,1.04],pitch:.19},
  sapeornis: {kind:'bird',span:.89,sourceSpan:.983,range:126,preload:190,frequency:3.25,stroke:.55,
-  root:[.107,.087,.101,.09],tuck:1.28,pitch:.34},
+  root:[.107,.087,.101,.09],hip:[-.17,-.013,2.05],ankle:[-.297,.052,.83],pitch:.34},
  meganeura: {kind:'insect',span:.57,sourceSpan:.996,range:36,preload:94,frequency:9.1,stroke:.61,
   root:[.052,.025,.131,-.08],hind:[.052,.028,.079,.10],wingLag:1.17,tuck:.52},
 
@@ -52,10 +52,12 @@ fn vaultFlightBend(p:vec3f, curve:vec4f, fore:vec4f, hind:vec4f, w:vec4f, transl
  }
  return mix(p,root+vaultFlightRy(vaultFlightRz(wing,shoulder),yaw),w.x);
 }
-fn vaultFlightBody(p:vec3f, joint:vec4f, wing:vec4f, body:vec4f, curve:vec4f, translate:f32, bird:bool, tuck:f32)->vec3f {
+fn vaultFlightBody(p:vec3f, joint:vec4f, wing:vec4f, body:vec4f, curve:vec4f, translate:f32, bird:bool, tuck:f32, hip:vec3f, ankle:vec3f)->vec3f {
  if(bird){
-  let root=vec3f(.066*wing.y,-.091,-.036)*translate;
-  let feet=root+vaultFlightRx(p-root,tuck+curve.z*.23);
+  let h=vec3f(0.0,hip.x,hip.y)*translate;
+  let a=vec3f(0.0,ankle.x,ankle.y)*translate;
+  let toes=a+vaultFlightRx(p-a,ankle.z+curve.z*.10);
+  let feet=h+vaultFlightRx(mix(p,toes,body.z)-h,hip.z+curve.z*.13);
   let tailRoot=vec3f(0.0,-.036,-.151)*translate;
   let tail=tailRoot+vaultFlightRx(p-tailRoot,curve.z*.31-.05);
   return mix(mix(p,feet,body.y),tail,body.x);
@@ -65,8 +67,8 @@ fn vaultFlightBody(p:vec3f, joint:vec4f, wing:vec4f, body:vec4f, curve:vec4f, tr
  let abdomenEnd=vec3f(0.0,0.004,-0.22)*translate;
  let tip=abdomenEnd+vaultFlightRy(p-abdomenEnd,curve.w*0.47);
  let bent=abdomen+vaultFlightRx(mix(p,tip,body.w)-abdomen,curve.z*0.34);
- let hip=vec3f(joint.x*wing.y*0.57,0.0,0.12)*translate;
- let leg=hip+vaultFlightRz(vaultFlightRx(p-hip,tuck+curve.w*.48),wing.y*(tuck*.24+curve.z*.29));
+ let legBase=vec3f(joint.x*wing.y*0.57,0.0,0.12)*translate;
+ let leg=legBase+vaultFlightRz(vaultFlightRx(p-legBase,tuck+curve.w*.48),wing.y*(tuck*.24+curve.z*.29));
  let feeler=vec3f(joint.x*wing.y*0.32,0.02,0.16)*translate;
  let antenna=feeler+vaultFlightRy(p-feeler,curve.w*wing.y*0.32);
  return mix(mix(mix(p,bent,body.x),leg,body.y),antenna,body.z);
@@ -93,8 +95,9 @@ function flightBodyWeights(kind, [x,y,z]) {
  if(TYPES[kind].kind==='bird'){
   const tail=(1-smooth(-.34,-.16,z))*(1-smooth(.142,.205,ax));
   const small=kind==='ichthyornis';
-  const feet=(1-smooth(small?-.185:-.231,small?-.084:-.125,y))*(1-smooth(.17,.208,ax))*smooth(-.23,-.10,z);
-  return [tail,feet,0,0];
+  const feet=(1-smooth(small?-.116:-.23,small?-.071:-.164,y))*(1-smooth(.17,.208,ax))*smooth(-.23,-.10,z);
+  const toes=1-smooth(small?-.152:-.304,small?-.123:-.275,y);
+  return [tail,feet,toes,0];
  }
  const abdomen=1-smooth(-.27,-.085,z), axial=1-smooth(.060,.114,ax);
  const legs=(1-smooth(-.039,.014,y))*smooth(.025,.085,ax)*smooth(.13,.23,z);
@@ -149,11 +152,12 @@ async function createFlightBatch(kind, type, capacity, field, signal) {
     let center = ${F(0)}; let q=${F(1)}; let wings=${F(2)};
     let oldCenter = ${F(3)}; let oldQ=${F(4)}; let oldWings=${F(5)};
     let fore = vec4f(${type.root.join(',')}); let hind = vec4f(${(type.hind??type.root).join(',')});
-    let bird = ${type.kind==='bird'}; let tuck = ${type.tuck.toFixed(3)};
+    let bird = ${type.kind==='bird'}; let tuck = ${(type.tuck??0).toFixed(3)};
+    let hip=vec3f(${(type.hip??[0,0,0]).join(',')}); let ankle=vec3f(${(type.ankle??[0,0,0]).join(',')});
     let wing = v.aWing; let body = v.aFlightBody;
-    let p=vaultFlightBend(vaultFlightBody(v.position,fore,wing,body,wings,1.0,bird,tuck),wings,fore,hind,wing,1.0,bird);
-    let previous=vaultFlightBend(vaultFlightBody(v.position,fore,wing,body,oldWings,1.0,bird,tuck),oldWings,fore,hind,wing,1.0,bird);
-    let n=normalize(vaultFlightBend(vaultFlightBody(v.normal,fore,wing,body,wings,0.0,bird,tuck),wings,fore,hind,wing,0.0,bird));
+    let p=vaultFlightBend(vaultFlightBody(v.position,fore,wing,body,wings,1.0,bird,tuck,hip,ankle),wings,fore,hind,wing,1.0,bird);
+    let previous=vaultFlightBend(vaultFlightBody(v.position,fore,wing,body,oldWings,1.0,bird,tuck,hip,ankle),oldWings,fore,hind,wing,1.0,bird);
+    let n=normalize(vaultFlightBend(vaultFlightBody(v.normal,fore,wing,body,wings,0.0,bird,tuck,hip,ankle),wings,fore,hind,wing,0.0,bird));
     v.useWorld=true;
     v.worldPos=center.xyz+rotateQ(q,p*center.w);
     v.worldNormal=rotateQ(q,n);
@@ -180,17 +184,24 @@ async function createFlightBatch(kind, type, capacity, field, signal) {
 
 function flightOrbit(flier, angle, bird, out) {
  const {habitat,rx,rz,rate,phase}=flier;
+ const angularVelocity=rate*flier.direction;
  const c=Math.cos(habitat.heading), s=Math.sin(habitat.heading);
  const side=bird?1.4:.42, ahead=bird?2.45:.42;
  const a=2*angle+phase, b=a-.45;
- const x=Math.cos(angle)*rx+Math.cos(b)*side;
- const z=Math.sin(angle)*rz+Math.sin(a)*ahead;
- const dx=(-Math.sin(angle)*rx-2*side*Math.sin(b))*rate;
- const dz=(Math.cos(angle)*rz+2*ahead*Math.cos(a))*rate;
+ const primaryX=Math.cos(angle)*rx, secondaryX=Math.cos(b)*side;
+ const primaryZ=Math.sin(angle)*rz, secondaryZ=Math.sin(a)*ahead;
+ const x=primaryX+secondaryX,z=primaryZ+secondaryZ;
+ const dx=(-Math.sin(angle)*rx-2*side*Math.sin(b))*angularVelocity;
+ const dz=(Math.cos(angle)*rz+2*ahead*Math.cos(a))*angularVelocity;
  out[0]=habitat.x+x*c-z*s;
  out[1]=habitat.z+z*c+x*s;
  out[2]=dx*c-dz*s;
  out[3]=dz*c+dx*s;
+ if(out.length>4){
+  const ax=-(primaryX+4*secondaryX)*rate*rate,az=-(primaryZ+4*secondaryZ)*rate*rate;
+  out[4]=ax*c-az*s;
+  out[5]=az*c+ax*s;
+ }
 }
 
 function flightCover(terrain, field, x, z, bird) {
@@ -217,8 +228,9 @@ function flightFloor(flier, terrain, field, bird) {
   floor[i]=Math.max(clearance[(2*i+clearance.length-1)%clearance.length],clearance[2*i],clearance[2*i+1])+.06;
  }
  const interval=step/flier.rate;
- const downward=(bird?4.6:1.05)*interval;
- const upward=(bird?4.2:1.28)*interval;
+ const descent=bird?4.6:1.05,ascent=bird?4.2:1.28;
+ const downward=(flier.direction>0?descent:ascent)*interval;
+ const upward=(flier.direction>0?ascent:descent)*interval;
  for (let n=0;n<count*2;n++) {
   const i=n%count;
   floor[i]=Math.max(floor[i],floor[(i+count-1)%count]-downward);
@@ -289,7 +301,7 @@ export class VaultEnvironmentFlight {
   this.types=new Map(Object.keys(TYPES).map(id=>[id,{id,type:TYPES[id],fliers:[],batch:null}]));
   this.fliers=[];
   this.trackingFliers=[];
-  this.flightPoint=new Float64Array(4);
+  this.flightPoint=new Float64Array(6);
   this.sphere=new Sphere(); this.projection=new Vector3(); this.euler=new Euler(0,0,0,'YXZ'); this.q=new Quaternion();
   const rng=mulberry32(181029);
   for (const habitat of this.habitats) {
@@ -300,6 +312,8 @@ export class VaultEnvironmentFlight {
      rx:habitat.rx*(.80+rng()*.29), rz:habitat.rz*(.76+rng()*.37), altitude:habitat.alt+(rng()-.5)*(bird?3.2:.65),
      rate:bird?(.91+rng()*.18)*(habitat.species==='ichthyornis'?.34:.43):.5+rng()*.46,
      span:state.type.span*(.86+rng()*.28), frequency:state.type.frequency*(.83+rng()*.33),record:new Float32Array(24), fresh:true};
+    // A flock shares its bearing; dragonflies patrol a water margin independently.
+    flier.direction=(bird?seed:flier.phase)<Math.PI?-1:1;
     state.fliers.push(flier); this.fliers.push(flier);
    }
   }
@@ -337,9 +351,10 @@ export class VaultEnvironmentFlight {
     const h=f.habitat, range=type.range, anchorDistance=Math.hypot(cp.x-h.x,cp.z-h.z);
     f.active=false;
     if (!enabled||anchorDistance>range+Math.max(h.rx,h.rz)*1.2) {f.fresh=true;continue;}
-    const a=time*f.rate+f.orbit,wobble=f.phase+time*(bird?.62:1.4);
+    const angularVelocity=f.rate*f.direction;
+    const a=time*angularVelocity+f.orbit,wobble=f.phase+time*(bird?.62:1.4);
     flightOrbit(f,a,bird,this.flightPoint);
-    const [x,z,dx,dz]=this.flightPoint;
+    const [x,z,dx,dz,ax,az]=this.flightPoint;
     f.floor??=flightFloor(f,terrain,this.data.field,bird);
     const base=orbitFloor(f.floor,a);
     const cover=flightCover(terrain,this.data.field,x,z,bird);
@@ -356,15 +371,23 @@ export class VaultEnvironmentFlight {
     f.trackingSpan=scale;
     this.trackingFliers.push(f);
     if (!f.trackingVisible) {f.fresh=true;continue;}
-    const lookAhead=f.rate*.18;
-    const climb=(orbitFloor(f.floor,a+lookAhead)-orbitFloor(f.floor,a-lookAhead))/.36;
-    const pitch=(type.pitch??.02)+Math.sin(wobble)*(bird?.044:.13);
-    const tangent=Math.atan2(climb,Math.hypot(dx,dz));
-    this.q.setFromEuler(this.euler.set(pitch-Math.max(-.24,Math.min(.24,tangent*.65)),
-     Math.atan2(dx,dz),bird?.15*Math.sin(a)+.12:Math.sin(wobble)*.22,'YXZ'));
+    const lookAhead=angularVelocity*.18;
+    let climb=(orbitFloor(f.floor,a+lookAhead)-orbitFloor(f.floor,a-lookAhead))/.36;
+    if(bird)climb+=.72*angularVelocity*Math.cos(a+f.phase);
+    else if(y>base+.24){
+     const t=time*.38+f.phase, ramp=clamp((Math.sin(t)+.3)/1.15,0,1);
+     climb+=.48*6*ramp*(1-ramp)*Math.cos(t)*.38/1.15*f.altitude+.24*1.96*Math.cos(wobble*1.4);
+    }
+    const horizontal=Math.hypot(dx,dz);
+    // +Z is forward. Rz tips the lift vector toward -X, so a right-hand
+    // acceleration calls for negative roll. Use the orbit's actual curvature.
+    const bank=clamp(-Math.atan2(dz*ax-dx*az,9.81*horizontal),-.9,.9);
+    const pitch=(type.pitch??.02)-clamp(Math.atan2(climb,horizontal),-.78,.78);
+    this.q.setFromEuler(this.euler.set(pitch,Math.atan2(dx,dz),bank,'YXZ'));
     if (!f.fresh) f.record.copyWithin(12,0,12);
     const cycle=time*f.frequency*TAU+f.phase;
-    const flightGate=bird?.045+.955*smooth(-.52,.32,Math.sin(time*.55+f.phase)):activity;
+    const flightGate=bird?Math.max(.045+.955*smooth(-.52,.32,Math.sin(time*.55+f.phase)),
+     .58*smooth(.6,3.0,climb)+.20*smooth(.28,.72,Math.abs(bank))):activity;
     f.record.set([x,y,z,scale,this.q.x,this.q.y,this.q.z,this.q.w,
      ...reviewedFlightAngles(f.species,cycle,flightGate,wobble)],0);
     if (f.fresh) f.record.copyWithin(12,0,12);

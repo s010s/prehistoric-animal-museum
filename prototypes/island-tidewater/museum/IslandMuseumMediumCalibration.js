@@ -37,7 +37,9 @@ function wristPair() {
     weight: (f, y, l, material) => material === 'Material.001' ? ramp(.56, .94, side * l) : 0,
     followMorph: true,
     motion: (t, active) => [
-      [roll, side * (active ? .115 : .043) * sin(t - .72)],
+      // The two source wing morphs hold the same hand high through both
+      // halves of the beat. Balance the distal wing without tilting the crest.
+      [roll, (active ? .052 : 0) + side * (active ? .115 : .043) * sin(t - .72)],
       [[-.14, -.22, side * .97], side * (active ? .097 : .061) * cos(t - .65)],
     ],
   }));

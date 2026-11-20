@@ -10,7 +10,7 @@ export const bipedAnatomy = {
     ...supplemental, jaw: 'Museum Mandible',
     tail: [...supplemental.tail, 'Museum Tail distal', 'Museum Tail penultimate', 'Museum Tail tip'],
   },
-  dilophosaurus: supplemental,
+  dilophosaurus: { ...supplemental, jaw: 'Museum Mandible' },
   'allosaurus-pandras': {
     chest: 'Chest', neck: null, head: 'Head', jaw: 'Jaw',
     left: ['IdleClawL_Root_01'], right: ['IdleClawR_Root_01'], tail: ['Tail1', 'Tail2', 'Tail3'],
@@ -46,7 +46,7 @@ export const bipedAnatomy = {
   phorusrhacos: {
     // Body also parents the grounded leg rig, so keep its rotation in the
     // support solver. NeckBase and the independently weighted wings remain free.
-    neck: 'NeckBase', head: 'Head', left: ['Wing_L'], right: ['Wing_R'], tail: ['Tail'],
+    neck: 'NeckBase', head: 'Head', jaw: 'Museum lower beak', left: ['Wing_L'], right: ['Wing_R'], tail: ['Tail'],
   },
   'tyrannosaurus-rex': {
     chest: 'spine', neck: 'neck', head: 'head', jaw: 'jaw', left: ['arm_left'], right: ['arm_right'],

@@ -83,7 +83,7 @@ export function bindSceneReport(runtime,build){
    const len=Math.hypot(...c.quaternion);if(Math.abs(len-1)>.001)throw Error('机位旋转数据无效');
    const q=new Quaternion(...c.quaternion).normalize(),e=new Euler().setFromQuaternion(q,'YXZ');
    if(Math.abs(e.z)>.001)throw Error('此机位含滚转角，当前飞行相机暂不支持');
-   const a=runtime.app;runtime.clearInput();a.setFreeCam(true);a.fly.setPose(new Vector3(...c.position),e.y,e.x);a.fly.velocity.set(0,0,0);a.camera.fov=c.fov;a.camera.zoom=Number.isFinite(c.zoom)&&c.zoom>=.5&&c.zoom<=4?c.zoom:1;a.camera.updateProjectionMatrix();
+   const a=runtime.app;runtime.clearInput();a.setFreeCam(true);a.fly.setPose(new Vector3(...c.position),e.y,e.x);a.fly.velocity.set(0,0,0);a.camera.fov=c.fov;a.camera.zoom=Number.isFinite(c.zoom)&&c.zoom>=.5&&c.zoom<=8?c.zoom:1;a.camera.updateProjectionMatrix();
    a.query?.setCamera(c.position[0],c.position[2]);
    if(Number.isFinite(data.environment?.timeOfDay)&&data.environment.timeOfDay>=0&&data.environment.timeOfDay<=24){a.settings.timeOfDay=data.environment.timeOfDay;a.updateSun();const select=document.querySelector('#light-time');if(select){const value=String(a.settings.timeOfDay);if(![...select.options].some(o=>o.value===value)){const option=document.createElement('option');option.value=value;option.textContent='现场 · '+value+' 时';select.add(option);}select.value=value;}}
    const t=document.querySelector('#place-title');if(t)t.textContent='现场机位复现';const note=document.querySelector('#place-note');if(note)note.textContent='定点飞行观察，WASD 移动；地图可返回各区域。';

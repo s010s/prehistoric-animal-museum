@@ -7,6 +7,8 @@ import {angleDiff, clamp, lerp, smooth, TAU} from '../vendor/tidewater/src/world
 
 // Coordinates use +Z toward the snout and +Y up. Each pair of fin joints follows
 // its parent vertebra before hinging, so steering never slides the roots over the skin.
+// thrustPhase is a centre crossing of the skinned tail tip relative to the trunk.
+// It includes the accumulated motion of the spine ahead of the last joint.
 export const REVIEWED_SWIM_RIGS = {
  falcatus:{
   axial:[[0,-.009,.239],[0,-.006,.126],[0,-.004,.002],[0,-.013,-.133],[0,-.003,-.239],[0,.007,-.307],[0,.015,-.392]],
@@ -17,7 +19,7 @@ export const REVIEWED_SWIM_RIGS = {
   waveGain:[.025,.10,.26,.49,.73,1,1.09],
   turnGain:[0,.22,.51,.79,.98,1,.67],
   steadyAngle:.42,burstAngle:.66,cadence:.67,paceCadence:.40,burstCadence:1.42,
-  steerRate:2.5,headingGain:4.3,bank:.19,finPhase:0,
+  steerRate:2.5,minTurnRadius:.90,headingGain:4.3,bank:.19,finPhase:0,thrustPhase:.80,
  },
  cheiracanthus:{
   axial:[[0,-.007,.280],[0,-.001,.161],[0,-.002,.040],[0,-.004,-.080],[0,-.007,-.190],[0,.001,-.289],[0,.009,-.387]],
@@ -28,7 +30,7 @@ export const REVIEWED_SWIM_RIGS = {
   waveGain:[.018,.14,.34,.59,.83,1,1.14],
   turnGain:[0,.19,.52,.82,1,1,.73],
   steadyAngle:.50,burstAngle:.71,cadence:.83,paceCadence:.48,burstCadence:1.72,
-  steerRate:3.1,headingGain:5.4,bank:.13,finPhase:.83,
+  steerRate:3.1,headingGain:5.4,bank:.13,finPhase:.83,thrustPhase:1.20,
  },
 };
 
@@ -40,13 +42,13 @@ Object.assign(REVIEWED_SWIM_RIGS,{
   axial:[[0,.001,.296],[0,.003,.163],[0,.002,.04],[0,.002,-.079],[0,.003,-.185],[0,.000,-.276],[0,-.005,-.347]],
   pectoral:{...teleost.pectoral,root:[.069,-.063,.227],tip:[.073,-.065,.134],parent:1,stroke:.065,sweep:.12},
   pelvic:{...teleost.pelvic,root:[.031,-.147,.089],tip:[.043,-.206,.051],parent:2},
-  dorsal:{root:[0,.143,.025],parent:2},anal:{root:[0,-.134,-.129],parent:4},cadence:.89,finPhase:.51,
+  dorsal:{root:[0,.143,.025],parent:2},anal:{root:[0,-.134,-.129],parent:4},cadence:.89,finPhase:.51,thrustPhase:1.30,
  },
  aspidorhynchus:{...teleost,
   axial:[[0,0,.231],[0,0,.117],[0,.002,.006],[0,.002,-.105],[0,.004,-.204],[0,.004,-.282],[0,.000,-.355]],
   pectoral:{...teleost.pectoral,root:[.051,-.012,.201],tip:[.094,-.039,.173],parent:0,stroke:.32,sweep:.29,flex:.13},
   pelvic:{...teleost.pelvic,root:[.032,-.045,-.036],tip:[.059,-.095,-.068],parent:2},
-  dorsal:{root:[0,.056,-.207],parent:4},anal:{root:[0,-.041,-.248],parent:4},cadence:.80,finPhase:1.26,
+  dorsal:{root:[0,.056,-.207],parent:4},anal:{root:[0,-.041,-.248],parent:4},cadence:.80,finPhase:1.26,thrustPhase:1.76,
   waveGain:[.008,.055,.18,.39,.70,.98,1.12],steadyAngle:.56,
   caudalRays:[[0,.027,-.403],[0,-.026,-.403]],
  },
@@ -54,13 +56,13 @@ Object.assign(REVIEWED_SWIM_RIGS,{
   axial:[[0,.007,.288],[0,.003,.162],[0,-.001,.047],[0,0,-.068],[0,-.001,-.17],[0,-.001,-.266],[0,.002,-.353]],
   pectoral:{...teleost.pectoral,root:[.101,-.070,.241],tip:[.210,-.139,.198],parent:0,stroke:.21,sweep:.18},
   dorsal:{root:[0,.092,-.111],parent:3},anal:{root:[0,-.062,-.219],parent:4},
-  waveGain:[0,0,.028,.27,.61,.94,1.13],turnGain:[0,0,.08,.46,.83,1,.82],cadence:.69,finPhase:1.12,
+  waveGain:[0,0,.028,.27,.61,.94,1.13],turnGain:[0,0,.08,.46,.83,1,.82],cadence:.69,finPhase:1.12,thrustPhase:1.60,
  },
  eusthenopteron:{...teleost,
   axial:[[0,.001,.276],[0,.004,.156],[0,.000,.049],[0,.000,-.070],[0,-.002,-.171],[0,.004,-.264],[0,.009,-.344]],
   pectoral:{...teleost.pectoral,root:[.086,-.039,.275],tip:[.148,-.090,.230],parent:0,stroke:.23,sweep:.23,flex:.074},
   pelvic:{...teleost.pelvic,root:[.046,-.083,-.032],tip:[.065,-.127,-.078],parent:3,stroke:.19,sweep:.15,flex:.061},
-  dorsal:{root:[0,.068,-.152],parent:4},anal:{root:[0,-.068,-.204],parent:4},cadence:.62,finPhase:1.72,
+  dorsal:{root:[0,.068,-.152],parent:4},anal:{root:[0,-.068,-.204],parent:4},cadence:.62,finPhase:1.72,thrustPhase:1.31,
  },
 });
 
@@ -85,13 +87,27 @@ export function reviewedCruiseSpeed(fish,time,distance) {
 export function steerReviewedSwimmer(fish,dt) {
  const rig=REVIEWED_SWIM_RIGS[fish.vault], v=fish.velocity;
  const speed=Math.hypot(v.x,v.z);
- if(speed<.001*fish.L || dt<=0)return;
+ if(dt<=0)return;
+ if(speed<.001*fish.L){
+  v.x=0;v.z=0;fish.turnRate=0;
+  return;
+ }
  const desired=Math.atan2(v.x,v.z);
  if(fish.alignOnWake){fish.yaw=desired;fish.alignOnWake=false;}
- const heading=angleDiff(desired,fish.yaw),limit=rig.steerRate*(.72+.28*smooth(.1,1.35,speed/fish.L)+fish.panic*.45);
+ const heading=angleDiff(desired,fish.yaw);
+ let limit=rig.steerRate*(.72+.28*smooth(.1,1.35,speed/fish.L)+fish.panic*.45);
+ let turnSpeed=0;
+ if(rig.minTurnRadius){
+  // A tail-driven shark steers on a forward arc, even when its pursuer keeps
+  // a constant bearing beside it. Couple the turn to actual forward travel.
+  const active=fish.swimPose?.effort??0;
+  turnSpeed=fish.L*Math.max(fish.panic,.42*smooth(.04,.35,active)*smooth(.32,1.25,Math.abs(heading)));
+  const forward=Math.max(turnSpeed,speed*Math.max(.12,Math.cos(heading)));
+  limit=Math.min(limit,forward/(rig.minTurnRadius*fish.L));
+ }
  fish.turnRate=clamp(heading/dt,-limit,limit);
  fish.yaw+=fish.turnRate*dt;
- const forward=speed*Math.max(.12,Math.cos(angleDiff(desired,fish.yaw)));
+ const forward=Math.max(turnSpeed,speed*Math.max(.12,Math.cos(angleDiff(desired,fish.yaw))));
  v.x=Math.sin(fish.yaw)*forward;
  v.z=Math.cos(fish.yaw)*forward;
 }
@@ -147,10 +163,13 @@ export function writeReviewedSwimPalette(out,offset,kind,swim,heading) {
  const rig=REVIEWED_SWIM_RIGS[kind], phase=swim.phase;
  const shark=kind==='falcatus', variation=.92+.16*swim.seed;
  const effort=lerp(rig.steadyAngle*swim.effort,rig.burstAngle,swim.burst)*variation;
+ // A sustained turn biases the stroke. Its curvature must ease with the
+ // available stroke or the whole tail stays curled through successive beats.
+ const bend=clamp(swim.bend,-.35*effort,.35*effort);
  for(let i=0;i<7;i++){
   const lag=rig.waveLag[i], caudal=i===6;
   const feather=caudal?Math.sin(phase-lag-.79)*effort*(shark?.26:.19):0;
-  const yaw=Math.sin(phase-lag)*effort*rig.waveGain[i]-swim.bend*rig.turnGain[i]+feather;
+  const yaw=Math.sin(phase-lag)*effort*rig.waveGain[i]-bend*rig.turnGain[i]+feather;
   const tilt=caudal?Math.sin(phase-lag-.63)*effort*(shark?.11:.055):0;
   const twist=caudal?Math.cos(phase-lag-.36)*effort*(shark?.28:.15):0;
   axialYaw[i]=yaw;

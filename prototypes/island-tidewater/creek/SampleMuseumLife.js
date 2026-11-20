@@ -301,7 +301,13 @@ export class SampleMuseumLife {
       const r = actor.route; r.phase += dt * r.speed / 58;
       const a = r.phase, x = r.center[0] + Math.cos(a) * r.radii[0], z = r.center[1] + Math.sin(a) * r.radii[1];
       model.group.position.set(x, r.altitude + Math.sin(a * 2) * 1.3, z);
-      model.group.rotation.set(.035 * Math.cos(a * 2), yawFor(data, -r.radii[0] * Math.sin(a), r.radii[1] * Math.cos(a)), -.10, 'YXZ');
+      const alongX = -r.radii[0] * Math.sin(a), alongZ = r.radii[1] * Math.cos(a);
+      const tangent = Math.hypot(alongX, alongZ);
+      const fall = -2.6 * Math.cos(a * 2);
+      // This coast circuit turns toward local -X. Lower the inside wing
+      // and align the beak with the actual climb or descent of the ellipse.
+      const turnAcceleration = r.radii[0] * r.radii[1] * (r.speed / 58) ** 2 / tangent;
+      model.group.rotation.set(Math.atan2(fall, tangent), yawFor(data, alongX, alongZ), Math.atan2(turnAcceleration, 9.81), 'YXZ');
     } else {
       const r = actor.route, [rx, rz] = r.radii;
       const stroke = actor.model?.layers.find(layer => layer.target === 1 && layer.clip.name === 'Swim');

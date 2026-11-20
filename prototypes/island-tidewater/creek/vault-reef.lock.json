@@ -79,18 +79,6 @@
       "triangles": 10560
     },
     {
-      "id": "neithea",
-      "path": "assets/neithea-lowpoly-vault.glb",
-      "source": "https://github.com/s010s/lowpoly-vault/blob/b213afa4b401bc5ae9f29a4c3fff8187d2a71142/assets/additions/neithea/reviewed-release-20261114-05/model.glb",
-      "sourcePath": "assets/additions/neithea/reviewed-release-20261114-05/model.glb",
-      "sourceSha256": "a24886378ce92a1947eb62d9f18d7c18f4924fb8e0b893f64ca7698e53391ba3",
-      "sourceBytes": 1962056,
-      "sourceTriangles": 33000,
-      "bytes": 350028,
-      "sha256": "66ce8c708f38da155e2104c399f47581aa8c53e218a6a2e19072e3a565402049",
-      "triangles": 6600
-    },
-    {
       "id": "trigonia",
       "path": "assets/trigonia-lowpoly-vault.glb",
       "source": "https://github.com/s010s/lowpoly-vault/blob/b213afa4b401bc5ae9f29a4c3fff8187d2a71142/assets/additions/trigonia/reviewed-release-20261114-04/model.glb",

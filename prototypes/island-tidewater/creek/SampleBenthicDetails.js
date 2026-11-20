@@ -10,6 +10,9 @@ import {createReefMaterials,createReefView,SURFACE} from '../vendor/tidewater/sr
 import {createNoiseVolume} from '../vendor/tidewater/src/world/reef/ReefNoise.js';
 import {CORALS,SHELLS,SPONGES} from './VaultReefAssets.js';
 
+// Bivalves fill two of the four slots in each deposit. The spiral shells
+// keep their established positions, including the shell-bank observation.
+const depositShells=['trigonia',...SHELLS];
 const patches=[
  {id:'middle-creek',key:'midCreek',rx:9,rz:13,rocks:32,plants:28,meadows:0,marine:false,min:.65,max:2.8},
  {id:'log-pool',key:'logPool',rx:12,rz:15,rocks:35,plants:32,meadows:0,marine:false,min:.75,max:2.8},
@@ -91,13 +94,13 @@ export class SampleBenthicDetails{
        const a=yaw+i*2.399+rng()*.35,r=2.4+rng()*2.8,x=anchor.x+Math.cos(a)*r,z=anchor.z+Math.sin(a)*r;
        const floor=ground(x,z),depth=water(x,z,true)-floor;
        if(depth<1.15||depth>4.2||slope(x,z)>.25||inSandChannel(x,z))continue;
-       const kind=SHELLS[(garden*3+i)%SHELLS.length];
+       const kind=depositShells[(garden*3+i)%depositShells.length];
        this.shellSites.push({x,z,floor,depth,embedFraction:.18+rng()*.26,kind,span:.065+rng()*.095,yaw:rng()*Math.PI*2,lean:.05+rng()*.18,garden});
      }
     }
     for(let i=0;i<18;i++){
      const p=pick(spec,center,this.shellSites,.30,120);if(!p)continue;
-     this.shellSites.push({...p,kind:SHELLS[i%SHELLS.length],span:.045+rng()*.075,embedFraction:.2+rng()*.24,yaw:rng()*6.283,lean:rng()*.18,garden:-1});
+     this.shellSites.push({...p,kind:depositShells[i%depositShells.length],span:.045+rng()*.075,embedFraction:.2+rng()*.24,yaw:rng()*6.283,lean:rng()*.18,garden:-1});
     }
    }
    for(let i=0;i<spec.plants;i++){

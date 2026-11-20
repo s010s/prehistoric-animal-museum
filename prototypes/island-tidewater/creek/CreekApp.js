@@ -70,7 +70,11 @@ export class CreekApp extends MuseumApp {
   constructor(){super();this.settings.timeOfDay=12.6;}
   async init(onProgress=()=>{}) {
     installCreekShadowFilter();
-    const progress=async(p,text)=>{onProgress(p,text);await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));};
+    const progress=async(p,text)=>{
+      onProgress(p,text);
+      await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
+      if(this.disposed)throw new DOMException('Island loading interrupted','AbortError');
+    };
     await progress(.02,'正在打开岛屿…');
     const engine=this.engine=new Engine(document.querySelector('#app'));await engine.init();
     const {scene,camera}=engine;Object.assign(this,{scene,camera,renderer:engine});camera.near=.1;camera.far=300000;camera.updateProjectionMatrix();
@@ -162,6 +166,7 @@ export class CreekApp extends MuseumApp {
     const waterView=arrivalURL.searchParams.get('water');
     const destinations=new Set([...Object.keys(this.islandVisits),...this.geography.landmarks.map(p=>p.id),
       ...data.hydrology.coasts.map(p=>p.id),...Array.from(document.querySelectorAll('[data-place]'),button=>button.dataset.place)]);
+    document.getElementById('specimen-loupe').onclick = () => this.toggleSpecimenLens();
     this.showLandmark(destinations.has(requested)?requested:'entrance');
     if(waterView && [...document.querySelectorAll('[data-water-view]')].some(b=>b.dataset.waterView===waterView))this.waterView(waterView);
     await this.life.prepareNearby(this.camera);
@@ -173,6 +178,7 @@ export class CreekApp extends MuseumApp {
     await this.vegetation.grass.auditGround();
   }
   setFreeCam(on){
+    if (on) this.leaveSpecimenLens();
     super.setFreeCam(on);
     if(on){const e=new Euler().setFromQuaternion(this.camera.quaternion,'YXZ');this.fly.setPose(this.camera.position.clone(),e.y,e.x);this.fly.velocity.set(0,0,0);}
   }
@@ -180,6 +186,7 @@ export class CreekApp extends MuseumApp {
     this.player.dropAtCamera();
   }
   disposeFauna(){
+    this.disposed=true;
     this.life?.dispose();
     this.islandFauna?.dispose();
     this.dynamicMuseumShadows?.dispose();
@@ -194,7 +201,36 @@ export class CreekApp extends MuseumApp {
     url.searchParams.set(key,value);
     if(url.href!==location.href)history.replaceState(history.state,'',url);
   }
+  watchSubject(actor, seconds) {
+    this.watchedSubject = actor && !matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? {actor, place: this.currentLandmark, seconds} : null;
+  }
+  toggleSpecimenLens() {
+    if (!this.loupeActor) return;
+    this.setSpecimenLens(this.camera.zoom > 1 ? 1 : this.loupePower);
+    if (this.camera.zoom > 1 && this.loupeActor.active) {
+      const {x, y, z} = this.loupeActor;
+      this.lookFromPlayer([x, y, z]);
+    }
+  }
+  setSpecimenLens(factor) {
+    if (this.camera.zoom !== factor) {
+      this.camera.zoom = factor;
+      this.camera.updateProjectionMatrix();
+    }
+    this.watchSubject(factor > 1 ? this.loupeActor : null, Infinity);
+    const button = document.getElementById('specimen-loupe');
+    button.hidden = !this.loupeActor;
+    button.setAttribute('aria-pressed', String(factor > 1));
+    if (this.loupeActor) button.textContent = '观察镜 ×' + this.loupePower + (factor > 1 ? ' · 收起' : ' · 放大');
+  }
+  leaveSpecimenLens() {
+    if (!this.loupeActor) return;
+    this.loupeActor = null;
+    this.setSpecimenLens(1);
+  }
   showLandmark(id){
+    this.leaveSpecimenLens();
     this.post?.lens?.resetForArrival();
     const original = this.islandFaunaHabitats?.visits[id];
     if (original?.animalId) {
@@ -206,9 +242,14 @@ export class CreekApp extends MuseumApp {
     const animal=this.islandVisits?.[id]?.animalId;
     if(animal)this.islandFauna?.observe(animal);
     else this.islandFauna?.scan(this.camera.position,id.startsWith('sample-')?'sample:'+id.slice(7):null);
-    const flyer = this.islandFauna?.actors.get(animal);
-    this.arrivalFlyer = flyer?.site.medium === 'air' && !matchMedia('(prefers-reduced-motion: reduce)').matches
-      ? { actor: flyer, place: id, seconds: 5 } : null;
+    const subject = this.islandFauna?.actors.get(animal);
+    this.watchSubject(subject?.site.medium === 'air' ? subject : null, 5);
+    if (subject && subject.site.length <= .12 && (subject.site.medium === 'marine' || subject.site.medium === 'benthic')) {
+      this.loupeActor = subject;
+      // The 3 cm benthic specimen stays life size. Magnify its image while the diver observes it.
+      this.loupePower = Math.min(8, Math.max(2, Math.round(.24 / subject.site.length)));
+      this.setSpecimenLens(this.loupePower);
+    }
   }
   _showLandmark(id){
     const region=document.querySelector('#region-place'),regionId=id.startsWith('giant-')?'giant-forest':id;
@@ -276,6 +317,7 @@ export class CreekApp extends MuseumApp {
   }
   waterView(view='surface'){
     this.post?.lens?.resetForArrival();
+    this.leaveSpecimenLens();
     this._waterView(view);
     this.setVisitURL('water',view);
     this.islandFauna?.scan(this.camera.position,null);
@@ -334,15 +376,15 @@ export class CreekApp extends MuseumApp {
     try{this.frame(1/60);}finally{mr.precompiling=false;}
     await GPU.pipelinesReady();await GPU.queue.onSubmittedWorkDone();
   }
-  followArrivalFlyer(dt) {
-    const watch = this.arrivalFlyer;
+  followObservedSubject(dt) {
+    const watch = this.watchedSubject;
     if (!watch) return;
     const { input, camera, player } = this;
     // Give the visitor a moment to identify the moving animal. Their first
     // input takes the camera back, including before its model finishes loading.
     if (watch.place !== this.currentLandmark || this.freeCam || input.keys.size || input.look.x || input.look.y
         || input.mouseDown || input.rightDown || input.wheel || watch.seconds <= 0) {
-      this.arrivalFlyer = null;
+      this.watchedSubject = null;
       return;
     }
     if (!watch.actor.active) return;
@@ -357,7 +399,10 @@ export class CreekApp extends MuseumApp {
   _frame(dt){
     GPU.beginFrame();FrameUniforms.fields.frameIndex.value=GPU.frame;G.dt.value=dt;G.time.value+=dt;this.updateFPS(dt);
     if(this.input.hit('KeyF'))this.setFreeCam(!this.freeCam);
-    this.followArrivalFlyer(dt);
+    if (this.loupeActor && (this.freeCam || ['KeyW','KeyA','KeyS','KeyD','Space','KeyC','ControlLeft'].some(key => this.input.down(key)))) {
+      this.leaveSpecimenLens();
+    }
+    this.followObservedSubject(dt);
     if(this.freeCam)this.fly.update(dt);else this.player.update(dt);
     this.regionMap?.update(performance.now());
     this.islandFauna.update(dt,this.camera);this.animals.update(dt);this.sampleMuseumLife?.update(dt,this.camera);this.updateSun();this.atmosphere.update(dt,this.camera.position.y);this.applyAtmosphereReadback();

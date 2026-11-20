@@ -1,1 +1,11 @@
-{"name":"museum-tidewater-native-study","private":true,"type":"module","scripts":{"prepare:animals":"node tools/prepare-animals.mjs","build":"node build.mjs","dev":"vite --config vite.config.mjs"}}
+{
+  "name": "museum-tidewater-native-study",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:animals": "node tools/prepare-animals.mjs",
+    "build": "node build.mjs",
+    "dev": "vite --config vite.config.mjs",
+    "validate:locomotion": "node tools/check-island-land-vertex-layout.mjs --all && node tools/ground-contact-contract.mjs --full-route && node tools/check-aquatic-balance.mjs && node tools/check-dakosaurus-tail.mjs && node tools/measure-aquatic-strokes.mjs --check && node tools/measure-island-aquatic-bounds.mjs --check && node tools/measure-flight-travel.mjs --check && node tools/land-patrol-contract.mjs && node tools/fauna-tracking-contract.mjs"
+  }
+}

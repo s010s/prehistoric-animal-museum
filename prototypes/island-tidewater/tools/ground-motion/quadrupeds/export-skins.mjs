@@ -3,10 +3,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { augmentIslandLegRig } from '../../../museum/IslandMuseumLegRig.js';
+import { prepareGroundSpecimen } from '../../../museum/PrepareGroundSpecimen.js';
 import { createIslandModelPose, floatAttribute, islandModelPieces, islandMorphWeights, parseIslandMuseumModel } from '../../../museum/IslandMuseumModelData.js';
 import { museumGroundRigs } from '../../../museum/MuseumGroundRigs.js';
-import { prepareQuadrupedStride } from '../../../museum/QuadrupedStrideRig.js';
 import { Matrix4, Vector3 } from '../../../vendor/tidewater/src/engine/index.js';
 import { StorageBuffer } from '../../../vendor/tidewater/src/engine/gpu/Texture.js';
 
@@ -22,8 +21,7 @@ function exportSkin(id) {
   const b = gunzipSync(readFileSync(new URL('assets/island/' + id + '.glb.gz', root)));
   const gltf = parseIslandMuseumModel(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
   const { pieces, skin } = islandModelPieces(gltf);
-  const rig = augmentIslandLegRig(id, gltf, pieces, skin);
-  prepareQuadrupedStride(id, gltf, pieces, skin, meta, rig);
+  const rig = prepareGroundSpecimen(id, gltf, pieces, skin, meta);
   const pose = createIslandModelPose(gltf, skin);
   pose.play('StrideBase', { fade: 0 });
   pose.update(0);

@@ -38,6 +38,14 @@ export const museumGroundRigs = {
       ['R_Upper', 'R_Lower', 'R_Foot', [.677, 0, -.633]],
     ],
   },
+  'tyrannosaurus-rex': {
+    root: 'root', head: 'neck', tail: 'tail_1',
+    legs: ['left', 'right'].map((side, i) => {
+      const joint = part => 'Museum hind ' + side + ' ' + part;
+      return [joint('hip'), joint('knee'), joint('ankle'),
+        [(i ? 1 : -1) * .23772, .001675, .04797], 0, joint('toes')];
+    }),
+  },
   baryonyx: {
     root: 'Armature.001', head: 'Bone.004', tail: 'Bone.009',
     legs: [

@@ -68,7 +68,8 @@ const dilophosaurus = {
   forward: [1, 0],
   bones: [
     ['Thorax', null, [.43, .70, 0]], ['Neck', 'Thorax', [.89, .75, 0]],
-    ['Skull', 'Neck', [1.32, .84, 0]], ['Tail', null, [.21, .68, 0]],
+    ['Skull', 'Neck', [1.32, .84, 0]], ['Mandible', 'Skull', [1.37, .822, 0]],
+    ['Tail', null, [.21, .68, 0]],
     ['Tail middle', 'Tail', [-.41, .66, 0]], ['Tail end', 'Tail middle', [-1.06, .67, 0]],
     ['Left arm', 'Thorax', [.88, .68, -.13]], ['Left wrist', 'Left arm', [.98, .54, -.16]],
     ['Right arm', 'Thorax', [.88, .68, .13]], ['Right wrist', 'Right arm', [.98, .54, .16]],
@@ -76,8 +77,12 @@ const dilophosaurus = {
   weights(f, y, r, material) {
     const arm = smooth(.68, .84, f) * (1 - smooth(.59, .73, y)) * smooth(.06, .13, Math.abs(r));
     const side = r < 0 ? 'Left' : 'Right';
+    // The teeth and gums are sculpted in the same draw as the body. The
+    // separator goes through the open space between the two tooth rows.
+    const bite = .790 - .12 * (f - 1.445);
+    const mandible = material === 'Body' ? smooth(1.326, 1.440, f) * (1 - smooth(bite - .004, bite + .006, y)) : 0;
     return [
-      ['Skull', material === 'Body' ? smooth(1.18, 1.36, f) : 1],
+      ['Mandible', mandible], ['Skull', material === 'Body' ? smooth(1.18, 1.36, f) : 1],
       [side + ' wrist', arm * smooth(.95, 1.035, f)], [side + ' arm', arm],
       ['Neck', smooth(.84, 1.06, f) * smooth(.60, .72, y)], ['Thorax', smooth(.37, .68, f) * smooth(.40, .61, y)],
       ['Tail end', 1 - smooth(-1.25, -.89, f)], ['Tail middle', 1 - smooth(-.63, -.21, f)],

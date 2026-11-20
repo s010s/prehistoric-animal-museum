@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { bipedAnatomy } from '../../museum/ground-motion/BipedAnatomy.js';
 import { prepareBipedBodyRig } from '../../museum/ground-motion/BipedSkin.js';
+import { prepareGroundRestingJaws } from '../../museum/ground-motion/GroundRestingJaws.js';
 import { prepareMuseumGroundPose } from '../../museum/MuseumGroundPose.js';
 import { augmentIslandLegRig } from '../../museum/IslandMuseumLegRig.js';
 import { createIslandModelPose, floatAttribute, islandModelPieces, islandMorphWeights, parseIslandMuseumModel } from '../../museum/IslandMuseumModelData.js';
@@ -27,6 +28,7 @@ for (const [id, anatomy] of Object.entries(bipedAnatomy)) {
   const priorRows = skin.joints.length;
   const priorSets = pieces.map(p => p.influences.length);
   prepareBipedBodyRig(id, model, pieces, skin, legs);
+  prepareGroundRestingJaws(id, model, pieces, skin);
   const pose = createIslandModelPose(model, skin);
   pose.play(pose.clipDuration('StrideBase') ? 'StrideBase' : 'Idle', { fade: 0 });
   pose.update(0);
