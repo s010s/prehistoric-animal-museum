@@ -1,6 +1,7 @@
 import {ComputeKernel, Readback, StorageBuffer} from '../vendor/tidewater/src/engine/webgpu.js';
 
-const minimumScale = .75;
+const openWaterFloor = .65;
+const submergedFloor = .75;
 const standardWaterFloor = .8;
 const foliageFloor = .85;
 const referencePixels = 1600 * 900;
@@ -145,13 +146,18 @@ fn main(@builtin(local_invocation_index) i:u32) {
   waterFloor() {
     const {x, y, z} = this.app.camera.position;
     const height = y - this.seaLevel;
-    // Below the waterline, scattering already attenuates the smallest bed detail.
-    // Let a GPU-bound underwater view take one more temporal resolution step.
-    if (this.app.cameraWaterHeight - y > .65) return minimumScale;
+    const depth = this.app.cameraWaterHeight - y;
+    if (depth > .65) {
+      // The open water column has few high-frequency edges. Protect the near
+      // bed, tidal transitions and freshwater macro views at the shelf floor.
+      if (depth > 2.75 && this.app.coastalActive && Math.abs(this.app.cameraWaterHeight - this.seaLevel) < 1.5 &&
+          this.app.creekData.cove.continuous.marineAt(x, z) > .60 && y - this.app.terrainData.heightAt(x, z) > 2) return openWaterFloor;
+      return submergedFloor;
+    }
     if (!this.app.coastalActive || height < -.4 || height > 18) return standardWaterFloor;
     for (const site of this.shoreStations) {
       if ((x - site.x) ** 2 + (z - site.z) ** 2 > 96 ** 2) continue;
-      if (site.kind === 'rocky-cove' && height > 2 && this.coverage <= .5) return minimumScale;
+      if (site.kind === 'rocky-cove' && height > 2 && this.coverage <= .5) return submergedFloor;
       return .85;
     }
     return standardWaterFloor;
@@ -253,7 +259,7 @@ fn main(@builtin(local_invocation_index) i:u32) {
 
   state() {
     const viewport = this.outputWindow();
-    return {automatic:this.automatic, scale:this.scale, minimumScale:this.viewportFloor(minimumScale), viewMinimumScale:this.viewMinimumScale,
+    return {automatic:this.automatic, scale:this.scale, minimumScale:this.viewportFloor(openWaterFloor), viewMinimumScale:this.viewMinimumScale,
       viewport, density:this.app.engine.renderScale, requestedDensity:this.requestedDensity, minimumDensity:this.minimumDensity(viewport),
       refractionScale:this.app.refraction.scale, visibleWater:this.coverage, completionMs:this.completionMs};
   }
