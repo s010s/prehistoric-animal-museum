@@ -8,11 +8,24 @@
     ]
   },
   "plesiosaurus": {
-    "forward":[0.394,0.919],
+    "forward":[0,1],
     "joints": [
-      {"name":"neck base","pivot":[65,18,-2],"windows":[[0,30,166]]},
-      {"name":"middle neck","parent":"neck base","pivot":[215,28,-54],"windows":[[0,149,318]]},
-      {"name":"head","parent":"middle neck","pivot":[430,150,60],"windows":[[0,391,466]]}
+      {"name":"pelvic backbone","pivot":[-172,5,5],"windows":[[0,-115,-259]]},
+      {"name":"tail root","parent":"pelvic backbone","pivot":[-342,1,37],"windows":[[0,-304,-386]]},
+      {"name":"middle tail","parent":"tail root","pivot":[-406,-5,74],"windows":[[[-0.73,0,0.68],303,389],[0,-365,-401],[1,-87,-43]]},
+      {"name":"distal tail","parent":"middle tail","pivot":[-483,-7,146],"windows":[[[-0.59,0,0.81],373,431],[0,-450,-482],[1,-74,-37]]},
+      {"name":"neck root","pivot":[64.47,20,14.58],"windows":[[[0.994829,-0.052336,0.087036],18.36,110.36]]},
+      {"name":"lower neck","parent":"neck root","pivot":[180.94,21,29.7],"windows":[[[0.98106,0.087156,0.172987],137.48,231.48]]},
+      {"name":"first cervical arc","parent":"lower neck","pivot":[261.82,36,49.14],"windows":[[[0.898633,0.292372,0.327075],226.88,296.88]]},
+      {"name":"middle neck","parent":"first cervical arc","pivot":[310.79,61,74.49],"windows":[[[0.738678,0.45399,0.498245],262.38,326.38]]},
+      {"name":"second cervical arc","parent":"middle neck","pivot":[335.48,82,98.13],"windows":[[[0.516337,0.544639,0.660881],247.73,317.73],[0,98,195]]},
+      {"name":"upper neck","parent":"second cervical arc","pivot":[356.09,114,136.34],"windows":[[[0.286842,0.544639,0.788093],236.68,306.68],[0,98,195]]},
+      {"name":"last cervical arc","parent":"upper neck","pivot":[368.55,161,211.32],"windows":[[[0.078335,0.438371,0.895374],250.66,326.66],[0,98,195]]},
+      {"name":"head","parent":"last cervical arc","pivot":[367,185.6,276],"windows":[[[0.034369,0.173648,0.984208],286.48,346.48],[0,98,195]]},
+      {"name":"left fore hydrofoil","pivot":[-63,-26,-73],"windows":[[2,-64,-118],[0,-220,-155],[0,20,-26],[1,4,-30]],"followMorph":true},
+      {"name":"right fore hydrofoil","pivot":[-55,-27,74],"windows":[[2,66,119],[0,-198,-136],[0,32,-20],[1,4,-30]],"followMorph":true},
+      {"name":"left hind hydrofoil","pivot":[-362,-37,4],"windows":[[[-0.51,0,-0.86],173,218],[2,41,5],[0,-262,-332],[1,0,-38]],"followMorph":true,"parent":"pelvic backbone"},
+      {"name":"right hind hydrofoil","pivot":[-342,-39,112],"windows":[[2,97,152],[0,-248,-297],[0,-462,-417],[1,-3,-49]],"followMorph":true,"parent":"pelvic backbone"}
     ]
   }
 }

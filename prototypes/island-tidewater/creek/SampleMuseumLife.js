@@ -1,3 +1,4 @@
+import { aquaticDrive, aquaticTravel } from './IslandAquaticLocomotion.js';
 // A small representative cast from the museum's 36-animal mainCollection.
 // Source and Blender-authored actions feed the same native WebGPU skinning.
 import { Group, Vector3, Sphere } from '../vendor/tidewater/src/engine/index.js';
@@ -183,6 +184,7 @@ export class SampleMuseumLife {
         };
       } else {
         actor.route = { ...findMarineRoute(app, data), phase: 0, speed: 1.25 };
+        actor.drive = aquaticDrive(id);
         actor.mode = 'swimming';
         sites[id] = { id, metres: data.metres, habitat: 'marine only; open sand corridor beside the outer gardens', path: actor.route, action: 'four separated fin sockets with rest-preserving skin bindings and a Blender-authored swimming cycle' };
         const entry = marineEntry(app, actor.route);
@@ -214,6 +216,7 @@ export class SampleMuseumLife {
         },
         attach: model => {
           actor.model = model;
+          if (actor.drive) { actor.drive.speed = 0; actor.drive.loading = 0; }
           const bounds = museumMotionEnvelope(data, model.gltf);
           const center = new Vector3(...bounds.min.map((v, i) => (v + bounds.max[i]) * .5));
           const radius = Math.hypot(...bounds.max.map((v, i) => (v - bounds.min[i]) * .5)) * 1.2 + .15 / data.scale;
@@ -223,6 +226,7 @@ export class SampleMuseumLife {
           }
           model.group.name = `museum-sample:${id}`;
           model.group.scale.copy(actor.group.scale);
+          if (id === 'ichthyosaur') model.layers.length = 0;
           model.play(id === 'ichthyosaur' ? 'Swim' : 'Idle', { fade: 0, loop: true, speed: 1 });
           model.update(0);
           if (definition.habitat === 'land') actor.groundMotion = createMuseumGroundMotion(id, data, model);
@@ -300,14 +304,18 @@ export class SampleMuseumLife {
       model.group.rotation.set(.035 * Math.cos(a * 2), yawFor(data, -r.radii[0] * Math.sin(a), r.radii[1] * Math.cos(a)), -.10, 'YXZ');
     } else {
       const r = actor.route, [rx, rz] = r.radii;
-      const rate = r.speed / Math.hypot(rx * Math.sin(r.phase), rz * Math.cos(r.phase));
-      r.phase += dt * rate;
+      const stroke = actor.model?.layers.find(layer => layer.target === 1 && layer.clip.name === 'Swim');
+      const previousTime = stroke?.time;
+      if (dt > 0) actor.model?.update(dt);
+      const travelled = aquaticTravel(actor.drive, stroke, previousTime, r.speed, true, dt);
+      actor.distance += travelled;
+      r.phase += travelled / Math.hypot(rx * Math.sin(r.phase), rz * Math.cos(r.phase));
       const a = r.phase, alongX = -rx * Math.sin(a), alongZ = rz * Math.cos(a);
       const x = r.x + Math.cos(a) * rx, z = r.z + Math.sin(a) * rz;
-      const rise = Math.cos(a * 2) * 2 * marineBob * rate;
+      const rise = Math.cos(a * 2) * 2 * marineBob;
       const bank = -marineBank * (1 + 2 * Math.cos(a) ** 2) / 3;
       model.group.position.set(x, r.y + Math.sin(a * 2) * marineBob, z);
-      model.group.rotation.set(bank, yawFor(data, alongX, alongZ), -Math.atan2(rise, r.speed), 'YXZ');
+      model.group.rotation.set(bank, yawFor(data, alongX, alongZ), -Math.atan2(rise, Math.hypot(alongX, alongZ)), 'YXZ');
     }
     this.updateCollider(actor);
   }
@@ -318,13 +326,16 @@ export class SampleMuseumLife {
       const q = actor.model.group.position, d = Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z);
       const active = d < actor.definition.range + (actor.active ? 10 : 0);
       if (!active) {
-        if (actor.active) actor.model.hold();
+        if (actor.active) {
+          actor.model.hold();
+          if (actor.drive) { actor.drive.speed = 0; actor.drive.loading = 0; }
+        }
         actor.active = false; actor.nearTime = 0;
         actor.model.group.visible = false; actor.hiddenFrames++; continue;
       }
       if (!actor.active) { actor.model.update(0); actor.model.hold(); for (const mesh of actor.model.meshes) mesh.resetVelocity = true; }
       actor.active = true; actor.model.group.visible = true; actor.time += step;
-      if (actor.definition.habitat !== 'land') actor.model.update(step);
+      if (actor.definition.habitat === 'air') actor.model.update(step);
       this.place(actor, step);
       for (const mesh of actor.model.meshes) mesh.castShadow = d < (actor.definition.habitat === 'marine' ? 48 : actor.definition.range * .65);
     }

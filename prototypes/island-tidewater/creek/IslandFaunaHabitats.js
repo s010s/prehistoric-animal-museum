@@ -57,8 +57,8 @@ export function faunaMediumLimits(terrain, field, site, body, x, z, yaw) {
   }
   if (wet) {
     const tideGuard = Math.min(.52, .12 + hy * .23);
-    const bottom = bed + (benthic ? .015 : .08);
-    const min = bottom + hy;
+    const bottom = benthic ? terrain.heightAt(x, z) : bed + .08;
+    const min = benthic ? bottom - body.floor : bottom + hy;
     const max = surface - hy - (fresh ? .12 : tideGuard);
     return min <= max ? { min, max, bottom, surface } : null;
   }
@@ -230,6 +230,9 @@ function observationFor(context, site, body, path, frame = null) {
   const benthic = site.medium === 'benthic';
   const length = site.length;
   const flight = flightViews[site.id];
+  // Horizontal tail sweeps disappear in a level broadside view. Watch
+  // moving tails and paired paddles obliquely from inside the water.
+  const overheadWater = wet && !benthic && site.id !== 'livyatan' && site.id !== 'ammonite';
   const mammoth = site.id === 'mammoth';
   const sunSideMin = mammoth ? .42 : flight?.sunSide;
   const daylight = sunSideMin === undefined ? null : sunDirectionFromTime(site.time);
@@ -239,7 +242,7 @@ function observationFor(context, site, body, path, frame = null) {
   const view = frame ? frame.distance : authoredDistance;
   const range = frame ? [.55, .68, .8, .94, 1.1, 1.3, 1.6] : air ? [1, 1.7, .75, 2.6, 3.8] : [1, 1.2, .82, 1.55, .68];
   if (site.medium === 'freshwater') range.push(.48, .32);
-  const lookHeight = ground ? Math.max(.16, -body.floor * 1.15) : benthic ? Math.max(.02, body.half[1] + .015) : 0;
+  const lookHeight = ground ? Math.max(.16, -body.floor * 1.15) : benthic ? -body.floor : 0;
   let best = null;
   for (let i = 0; i < (frame ? 1 : path.length); i += Math.max(1, path.length / 8)) {
     const [x, y, z] = path[i];
@@ -258,7 +261,8 @@ function observationFor(context, site, body, path, frame = null) {
       let py = floor + WALK_EYE;
       if (wet) {
         if (inland !== (site.medium === 'freshwater') || level - floor < 1.18) continue;
-        py = clamp(gaze[1] + (benthic ? .42 : .12), floor + SWIM_CLEARANCE, level - (inland ? .26 : .52));
+        const lift = benthic ? .42 : overheadWater ? Math.max(.16, distance * .30) : .12;
+        py = clamp(gaze[1] + lift, floor + SWIM_CLEARANCE, level - (inland ? .26 : .52));
         if (py - floor < SWIM_CLEARANCE - .01) continue;
       } else if (floor < level + .12 || gradeAt(terrain, px, pz, .7) > .52) continue;
 
@@ -280,7 +284,7 @@ function observationFor(context, site, body, path, frame = null) {
         // In deep water a shorter three-quarter view retains colour and detail.
         if (wet) framingCost += Math.max(0, distance - 9) * .22;
       }
-      const score = framingCost + Math.abs(oblique - (flight?.sky ? .39 : .35)) * (flight?.sky ? 3 : .95)
+      const score = framingCost + Math.abs(oblique - (overheadWater ? .57 : flight?.sky ? .39 : .35)) * (flight?.sky || overheadWater ? 3 : .95)
         + (air ? Math.abs(viewIncline - (flight?.incline ?? .14)) * 1.25 : 0)
         + lightPenalty + i * .005;
       if (best && score >= best.score) continue;
@@ -322,8 +326,7 @@ export function frameFaunaVisit(context, actor, visit, camera) {
   const [hx, hy, hz] = body.half;
   const yaw = actor.route ? routePoint(actor.route, 0)[3] : site.yaw - body.forward;
   const c = Math.cos(yaw), s = Math.sin(yaw);
-  const centerY = site.medium === 'ground' ? cy - body.floor :
-    site.medium === 'benthic' ? cy + hy + .015 : cy;
+  const centerY = site.medium === 'ground' || site.medium === 'benthic' ? cy - body.floor : cy;
   const corners = [];
   for (const x of [-hx, hx]) for (const y of [-hy, hy]) for (const z of [-hz, hz]) {
     corners.push([x*c + z*s, centerY - visit.gaze[1] + y, z*c - x*s]);

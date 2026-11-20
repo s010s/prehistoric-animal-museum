@@ -24,6 +24,24 @@ def verify(bind, directory, id):
     def frame(tag):
         return np.fromfile(directory / (id + '-' + tag + '.bin'), '<f4').reshape(-1, 3)
 
+    if id in ('phorusrhacos', 'pachycephalosaurus'):
+        # Follow two cross sections of the visible beak / muzzle. Both rigs
+        # have centred head bones even when the actual skin turns sideways.
+        stand = frame('Stand')
+        forward = (stand[:, 0] - stand[:, 0].min()) / np.ptp(stand[:, 0])
+        sections = [abs(forward - .81) < .025, abs(forward - .96) < .022]
+        headings = []
+        for tick in range(75, 436, 3):
+            points = frame(f'Step {tick:03d}')
+            base, tip = [np.percentile(points[section, :2], [5, 95], axis=0).mean(axis=0)
+                         for section in sections]
+            forward_delta, lateral_delta = tip - base
+            headings.append(np.degrees(np.arctan2(lateral_delta, forward_delta)))
+        # The first 48 samples are straight travel; the rest include the
+        # turn, stop and blend back to the exhibit's idle performance.
+        if abs(np.mean(headings[:48])) > 8 or np.max(np.abs(headings)) > 25:
+            raise ValueError(f'{id} muzzle stays off the line of travel or snaps sideways at rest')
+
     reference = frame('Source')
     # Select a stable patch above the hip, away from the knees, instead of
     # counting root translation as hand, skull or tail movement.

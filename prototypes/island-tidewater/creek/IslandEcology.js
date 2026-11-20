@@ -5,7 +5,7 @@ import {createSeagrass} from '../vendor/tidewater/src/world/reef/ReefGeometry.js
 import {buildRockGeometry} from '../vendor/tidewater/src/world/terrain/RockGeometry.js';
 import {terrainShadingModule} from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
-import {createHabitatPlantMaterial} from './SampleHabitatEnrichment.js';
+import {createHabitatPlantMaterial} from './HabitatPlantMaterial.js';
 import {planIslandEcology} from './IslandEcologyPlan.js';
 
 const TRIANGLE_BUDGET = 68000;

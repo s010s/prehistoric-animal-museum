@@ -68,31 +68,6 @@
       "sha256": "413be3d3b43ddd6d993fc2f3cd594c310881c964bbf3a4061a1383227e07d2ee"
     },
     {
-      "id": "wave-cut-platform",
-      "path": "assets/island-wave-cut-platform-vault.glb",
-      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/additions/wave-cut-platform/small-life-round11-20261018/wave-cut-platform.glb",
-      "author": "Leon Made This / s010s",
-      "license": "CC-BY-4.0",
-      "qualityStatus": "independent_qa_accepted_stylized_prop",
-      "scope": "Independently reviewed original stylized-inspired static teaching art. Palette, pose, nominal dimensions and simplified anatomy are artistic choices; not a strict scientific reconstruction or coexistence claim.",
-      "bytes": 124244,
-      "triangles": 6816,
-      "sha256": "fbeffd65ef58a40e7276d5c474d0956b2e02203fe8c122f7bf0f48bacda8ecc3"
-    },
-    {
-      "id": "azolla",
-      "path": "assets/island-azolla-vault.glb",
-      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/successors/world-revisions-20261025/azolla/model.glb",
-      "author": "Leon Made This / s010s",
-      "license": "CC-BY-4.0",
-      "revision": "world-r002",
-      "qualityStatus": "independent_qa_accepted_stylized_prop",
-      "scope": "Independently reviewed original stylized-inspired static teaching art. Palette, pose, nominal dimensions and simplified anatomy are artistic choices; not a strict scientific reconstruction or coexistence claim.",
-      "bytes": 176540,
-      "triangles": 2422,
-      "sha256": "652e72849b0a03cc99c087cf69d4ffccd066a28ddf149dad778baa07f0861f24"
-    },
-    {
       "id": "isastraea",
       "path": "assets/island-isastraea-vault.glb",
       "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/candidates/isastraea/material-20261119/model.glb",

@@ -1,4 +1,3 @@
-import { Vector3 } from '../vendor/tidewater/src/engine/index.js';
 import { faunaMediumLimits } from './IslandFaunaHabitats.js';
 import { ISLAND_FAUNA_PLAN, ISLAND_FAUNA_REGIONS } from './IslandFaunaPlan.js';
 import { routePoint } from './IslandFaunaRoute.js';
@@ -7,20 +6,12 @@ const environmentNames = {
   ichthyornis: '鱼鸟',
   sapeornis: '会鸟',
   meganeura: '巨脉蜻蜓',
-  stenodictya: '古网翅目昆虫（Stenodictya）',
-  juracimbrophlebia: '侏罗蝎蛉',
-  rhamphorhynchus: '喙嘴翼龙',
-  pterodaustro: '南方翼龙',
   diplomystus: '双棱鲱',
   aspidorhynchus: '剑鼻鱼',
   cheiracanthus: '棘鱼（Cheiracanthus）',
-  dipterus: '双鳍鱼',
   coccosteus: '盾皮鱼（Coccosteus）',
   eusthenopteron: '真掌鳍鱼',
   falcatus: '古软骨鱼（Falcatus）',
-  anomalocaris: '奇虾',
-  aeger: '底栖虾（Aeger）',
-  eryon: '甲壳类（Eryon）',
 };
 const reefNames = { 1: '块状珊瑚', 2: '片状珊瑚', 3: '指状珊瑚' };
 const exhibitBySpecies = new Map(ISLAND_FAUNA_PLAN.map(exhibit => [exhibit.id, exhibit]));
@@ -30,7 +21,6 @@ const CELL_SIZE = 128;
 const spawnGrids = new WeakMap();
 const spawnPositions = new WeakMap();
 const observations = new WeakMap();
-const articulatedCenter = new Vector3();
 
 function spawnGrid(fauna) {
   let grid = spawnGrids.get(fauna);
@@ -177,25 +167,12 @@ function visitSwimmers(life, offer) {
     const species = environmentNames[fish.vault] ?? '浅水鱼';
     // Keep each member's pose so there is a label for the individuals in view.
     const name = group.school ? species + '群' : species;
-    const medium = fish.shrimp ? 'benthic' : group.sea ? 'marine' : 'freshwater';
+    const medium = group.sea ? 'marine' : 'freshwater';
     offer(`environment:swimmer:${fish.trackingId}`, fish.vault ?? 'native-swimmer', name, x, y, z, fish.L * .21, fish.L, medium, fish.trackingVisible);
   }
 }
 
-function visitArticulated(offer, animal, kind, id, medium) {
-  if (!animal?.root.visible) return;
-  const { root } = animal;
-  const { min, max } = animal.articulation.rig.info.bounds;
-  articulatedCenter.set((min[0] + max[0]) * .5, (min[1] + max[1]) * .5, (min[2] + max[2]) * .5)
-    .multiply(root.scale).applyQuaternion(root.quaternion).add(root.position);
-  const { x, y, z } = articulatedCenter;
-  const halfHeight = (max[1] - min[1]) * root.scale.y * .5;
-  const size = Math.max((max[0] - min[0]) * root.scale.x, (max[2] - min[2]) * root.scale.z, halfHeight * 2);
-  offer(`environment:${kind}:${id}`, kind, environmentNames[kind], x, y, z, halfHeight, size, medium);
-}
-
 function visitBenthos(benthos, offer) {
-  benthos.crawlers.forEach((animal, i) => visitArticulated(offer, animal, 'eryon', i, 'benthic'));
   for (const [batches, name] of [[benthos.corals, '珊瑚群体'], [benthos.shells, '贝类'], [benthos.sponges, '海绵']]) {
     for (const batch of batches) {
       if (!batch.mesh.visible) continue;
@@ -221,8 +198,6 @@ function visitEnvironment(app, emit) {
       const { x, y, z } = flier.position;
       offer(`environment:flight:${flier.id}`, flier.species, environmentNames[flier.species], x, y, z, flier.trackingSpan * .23, flier.trackingSpan, 'air', flier.trackingVisible);
     }
-    life.pterosaurs?.flyers.forEach((animal, i) => visitArticulated(offer, animal, animal.species.toLowerCase(), i, 'air'));
-    visitArticulated(offer, life.insect, 'meganeura', 0, 'air');
     if (life.benthos) visitBenthos(life.benthos, offer);
   }
   const reef = app.shelfReef;

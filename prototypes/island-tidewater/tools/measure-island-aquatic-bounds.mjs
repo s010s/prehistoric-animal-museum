@@ -5,8 +5,10 @@ import { gunzipSync } from 'node:zlib';
 import { GPU } from '../vendor/tidewater/src/engine/gpu/GPU.js';
 import { prepareIslandAquaticMotion } from '../museum/IslandAquaticMotion.js';
 import {
-  createIslandModelPose, floatAttribute, islandModelPieces, islandMorphWeights, parseIslandMuseumModel,
+  createIslandModelPose, islandModelPieces, parseIslandMuseumModel,
 } from '../museum/IslandMuseumModelData.js';
+import { visitAquaticSkin } from './visit-aquatic-skin.mjs';
+import { makePlesiosaurSteering } from '../museum/IslandMuseumHeadTurn.js';
 import { augmentIslandMediumRig } from '../museum/IslandMuseumMediumRig.js';
 import lock from '../museum/island-museum-models.lock.json' with { type: 'json' };
 
@@ -21,47 +23,23 @@ const motionDirectory = new URL('./aquatic-motion/', museum);
 const ids = (await readdir(motionDirectory)).filter(name => name.endsWith('.js')).map(name => name.slice(0, -3))
   .filter(id => Object.hasOwn(lock.animals, id)).sort();
 
-function measurePiece(piece, model, min, max) {
-  const weights = new Float32Array(piece.defaultWeights.length);
-  islandMorphWeights(piece, model.layers, weights);
-  const source = floatAttribute(piece.primitive.attributes.POSITION);
-  const targets = piece.primitive.targets;
-  const point = new Float64Array(3);
-  for (let offset = 0, vertex = 0; offset < source.length; offset += 3, vertex += 4) {
-    let x = source[offset], y = source[offset + 1], z = source[offset + 2];
-    for (let j = 0; j < weights.length; j++) {
-      const delta = targets[j].position;
-      if (!delta || !weights[j]) continue;
-      x += delta[offset] * weights[j];
-      y += delta[offset + 1] * weights[j];
-      z += delta[offset + 2] * weights[j];
-    }
-    point.fill(0);
-    if (piece.influences.length) {
-      const rows = model.jointData;
-      for (const skin of piece.influences) {
-        for (let i = vertex; i < vertex + 4; i++) {
-          const weight = skin.weights[i] / 65535;
-          if (!weight) continue;
-          const j = skin.joints[i] * 16;
-          for (let axis = 0; axis < 3; axis++) {
-            const k = j + axis;
-            point[axis] += weight * (rows[k] * x + rows[k + 4] * y + rows[k + 8] * z + rows[k + 12]);
-          }
-        }
-      }
-    } else {
-      const rows = model.world, node = piece.nodeIndex * 16;
-      for (let axis = 0; axis < 3; axis++) {
-        const k = node + axis;
-        point[axis] = rows[k] * x + rows[k + 4] * y + rows[k + 8] * z + rows[k + 12];
-      }
-    }
-    for (let axis = 0; axis < 3; axis++) {
-      min[axis] = Math.min(min[axis], point[axis]);
-      max[axis] = Math.max(max[axis], point[axis]);
-    }
-  }
+// A long hooked neck still fits an axis-aligned box. Follow the same two
+// transverse skull sections even after the corrected pose turns the snout
+// almost 90 degrees away from its direction in the source exhibit mesh.
+function plesiosaurMuzzle(gltf, pieces, skin) {
+  const reference = createIslandModelPose(gltf, skin);
+  reference.play('Idle', { fade: 0 });
+  reference.update(0);
+  const stations = new Int8Array(pieces[0].primitive.attributes.POSITION.array.length / 3);
+  let cranium = 0, snout = 0;
+  visitAquaticSkin(pieces[0], reference, ([x,,z], i) => {
+    if (z < 300) return;
+    if (Math.abs(x - 300) < 3) { stations[i] = 1; cranium++; }
+    if (Math.abs(x - 373) < 3) { stations[i] = 2; snout++; }
+  });
+  reference.dispose();
+  if (Math.min(cranium, snout) < 4) throw Error('Cannot locate plesiosaur skull sections');
+  return stations;
 }
 
 async function boundsFor(id) {
@@ -70,13 +48,42 @@ async function boundsFor(id) {
   await prepareIslandAquaticMotion(gltf, id);
   const { pieces, skin } = islandModelPieces(gltf);
   const metadata = lock.animals[id];
+  const skull = id === 'plesiosaurus' ? plesiosaurMuzzle(gltf, pieces, skin) : null;
   augmentIslandMediumRig(id, gltf, pieces, skin, metadata);
   const model = createIslandModelPose(gltf, skin);
   const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-  const measure = dt => {
+  const turns = [-1, 1].map(rate => {
+    const steering = makePlesiosaurSteering(id, gltf.nodes, skin);
+    steering?.follow(rate, 12);
+    return steering;
+  }).filter(Boolean);
+  function sampleSkin() {
+    const sums = skull && [[0,0,0], [0,0,0]];
+    for (const piece of pieces) visitAquaticSkin(piece, model, (point, vertex) => {
+      if (skull && skull[vertex]) {
+        const section = sums[skull[vertex] - 1];
+        section[0] += point[0]; section[1] += point[2]; section[2]++;
+      }
+      for (let axis = 0; axis < 3; axis++) {
+        min[axis] = Math.min(min[axis], point[axis]);
+        max[axis] = Math.max(max[axis], point[axis]);
+      }
+    });
+    if (!sums) return 0;
+    const [rear, tip] = sums;
+    return Math.atan2(tip[0]/tip[2] - rear[0]/rear[2], tip[1]/tip[2] - rear[1]/rear[2]);
+  }
+  function measure(dt) {
     model.update(dt);
-    for (const piece of pieces) measurePiece(piece, model, min, max);
-  };
+    const bearing = sampleSkin();
+    if (skull && Math.abs(bearing) > .23) throw Error('Plesiosaur snout points aside during a straight swim or rest');
+    for (const [index, steering] of turns.entries()) {
+      model.update(0);
+      steering.apply(model);
+      const turned = sampleSkin();
+      if (skull && (turned - bearing) * (index ? 1 : -1) < .12) throw Error('Plesiosaur neck did not follow the turn');
+    }
+  }
 
   const names = model.clipNames();
   for (const name of names) {

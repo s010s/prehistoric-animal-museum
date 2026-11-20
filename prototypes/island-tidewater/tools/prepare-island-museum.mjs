@@ -1,3 +1,4 @@
+import { articulateSarcosuchus } from './articulate-sarcosuchus.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -197,6 +198,7 @@ for (const id of ids) {
   const sourceRecord = git(prefix + 'provenance/LICENSES/model-source.txt');
   const doc = await io.readBinary(original), gltfRoot = doc.getRoot();
   await doc.transform(dequantize());
+  if (id === 'sarcosuchus') articulateSarcosuchus(doc);
   const sourceChannelCount = new Map(), animationTiming = new Map();
   for (const animation of gltfRoot.listAnimations()) {
     let start = Infinity, end = -Infinity, trsStart = Infinity;

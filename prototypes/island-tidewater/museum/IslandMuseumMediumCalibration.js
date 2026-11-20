@@ -20,7 +20,10 @@ function aquaticCalibration(id) {
         if (material && material !== sourceMaterial) return 0;
         const coordinates = [f, y, l];
         let weight = 1;
-        for (const [axis, from, to] of windows) weight *= ramp(from, to, coordinates[axis]);
+        for (const [axis, from, to] of windows) {
+          const position = Array.isArray(axis) ? axis[0] * f + axis[1] * y + axis[2] * l : coordinates[axis];
+          weight *= ramp(from, to, position);
+        }
         return weight;
       },
     })),
@@ -66,7 +69,7 @@ function insectLegs() {
 export const islandMuseumMediumCalibration = {
   mosasaurus: aquaticCalibration('mosasaurus'),
   plesiosaurus: aquaticCalibration('plesiosaurus'),
-  meganeura: { active: 'Fly', joints: [
+  meganeura: { active: 'Fly', samples: 144, joints: [
     {
       name: 'abdomen', pivot: [.056, -.243, 0],
       weight: (f, y, l, material) => ['skin', 'sting', 'appendage'].includes(material) ? ramp(.036, -.25, f) : 0,
@@ -78,8 +81,22 @@ export const islandMuseumMediumCalibration = {
       motion: t => [[pitch, .089 * sin(t - 1.01)], [yaw, .047 * cos(t - .43)]],
     },
     ...insectLegs(),
+    // Both source morphs flap all four wings in phase. The hindwings have
+    // separate hinges; delay their stroke, fading the correction at the
+    // thoracic attachment. Keep the forewings on the source trajectory.
+    ...[-1, 1].map(side => ({
+      name: `hindwing ${side}`, pivot: [.262, -.145, side * .092],
+      weight: (f, y, l, material) => material === 'wings'
+        ? ramp(.404, .353, f) * ramp(.098, .28, side * l) : 0,
+      motion: t => [[roll, -side * .215 * cos(8 * t + .20 * sin(t))]],
+    })),
   ] },
   rhamphorhynchus: { active: 'Fly', joints: [
+    {
+      name: 'neck and beak', pivot: [.323, .028, 0],
+      weight: (f, y, l) => ramp(.298, .49, f) * ramp(.135, .085, Math.abs(l)),
+      motion: t => [[yaw, -.042 + .068 * sin(t - .3)], [pitch, .025 * cos(t - .42)]],
+    },
     {
       name: 'tailstock', pivot: [-.176, .041, 0],
       weight: (f, y, l) => ramp(-.166, -.321, f) * ramp(.072, .031, Math.abs(l)),
@@ -96,6 +113,14 @@ export const islandMuseumMediumCalibration = {
       weight: (f, y, l) => Math.max(ramp(.116, .306, f), ramp(-.12, .035, y) * ramp(.055, .12, f))
         * ramp(.139, .085, Math.abs(l)),
       motion: (t, active) => [[yaw, (active ? .065 : .092) * sin(t - .42)], [pitch, (active ? -.054 : -.029) * cos(t - .49)]],
+    },
+    {
+      // The source MouthClose morph rounds the tip but leaves the mandible
+      // hanging open through the glide. Rotate the lower bill and oral lining
+      // together, tapering the skin behind the hinge under the crest.
+      name: 'lower beak', parent: 'head and crest', pivot: [.327, -.167, 0],
+      weight: (f, y, l) => ramp(.28, .405, f) * ramp(-.129, -.188, y) * ramp(.10, .06, Math.abs(l)),
+      motion: t => [[pitch, -.46 + .012 * cos(t - .72)]],
     },
     ...wristPair(),
   ] },

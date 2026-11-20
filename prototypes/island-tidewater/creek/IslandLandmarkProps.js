@@ -22,8 +22,6 @@ const LANDMARKS = [
   landmark('glacial-erratic', 'highland-lake', [17, -4], [5.2, 5.2, 5.2], [.35, 25], .41, 'fresh-bank', .67),
   landmark('cycad', 'dry-upland', [8, 4.5], [1.55, 1.55, 1.55], [1, 1200], .42, 'land', .035),
   landmark('marsilea', 'lake', [16, -4], [1.12, 1.12, 1.12], [-.64, -.19], .32, 'fresh', .016),
-  landmark('wave-cut-platform', 'west-coast', [22, 10], [1, .8, 1], [-.2, 2.95], .48, 'coast', .36),
-  landmark('azolla', 'wetland', [23, 3.5], [1.25, 1.25, 1.25], [-.82, -.16], .24, 'floating', 0),
   landmark('isastraea', 'shelf-south', [10, 4], [1.5, 1.5, 1.5], [-7.5, -2.3], .40, 'marine', .17),
   landmark('conglomerate-outcrop', 'east-alluvial', [10, 4], [3.8, 3.8, 3.8], [.24, 4.4], .60, 'fresh-bank', .31),
 ];
@@ -34,8 +32,6 @@ const URLS = {
   'glacial-erratic': new URL('./assets/island-glacial-erratic-vault.glb', import.meta.url),
   cycad: new URL('./assets/island-cycad-vault.glb', import.meta.url),
   marsilea: new URL('./assets/island-marsilea-vault.glb', import.meta.url),
-  'wave-cut-platform': new URL('./assets/island-wave-cut-platform-vault.glb', import.meta.url),
-  azolla: new URL('./assets/island-azolla-vault.glb', import.meta.url),
   isastraea: new URL('./assets/island-isastraea-vault.glb', import.meta.url),
   'conglomerate-outcrop': new URL('./assets/island-conglomerate-outcrop-vault.glb', import.meta.url),
 };
@@ -54,10 +50,8 @@ function smooth(a, b, x) {
 function eligible(g, spec) {
   if (g.height < spec.band[0] || g.height > spec.band[1] || g.slope > spec.slope) return false;
   switch (spec.anchor) {
-    case 'coast': return g.marine > .40;
     case 'fresh': return g.fresh && (g.height > 0 || g.edge < -.05);
     case 'fresh-bank': return g.fresh && g.height > 0;
-    case 'floating': return g.fresh && g.edge < -.27 && Math.hypot(...g.flow) < .16;
     case 'marine': return g.sea && (g.rock > .14 || g.sand < .67 || g.slope > .036 || g.nearMarineRock);
     default: return g.height > .15 && g.trail < .51;
   }
@@ -70,7 +64,7 @@ export function arrangeIslandLandmarks(data, areas, obstacles = []) {
     const [ox, oz] = area.origin, [dx, dz] = area.direction;
     const [along, lateral] = spec.offset;
     const px = ox + dx * along - dz * lateral, pz = oz + dz * along + dx * lateral;
-    const span = spec.id === 'wave-cut-platform' ? 4.6 : Math.max(...spec.scale) * .55;
+    const span = Math.max(...spec.scale) * .55;
     const radius = spec.anchor === 'land' ? 34 : spec.anchor === 'marine' ? 38 : 83;
     const nearby = obstacles.filter(p => p.x > px - radius - 25 && p.x < px + radius + 25
       && p.z > pz - radius - 25 && p.z < pz + radius + 25);
@@ -186,7 +180,7 @@ function rootGeometry(mesh, spec, terrain, referenceY, bounds) {
       const relief = (y - .012) * .57 + .022 - .100 * smooth(.62, .99, outline);
       positions.setY(i, y + (ground + relief - world.y) / yScale);
     } else {
-      const contact = 1 - smooth(.08, spec.id === 'wave-cut-platform' ? .84 : .61, (y - referenceY) * yScale);
+      const contact = 1 - smooth(.08, .61, (y - referenceY) * yScale);
       positions.setY(i, y + (ground - spec.ground.y) * contact / yScale);
     }
   }
@@ -244,17 +238,15 @@ async function makeModel(gltf, data, spec, isCurrent) {
     if (bounds.isEmpty()) throw Error('Island landmark has no renderable geometry: ' + spec.id);
     bounds.getCenter(point);
     const referenceY = cut ?? bounds.min.y;
-    content.position.set(-point.x, spec.anchor === 'floating' ? -point.y : -referenceY, -point.z);
+    content.position.set(-point.x, -referenceY, -point.z);
     group.add(content);
     group.name = 'Island landmark ' + spec.id;
     const g = spec.ground;
-    group.position.set(g.x, spec.anchor === 'floating' ? g.level + .012 : g.y - spec.embed, g.z);
+    group.position.set(g.x, g.y - spec.embed, g.z);
     group.scale.fromArray(spec.scale);
     group.quaternion.setFromAxisAngle(UP, spec.yaw);
     group.updateMatrixWorld(true);
-    if (spec.anchor !== 'floating') {
-      for (const mesh of content.children) rootGeometry(mesh, spec, data.terrain, referenceY, bounds);
-    }
+    for (const mesh of content.children) rootGeometry(mesh, spec, data.terrain, referenceY, bounds);
     markStreamedFaunaMaterials({meshes: content.children}, 'landmark:' + spec.id);
     if (SOLID.has(spec.id)) {
       const s = bounds.getSize(new Vector3()).multiply(group.scale);

@@ -53,6 +53,13 @@ export function applyIslandAquaticMotion(gltf, clips) {
   for (const [name, source] of Object.entries(clips)) {
     const { duration, frames } = source;
     const times = Float32Array.from({ length: frames + 1 }, (_, i) => i * duration / frames);
+    const aquaticAuxiliary = source.auxiliary && new Map(Object.entries(source.auxiliary)
+      .map(([joint, packed]) => [joint, decodeAquaticChannel(packed, 4, 32767, times)]));
+    if (name === 'Idle') {
+      // Keep the source flipper morph animation beneath the neutral neck.
+      idle.aquaticAuxiliary = aquaticAuxiliary;
+      continue;
+    }
     const channels = idle.channels.flatMap(channel => {
       const [kind, width] = transformQuantization[channel.path];
       return source[kind]?.[channel.node] ? [] : [referenceChannel(channel, width)];
@@ -70,8 +77,6 @@ export function applyIslandAquaticMotion(gltf, clips) {
       morphChannels.set(node, packed ? decodeAquaticChannel(packed, width, 10000, times)
         : referenceChannel(idleChannel, width));
     }
-    const aquaticAuxiliary = source.auxiliary && new Map(Object.entries(source.auxiliary)
-      .map(([joint, packed]) => [joint, decodeAquaticChannel(packed, 4, 32767, times)]));
     setIslandMotionClip(gltf, { name, duration, channels, morphChannels, aquaticAuxiliary });
   }
 }

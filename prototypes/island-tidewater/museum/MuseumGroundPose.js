@@ -1,3 +1,4 @@
+import { Quaternion } from '../vendor/tidewater/src/engine/index.js';
 import { setIslandMotionClip } from './IslandMotionClips.js';
 import { pachycephalosaurusStrideBase } from './PachycephalosaurusStrideBase.js';
 
@@ -30,10 +31,31 @@ export function prepareMuseumGroundPose(gltf, id) {
     if (index === undefined) throw Error('Missing StrideBase joint ' + name + ' for ' + id);
     return index;
   };
+  const strideChannels = channels.map(([name, path, values]) => ({
+    node: nodeAt(name), path, times: frame, values: Float32Array.from(values),
+  }));
+  // The display idle turns its head sharply over one shoulder and hooks
+  // the tail. Blend those authored rotations toward the load-bearing
+  // Blender pose for the island's stationary and stopping phases as well.
+  const reference = new Map(strideChannels.filter(channel => channel.path === 'rotation')
+    .map(channel => [channel.node, new Quaternion(...channel.values).normalize()]));
+  const idle = gltf.animations.find(clip => clip.name === 'Idle');
+  const key = new Quaternion();
+  for (const channel of idle.channels) {
+    const name = gltf.nodes[channel.node].name;
+    if (channel.path !== 'rotation' || !/^(?:Neck|Head_|SpineTail_|Tail\d|Spine\d)/.test(name)) continue;
+    const neutral = reference.get(channel.node);
+    if (!neutral) continue;
+    const values = channel.values.slice();
+    for (let i = 0; i < values.length; i += 4) {
+      key.fromArray(values, i).normalize().slerp(neutral, .85).toArray(values, i);
+    }
+    channel.values = values;
+  }
   setIslandMotionClip(gltf, {
     name: 'StrideBase',
     duration: 1,
-    channels: channels.map(([name, path, values]) => ({ node: nodeAt(name), path, times: frame, values: Float32Array.from(values) })),
+    channels: strideChannels,
     morphChannels: new Map(morphs.map(([name, values]) => [nodeAt(name), { times: frame, values: Float32Array.from(values) }])),
   });
 }

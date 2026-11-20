@@ -34,8 +34,7 @@ function sourceVertex(piece, position, offset, weights, result) {
   return result;
 }
 
-function addMotion(clip, joints, active, toModel, sourceInverse) {
-  const defaultSamples = 72;
+function addMotion(clip, joints, active, toModel, sourceInverse, defaultSamples = 72) {
   const defaultTimes = Float32Array.from({ length: defaultSamples + 1 }, (_, i) => clip.duration * i / defaultSamples);
   const rotation = new Quaternion(), part = new Quaternion();
   const delta = new Vector3(), turned = new Vector3(), d = new Vector3();
@@ -176,8 +175,9 @@ export function augmentIslandMediumRig(id, gltf, pieces, skin, metadata) {
   if (joints.some(joint => !joint.affected || (joint.followMorph && !joint.anchor))) {
     throw Error(`Missing supplemental joint geometry in island ${id}`);
   }
+  if (idle.aquaticAuxiliary) clips.push(idle);
   for (const clip of clips) {
-    addMotion(clip, joints, clip.name === config.active, toModel, sourceInverse);
+    addMotion(clip, joints, clip.name === config.active, toModel, sourceInverse, config.samples);
     delete clip.aquaticAuxiliary;
   }
 }

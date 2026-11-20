@@ -158,6 +158,10 @@ function run(site, data, terrain, realSite = null, field = null) {
   }));
   let highestPad = Math.max(...pads.map(lowestPad));
   const angles = manifest.map(() => [Infinity, -Infinity]);
+  const priorAngles = [];
+  const pelvis = site.id === 'stegosaurus' ? pose.gltf.nodes.findIndex(node => node.name === 'Pelvis_02') : -1;
+  if (site.id === 'stegosaurus') assert(pelvis >= 0, 'Missing Stegosaurus pelvis');
+  let previousHeight, maxRiseSpeed = 0, maxDropSpeed = 0, maxLoadedExtension = 0;
   const a = new Vector3(), b = new Vector3(), c = new Vector3();
   const plantedAt = manifest.map(samples => samples.map(() => new Vector3()));
   const beatOrder = motion.diagnostics().contacts.toSorted((a, b) => a.side - b.side || b.lane - a.lane).map(foot => foot.joint);
@@ -181,6 +185,20 @@ function run(site, data, terrain, realSite = null, field = null) {
     peakSpeed = Math.max(peakSpeed, speedMetresPerSecond);
     const steady = withinCycle >= 420 && withinCycle <= 880 && step > .00001;
     if (!steady) measuredAt.clear();
+    if (pelvis >= 0 || contacts.length === 2) {
+      // Isolate the animal's rise above the floor as the route climbs or descends.
+      const hipHeight = joint => {
+        const point = a.fromArray(pose.world, joint * 16 + 12).applyMatrix4(groupFrame);
+        return point.y - terrain.heightAt(point.x, point.z);
+      };
+      const height = pelvis >= 0 ? hipHeight(pelvis)
+        : contacts.reduce((sum, foot) => sum + hipHeight(pose.parent[pose.parent[foot.joint]]), 0) / contacts.length;
+      if (previousHeight !== undefined) {
+        maxRiseSpeed = Math.max(maxRiseSpeed, (height - previousHeight) / dt);
+        maxDropSpeed = Math.max(maxDropSpeed, (previousHeight - height) / dt);
+      }
+      previousHeight = height;
+    }
     const support = contacts.filter(foot => foot.planted);
     minSupport = Math.min(minSupport, support.length);
     if (contacts.length === 4 && support.length === 2) {
@@ -194,6 +212,12 @@ function run(site, data, terrain, realSite = null, field = null) {
       a.fromArray(pose.world, upper * 16 + 12).sub(b);
       c.fromArray(pose.world, contact.joint * 16 + 12).sub(b);
       const angle = Math.acos(clamp(a.dot(c) / (a.length() * c.length()), -1, 1)) * 180 / Math.PI;
+      if (pelvis >= 0 && contact.lane === 1) {
+        if (contact.planted && previous[limb]?.planted) {
+          maxLoadedExtension = Math.max(maxLoadedExtension, (angle - priorAngles[limb]) / dt);
+        }
+        priorAngles[limb] = angle;
+      }
       angles[limb][0] = Math.min(angles[limb][0], angle);
       angles[limb][1] = Math.max(angles[limb][1], angle);
       if (!contact.planted) {
@@ -231,7 +255,7 @@ function run(site, data, terrain, realSite = null, field = null) {
   }
   const steps = Math.min(...previous.map(p => p.steps));
   const kneeArc = Math.min(...angles.map(([low, high]) => high - low));
-  return { distance, steps, checkedBeats, minSupport, lift, highestPad, maxSkate, maxError, maxSoleSkate, kneeArc,
+  return { distance, steps, checkedBeats, minSupport, lift, highestPad, maxSkate, maxError, maxSoleSkate, kneeArc, maxRiseSpeed, maxDropSpeed, maxLoadedExtension,
     peakSpeed, strideMeasured: strideMeasured / Math.max(1, measuredStrides), strideError, limbs: manifest.length, routeLength: route?.length ?? null };
 }
 
@@ -253,6 +277,21 @@ for (const site of specimens) {
     swing_lift_m: digits(value('lift')), min_support: value('minSupport', Math.min), verified_beats: (island ?? flat).checkedBeats,
     highest_loaded_pad_m: digits(value('highestPad')), contact_frame_drift_m: digits(value('maxSkate')),
     contact_error_m: digits(value('maxError')), rendered_sole_drift_m: digits(value('maxSoleSkate')) };
+  if (site.id === 'stegosaurus') {
+    row.pelvis_rise_m_s = digits(value('maxRiseSpeed'));
+    row.planted_hind_extension_deg_s = digits(value('maxLoadedExtension'));
+    // A planted foot must not be able to straighten its knee or lift the body
+    // in a single tick when a different foot leaves the supporting polygon.
+    assert(row.pelvis_rise_m_s < .85, 'Stegosaurus pelvis sprang upward: ' + row.pelvis_rise_m_s + ' m/s');
+    assert(row.planted_hind_extension_deg_s < 180,
+      'Stegosaurus bearing knee snapped into extension: ' + row.planted_hind_extension_deg_s + ' deg/s');
+  }
+  if (site.id === 'gallimimus' || site.id === 'carnotaurus') {
+    // A descending swing foot used to pull the pelvis down even while the
+    // contralateral leg was securely planted on this stretch of the trail.
+    assert(value('maxDropSpeed') < 2.3 && value('maxRiseSpeed') < 1.8,
+      site.id + ' hips jumped during the support transfer');
+  }
   assert(flat.distance > site.speed * 6 && flat.steps >= 2 && flat.lift > .015, site.id + ' should take visible steps on level ground');
   assert(row.min_support >= (flat.limbs === 2 ? 1 : 2), site.id + ' should keep support throughout the walk');
   assert(flat.strideMeasured > 0 && flat.strideError <= flat.peakSpeed / 30,

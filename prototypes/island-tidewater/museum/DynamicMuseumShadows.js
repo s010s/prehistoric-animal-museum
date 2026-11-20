@@ -103,12 +103,9 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
   }
   function discover(scene) {
     const next = new Map();
-    const addModel = model => { for (const mesh of model?.meshes ?? []) next.set(mesh, { unbounded: !mesh.frustumCulled, batch: null }); };
+    const addModel = model => { for (const mesh of model?.meshes ?? []) next.set(mesh, { unbounded: !mesh.frustumCulled }); };
     for (const actor of app.sampleMuseumLife?.actors ?? []) addModel(actor.model);
     for (const model of app.islandFauna?.models() ?? []) addModel(model);
-    for (const flyer of app.life?.pterosaurs?.flyers ?? []) addModel(flyer.model);
-    addModel(app.life?.insect?.model);
-    for (const crawler of app.life?.benthos?.crawlers ?? []) addModel(crawler.model);
     // These two older animals intentionally have no native frustum culling:
     // their rest bounds do not enclose all morph/skin motion. Full depth restore
     // is conservative and still does not redraw static forest geometry.
@@ -116,20 +113,13 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
       for (const model of app.animals.models()) addModel(model);
     } else {
       for (const root of scene.children ?? []) if (LEGACY_NAMES.has(root.name)) {
-        descendants(root, child => { if (child.isMesh) next.set(child, { unbounded: true, batch: null }); });
+        descendants(root, child => { if (child.isMesh) next.set(child, { unbounded: true }); });
       }
     }
-    const batch = app.life?.batch;
-    if (batch?.geometry) descendants(app.life.group, mesh => {
-      if (mesh.isMesh && mesh.geometry === batch.geometry) next.set(mesh, { unbounded: true, batch });
-    });
     if (next.size !== dynamic.size || [...next.keys()].some(mesh => !dynamic.has(mesh))) invalidate(false);
     dynamic = next;
   }
-  function eligible(mesh) {
-    const entry = dynamic.get(mesh);
-    return !!entry && (!entry.batch || entry.batch.shadowOffsets?.length > 0);
-  }
+  const eligible = mesh => dynamic.has(mesh);
   function render(scene, meshRenderer, indices) {
     frameRestoredPixels = 0; frameDynamicDraws = 0; activeCasters = 0;
     for (const layer of layers) layer.lastRect = null;
@@ -179,7 +169,7 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
           depthBias: 2, depthBiasSlopeScale: 1.5, passKey: DEPTH_PASS_KEY,
           filter: eligible };
         // Native collection honors ancestor visibility, caster flag, layers,
-        // material groups, light frustum and onBeforeRender (Aeger's offsets).
+        // material groups, and light frustum.
         const lists = meshRenderer.collect(scene, pass);
         let currentRect = null;
         for (const item of [...lists.opaque, ...lists.transparent]) {
@@ -231,7 +221,7 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
       unboundedCasters: [...dynamic].filter(([, entry]) => entry.unbounded).map(([mesh]) => mesh.name),
       staticBaseBytes: resourceSize * resourceSize * resourceCount * 4,
       finalTexturePreserved: shadows.texture === finalTexture,
-      coverage: 'regional museum animals, sample museum skins, legacy museum animals, Vault pterosaurs/Meganeura/Eryon, active Aeger shadow offsets; static coral/shell batches excluded' };
+      coverage: 'regional museum animals, sample museum skins, legacy museum animals; static coral/shell batches excluded' };
   }
   const controller = {
     setEnabled(value) {

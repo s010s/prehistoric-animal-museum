@@ -1,36 +1,30 @@
 // Rooted understory, fresh-water margins and shallow marine vegetation.
 // Vault source bytes / licence / changes: sample-habitat.lock.json.
 import {BufferGeometry,BufferAttribute,Float32BufferAttribute,Group,Mesh,Vector3} from '../vendor/tidewater/src/engine/index.js';
-import {Material} from '../vendor/tidewater/src/engine/render/Material.js';
-import {ShaderModule,UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
-import {commonModule} from '../vendor/tidewater/src/engine/render/wgsl/common.js';
-import {loadGLB} from '../vendor/tidewater/src/engine/loaders/GLTF.js';
+import {UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
+import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
+import {generateMipmaps} from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
+import {createHabitatPlantMaterial} from './HabitatPlantMaterial.js';
+import {islandEcologyGeometry} from './IslandEcology.js';
+import {loadGLB,decodeImage} from '../vendor/tidewater/src/engine/loaders/GLTF.js';
 import {ReefBatch} from '../vendor/tidewater/src/world/reef/ReefBatch.js';
 import {createSeagrass} from '../vendor/tidewater/src/world/reef/ReefGeometry.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
 
-const URLS={
- cycad:new URL('./assets/habitat-cycad-vault.glb',import.meta.url),
- 'fern-cluster':new URL('./assets/habitat-fern-cluster-vault.glb',import.meta.url),
- 'horsetail-cluster':new URL('./assets/habitat-horsetail-cluster-vault.glb',import.meta.url),
- marsilea:new URL('./assets/habitat-marsilea-vault.glb',import.meta.url),
- montsechia:new URL('./assets/habitat-montsechia-vault.glb',import.meta.url),
- halimeda:new URL('./assets/habitat-halimeda-vault.glb',import.meta.url),
- 'three-toed-track':new URL('./assets/habitat-three-toed-track-vault.glb',import.meta.url),
-};
+const PLANTS = new URL('./assets/habitat-reviewed-plants.glb', import.meta.url);
+const TRACK = new URL('./assets/habitat-three-toed-track-vault.glb', import.meta.url);
 const SPECS=[
  {id:'cycad',count:44,mode:0,scale:[.55,.92],height:1.3678,bank:[5,23],rise:[.65,12],spacing:2.25,range:38,flex:.34},
- {id:'fern-cluster',count:62,mode:0,scale:[.46,.83],height:.8818,bank:[2.0,18],rise:[.24,9],spacing:1.35,range:29,flex:.72},
- {id:'horsetail-cluster',count:106,mode:0,scale:[.38,.72],height:1.4816,bank:[.5,7],rise:[.08,2.5],spacing:.69,range:31,flex:1},
+ {id:'onoclea',count:62,mode:0,scale:[.46,.83],height:.8818,bank:[2.0,18],rise:[.24,9],spacing:1.35,range:29,flex:.72},
+ {id:'rush',count:106,mode:0,scale:[.38,.72],height:1.4816,bank:[.5,7],rise:[.08,2.5],spacing:.69,range:31,flex:1},
  {id:'marsilea',count:90,mode:1,scale:[1.45,2.65],height:.08491,bank:[-1.8,-.15],spacing:.48,range:24,flex:.8},
- {id:'montsechia',count:100,mode:2,scale:[2.3,4.3],height:.15,spacing:.63,range:30,flex:.76},
+ {id:'submerged',count:100,mode:2,scale:[2.3,4.3],height:.15,spacing:.63,range:30,flex:.76},
  {id:'halimeda',count:132,mode:3,scale:[1.4,3.1],height:.15,spacing:.72,range:32,flex:.34},
  {id:'seagrass',count:108,mode:3,scale:[1.15,1.95],height:.32,spacing:1.15,range:34,flex:1},
 ];
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 const slopeAt=(terrain,x,z)=>Math.hypot(terrain.heightAt(x+.4,z)-terrain.heightAt(x-.4,z),terrain.heightAt(x,z+.4)-terrain.heightAt(x,z-.4))/.8;
-const packedLinear=c=>c.slice(0,3).reduce((n,v,i)=>n+(Math.round(clamp(v,0,1)*255)<<(16-i*8)),0);
 const pointXZ=p=>[p[0],p.length>2?p[2]:p[1]];
 function distanceToTrack(x,z,path){
  const points=path?.points?.length>1?path.points:path?.start&&path?.end?[path.start,path.end]:[];
@@ -112,7 +106,7 @@ export function planSampleHabitat(data,forestRecords=[],trackPath=null){
     if(spec.id==='cycad')invalid ||= forestRecords.length>0&&!forestRecords.some(t=>Math.hypot(t.x-x,t.z-z)<20);
    }else if(spec.mode===1){
     // Marsilea is intentionally emergent at fresh-water margins, distinct
-    // from the fully submerged Montsechia and marine plants below.
+    // from the fully submerged narrow-leaf beds and marine plants below.
     invalid ||= depth<.15||depth>.65||wf[1]>.15||r.distance>625||wf[0]<3;
    }else if(spec.mode===2){
     invalid ||= depth<plantHeight+.24||depth>2.8||wf[1]>-.15||Math.abs(r.across)<r.width*.30;
@@ -167,73 +161,55 @@ function planTracks(data,path,rng){
  return prints;
 }
 
-// Merge source material slots without flattening their colour hierarchy.
-// aData = root-to-tip bend, packed linear RGB, root contact AO, part seed.
-export function habitatGeometry(gltf,id){
- const pos=[],normal=[],data=[],indices=[];let maxY=0;
- for(const node of gltf.nodes)if(node.mesh!==undefined){
-  if(node.s.some(v=>Math.abs(v-1)>1e-6)||node.r.some((v,i)=>Math.abs(v-(i===3?1:0))>1e-6))throw Error('Habitat transform requires baking: '+id+' '+node.name);
-  for(const p of gltf.meshes[node.mesh]){
-   if(p.mode!==4||!p.attributes.NORMAL)throw Error('Habitat requires triangle geometry and normals: '+id);
-   const a=p.attributes.POSITION.array,n=p.attributes.NORMAL.array,color=gltf.materials[p.material??0]?.pbrMetallicRoughness?.baseColorFactor??[.2,.3,.12],base=pos.length/3;
-   const rigid=/caudex|persistent leaf bases/i.test(node.name),hash=Array.from(node.name).reduce((s,c)=>(s*31+c.charCodeAt(0))>>>0,0)/4294967296;
-   for(let i=0;i<a.length;i+=3){
-    const x=a[i]+node.t[0],y=a[i+1]+node.t[1],z=a[i+2]+node.t[2];
-    if(![x,y,z,n[i],n[i+1],n[i+2]].every(Number.isFinite))throw Error('Nonfinite habitat vertex '+id);
-    pos.push(x,y,z);normal.push(n[i],n[i+1],n[i+2]);maxY=Math.max(maxY,y);
-    const growth=rigid?0:id==='cycad'?clamp((Math.hypot(x,z)-.18)/.92,0,1):clamp(y/(SPECS.find(s=>s.id===id)?.height??1),0,1);
-    data.push(growth,packedLinear(color),.72+.28*smooth(.01,.16,y),hash);
-   }
-   const ix=p.indices??Array.from({length:a.length/3},(_,i)=>i);for(const i of ix)indices.push(base+i);
+// All four curated form meshes share one UV atlas. Native blades use its white tile.
+function plantGeometry(model, spec) {
+ if (spec.id === 'seagrass') {
+  const geometry = createSeagrass(mulberry32(281096), 0);
+  const positions = geometry.attributes.position, data = geometry.attributes.aData;
+  for (let i = 0; i < positions.count; i++) {
+   data.setY(i, 0x354b2b);
+   data.setZ(i, .73 + .27 * smooth(.01, .12, positions.getY(i)));
   }
+  return geometry;
  }
- if(!indices.length||maxY<=0)throw Error('Empty habitat geometry '+id);
- const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(pos,3));g.setAttribute('normal',new Float32BufferAttribute(normal,3));g.setAttribute('aData',new Float32BufferAttribute(data,4));g.setIndex(new BufferAttribute(new Uint32Array(indices),1));g.computeBoundingSphere();return g;
+ if (spec.id === 'rush' || spec.id === 'submerged') {
+  const geometry = islandEcologyGeometry(spec.id, 0, spec.id === 'rush' ? 281097 : 281098);
+  geometry.computeBoundingBox();
+  const scale = spec.height / geometry.boundingBox.max.y;
+  geometry.scale(scale, scale, scale);
+  return geometry;
+ }
+ const node = model.nodes.find(n => n.name === spec.id);
+ const primitive = model.meshes[node.mesh][0], attributes = primitive.attributes;
+ const geometry = new BufferGeometry();
+ geometry.setAttribute('position',new BufferAttribute(attributes.POSITION.array,3));
+ geometry.setAttribute('normal',new BufferAttribute(attributes.NORMAL.array,3));
+ geometry.setAttribute('uv',new BufferAttribute(attributes.TEXCOORD_0.array,2));
+ geometry.setIndex(new BufferAttribute(primitive.indices,1));
+ const positions = geometry.attributes.position, data = new Float32Array(positions.count * 4);
+ for (let i = 0; i < positions.count; i++) {
+  const x = positions.getX(i), y = positions.getY(i), z = positions.getZ(i);
+  const growth = spec.id === 'cycad' ? clamp((Math.hypot(x,z)-.18)/.92,0,1) : clamp(y/spec.height,0,1);
+  data.set([growth,0xffffff,.72+.28*smooth(.01,.16,y),.5+.5*Math.sin(x*5+z*7)],i*4);
+ }
+ geometry.setAttribute('aData',new BufferAttribute(data,4));
+ return geometry;
 }
 
-export function createHabitatPlantMaterial(batch,terrainGPU,view,{name='Sample Vault leaves, wind and current',namespace='sampleHabitat'}={}){
- const P=batch.prefix,records=batch.record('index');
- const motion=new ShaderModule({name:namespace+'Motion',deps:[commonModule],uniforms:view,code:`
-fn habitatColor(f:f32)->vec3f{let u=u32(f+.5);return vec3f(f32((u>>16u)&255u),f32((u>>8u)&255u),f32(u&255u))/255.0;}
-fn habitatRotate(q:vec4f,p:vec3f)->vec3f{return p+cross(q.xyz,cross(q.xyz,p)+p*q.w)*2.0;}
-fn habitatBend(xz:vec2f,t:f32,seed:f32,part:f32,weight:f32,mode:f32,flow:vec2f)->vec3f{
- let phase=seed*31.0+part*13.0;
- if(mode<1.5){
-  let wind=max(frame.windSpeed*.1,.03);
-  let gust=.57+.23*sin(dot(xz,vec2f(.071,.039))-t*.63)+.20*sin(dot(xz,vec2f(-.031,.083))-t*.37);
-  let pulse=(.045+wind*.13)*gust+sin(t*2.3+phase)*.018*wind;
-  let side=sin(t*5.1+phase+xz.x*.12)*.011*wind;
-  return vec3f(frame.windDir.x*pulse-frame.windDir.y*side,-abs(pulse)*.06,frame.windDir.y*pulse+frame.windDir.x*side)*weight;
+async function plantTexture(model) {
+ const image = model.images[model.textures[model.materials[0].pbrMetallicRoughness.baseColorTexture.index].source];
+ const px = await decodeImage(image.bytes,image.mimeType);
+ const texture = new Texture({label:'Sample foliage albedo',width:px.width,height:px.height,
+  format:'rgba8unorm-srgb',data:px.data,mips:true,usage:['sample','copyDst']});
+ try {
+  texture.getGPU();
+  generateMipmaps(texture);
+  return texture;
+ } catch (error) {
+  texture.destroy();
+  throw error;
  }
- let marine=select(0.0,1.0,mode>2.5);
- let surge=sin(t*.77-dot(xz,vec2f(.024,.009))+phase*.12)*.11*marine;
- let current=flow*(.12+sin(t*1.27+phase)*.035);
- let flutter=vec2f(sin(t*2.1+phase),cos(t*1.63+phase))*.015;
- let d=(current+vec2f(surge,surge*.22)+flutter)*weight;
- return vec3f(d.x,-dot(d,d)*.35,d.y);
-}`});
- return new Material({name,side:'double',modules:[batch.module,terrainGPU.module,motion],attributes:{aKind:'f32',aData:'vec4f'},varyings:{vHabitatColor:'vec3f',vHabitatAO:'f32',vHabitatMode:'f32'},vertex:`
- let index=${P}RecordIndex(u32(v.aKind),v.instance);
- let r0=${records[0]};let q=${records[1]};let r2=${records[2]};let r3=${records[3]};
- let distance=length(${namespace}View.position-r0.xyz);let grow=1.0-smoothstep(r2.y*.80,r2.y,distance);
- var local=v.position*r0.w*grow;
- if(r2.z>.5&&r2.z<1.5){local.y+=r3.w*smoothstep(.008,.036,v.position.y)*grow;}
- var world=habitatRotate(q,local)+r0.xyz;
- let contact=1.0-smoothstep(0.0,.13,local.y);
- let habitatGround=terrainHeightAt(world.xz);
- world.y+=(habitatGround-.018-r0.y)*contact;
- let weight=v.aData.x*v.aData.x*r3.z*r0.w*grow;
- let now=habitatBend(r0.xz,frame.time,r2.x,v.aData.w,weight,r2.z,r3.xy);
- let old=habitatBend(r0.xz,frame.time-frame.dt,r2.x,v.aData.w,weight,r2.z,r3.xy);
- v.useWorld=true;v.worldPos=world+now;v.prevWorldPos=world+old;v.worldNormal=normalize(habitatRotate(q,v.normal));
- o.vHabitatColor=habitatColor(v.aData.y)*(vec3f(.88,.91,.84)+r2.x*.16);
- o.vHabitatAO=v.aData.z;o.vHabitatMode=r2.z;
-`,surface:`
- s.albedo=in.vs.vHabitatColor;s.roughness=select(.86,.75,in.vs.vHabitatMode>1.5);s.metalness=0.0;s.specularIntensity=.12;
- s.ao=in.vs.vHabitatAO;s.translucency=s.albedo*select(.12,.035,in.vs.vHabitatMode>1.5);
-`});
 }
-
 export function footprintGeometry(gltf,prints,terrain){
  const positions=[],data=[],indices=[];
  // Extract the first recessed footprint from the source GLB. Source slab
@@ -277,7 +253,53 @@ function readTrackPath(data){
  return para?.trackPath??para?.path??para?.walkPath??data.sampleMuseumLifeSites.parasaurolophus?.trackPath??null;
 }
 
-function habitatVisits(data,plan){
+function plantObservation(data, plan, app, species, near, companion) {
+ const marine=species==='halimeda', shore=species==='marsilea';
+ const distanceFromAnchor=p=>Math.hypot(p.x-near[0],p.z-near[1]);
+ const plants=plan.plants.filter(p=>p.id===species);
+ // Consider several planted patches near this stop. Larger crowns at a similar distance
+ // from the original observation site read better at a visitor's standing eye height.
+ const rank=p=>distanceFromAnchor(p)-p.scale*(shore?7:10);
+ plants.sort((a,b)=>rank(a)-rank(b));
+ let best=null;
+ for(const plant of plants.slice(0,8)){
+  const foliage=plan.plants.filter(p=>p!==plant&&Math.hypot(p.x-plant.x,p.z-plant.z)<6);
+  const stems=(app.landscapeDetails?.records??[]).filter(p=>Math.hypot(p.x-plant.x,p.z-plant.z)<4);
+  const gazeY=shore?plant.ground+plant.height-.025:plant.ground+plant.height*.59;
+  const radius=marine?(.72+plant.height*.6):shore?.78:1.25+plant.height*.78;
+  for(let i=0;i<16;i++){
+   const angle=i*Math.PI/8,dx=Math.cos(angle),dz=Math.sin(angle);
+   const x=plant.x+radius*dx,z=plant.z+radius*dz,floor=data.terrain.heightAt(x,z);
+   const water=data.field.sample(x,z)[0];
+   if(marine ? water-floor<.95 : floor-water<(shore?-.36:.09)||slopeAt(data.terrain,x,z)>.63)continue;
+   const eye=marine?Math.max(floor+.55,gazeY+.32):floor+1.62;
+   if(marine&&eye>plant.water-.45)continue;
+   const ray=new Vector3(plant.x-x,gazeY-eye,plant.z-z),length=ray.length();
+   if(app.colliders?.sightDistance(new Vector3(x,eye,z),ray.multiplyScalar(1/length),length)<length-.02)continue;
+   if([.2,.4,.65,.82].some(t=>data.terrain.heightAt(x-t*radius*dx,z-t*radius*dz)>eye+t*(gazeY-eye)-.015))continue;
+   // A tall, uncollidable clump can fill the camera even when the terrain is clear.
+   const blocks=(p,top,width)=>{
+    const along=(p.x-plant.x)*dx+(p.z-plant.z)*dz;
+    if(along<.01||along>radius+.2)return false;
+    const side=Math.abs((p.x-plant.x)*dz-(p.z-plant.z)*dx);
+    return side<width&&top>gazeY+(eye-gazeY)*along/radius-.12;
+   };
+   if(stems.some(p=>blocks(p,p.y+p.s*1.8,.30*p.s))||
+      foliage.some(p=>blocks(p,p.ground+p.height,Math.min(.7,p.height*.39))))continue;
+   const companionDistance=Math.min(4,...foliage.filter(p=>p.id===companion&&
+    (p.x-plant.x)*dx+(p.z-plant.z)*dz<.35).map(p=>Math.hypot(p.x-plant.x,p.z-plant.z)));
+   const score=length/(shore?plant.scale*.10:plant.height)+distanceFromAnchor(plant)*.025+
+    companionDistance*(shore?.08:.32);
+   if(!best||score<best.score)best={score,p:[x,z],gaze:[plant.x,gazeY,plant.z],
+    ...(marine?{diveLevel:plant.water,eyeBelowSurface:plant.water-eye}:{})};
+  }
+ }
+ if(!best)return null;
+ const {score,...view}=best;
+ return view;
+}
+
+function habitatVisits(data,plan,app){
  const terrain=data.terrain,visits={};
  const dryFooting=(x,z,r=3)=>{
   let best=null;
@@ -289,12 +311,14 @@ function habitatVisits(data,plan){
   }
   return best?.p??null;
  };
- const land=plan.plants.filter(p=>p.id==='cycad'||p.id==='fern-cluster').sort((a,b)=>Math.hypot(a.x+760,a.z-8)-Math.hypot(b.x+760,b.z-8))[0];
- if(land){const p=dryFooting(land.x,land.z,2.7);if(p)visits['sample-understory']={id:'sample-understory',title:'林缘苏铁与蕨丛',p,gaze:[land.x,land.ground+land.height*.6,land.z],time:12.6};}
- const margin=plan.plants.filter(p=>p.id==='marsilea').sort((a,b)=>Math.hypot(a.x+744,a.z+33)-Math.hypot(b.x+744,b.z+33))[0];
- if(margin){const p=dryFooting(margin.x,margin.z,2.2);if(p)visits['sample-water-plants']={id:'sample-water-plants',title:'溪岸的四叶水蕨',p,gaze:[margin.x,margin.water+.015,margin.z],time:12.6};}
- // Keep the established dive camera while the vegetation follows actual reef margins.
- if(plan.counts.halimeda)visits['sample-sea-plants']={id:'sample-sea-plants',title:'浅海海草与仙掌藻',p:[-946.4738452589452,151.7814259099936],gaze:[-948.0738452589452,-2.880036804574163,150.7814259099936],diveLevel:data.field.continuousSample.sea,eyeBelowSurface:1.7,time:12.6};
+ for(const [id,title,species,anchor,companion] of [
+  ['sample-understory','林缘苏铁与蕨丛','cycad',[-760,8],'onoclea'],
+  ['sample-water-plants','溪岸的四叶水蕨','marsilea',[-744,-33],'marsilea'],
+  ['sample-sea-plants','浅海海草与仙掌藻','halimeda',[-946,152],'seagrass'],
+ ]){
+  const view=plantObservation(data,plan,app,species,anchor,companion);
+  if(view)visits[id]={id,title,...view,time:12.6};
+ }
  const print=plan.tracks[Math.floor(plan.tracks.length*.45)];
  if(print){const p=dryFooting(print.x,print.z,2.2);if(p)visits['sample-tracks']={id:'sample-tracks',title:'湿岸上的三趾步迹',p,gaze:[print.x,print.y+.006,print.z],time:12.6};}
  return visits;
@@ -303,21 +327,33 @@ function habitatVisits(data,plan){
 export class SampleHabitatEnrichment{
  static async create(app,data){
   if(!data.field.continuousSample)return null;
-  const entries=await Promise.all(Object.entries(URLS).map(async([id,url])=>[id,await loadGLB(url)]));
-  return new SampleHabitatEnrichment(app,data,Object.fromEntries(entries));
+  const [model, track] = await Promise.all([loadGLB(PLANTS), loadGLB(TRACK)]);
+  const atlas = await plantTexture(model);
+  try {
+   return new SampleHabitatEnrichment(app,data,model,track,atlas);
+  } catch (error) {
+   atlas.destroy();
+   throw error;
+  }
  }
- constructor(app,data,models){
+ constructor(app,data,model,track,atlas){
+  this.atlas=atlas;
   this.group=new Group();this.group.name='Sample fern margins, aquatic plants and dinosaur tracks';
   this.data=data;this.plan=planSampleHabitat(data,app.vegetation?.records??[],readTrackPath(data));
-  this.visits=habitatVisits(data,this.plan);
-  const kinds=SPECS.map(spec=>({geometry:spec.id==='seagrass'?createSeagrass(mulberry32(281096),0):habitatGeometry(models[spec.id],spec.id),shadow:spec.mode===0}));
-  // Native sea grass attributes use native reef meanings; convert colour/AO
-  // once to our lean leaf material, keeping its tapered blade geometry.
-  const sea=kinds.at(-1).geometry,sp=sea.attributes.position,sd=sea.attributes.aData;
-  for(let i=0;i<sp.count;i++){sd.setY(i,0x354b2b);sd.setZ(i,.73+.27*smooth(.01,.12,sp.getY(i)));}
+  this.visits=habitatVisits(data,this.plan,app);
+  const kinds=SPECS.map(spec=>({geometry:plantGeometry(model,spec),shadow:spec.mode===0}));
   this.batch=new ReefBatch('Sample Habitat Vault Plants',kinds,{maxInstances:Math.max(1,this.plan.plants.length)});
+  const uv=new Float32Array(this.batch.vertexCount*2);
+  let offset=0;
+  for(const {geometry} of kinds){
+   const n=geometry.attributes.position.count;
+   if(geometry.attributes.uv)uv.set(geometry.attributes.uv.array,offset);
+   else for(let i=0;i<n;i++){uv[offset+i*2]=.875;uv[offset+i*2+1]=.75;}
+   offset+=n*2;
+  }
+  this.batch.geometry.setAttribute('uv',new BufferAttribute(uv,2));
   this.view=new UniformBlock('SampleHabitatView',{position:['vec3f',new Vector3()]});
-  this.material=createHabitatPlantMaterial(this.batch,app.terrainGPU,this.view);
+  this.material=createHabitatPlantMaterial(this.batch,app.terrainGPU,this.view,{atlas});
   this.group.add(this.batch.createMesh(this.material,{castShadow:true}));
   for(const [i,p]of this.plan.plants.entries()){
    const half=p.yaw*.5;
@@ -326,7 +362,7 @@ export class SampleHabitatEnrichment{
   this.batch.upload();
   this.trackMesh=null;
   if(this.plan.tracks.length){
-   const geometry=footprintGeometry(models['three-toed-track'],this.plan.tracks,data.terrain),material=app.terrain.material.clone();
+   const geometry=footprintGeometry(track,this.plan.tracks,data.terrain),material=app.terrain.material.clone();
    material.name='Terrain-matched shallow dinosaur impressions';material.attributes={aFoot:'vec2f'};material.varyings={vFoot:'vec2f'};material.vertex='o.vFoot=v.aFoot;';
    material.surface+=`\nlet pressed=in.vs.vFoot.x;let age=in.vs.vFoot.y;s.albedo*=1.0-pressed*(.22+age*.18);s.roughness=mix(s.roughness,.66,pressed*.55);s.ao*=1.0-pressed*.16;s.normal=normalize(mix(s.normal,in.N,.72));`;
    const mesh=this.trackMesh=new Mesh(geometry,material);mesh.name='Parasaurolophus-like wet-bank track trail';mesh.castShadow=false;mesh.receiveShadow=true;mesh.staticVelocity=true;this.group.add(mesh);
@@ -347,8 +383,23 @@ export class SampleHabitatEnrichment{
   this.batch.commit();
   if(this.trackMesh)this.trackMesh.visible=this.plan.tracks.some(p=>Math.hypot(cp.x-p.x,cp.y-p.y,cp.z-p.z)<34);
  }
+ dispose(){
+  if(this.disposed)return;
+  this.disposed=true;
+  this.group.removeFromParent();
+  this.batch.dispose();
+  this.material.uniformBlock.buffer?.destroy();
+  this.material.dispose();
+  this.view.buffer?.destroy();
+  this.atlas.destroy();
+  if(this.trackMesh){
+   this.trackMesh.geometry.dispose();
+   this.trackMesh.material.uniformBlock.buffer?.destroy();
+   this.trackMesh.material.dispose();
+  }
+ }
  stats(){
   const p=this.plan;
-  return {sourceRevision:'38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af',plants:p.plants.length,byForm:p.counts,visiblePlants:this.batch.visibleInstances,visibleTriangles:this.batch.visibleTriangles,plantDrawKinds:this.batch.mainOffsets.length,sourceForms:6,nativeSeagrass:true,tracks:p.tracks,trackPath:p.trackPath,trackGroundAudit:this.trackGroundAudit??null,trackTriangles:this.trackMesh?.geometry.index.count/3??0,trackPlacement:'source cavity topology, no substrate slab; terrain-matched 2–15 mm shallow relief; older artistic Parasaurolophus-like hindfoot trail, not current short-step footfalls',submergedPlants:p.plants.filter(x=>x.mode>=2).length,emergentFreshwaterMargins:p.plants.filter(x=>x.mode===1).length,landPlants:p.plants.filter(x=>x.mode===0).length,minSubmergedHeadroom:Math.min(...p.plants.filter(x=>x.mode>=2).map(x=>x.depth-x.height)),maxRootEmbedMetres:.018,maxRootCentreErrorMetres:Math.max(0,...p.plants.map(x=>Math.abs(x.y+.018-this.data.terrain.heightAt(x.x,x.z)))),sites:p.plants.map(x=>({id:x.id,x:x.x,y:x.y,z:x.z,mode:x.mode,depth:x.depth,height:x.height,slope:x.slope,scale:x.scale})),wind:'root-anchored leaf/branch bend with native frame wind and previous-pose velocity; current and swell for submerged plants',rejections:p.rejections};
+  return {sourceRevision:'b213afa4b401bc5ae9f29a4c3fff8187d2a71142',plants:p.plants.length,byForm:p.counts,visiblePlants:this.batch.visibleInstances,visibleTriangles:this.batch.visibleTriangles,plantDrawKinds:this.batch.mainOffsets.length,sourceForms:4,nativeSeagrass:true,tracks:p.tracks,trackPath:p.trackPath,trackGroundAudit:this.trackGroundAudit??null,trackTriangles:this.trackMesh?.geometry.index.count/3??0,trackPlacement:'source cavity topology, no substrate slab; terrain-matched 2–15 mm shallow relief; older artistic Parasaurolophus-like hindfoot trail, not current short-step footfalls',submergedPlants:p.plants.filter(x=>x.mode>=2).length,emergentFreshwaterMargins:p.plants.filter(x=>x.mode===1).length,landPlants:p.plants.filter(x=>x.mode===0).length,minSubmergedHeadroom:Math.min(...p.plants.filter(x=>x.mode>=2).map(x=>x.depth-x.height)),maxRootEmbedMetres:.018,maxRootCentreErrorMetres:Math.max(0,...p.plants.map(x=>Math.abs(x.y+.018-this.data.terrain.heightAt(x.x,x.z)))),sites:p.plants.map(x=>({id:x.id,x:x.x,y:x.y,z:x.z,mode:x.mode,depth:x.depth,height:x.height,slope:x.slope,scale:x.scale})),wind:'root-anchored leaf/branch bend with native frame wind and previous-pose velocity; current and swell for submerged plants',rejections:p.rejections};
  }
 }

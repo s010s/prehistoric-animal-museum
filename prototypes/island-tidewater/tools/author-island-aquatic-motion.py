@@ -11,7 +11,7 @@ joint numbering and inverse bind matrices remain the island GLB assets'.
 import argparse
 import gzip
 import json
-from math import cos, pi, sin, tau
+from math import cos, pi, radians, sin, tau
 from pathlib import Path
 import struct
 import sys
@@ -261,7 +261,8 @@ class Specimen:
                     continue
                 weight = 1
                 for axis, start, end in definition["windows"]:
-                    weight *= smoothstep((point[axis] - start) / (end - start))
+                    position = sum(a*b for a,b in zip(axis, point)) if isinstance(axis, list) else point[axis]
+                    weight *= smoothstep((position - start) / (end - start))
                 share = round(remaining[i] * weight)
                 if share:
                     group.add([i], share / 65535, "REPLACE")
@@ -340,7 +341,7 @@ class Specimen:
         for label, sample in aux_motion.items():
             bone, anchor = self.auxiliary[label]
             animate(bone, "rotation_quaternion", 4, lambda t: self.auxiliary_rotation(sample(t)))
-            if anchor:
+            if anchor and weights:
                 def follow_morph(t):
                     deltas, idle_weights = anchor
                     delta = sum((direction * (current - reference)
@@ -474,7 +475,7 @@ def opabinia(rig, power):
     rotations = {}
     for i, pair in enumerate((("BodyA.R_016", "BodyA.L_015"), ("BodyB.R_014", "BodyB.L_013"),
                              ("BodyC.R_012", "BodyC.L_011"))):
-        paired(rig, rotations, pair, (.29 + .046 * i) * power, .075 * power, -i * .91)
+        paired(rig, rotations, pair, (.405 + .061 * i) * power, .108 * power, -i * 1.13)
     for i, joint in enumerate(("Body.02_08", "Body.03_09", "Body.04_010")):
         rotations[joint] = lambda t, i=i: {"pitch": .025 * (1 + i) * power * sin(t - .75 * i)}
     for i, name in enumerate(("Probo.01_01", "Probo.02_02", "Probo.03_03", "Probo.04_04")):
@@ -544,9 +545,18 @@ def tullimonstrum(rig, power):
 def dakosaurus(rig, power):
     rotations = {}
     spine(rotations, ("TailBase", "TailTip"), (.117, .254), .89, power, .082)
-    paired(rig, rotations, ("FrontFinR", "FrontFinL"), .116 * power, .125 * power, .79, .19)
-    paired(rig, rotations, ("RearFinR", "RearFinL"), .143 * power, .12 * power, -.96, .20)
-    rotations["Head"] = lambda t: {"yaw": -.045 * power * sin(t + .42),
+    # The source is sculpted in a turn. Opposing front paddles hang at
+    # different angles even in Hover. Re-level each pair about the actual
+    # fin sockets and stagger the left and right recovery strokes.
+    for pair, trim, beat in (("FrontFin", .255, .79), ("RearFin", -.092, -.96)):
+        for hand, side in (("L", -1), ("R", 1)):
+            lag = beat + side * .31
+            rotations[pair + hand] = lambda t, side=side, lag=lag, trim=trim: {
+                "roll": trim + side * .145 * power * pulse(t + lag, .17),
+                "yaw": side * .16 * power * cos(t + lag - .52),
+                "pitch": .025 * power * sin(t + lag - .91),
+            }
+    rotations["Head"] = lambda t: {"yaw": -.112 - .045 * power * sin(t + .42),
                                    "pitch": -.024 * power * sin(2 * t + .4)}
     rotations["Torso"] = lambda t: {"roll": .043 * power * cos(t - .43), "pitch": .024 * power * sin(2 * t)}
     return rotations, {}, {}
@@ -590,6 +600,24 @@ def sarcosuchus(rig, power):
     rotations["Neck"] = lambda t: {"yaw": -.030 * power * pulse(t + .37)}
     rotations["Head"] = lambda t: {"pitch": .022 * power * cos(t - .35)}
     rotations["Jaw"] = lambda t: {"pitch": .012 * (1 - cos(t - .35)) - .032 * (1 - power)}
+    # The tail supplies thrust. Sweep the limbs back for cruise, relax them
+    # while hovering and make a smaller asymmetric correction with each foot.
+    for pair, phase in (("fore", .32), ("hind", 2.45)):
+        for side in (-1, 1):
+            lag = phase + .36 * side
+            root, elbow, foot = [f"Swim {pair} {side} {j}" for j in range(3)]
+            rotations[root] = lambda t, sign=side, lag=lag: {
+                "yaw": -sign * (.04 + .28 * power + (.045 + .075 * power) * sin(t - lag)),
+                "roll": sign * (.05 + .07 * power) * cos(t - lag + .55),
+            }
+            rotations[elbow] = lambda t, sign=side, lag=lag: {
+                "yaw": -sign * (.025 + .115 * power + .05 * cos(t - lag - .45)),
+                "roll": -sign * (.05 + .04 * power) * cos(t - lag - .22),
+            }
+            rotations[foot] = lambda t, sign=side, lag=lag: {
+                "yaw": -sign * (.04 * power + .045 * sin(t - lag - .72)),
+                "roll": -sign * (.055 + .04 * power) * sin(t - lag - .48),
+            }
     return rotations, {}, {}
 
 
@@ -598,12 +626,12 @@ def dallasaurus(rig, power):
     ordered = [name for name in rig.names if name.startswith("j_spine_")
                and int(name.split("_")[2]) >= 6]
     ordered.sort(key=lambda name: int(name.split("_")[2]))
-    strength = [.008 + .071 * (i / (len(ordered) - 1)) ** 1.57 for i in range(len(ordered))]
+    strength = [.012 + .104 * (i / (len(ordered) - 1)) ** 1.57 for i in range(len(ordered))]
     spine(rotations, ordered, strength, .231, power, .078)
     paired(rig, rotations, ("j_leftFrontFlipper_02_093", "j_rightFrontFlipper_010_086"),
-           .16 * power, .105 * power, .44, .23)
+           .205 * power, .145 * power, .44, .23)
     paired(rig, rotations, ("j_leftRearFlipper_01_Bind_065", "j_rightRearFlipper_01_Bind_034"),
-           .090 * power, .077 * power, -.75, .22)
+           .132 * power, .097 * power, -.75, .22)
     return rotations, {}, {}
 
 
@@ -639,13 +667,16 @@ def smoothstep(value):
 
 
 def plesiosaurus(rig, power):
+    if not power:
+        return {}, {}, {}
+
     def weights(t):
         # Source shapes contain four discrete flipper attitudes. Hold a legible
         # catch and recovery before transferring load to the other pair.
         phase = (t / tau + .053 * sin(t - .56)) % 1 * 4
         base = int(phase)
         blend = smoothstep((phase - base - .09) / .82)
-        strength = .62 * power
+        strength = .49 * power
         values = [(.91 - strength), 0.0, 0.0, 0.0]
         values[base] += strength * (1 - blend)
         values[(base + 1) % 4] += strength * blend
@@ -655,13 +686,79 @@ def plesiosaurus(rig, power):
 
 
 def mosasaurus(rig, power):
+    # At value 1 the exhibit's MouthClose still leaves daylight between
+    # the tooth rows. Calibrate the last part of closure on the actual lips.
+    rig.shape_keys(0)[0].slider_max = 1.55
     def weights(t):
         stroke = pulse(t - .14, .075)
         trim = pulse(2 * t - 1.01, .13)
-        return [.97 - .055 * (.5 + .5 * cos(t - .52)), power * max(0, stroke),
+        return [1.49, power * max(0, stroke),
                 power * max(0, -stroke), .51 * power * max(0, trim), .63 * power * max(0, -trim)]
     rotations = {0: lambda t: {"roll": .045 * power * cos(t - .23), "pitch": .023 * power * cos(2 * t - .3)}}
     return rotations, {0: weights}, {}
+
+
+def plesiosaur_appendages(power):
+    # The exhibit mesh has an almost right-angle bend in plan view. Each
+    # cervical section is referenced against its own *source* tangent; the
+    # skull keeps its shape. Angles below are yaw/elevation in model space.
+    stations = (
+        ("neck root", 7.0, -2.3, 3.5, -1.5),
+        ("lower neck", 13.5, 10.0, -2.0, .5),
+        ("first cervical arc", 25.5, 22.0, -4.0, 3.0),
+        ("middle neck", 41.0, 32.0, -2.0, 6.5),
+        ("second cervical arc", 60.0, 35.0, 2.0, 9.0),
+        ("upper neck", 80.0, 30.5, 5.0, 8.0),
+        ("last cervical arc", 88.0, 20.0, 4.0, 5.0),
+        ("head", 89.2, -1.4, 1.6, 1.2),
+    )
+    up, lateral = Vector((0, 1, 0)), Vector((1, 0, 0))
+
+    def orientation(index, t):
+        if index < 0:
+            return Quaternion()
+        _, source_yaw, source_pitch, bearing, elevation = stations[index]
+        u = (index + 1) / len(stations)
+        yaw = bearing + power * (1.4 + 5.6 * u) * sin(t - .85 * u)
+        pitch = elevation + power * (1.1 + 2.0 * u) * cos(t - .7 * u - .4)
+        return (Quaternion(up, radians(yaw)) @ Quaternion(lateral, radians(source_pitch - pitch))
+                @ Quaternion(up, -radians(source_yaw)))
+
+    def rotation(t, index):
+        q = orientation(index - 1, t).inverted() @ orientation(index, t)
+        axis, angle = q.to_axis_angle()
+        return (((axis.z, axis.y, axis.x), angle),)
+
+    motions = {name: lambda t, i=i: rotation(t, i) for i, (name, *_) in enumerate(stations)}
+    # Bring the caudal midline behind the trunk. The source tail turns into
+    # the same side as the skull and the hind paddles inherit the pelvic pose.
+    tail = (("pelvic backbone", 12, 1.0), ("tail root", 15, 1.7),
+            ("middle tail", 18, 2.5), ("distal tail", 16, 3.0))
+    for index, (name, rest_yaw, swing) in enumerate(tail):
+        motions[name] = lambda t, rest=rest_yaw, amp=swing, i=index: (
+            ((0, 1, 0), radians(rest + amp * power * sin(t - .55*i - .9))),)
+
+    # Each exhibited hydrofoil starts at a different sweep and height.
+    # Register shoulder-to-tip axes independently before adding each stroke.
+    flippers = (("left fore", (-143,-82,-81), -1, True), ("right fore", (176,-67,-39), 1, True),
+                ("left hind", (-53,-7,-177), -1, False), ("right hind", (170,-72,-60), 1, False))
+    for name, direction, side, fore in flippers:
+        neutral = Vector((side * (.89 if fore else .83), -.18, -.43 if fore else -.54)).normalized()
+        correction = Vector(direction).rotation_difference(neutral)
+        parent = Quaternion(up, radians(12)) if not fore else Quaternion()
+        base = parent.inverted() @ correction
+        axis, angle = base.to_axis_angle()
+        prep = ((axis.z, axis.y, axis.x), angle)
+        # The rear pair follows the front pair. The blade changes its pitch
+        # between the loaded downstroke and unloaded return.
+        lag = .16 if fore else -1.54
+        swing = .45 if fore else .43
+        motions[name + " hydrofoil"] = lambda t, s=side, lag=lag, swing=swing, prep=prep: (
+            prep, ((1, 0, 0), s * swing * power * pulse(t + lag + .055*s)),
+            ((0, 1, 0), s * .25 * power * cos(t + lag - .33)),
+            ((0, 0, 1), .14 * power * sin(t + lag - 1.02)),
+        )
+    return motions
 
 
 def auxiliary_motion(animal, power):
@@ -672,21 +769,14 @@ def auxiliary_motion(animal, power):
             for side in (-1, 1):
                 name = f"{'fore' if fore else 'hind'} flipper {side}"
                 axis = (-.59, -.27, side * .75) if fore else (-.70, -.17, side * .69)
-                amplitude, lag = (.167, -.37) if fore else (.129, -1.25)
-                motions[name] = lambda t, axis=axis, amplitude=amplitude, lag=lag, side=side: (
+                amplitude, lag = (.30, -.37) if fore else (.215, -1.25)
+                motions[name] = lambda t, axis=axis, amplitude=amplitude, lag=lag, side=side, fore=fore: (
                     (axis, side * (.31 + .69 * power) * amplitude * pulse(2 * t + lag, .135)),
-                    (yaw, side * power * .035 * cos(2 * t + lag - .54)),
+                    (yaw, side * power * (.14 if fore else .095) * cos(2 * t + lag - .54)),
                 )
         return motions
     if animal == "plesiosaurus":
-        return {
-            "neck base": lambda t: ((pitch, .100 + .037 * power * sin(t + .3)),
-                                    (yaw, .012 + .026 * power * sin(t - .2))),
-            "middle neck": lambda t: ((pitch, .142 + .052 * power * pulse(t - .56)),
-                                      (yaw, -.032 + .059 * power * cos(t - .61))),
-            "head": lambda t: ((pitch, .034 - .053 * power * pulse(t - .88)),
-                               (yaw, -.015 - .029 * power * cos(t - .94))),
-        }
+        return plesiosaur_appendages(power)
     return {}
 
 
@@ -703,7 +793,7 @@ CLIP_BANK = {
     "styxosaurus": (styxosaurus, ("Swim", 2.33, 1, 30), ("Hover", 3.54, .39, 30)),
     "megalodon": (megalodon, ("Swim", 2.51, 1, 30), ("Hover", 3.62, .46, 30)),
     "mosasaurus": (mosasaurus, ("Swim", 2.19, .92, 36), ("Hover", 3.19, .48, 36)),
-    "plesiosaurus": (plesiosaurus, ("Swim", 2.08, .91, 36), ("Hover", 3.13, .54, 36)),
+    "plesiosaurus": (plesiosaurus, ("Swim", 2.08, .91, 36), ("Hover", 3.13, .54, 36), ("Idle", 8.0, 0, 3)),
 }
 
 

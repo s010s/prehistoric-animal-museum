@@ -131,6 +131,10 @@ def sordes(t):
     pose['Bone_20'] = (1.6 * drift, 0, 2.3 * power * stroke(phase - .32))
     pose['Bone.002_4'] = (0, 2.5 * drift, 2.7 * power * stroke(phase - .63))
     pose['Bone.003_3'] = (0, 3.5 * math.sin(t * math.tau - .55), 3.6 * power * stroke(phase - .9))
+    # The .002/.003 chain is the tail. Animate the opposing neck chain too,
+    # letting the head look across the glide path independently of the wings.
+    pose['Bone.004_2'] = (0, 2.7 * drift, -.9 * power * stroke(phase - .37))
+    pose['Bone.005_1'] = (0, 3.8 * math.sin(t * math.tau - .22), -1.3 * drift)
     return pose, None
 
 
@@ -157,6 +161,9 @@ def archaeopteryx(t):
         pose[f'{label}_foot'] = (0, 0, -13)
     pose['Hip'] = (0, 0, 18 + 2.0 * power * stroke(phase - .45))
     pose['Neck_01'] = (0, 0, -8 - 1.9 * power * stroke(phase - .44))
+    gaze = math.sin(t * math.tau)
+    pose['Neck_02'] = (0, 2.7 * gaze, -.75 * power * stroke(phase - .5))
+    pose['Head_01'] = (0, 3.3 * math.sin(t * math.tau - .26), -1.0 * gaze)
     pose['Tail_01'] = (0, 1.2 * math.sin(t * math.tau), -13 + 2.0 * power * stroke(phase - .72))
     pose['Tail_06'] = (0, 0, -4 + 2.1 * power * stroke(phase - 1))
     return pose, None
@@ -179,11 +186,17 @@ def quetzalcoatlus(t):
     breath = math.sin(t * math.tau)
     pose['Bone_01'] = (1.4 * breath, 0, 18 + 1.8 * stance)
     pose['Bone.002_015'] = (0, 0, 17 + 1.6 * stance)
-    pose['Bone.003_016'] = (0, 0, 7 + 1.2 * stance)
-    pose['Bone.004_017'] = (0, 0, 5)
+    pose['Bone.003_016'] = (0, 2.1 * breath, 7 + 1.2 * stance)
+    pose['Bone.004_017'] = (0, 2.9 * math.sin(t * math.tau - .28), 5)
     pose['Bone.005_018'] = (0, 0, -5)
-    pose['Bone.006_019'] = (0, 0, -24 - 1.2 * stance)
+    # The source held the mandible wide open. It pivots from the same hinge
+    # as the skull; preserve the upper outline and settle the lower beak.
+    pose['Bone.006_019'] = (0, 0, -35.5 + .55 * breath - 1.2 * stance)
     pose['Bone.007_00'] = (0, 0, -24 - 1.2 * stance)
+    for leg, ankle in [('Bone_L.001_021', 'Bone_L.003_023'),
+                       ('Bone_R.001_026', 'Bone_R.003_028')]:
+        pose[leg] = (0, 0, 13 + 1.1 * stance)
+        pose[ankle] = (0, 0, 9 + .7 * math.sin(t * math.tau - .55))
     return pose, None
 
 

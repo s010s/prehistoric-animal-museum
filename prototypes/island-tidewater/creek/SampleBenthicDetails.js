@@ -17,7 +17,7 @@ const patches=[
  {id:'silt-pool',key:'siltPool',rx:13,rz:16,rocks:42,plants:46,meadows:0,marine:false,min:.75,max:2.8},
  {id:'lower-creek',key:'lowerCreek',rx:17,rz:19,rocks:42,plants:42,meadows:0,marine:false,min:.65,max:3.0},
  {id:'brackish-mouth',key:'transition',rx:12,rz:10,rocks:23,plants:10,meadows:0,marine:false,min:.9,max:2.7},
- {id:'marine-mouth',key:'aeger',rx:27,rz:25,rocks:48,plants:51,meadows:26,hard:4,shells:22,marine:true,min:1.35,max:3.7},
+ {id:'marine-mouth',key:'marineBed',rx:27,rz:25,rocks:48,plants:51,meadows:26,hard:4,shells:22,marine:true,min:1.35,max:3.7},
  {id:'sheltered-shelf',key:'sea',rx:30,rz:28,rocks:49,plants:58,meadows:32,hard:4,shells:22,marine:true,min:1.5,max:4.0,offsetX:-10},
  {id:'southern-shelf',key:'sea',rx:28,rz:26,rocks:38,plants:47,meadows:26,hard:3,shells:20,marine:true,min:1.2,max:3.6,offsetX:-24,offsetZ:-33},
  {id:'northern-shelf',key:'sea',rx:29,rz:27,rocks:38,plants:48,meadows:26,hard:3,shells:20,marine:true,min:1.15,max:3.6,offsetX:-20,offsetZ:34},
@@ -83,21 +83,21 @@ export class SampleBenthicDetails{
      }
      for(let i=0;i<3;i++){
       const a=yaw+i*2.399,r=1+rng()*2,x=anchor.x+Math.cos(a)*r,z=anchor.z+Math.sin(a)*r,floor=ground(x,z);
-      if(slope(x,z)<.22&&!inSandChannel(x,z))this.spongeSites.push({x,z,floor,depth:water(x,z,true)-floor,kind:SPONGES[(garden+i)%SPONGES.length],span:.24+rng()*.24,yaw:rng()*6.283,garden});
+      if(slope(x,z)<.22&&!inSandChannel(x,z))this.spongeSites.push({x,z,floor,depth:water(x,z,true)-floor,kind:SPONGES[(garden+i)%SPONGES.length],span:.12+rng()*.12,yaw:rng()*6.283,garden});
      }
-     // Ten shell shapes form denser lag deposits at the edge of each reef,
+     // Shell lag deposits collect at the edge of each reef,
      // with smaller scattered shells in the intervening sand.
      for(let i=0;i<spec.shells;i++){
        const a=yaw+i*2.399+rng()*.35,r=2.4+rng()*2.8,x=anchor.x+Math.cos(a)*r,z=anchor.z+Math.sin(a)*r;
        const floor=ground(x,z),depth=water(x,z,true)-floor;
        if(depth<1.15||depth>4.2||slope(x,z)>.25||inSandChannel(x,z))continue;
-       const kind=SHELLS[(garden*3+i)%SHELLS.length],upright=(kind==='hippurites'||kind==='radiolites')&&i%3===0;
-       this.shellSites.push({x,z,floor,depth,embedFraction:.18+rng()*.26,kind,span:kind==='pinna'?.25+rng()*.15:.11+rng()*.17,yaw:rng()*Math.PI*2,lean:.05+rng()*.18,upright,garden});
+       const kind=SHELLS[(garden*3+i)%SHELLS.length];
+       this.shellSites.push({x,z,floor,depth,embedFraction:.18+rng()*.26,kind,span:.065+rng()*.095,yaw:rng()*Math.PI*2,lean:.05+rng()*.18,garden});
      }
     }
     for(let i=0;i<18;i++){
      const p=pick(spec,center,this.shellSites,.30,120);if(!p)continue;
-     this.shellSites.push({...p,kind:SHELLS[i%SHELLS.length],span:.09+rng()*.10,embedFraction:.2+rng()*.24,yaw:rng()*6.283,lean:rng()*.18,garden:-1});
+     this.shellSites.push({...p,kind:SHELLS[i%SHELLS.length],span:.045+rng()*.075,embedFraction:.2+rng()*.24,yaw:rng()*6.283,lean:rng()*.18,garden:-1});
     }
    }
    for(let i=0;i<spec.plants;i++){
@@ -157,5 +157,5 @@ export class SampleBenthicDetails{
   }
   this.batch.commit();
  }
- stats(){return {plants:this.plants.length,marinePlants:this.plants.filter(p=>p.marine).length,meadows:this.plants.filter(p=>p.kind==='meadow').length,visiblePlants:this.visiblePlants,hardbottomPieces:this.hardSites.length,coralSpecies:Object.fromEntries(CORALS.map(c=>[c.id,this.coralSites.filter(s=>s.kind===c.id).length])),shellSpecies:Object.fromEntries(SHELLS.map(id=>[id,this.shellSites.filter(s=>s.kind===id).length])),reefGardens:this.reefGardens,coralSites:this.coralSites,shellSites:this.shellSites,spongeSites:this.spongeSites,patches:this.patchCounts,pebbleTriangles:this.rockPatches.reduce((n,p)=>n+p.triangles,0),placement:'17 Vault coral forms in separated dense gardens, 10 shell shapes in lag deposits, sponges and seagrass beside an open sand channel; freshwater rooted clumps follow deepened pools'};}
+ stats(){return {plants:this.plants.length,marinePlants:this.plants.filter(p=>p.marine).length,meadows:this.plants.filter(p=>p.kind==='meadow').length,visiblePlants:this.visiblePlants,hardbottomPieces:this.hardSites.length,coralSpecies:Object.fromEntries(CORALS.map(c=>[c.id,this.coralSites.filter(s=>s.kind===c.id).length])),shellSpecies:Object.fromEntries(SHELLS.map(id=>[id,this.shellSites.filter(s=>s.kind===id).length])),reefGardens:this.reefGardens,coralSites:this.coralSites,shellSites:this.shellSites,spongeSites:this.spongeSites,patches:this.patchCounts,pebbleTriangles:this.rockPatches.reduce((n,p)=>n+p.triangles,0),placement:'Reviewed coral colonies, shell lag deposits and sponges occupy the sheltered shelf beside an open sand channel'};}
 }

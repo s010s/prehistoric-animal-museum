@@ -1,11 +1,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { MeshoptSimplifier } from 'three/addons/libs/meshopt_simplifier.module.js';
 import { parseGLB } from '../vendor/tidewater/src/engine/loaders/GLTF.js';
-import { prepareReviewedSwimIndices } from '../creek/VaultEnvironmentSwim.js';
+import { REVIEWED_FISH, prepareReviewedSwimIndices } from '../creek/VaultEnvironmentSwim.js';
 import { reviewedFlightGeometry } from '../creek/VaultEnvironmentFlight.js';
 
 const assets = new URL('../creek/assets/', import.meta.url);
-const ids = ['ichthyornis', 'sapeornis', 'meganeura', 'juracimbrophlebia', 'stenodictya', 'falcatus', 'cheiracanthus'];
+const ids = ['ichthyornis', 'sapeornis', 'meganeura', ...REVIEWED_FISH];
 
 // Preserve membrane/feather outlines, skinning discontinuities and atlas seams
 // at distance. Output references original vertices, including all joint weights.
@@ -37,7 +37,7 @@ export async function prepareFaunaLods() {
   for (const id of ids) {
     const input = await readFile(new URL('environment-' + id + '-vault.glb', assets));
     const gltf = parseGLB(input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength));
-    const fish = id === 'falcatus' || id === 'cheiracanthus';
+    const fish = REVIEWED_FISH.includes(id);
     const tiers = fish ? prepareReviewedSwimIndices(gltf, id, MeshoptSimplifier) : flightIndices(gltf, id);
     const vertices = gltf.nodes.reduce((sum, node) => node.mesh === undefined ? sum : sum +
       gltf.meshes[node.mesh].reduce((n, p) => n + p.attributes.POSITION.array.length / 3, 0), 0);

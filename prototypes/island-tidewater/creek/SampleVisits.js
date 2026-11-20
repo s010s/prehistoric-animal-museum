@@ -1,4 +1,35 @@
 import {SAMPLE} from './ContinuousSample.js';
+function shellObservation(data){
+ const bed=data.sampleBenthicDetails;
+ if(!bed?.shellSites.length)return null;
+ const candidates=bed.shellSites.filter(s=>s.garden===0&&s.kind==='naticarius');
+ const nearby=candidates.length?candidates:bed.shellSites;
+ const obstacles=[
+  ...bed.coralSites.concat(bed.spongeSites,bed.shellSites).map(s=>({site:s,radius:s.span*.6})),
+  ...bed.plants.map(s=>({site:s,radius:s.scale*(s.kind==='meadow'?.95:.36)})),
+  ...bed.hardSites.map(s=>({site:s,radius:s.scale*.65})),
+  ...(data.sampleHabitatEnrichment?.plan.plants??[]).filter(s=>s.id==='halimeda').map(s=>({site:s,radius:s.height*.85})),
+ ];
+ for(const shell of [...nearby].sort((a,b)=>b.span*(1-b.embedFraction)-a.span*(1-a.embedFraction))){
+  const range=.47,near=obstacles.filter(o=>o.site!==shell&&Math.hypot(o.site.x-shell.x,o.site.z-shell.z)<o.radius+range+.15);
+  const gazeY=shell.centerY===undefined?shell.floor+shell.span*.24:shell.centerY+shell.halfHeight*.15;
+  // Face the lit spiral flank. The shell's local azimuth rotates opposite
+  // its world XZ bearing under the placement's positive Y-axis rotation.
+  for(const offset of [0,1,-1,2,-2,3,-3,4,-4,5,-5,6,-6,7,-7,8]){
+   const yaw=2.02-shell.yaw+offset*Math.PI/8,dx=Math.cos(yaw),dz=Math.sin(yaw);
+   const x=shell.x+range*dx,z=shell.z+range*dz;
+   const eye=Math.max(data.terrain.heightAt(x,z)+.46,gazeY+.45);
+   if(eye>SAMPLE.sea-.45)continue;
+   const blocked=near.some(({site,radius})=>{
+    const along=Math.max(0,Math.min(range,(site.x-shell.x)*dx+(site.z-shell.z)*dz));
+    return Math.hypot(site.x-shell.x-dx*along,site.z-shell.z-dz*along)<radius+.04;
+   });
+   if(blocked)continue;
+   return {p:[x,z],gaze:[shell.x,gazeY,shell.z],diveLevel:SAMPLE.sea,eyeBelowSurface:SAMPLE.sea-eye};
+  }
+ }
+ return null;
+}
 export function sampleVisits(data){
  const t=data.terrain,fly=(id,title,p,gaze,note)=>({id,title,p,gaze,fly:true,time:12.6,note}),ground=(id,title,p,gaze,note)=>({id,title,p,gaze,time:12.6,note});
  const visits={
@@ -10,7 +41,7 @@ export function sampleVisits(data){
   'sample-roots':ground('sample-roots','巨木坡脚与根盘',[-716,-321],[-727,t.heightAt(-727,-325)+1.5,-325],'从溪岸靠近巨木坡脚，观察根盘如何贴合真实坡面，沿倒木和幼树间的空隙通过。'),
   'sample-stream':ground('sample-stream','弯流与石滩',[-742,-153],[-751,18.3,-160],'从岸边看弯道、水深变化与非周期石滩。谷地外缘接回原岛屿。'),
   'sample-mouth':ground('sample-mouth','溪水进入浅湾',[-823,119],[-858,-.45,123],'溪床连续下降，咸淡水接管在同一床面上展开。前方是浅海砂槽。'),
-  'sample-under':{id:'sample-under',title:'浅湾水下砂槽',p:[-966,146],gaze:[-979,-2.1,148],diveLevel:SAMPLE.sea,time:12.6,note:'游过河口砂槽，观察海生鱼和 Anomalocaris，再沿浅坡上岸。'},
+  'sample-under':{id:'sample-under',title:'浅湾水下砂槽',p:[-966,147.35],gaze:[-969.6,-2.45,145.2],diveLevel:SAMPLE.sea,eyeBelowSurface:.75,time:12.6,note:'游过河口砂槽，观察尖吻鱼和镰鳍鲨，再沿浅坡上岸。'},
   'sample-overview':fly('sample-overview','从岩隙泉到浅海',[-1090,195,-90],[-704,28,-180],'这条有限样板约一公里，包含泉口、细沟、池潭、巨木溪谷、河口与浅海。'),
   'sample-mouth-aerial-land':fly('sample-mouth-aerial-land','河口俯瞰向岸',[-943.92,116.62,140.27],[-864.52,51.21,130.49],'固定机位，检查溪道、沙滩与海岸接续。'),
   'sample-mouth-aerial-sea':fly('sample-mouth-aerial-sea','河口俯瞰向海',[-943.92,116.62,140.27],[-1023.30,42.20,150.23],'与向岸视角同机位，检查浅海床面与浪线。'),
@@ -43,7 +74,7 @@ export function sampleVisits(data){
   return best??{p:[cx+22,cz],fallback:true};
  };
  const lower=data.sampleLife?.lowerCreek;
- for(const [key,prefix,title] of [['siltPool','sample-mid-creek','溪潭里的 Dipterus'],['logPool','sample-log-fish','倒木潭里的 Coccosteus']]){
+ for(const [key,prefix,title] of [['siltPool','sample-mid-creek','溪潭里的棘鱼'],['logPool','sample-log-fish','倒木潭里的盾皮鱼']]){
   const school=data.sampleLife?.[key];if(!school)continue;
   const bank=bankFooting(school.x,school.z,-1);
   const gazeY=key==='siltPool'?school.floor+.34:(school.h+school.floor)*.5;
@@ -73,13 +104,31 @@ export function sampleVisits(data){
  const transitionPoint=transition??{x:-858,z:123,floor:t.heightAt(-858,123)};
  const transitionBank=bankFooting(transitionPoint.x,transitionPoint.z,1);
  visits['sample-estuary-life']={...ground('sample-estuary-life',transition?'咸淡水交界的鱼':'河口浅岸',transitionBank.p,[transitionPoint.x,transition?transition.h-.55:transitionPoint.floor+.35,transitionPoint.z],transition?'从干岸顺河口看 Eusthenopteron。':'当前过渡带鱼群未找到合适水深，回退到河口浅岸观察。'),habitatAvailable:!!transition,footing:transitionBank};
- const aeger=data.sampleLife?.aeger;
- const benthicPoint=aeger??{x:-966,z:146,floor:t.heightAt(-966,146)};
- visits['sample-benthos']={id:'sample-benthos',title:aeger?'浅海底栖观察':'浅海底床观察',p:[benthicPoint.x+(aeger?1.9:0),benthicPoint.z+(aeger?1.1:0)],gaze:[benthicPoint.x,benthicPoint.floor+.055,benthicPoint.z],diveLevel:SAMPLE.sea,eyeBelowSurface:1.95,time:12.6,note:aeger?'近看 Aeger 和 Eryon；沿缓坡向海侧游可见硬底珊瑚。':'当前底栖群未找到合适水深，回退到浅海底床观察。',habitatAvailable:!!aeger};
+ const bed=data.sampleLife?.marineBed??{x:-966,z:146,floor:t.heightAt(-966,146)};
+ const bedEye=[bed.x+1.9,bed.z+1.1];
+ const colony=data.sampleBenthicDetails?.coralSites.reduce((nearest,site)=>{
+  if(site.span<.3)return nearest;
+  const distance=Math.hypot(site.x-bedEye[0],site.z-bedEye[1]);
+  return distance>1&&distance<12&&(!nearest||distance<nearest.distance)?{site,distance}:nearest;
+ },null)?.site;
+ const bedGaze=colony?[colony.x,colony.floor+colony.span*.24,colony.z]:[bed.x,bed.floor+.1,bed.z];
+ visits['sample-benthos']={id:'sample-benthos',title:colony?'浅海底栖观察':'浅海底床观察',p:bedEye,gaze:bedGaze,diveLevel:SAMPLE.sea,eyeBelowSurface:1.95,time:12.6,note:colony?'贴近海床观察珊瑚群落，再沿沙隙游向浅湾。':'沿浅湾砂槽观察海床与沙纹。',habitatAvailable:!!colony};
  const garden=data.sampleBenthicDetails?.reefGardens[0];
- if(garden)visits['sample-coral']={id:'sample-coral',title:'浅海珊瑚花园',p:[garden.x+5.6,garden.z+1.5],gaze:[garden.x,garden.floor+.4,garden.z],diveLevel:SAMPLE.sea,eyeBelowSurface:1.35,time:12.6,note:'沿沙隙游过枝状、管状、盘状、蜂巢状和单体杯状珊瑚。'};
- const shell=data.sampleBenthicDetails?.shellSites.find(site=>site.kind==='neithea');
- if(shell)visits['sample-shells']={id:'sample-shells',title:'贝壳沉积带',p:[shell.x+1.6,shell.z+1.2],gaze:[shell.x,shell.floor+.08,shell.z],diveLevel:SAMPLE.sea,eyeBelowSurface:Math.max(.85,SAMPLE.sea-shell.floor-.65),time:12.6,note:'近看不同形态的壳体与半埋沙中的边缘。'};
+ if(garden){
+  // An outer honeycomb colony has open water on the observer's side and
+  // the rest of the garden behind its sunlit crown.
+  const edgeX=garden.x-2.8,edgeZ=garden.z+.5;
+  const coral=data.sampleBenthicDetails.coralSites.filter(site=>site.garden===0&&site.kind==='favosites')
+   .sort((a,b)=>Math.hypot(a.x-edgeX,a.z-edgeZ)-Math.hypot(b.x-edgeX,b.z-edgeZ))[0];
+  const range=coral?coral.span*2:4;
+  const target=coral??garden;
+  const gazeY=coral?(coral.centerY===undefined?coral.floor+coral.span*.36:coral.centerY+coral.halfHeight*.57):garden.floor+.4;
+  const p=[target.x-Math.sqrt(3)*.5*range,target.z+.5*range];
+  const eye=Math.min(SAMPLE.sea-.4,Math.max(t.heightAt(...p)+.65,gazeY+.74*range));
+  visits['sample-coral']={id:'sample-coral',title:'浅海珊瑚花园',p,gaze:[target.x,gazeY,target.z],diveLevel:SAMPLE.sea,eyeBelowSurface:SAMPLE.sea-eye,time:12.6,note:'近看蜂巢珊瑚相连的小室，再沿沙隙游过整片群落。'};
+ }
+ const shells=shellObservation(data);
+ if(shells)visits['sample-shells']={id:'sample-shells',title:'贝壳沉积带',...shells,time:12.6,note:'近看月螺壳顶的螺旋，再沿沙地寻找扇形的双壳。'};
  // Widening moves the waterline. Re-seat former fixed dry-bank arrivals
  // against the same physical field used by the water and player collision.
  for(const visit of Object.values(visits)){

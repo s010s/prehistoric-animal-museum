@@ -1397,17 +1397,17 @@
         }
       ],
       "geometry": {
-        "bytes": 9651374,
+        "bytes": 9652910,
         "triangles": 249997,
         "vertices": 130547,
-        "paletteRows": 8
+        "paletteRows": 20
       },
       "textureBytes": 18175304,
-      "gpuBytes": 27826678,
-      "bytes": 7646202,
-      "unpackedBytes": 11279444,
+      "gpuBytes": 27828214,
+      "bytes": 7838795,
+      "unpackedBytes": 11281412,
       "path": "museum/assets/island/sarcosuchus.glb.gz",
-      "sha256": "00a0f26268aa9ced69505db4079eb14bbfe6fc23b45c3bcdc7fed81ac90e6ff5",
+      "sha256": "60c178e8938e7b449e1a6dad88418f93e7c27cdc494dea1ffae82b42b96bb9a2",
       "source": "src/content/animals/sarcosuchus/model/model.glb",
       "sourceSha256": "f31490d167289a724a77f33b2040fc66f377c52a7f01bb1e361a2e5f011ceb20",
       "sourceBytes": 17945692,

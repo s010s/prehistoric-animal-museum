@@ -4,11 +4,13 @@ import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
 import {generateMipmaps} from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
 
 const sources = {
+ diplomystus: new URL('./assets/environment-diplomystus-vault.glb', import.meta.url),
+ aspidorhynchus: new URL('./assets/environment-aspidorhynchus-vault.glb', import.meta.url),
+ coccosteus: new URL('./assets/environment-coccosteus-vault.glb', import.meta.url),
+ eusthenopteron: new URL('./assets/environment-eusthenopteron-vault.glb', import.meta.url),
  ichthyornis: new URL('./assets/environment-ichthyornis-vault.glb', import.meta.url),
  sapeornis: new URL('./assets/environment-sapeornis-vault.glb', import.meta.url),
  meganeura: new URL('./assets/environment-meganeura-vault.glb', import.meta.url),
- juracimbrophlebia: new URL('./assets/environment-juracimbrophlebia-vault.glb', import.meta.url),
- stenodictya: new URL('./assets/environment-stenodictya-vault.glb', import.meta.url),
  falcatus: new URL('./assets/environment-falcatus-vault.glb', import.meta.url),
  cheiracanthus: new URL('./assets/environment-cheiracanthus-vault.glb', import.meta.url),
 };
@@ -25,11 +27,12 @@ export async function loadReviewedFauna(kind, signal) {
 
 // Source art uses either one albedo atlas or a small set of material colors.
 // The texture and UVs remain independent of the museum's local motion field.
-export async function reviewedAlbedo(gltf, kind, signal) {
+export async function reviewedAlbedo(gltf, kind, signal, slot = 0) {
  const maps = new Set(gltf.materials.flatMap(m => m.pbrMetallicRoughness?.baseColorTexture?.index ?? []));
  if (!maps.size) return null;
- if (maps.size !== 1) throw Error(`Vault atlas changed for ${kind}`);
- const source = gltf.textures[[...maps][0]].source;
+ const expected = kind === 'aspidorhynchus' ? 2 : 1;
+ if (maps.size !== expected || !maps.has(slot)) throw Error(`Vault atlas changed for ${kind}`);
+ const source = gltf.textures[slot].source;
  const image = gltf.images[source];
  const px = await decodeImage(image.bytes, image.mimeType);
  signal?.throwIfAborted();
@@ -45,7 +48,7 @@ export async function reviewedAlbedo(gltf, kind, signal) {
  }
 }
 
-export function reviewedGeometry(gltf, transform, weights, bodyWeights) {
+export function reviewedGeometry(gltf, transform, weights, bodyWeights, splitAtlas = false) {
  const sources = [];
  let vertices = 0, triangles = 0;
  for (const node of gltf.nodes) {
@@ -69,7 +72,14 @@ export function reviewedGeometry(gltf, transform, weights, bodyWeights) {
  for (const {node,p,count,indexCount} of sources) {
   const {POSITION,NORMAL,TEXCOORD_0} = p.attributes;
   const color = (gltf.materials[p.material]?.pbrMetallicRoughness?.baseColorFactor ?? [1,1,1]).slice(0,3);
-  if (TEXCOORD_0) uv.set(TEXCOORD_0.array,v0*2);
+  if (TEXCOORD_0) {
+   uv.set(TEXCOORD_0.array,v0*2);
+   // The repaired Aspidorhynchus collar retains its own atlas. Its triangles
+   // have separate vertices, so the offset stays constant over each face.
+   if (splitAtlas && gltf.materials[p.material].pbrMetallicRoughness.baseColorTexture.index===1) {
+    for(let v=v0; v<v0+count; v++) uv[v*2]+=2;
+   }
+  }
   for (let v=0; v<count; v++) {
    const i=v*3, j=(v0+v)*3, raw=POSITION.array;
    const position=transform(raw[i]+node.t[0],raw[i+1]+node.t[1],raw[i+2]+node.t[2], false);

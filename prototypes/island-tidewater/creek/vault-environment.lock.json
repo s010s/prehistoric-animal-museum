@@ -1,6 +1,6 @@
 {
   "source": "https://github.com/s010s/lowpoly-vault",
-  "revision": "8a9df831e193d347671f46708addd5a19c486536",
+  "revision": "b213afa4b401bc5ae9f29a4c3fff8187d2a71142",
   "branch": "repair/live-models-review",
   "author": "Leon Made This / s010s",
   "license": "CC-BY-4.0",
@@ -22,24 +22,6 @@
       "sha256": "c247fbe0efea51193c946d68e96741f9dc8b78b48f42dbbc0439b30cb03d23c4",
       "triangles": 32999,
       "review": "independent_scoped_review_passed"
-    },
-    {
-      "id": "juracimbrophlebia",
-      "path": "assets/environment-juracimbrophlebia-vault.glb",
-      "source": "assets/additions/juracimbrophlebia/small-life-v1/juracimbrophlebia.glb",
-      "bytes": 117624,
-      "sha256": "b6fa8ebf0995614401b27cafea2e5095f6f48bbdcb69fd99957cacd60272fa94",
-      "triangles": 2128,
-      "review": "accepted_environment_prop"
-    },
-    {
-      "id": "stenodictya",
-      "path": "assets/environment-stenodictya-vault.glb",
-      "source": "assets/additions/stenodictya/lean-ready60-r001/model.glb",
-      "bytes": 1187960,
-      "sha256": "d4f163fba9c943e1aaba695e57d97f9df77ca90eb5fc79698336332af780aa65",
-      "triangles": 21924,
-      "review": "accepted_for_production"
     },
     {
       "id": "falcatus",
@@ -66,6 +48,42 @@
       "bytes": 2260508,
       "sha256": "418fd1353c187d90636ca5d05a8774216ea738da6bad91c99e7bf71779e74e60",
       "triangles": 33336,
+      "review": "independent_scoped_review_passed"
+    },
+    {
+      "id": "diplomystus",
+      "path": "assets/environment-diplomystus-vault.glb",
+      "source": "assets/candidates/diplomystus/material-20261118/model.glb",
+      "bytes": 2010652,
+      "sha256": "e742673713ee66af25d0d7276103c32eae09945048fe9ff9e8b46198324b2a48",
+      "triangles": 33000,
+      "review": "work_in_progress"
+    },
+    {
+      "id": "aspidorhynchus",
+      "path": "assets/environment-aspidorhynchus-vault.glb",
+      "source": "assets/additions/aspidorhynchus/reviewed-release-20261114-13/model.glb",
+      "bytes": 2933556,
+      "sha256": "18e9f0fd3551d7fe2d104ede67ffe8508de984b8771ca83c79b6efbfa44d2753",
+      "triangles": 15208,
+      "review": "independent_scoped_review_passed"
+    },
+    {
+      "id": "coccosteus",
+      "path": "assets/environment-coccosteus-vault.glb",
+      "source": "assets/additions/coccosteus/reviewed-release-20261114-07/model.glb",
+      "bytes": 1924688,
+      "sha256": "fc52469ef9dd3bf5a5bb66bfc4a7018b2be587f50718a2961f55bceb59f9ef27",
+      "triangles": 33000,
+      "review": "independent_scoped_review_passed"
+    },
+    {
+      "id": "eusthenopteron",
+      "path": "assets/environment-eusthenopteron-vault.glb",
+      "source": "assets/additions/eusthenopteron/reviewed-release-20261114-04/model.glb",
+      "bytes": 2014648,
+      "sha256": "fcf72c16455f4e38df3d14dbb02dc397eaf6e707b1df5e1bdf1b0c4ee9d78148",
+      "triangles": 32999,
       "review": "independent_scoped_review_passed"
     }
   ]

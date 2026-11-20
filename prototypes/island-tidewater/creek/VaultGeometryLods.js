@@ -1,13 +1,15 @@
 import { BufferAttribute, BufferGeometry } from '../vendor/tidewater/src/engine/index.js';
 
 const paths = {
+  diplomystus: new URL('./assets/.transport/fauna-diplomystus.indices', import.meta.url),
+  aspidorhynchus: new URL('./assets/.transport/fauna-aspidorhynchus.indices', import.meta.url),
+  coccosteus: new URL('./assets/.transport/fauna-coccosteus.indices', import.meta.url),
+  eusthenopteron: new URL('./assets/.transport/fauna-eusthenopteron.indices', import.meta.url),
   falcatus: new URL('./assets/.transport/fauna-falcatus.indices', import.meta.url),
   cheiracanthus: new URL('./assets/.transport/fauna-cheiracanthus.indices', import.meta.url),
   ichthyornis: new URL('./assets/.transport/fauna-ichthyornis.indices', import.meta.url),
   sapeornis: new URL('./assets/.transport/fauna-sapeornis.indices', import.meta.url),
   meganeura: new URL('./assets/.transport/fauna-meganeura.indices', import.meta.url),
-  stenodictya: new URL('./assets/.transport/fauna-stenodictya.indices', import.meta.url),
-  juracimbrophlebia: new URL('./assets/.transport/fauna-juracimbrophlebia.indices', import.meta.url),
 };
 
 export async function loadReviewedIndices(kind, signal) {

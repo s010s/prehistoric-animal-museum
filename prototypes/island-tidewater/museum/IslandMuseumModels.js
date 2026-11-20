@@ -6,7 +6,7 @@ import { generateMipmaps } from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
 import { decodeImage } from '../vendor/tidewater/src/engine/loaders/GLTF.js';
 import { Material } from '../vendor/tidewater/src/engine/render/Material.js';
 import { LAYERS } from '../vendor/tidewater/src/engine/render/SceneRenderer.js';
-import { applyIslandHeadTurn, makeIslandHeadTurn } from './IslandMuseumHeadTurn.js';
+import { applyIslandHeadTurn, makeIslandHeadTurn, makePlesiosaurSteering } from './IslandMuseumHeadTurn.js';
 import { createIslandModelPose, floatAttribute, islandModelPieces, islandMorphWeights, museumSrgbTextures, museumTextureUsages, parseIslandMuseumModel } from './IslandMuseumModelData.js';
 import { applyIslandAquaticMotion, loadIslandAquaticClips } from './IslandAquaticMotion.js';
 import { applyIslandFlightMotion, loadIslandFlightClip } from './IslandFlightMotion.js';
@@ -332,6 +332,7 @@ async function buildSpecies(id, signal) {
 function instantiateSpecies(asset, release) {
   const { id, metadata, draws, rig, skin, headTurn, legRig } = asset;
   const pose = createIslandModelPose(rig, skin);
+  const steering = makePlesiosaurSteering(id, rig.nodes, skin);
   const group = pose.group, meshes = [], animated = [], materials = new Map(), owned = new Set();
   let disposed = false, headYaw = 0, groundMotion = null, footGrounded = false;
   const dispose = () => {
@@ -406,10 +407,11 @@ function instantiateSpecies(asset, release) {
   const update = (dt, motion) => {
     pose.update(dt);
     const grounded = motion && groundMotion?.apply(pose, { ...motion, dt, lookYaw: headTurn ? 0 : headYaw });
+    const steered = steering?.apply(pose);
     if (headTurn && headYaw) applyIslandHeadTurn(pose, headTurn, headYaw);
     footGrounded = !!grounded;
     if (legRig) syncIslandLegRigPalette(pose, legRig, dt === 0, footGrounded);
-    if (legRig || grounded || (headTurn && headYaw)) {
+    if (legRig || grounded || steered || (headTurn && headYaw)) {
       if (dt === 0) pose.jointData.copyWithin(pose.joints * 16, 0, pose.joints * 16);
       pose.jointBuffer.write(pose.jointData);
     }
@@ -424,6 +426,7 @@ function instantiateSpecies(asset, release) {
   sync(true);
   hold();
   return { group, meshes, update, hold, dispose, groundMotion, get local() { return pose.local; }, get world() { return pose.world; }, get joints() { return pose.joints; },
+    setSwimTurn: steering?.follow,
     headYawLimit: headTurn?.limit ?? groundMotion?.headYawLimit ?? 0, setHeadYaw: radians => { headYaw = radians; },
     clipNames: () => pose.clipNames(), clipDuration: name => pose.clipDuration(name),
     play: (name, options) => pose.play(name, options), get current() { return pose.current; }, get layers() { return pose.layers; } };

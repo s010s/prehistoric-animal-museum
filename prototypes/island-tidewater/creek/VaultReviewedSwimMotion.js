@@ -32,7 +32,42 @@ export const REVIEWED_SWIM_RIGS = {
  },
 };
 
+// Joint landmarks measured on each textured repair, in body lengths from centre.
+// Coccosteus keeps the shield and trunk's anterior section rigid during thrust.
+const teleost=REVIEWED_SWIM_RIGS.cheiracanthus;
+Object.assign(REVIEWED_SWIM_RIGS,{
+ diplomystus:{...teleost,
+  axial:[[0,.001,.296],[0,.003,.163],[0,.002,.04],[0,.002,-.079],[0,.003,-.185],[0,.000,-.276],[0,-.005,-.347]],
+  pectoral:{...teleost.pectoral,root:[.069,-.063,.227],tip:[.073,-.065,.134],parent:1,stroke:.065,sweep:.12},
+  pelvic:{...teleost.pelvic,root:[.031,-.147,.089],tip:[.043,-.206,.051],parent:2},
+  dorsal:{root:[0,.143,.025],parent:2},anal:{root:[0,-.134,-.129],parent:4},cadence:.89,finPhase:.51,
+ },
+ aspidorhynchus:{...teleost,
+  axial:[[0,0,.231],[0,0,.117],[0,.002,.006],[0,.002,-.105],[0,.004,-.204],[0,.004,-.282],[0,.000,-.355]],
+  pectoral:{...teleost.pectoral,root:[.051,-.012,.201],tip:[.094,-.039,.173],parent:0,stroke:.32,sweep:.29,flex:.13},
+  pelvic:{...teleost.pelvic,root:[.032,-.045,-.036],tip:[.059,-.095,-.068],parent:2},
+  dorsal:{root:[0,.056,-.207],parent:4},anal:{root:[0,-.041,-.248],parent:4},cadence:.80,finPhase:1.26,
+  waveGain:[.008,.055,.18,.39,.70,.98,1.12],steadyAngle:.56,
+  caudalRays:[[0,.027,-.403],[0,-.026,-.403]],
+ },
+ coccosteus:{...teleost,
+  axial:[[0,.007,.288],[0,.003,.162],[0,-.001,.047],[0,0,-.068],[0,-.001,-.17],[0,-.001,-.266],[0,.002,-.353]],
+  pectoral:{...teleost.pectoral,root:[.101,-.070,.241],tip:[.210,-.139,.198],parent:0,stroke:.21,sweep:.18},
+  dorsal:{root:[0,.092,-.111],parent:3},anal:{root:[0,-.062,-.219],parent:4},
+  waveGain:[0,0,.028,.27,.61,.94,1.13],turnGain:[0,0,.08,.46,.83,1,.82],cadence:.69,finPhase:1.12,
+ },
+ eusthenopteron:{...teleost,
+  axial:[[0,.001,.276],[0,.004,.156],[0,.000,.049],[0,.000,-.070],[0,-.002,-.171],[0,.004,-.264],[0,.009,-.344]],
+  pectoral:{...teleost.pectoral,root:[.086,-.039,.275],tip:[.148,-.090,.230],parent:0,stroke:.23,sweep:.23,flex:.074},
+  pelvic:{...teleost.pelvic,root:[.046,-.083,-.032],tip:[.065,-.127,-.078],parent:3,stroke:.19,sweep:.15,flex:.061},
+  dorsal:{root:[0,.068,-.152],parent:4},anal:{root:[0,-.068,-.204],parent:4},cadence:.62,finPhase:1.72,
+ },
+});
+
 export const REVIEWED_SWIM_BONES = {pectoral:7,pelvic:11,dorsal:15,anal:16,count:17};
+export function reviewedSwimBoneCount(kind){
+ return REVIEWED_SWIM_BONES.count+(REVIEWED_SWIM_RIGS[kind].caudalRays?.length??0);
+}
 
 const follow = (value,target,dt,rate) => lerp(value,target,-Math.expm1(-dt*rate));
 
@@ -45,21 +80,34 @@ export function reviewedCruiseSpeed(fish,time,distance) {
  return fish.L*targetSpeed*lerp(cruise*lerp(shark?.52:.23,1,approach),1,fish.panic);
 }
 
+// Constrain translation to the animal's current bearing. Steering forces may
+// request a fast reversal near a bank, but cannot make a fish travel tail-first.
+export function steerReviewedSwimmer(fish,dt) {
+ const rig=REVIEWED_SWIM_RIGS[fish.vault], v=fish.velocity;
+ const speed=Math.hypot(v.x,v.z);
+ if(speed<.001*fish.L || dt<=0)return;
+ const desired=Math.atan2(v.x,v.z);
+ if(fish.alignOnWake){fish.yaw=desired;fish.alignOnWake=false;}
+ const heading=angleDiff(desired,fish.yaw),limit=rig.steerRate*(.72+.28*smooth(.1,1.35,speed/fish.L)+fish.panic*.45);
+ fish.turnRate=clamp(heading/dt,-limit,limit);
+ fish.yaw+=fish.turnRate*dt;
+ const forward=speed*Math.max(.12,Math.cos(angleDiff(desired,fish.yaw)));
+ v.x=Math.sin(fish.yaw)*forward;
+ v.z=Math.cos(fish.yaw)*forward;
+}
+
 export function advanceReviewedSwimPose(fish,dt) {
  const rig=REVIEWED_SWIM_RIGS[fish.vault];
  const velocity=fish.velocity, horizontal=Math.hypot(velocity.x,velocity.z), speed=horizontal/fish.L;
- const yaw=speed>.035?Math.atan2(velocity.x,velocity.z):fish.yaw;
- const heading=angleDiff(yaw,fish.yaw), panic=fish.panic;
+ const panic=fish.panic;
  const swim=fish.swimPose??={phase:fish.phase,effort:0,burst:0,bend:0,finEffort:0,pitch:0,roll:0,yawRate:0,vertical:0,steer:0,seed:fish.seed};
- const yawLimit=rig.steerRate*(.63+.37*smooth(.13,1.35,speed)+panic*.45);
- const desiredRate=clamp(heading*rig.headingGain,-yawLimit,yawLimit)*smooth(.035,.27,speed);
+ const desiredRate=fish.turnRate??0;
  swim.yawRate=follow(swim.yawRate,desiredRate,dt,panic>.2?15:9);
- fish.yaw+=swim.yawRate*dt;
- const cruise=smooth(.11,1.95,speed), escape=smooth(.11,.83,panic);
+ const cruise=Math.max(smooth(.11,1.95,speed),.44*smooth(.25,1.75,fish.swimDemand??0)), escape=smooth(.11,.83,panic);
  swim.effort=follow(swim.effort,cruise,dt,cruise>swim.effort?8:3.4);
  swim.burst=follow(swim.burst,escape,dt,escape>swim.burst?13:2.8);
  swim.steer=follow(swim.steer,clamp(desiredRate/rig.steerRate,-1,1),dt,10);
- const curvature=clamp(heading*1.05+swim.yawRate*.09,-1,1);
+ const curvature=clamp(swim.yawRate/rig.steerRate,-1,1);
  swim.bend=follow(swim.bend,curvature*smooth(.045,.49,speed)*(.36+.23*swim.burst),dt,11);
  const pitch=clamp(-Math.atan2(velocity.y,Math.max(fish.L*.35,horizontal)),-.35,.35);
  swim.pitch=follow(swim.pitch,pitch,dt,7);
@@ -146,10 +194,23 @@ export function writeReviewedSwimPalette(out,offset,kind,swim,heading) {
   parentPoint(rootPivot,pivot,rig,parent);
   writeBone(out,offset,REVIEWED_SWIM_BONES[part],axes[parent],pivot,rootPivot,heading);
  }
+ // The trailing rays follow the peduncle with a small delay under load.
+ // Upper and lower forks twist about their own roots, preserving the notch.
+ if(rig.caudalRays){
+  const load=phase-rig.waveLag[6];
+  for(let i=0;i<rig.caudalRays.length;i++){
+   const side=i===0?1:-1;
+   pivot.fromArray(rig.caudalRays[i]);
+   parentPoint(rootPivot,pivot,rig,6);
+   const lag=-Math.cos(load-.34)*effort*.71;
+   const torsion=side*Math.sin(load-.62)*effort*.40;
+   local.setFromEuler(euler.set(0,lag,torsion,'YXZ'));
+   joint.multiplyQuaternions(axes[6],local);
+   writeBone(out,offset,REVIEWED_SWIM_BONES.count+i,joint,pivot,rootPivot,heading);
+  }
+ }
 }
 
-const stride=REVIEWED_SWIM_BONES.count*12;
-const matrices=REVIEWED_SWIM_BONES.count;
 const skinning=/* wgsl */`
 fn reviewedFishMix(a:mat3x4f,b:mat3x4f,w:f32)->mat3x4f {
  return mat3x4f(mix(a[0],b[0],w),mix(a[1],b[1],w),mix(a[2],b[2],w));
@@ -170,6 +231,7 @@ fn reviewedFishPose(base:u32, weights:vec4f, fin:vec2f)->mat3x4f {
 `;
 
 export function createReviewedSwimMotion(batch,kind) {
+ const matrices=reviewedSwimBoneCount(kind),stride=matrices*12;
  const data=new Float32Array(batch.maxInstances*stride*2);
  const buffer=new StorageBuffer({label:batch.name+'.skeleton history',count:batch.maxInstances*matrices*2,type:'mat3x4f',stride:48});
  const module=new ShaderModule({
@@ -179,7 +241,7 @@ export function createReviewedSwimMotion(batch,kind) {
  });
  let min=batch.maxInstances,max=-1;
  return {
-  module,
+  module,matrices,
   setPose(index,pose,heading,fresh) {
    const base=index*stride*2,old=base+stride;
    if(!fresh)data.copyWithin(old,base,old);
@@ -198,7 +260,7 @@ export function createReviewedSwimMotion(batch,kind) {
 }
 
 export function createReviewedSwimMaterial(batch,motion,{fade=false}={}) {
- const record=batch.record('index');
+ const record=batch.record('index'),matrices=motion.matrices;
  return new Material({
   name:batch.name+(fade?' fade':''),
   modules:[batch.module,motion.module,...(fade?[lodFadeModule]:[])],

@@ -1,4 +1,5 @@
 import { Matrix4, Quaternion, Vector3 } from '../vendor/tidewater/src/engine/index.js';
+import { mammothTrunkMotion } from './MammothTrunk.js';
 import { museumGroundActions } from './MuseumGroundActions.js';
 import { museumGroundRigs } from './MuseumGroundRigs.js';
 import { createBipedBodyMotion } from './ground-motion/BipedBody.js';
@@ -181,6 +182,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
   if (!rig) return null;
   const { action, frame, limbs, fore, root, head, tail } = rig;
   const quadruped = fore ? createQuadrupedPerformance(id, pose, metadata) : null;
+  const trunk = id === 'mammoth' ? mammothTrunkMotion(pose, branchAt, orientBranch) : null;
   const biped = fore ? null : createBipedBodyMotion(id, pose, { branchAt, orientBranch });
   const forward = new Vector3(metadata.forward[0], 0, metadata.forward[1]).normalize();
   const right = new Vector3().crossVectors(UP, forward);
@@ -221,7 +223,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
   let seeded = false, desired = false, speed = 0, travelSpeed = 0, cruise = 0, cadenceDistance = maximumStride;
   let phase = 0, gaitWeight = 0, time = 0, previousYaw = 0, curvature = 0, stalled = 0;
   let nextBeat = 0, untilBeat = 0, walked = 0, gaitStride = maximumStride;
-  let supportOffset = null, loadSide = 0, lastSwing = null, stepPhase = 1;
+  let supportOffset = null, reachCompression = null, loadSide = 0, lastSwing = null, stepPhase = 1;
   let terrain = null;
   const previousOrigin = new Vector3();
   const origin = new Vector3(), heading = new Quaternion(), inverse = new Quaternion(), rootMatrix = new Matrix4();
@@ -466,26 +468,66 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
     const rootPivot = limbs.reduce((center, leg) => center.add(positionAt(sampledPose.world, leg.upper.i)), new Vector3())
       .divideScalar(limbs.length);
     const settleOnSlope = point => point.sub(rootPivot).applyQuaternion(roll).add(rootPivot);
-    const groundOffset = supports.reduce((sum, leg) =>
-      sum + (leg.target.y - toWorld(settleOnSlope(leg.neutral.clone())).y) / poseScale, 0) / supports.length;
+    // Sample the ground under the foot trajectories, including the next
+    // foothold during swing. Dropping a downhill foot from this average at
+    // liftoff used to lift the whole uphill flank even before the next landing.
+    const groundOffset = limbs.reduce((sum, leg) => {
+      const floor = leg.stance ? leg.anchor.y : terrain.heightAt(leg.target.x, leg.target.z);
+      return sum + (floor - toWorld(settleOnSlope(leg.neutral.clone())).y) / poseScale;
+    }, 0) / limbs.length;
     supportOffset ??= groundOffset;
     supportOffset += (groundOffset - supportOffset) * postureBlend;
     const breath = Math.sin(time * 1.78) * (1 - gaitWeight) * .004;
-    let baseY = supportOffset + (heave - action.crouch + breath) * shortestLeg;
+    const authoredY = supportOffset + (heave - action.crouch + breath) * shortestLeg;
+    let baseY = authoredY;
     let minimumY = -Infinity;
-    for (const leg of supports) {
+    let stanceCeiling = Infinity;
+    // Constrain both the current ankle and the approaching touchdown. A leg
+    // stepping down a bank must start lowering the pelvis before its toes
+    // reach the downhill end of the swing.
+    for (const leg of limbs) {
       const hip = positionAt(sampledPose.world, leg.upper.i);
       const knee = positionAt(sampledPose.world, leg.lower.i);
       const ankle = positionAt(sampledPose.world, leg.foot.i);
       const reach = hip.distanceTo(knee) + knee.distanceTo(ankle);
       settleOnSlope(hip).add(bodyShift);
       const dx = hip.x - leg.ankleTarget.x, dz = hip.z - leg.ankleTarget.z;
-      const verticalReach = Math.sqrt(Math.max(0, (reach * .995) ** 2 - dx * dx - dz * dz));
-      baseY = Math.min(baseY, leg.ankleTarget.y + verticalReach - hip.y);
+      const extension = id === 'stegosaurus' ? .98 : .995;
+      const verticalReach = Math.sqrt(Math.max(0, (reach * extension) ** 2 - dx * dx - dz * dz));
+      const ceiling = leg.ankleTarget.y + verticalReach - hip.y;
+      baseY = Math.min(baseY, ceiling);
+      if (leg.stance) stanceCeiling = Math.min(stanceCeiling, ceiling);
+      if (!leg.stance) {
+        const remaining = (1 - leg.progress) * leg.swingSpan;
+        const footFrame = inverse.clone().multiply(leg.toHeading)
+          .multiply(correction.setFromAxisAngle(right, leg.pitch));
+        const landing = leg.landing.clone().addScaledVector(motionDirection, -remaining * leg.stride)
+          .applyMatrix4(invGroup).sub(leg.soleVector.clone().applyQuaternion(footFrame));
+        const reachAtLanding = Math.sqrt(Math.max(0, (reach * extension) ** 2
+          - (hip.x - landing.x) ** 2 - (hip.z - landing.z) ** 2));
+        // The allowance shrinks to zero at contact and is expressed in leg
+        // lengths per cycle, so large and small animals share the same timing.
+        baseY = Math.min(baseY, landing.y + reachAtLanding - hip.y + remaining * shortestLeg * .75);
+      }
       const closedReach = Math.abs(reach - 2 * knee.distanceTo(ankle));
       const verticalClosure = closedReach ** 2 - dx * dx - dz * dz;
       if (verticalClosure > 0) minimumY = Math.max(minimumY, leg.ankleTarget.y + Math.sqrt(verticalClosure) - hip.y);
     }
+    // Recover from terrain-induced compression over a fraction of a step.
+    // The authored hip, spine and shoulder motion continues at gait phase.
+    const compression = baseY - authoredY;
+    if (reachCompression === null) {
+      reachCompression = compression;
+    } else if (compression < reachCompression) {
+      // During protraction the foot can stay momentarily higher than its
+      // unloaded target. A planted foot must always stay within reach.
+      reachCompression = Math.max(compression, reachCompression - shortestLeg * .85 * dt / period);
+    } else {
+      reachCompression += Math.min(shortestLeg * .38 * dt / period,
+        (compression - reachCompression) * -Math.expm1(-dt / (period * .19)));
+    }
+    reachCompression = Math.min(reachCompression, stanceCeiling - authoredY);
+    baseY = authoredY + reachCompression;
     bodyShift.y = Math.max(groundOffset - shortestLeg * .36, Math.min(groundOffset + shortestLeg * .12, Math.max(minimumY, baseY)));
     warp(sampledPose, root, rigidTransform(roll, rootPivot, rootPivot.clone().add(bodyShift)));
 
@@ -509,6 +551,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
       orientBranch(sampledPose, head, headPitch, right);
       orientBranch(sampledPose, head, .085 * still * scan + clamp(lookYaw, -.18, .18) + turn * .09, UP);
       orientBranch(sampledPose, tail, tailSwing - turn * .10, UP);
+      trunk?.(phase, gaitWeight, time, forward, right);
     }
     return true;
   }
@@ -522,6 +565,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
       nextBeat = untilBeat = walked = 0;
       time = seedPhaseSeconds;
       supportOffset = null;
+      reachCompression = null;
       loadSide = 0;
       lastSwing = null;
       stepPhase = 1;

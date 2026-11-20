@@ -75,6 +75,14 @@ export async function writeBuildInfo() {
     const bytes=await readFile(new URL('creek/'+item.path,root));
     if(bytes.length!==item.bytes||sha(bytes)!==item.sha256)throw Error('Reviewed island environment asset changed: '+item.id);
   }
+  // The individual hash checks cannot detect an extra, unreviewed export.
+  // Keep each Vault model that can be bundled in the island's reviewed inventory.
+  const reviewedVault = new Set([reef, environmentFauna, habitat, ecology]
+    .flatMap(inventory => inventory.assets.map(item => item.path.split('/').at(-1))));
+  const vaultFiles = (await readdir(new URL('creek/assets/', root))).filter(name => name.endsWith('.glb'));
+  for (const file of vaultFiles) {
+    if (!reviewedVault.has(file)) throw Error('Vault model has no island review record: ' + file);
+  }
   const sampleAnimals=JSON.parse(await readFile(new URL('creek/sample-animals.lock.json',root),'utf8'));
   for(const animal of sampleAnimals.animals){
     const bytes=await readFile(new URL(animal.derived,root));
@@ -84,6 +92,10 @@ export async function writeBuildInfo() {
     if(license.length!==animal.licenseBytes||sha(license)!==animal.licenseSha256)throw Error('Sample museum attribution changed: '+animal.id);
   }
   const museumModels = JSON.parse(await readFile(new URL('museum/island-museum-models.lock.json', root), 'utf8'));
+  const westCoastFlier = sampleAnimals.animals.find(animal => animal.id === 'pteranodon');
+  const museumFlier = museumModels.animals.pteranodon;
+  if (!westCoastFlier || !museumFlier || westCoastFlier.sourceSha256 !== museumFlier.sourceSha256 ||
+      westCoastFlier.source !== museumFlier.source) throw Error('West coast Pteranodon must use the museum source');
   const modelDir = 'museum/assets/island/';
   const expected = museumModels.ids.map(id => id + '.glb.gz').sort();
   const actual = (await readdir(new URL(modelDir, root))).filter(name => name !== '.DS_Store').sort();

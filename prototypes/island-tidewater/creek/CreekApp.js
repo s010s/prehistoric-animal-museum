@@ -184,6 +184,7 @@ export class CreekApp extends MuseumApp {
     this.islandFauna?.dispose();
     this.dynamicMuseumShadows?.dispose();
     this.islandEcology?.dispose();
+    this.habitatEnrichment?.dispose();
     this.islandLandmarkProps?.dispose();
     this.audio?.freshwaterSound?.dispose();
   }

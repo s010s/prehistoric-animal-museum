@@ -1,5 +1,6 @@
 import { Matrix4, Quaternion, Vector3 } from '../vendor/tidewater/src/engine/index.js';
 import { floatAttribute, islandMorphWeights } from './IslandMuseumModelData.js';
+import { fitMammothTrunk, mammothTrunkGpuBytes } from './MammothTrunk.js';
 import { setIslandMotionClip } from './IslandMotionClips.js';
 
 const quadrupeds = new Set([
@@ -26,7 +27,7 @@ const axialRigs = {
 
 export function quadrupedExtraGpuBytes(id) {
   // These joints reuse the four skin attribute slots allocated by the leg rig.
-  return (axialRigs[id]?.length ?? 0) * 128;
+  return id === 'mammoth' ? mammothTrunkGpuBytes : (axialRigs[id]?.length ?? 0) * 128;
 }
 
 function addAxialSkin(id, gltf, pieces, skin, metadata, rig) {
@@ -106,6 +107,7 @@ function addAxialSkin(id, gltf, pieces, skin, metadata, rig) {
 
 export function prepareQuadrupedStride(id, gltf, pieces, skin, metadata, legRig) {
   if (!quadrupeds.has(id) || gltf.animations.some(clip => clip.name === 'StrideBase')) return;
+  if (id === 'mammoth') fitMammothTrunk(gltf, pieces, skin);
   if (axialRigs[id]) addAxialSkin(id, gltf, pieces, skin, metadata, legRig);
   const idle = gltf.animations.find(clip => clip.name === 'Idle');
   const times = new Float32Array(1), reference = new Quaternion(), original = new Quaternion();

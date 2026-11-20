@@ -29,6 +29,7 @@ export function createBipedBodyMotion(id, pose, { branchAt, orientBranch }) {
   }
   const chest = get(rig.chest), neck = get(rig.neck), head = get(rig.head), jaw = get(rig.jaw);
   const tail = rig.tail.map(get);
+  const middleNeck = id === 'phorusrhacos' ? get('Neck') : null;
   const neckTip = id === 'gigantoraptor' ? get('neck7_011_9_35') : null;
   const tongue = id === 'gigantoraptor' ? get('tongue5_018_0_42') : null;
   const tailLandmark = id === 'carnotaurus' ? get('Museum Tail tip landmark')
@@ -60,6 +61,12 @@ export function createBipedBodyMotion(id, pose, { branchAt, orientBranch }) {
     } else if (id === 'gigantoraptor') {
       align(neckTip, head, forward, right, .97);
       align(head, tongue, forward, right, .88);
+    } else if (middleNeck) {
+      // The neck and beak are sculpted to one side of this bird's straight
+      // rest bones. Restore the skin's centreline across both neck sockets.
+      rotate(neck, -15 * degree, up);
+      rotate(middleNeck, -4 * degree, up);
+      rotate(head, 8 * degree, up);
     } else if (id === 'spinosaurus') {
       rotate(chest, 9 * degree, up);
       rotate(tail[0], 9 * degree, up);

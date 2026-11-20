@@ -44,7 +44,7 @@ function obstacleFree(colliders, site, body, route, restingYaw = 0) {
     const c = Math.cos(yaw), s = Math.sin(yaw);
     for (const t of [0, .5]) {
       const px = x + (nextX - x) * t, pz = z + (nextZ - z) * t;
-      const py = y + (nextY - y) * t + (ground ? -body.floor : bed ? hy : 0);
+      const py = y + (nextY - y) * t + (ground || bed ? -body.floor : 0);
       const pad = Math.min(.65, radius * .16);
       const cellX = Math.floor(px / 32), cellZ = Math.floor(pz / 32);
       for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
@@ -67,7 +67,7 @@ function obstacleFree(colliders, site, body, route, restingYaw = 0) {
 
 function claimFor(site, body) {
   const [x, , z] = site.center;
-  const groundLift = site.medium === 'ground' ? -body.floor : site.medium === 'benthic' ? body.half[1] : 0;
+  const groundLift = site.medium === 'ground' || site.medium === 'benthic' ? -body.floor : 0;
   const range = Math.max(...site.path.map(([px, , pz]) => Math.hypot(px - x, pz - z)));
   const y = site.path.map(p => p[1] + groundLift);
   return {

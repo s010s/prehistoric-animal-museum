@@ -2,7 +2,7 @@ import { Quaternion, Sphere, Vector3 } from '../vendor/tidewater/src/engine/inde
 import { islandAssetStats, islandMuseumModels, islandMuseumResidencyBudget, loadIslandMuseumModel } from '../museum/IslandMuseumModels.js';
 import { FaunaResidency } from './FaunaResidency.js';
 import { landTurnRate, makeRoute, routePoint } from './IslandFaunaRoute.js';
-import { aquaticTravel, aquaticYawAmount } from './IslandAquaticLocomotion.js';
+import { aquaticDrive, aquaticTravel, aquaticYawAmount } from './IslandAquaticLocomotion.js';
 import { faunaBodyPlacement, faunaMediumLimits } from './IslandFaunaHabitats.js';
 import { faunaTorso, placeFaunaTorso } from './FaunaLandInteraction.js';
 import { groundLookAngle, groundVisitorAttention } from '../museum/GroundVisitorAttention.js';
@@ -10,7 +10,7 @@ import { attachStreamedFaunaPipelines, markStreamedFaunaMaterials } from '../mus
 import { clipCreekRefraction } from './CreekWater.js';
 
 const SEA = -.7;
-const up = new Vector3(0, 1, 0), lean = new Quaternion(), attitude = new Quaternion(), offset = new Vector3();
+const up = new Vector3(0, 1, 0), bedNormal = new Vector3(), lean = new Quaternion(), attitude = new Quaternion(), offset = new Vector3();
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const mix = (a, b, t) => a + (b - a) * t;
 const signedAngle = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -45,13 +45,13 @@ function place(app, actor, point, dt, groundGait = 0) {
   const onGround = site.medium === 'ground', benthic = site.medium === 'benthic';
   const currentYaw = actor.yaw ?? heading;
   const yawAmount = waterborne(site.medium)
-    ? aquaticYawAmount(dt, actor.aquaticSpeed, site.speed, benthic) : dt * (onGround ? landTurnRate * groundGait : 1.65);
+    ? aquaticYawAmount(dt, actor.drive.speed, site.speed, benthic) : dt * (onGround ? landTurnRate * groundGait : 1.65);
   const yaw = turn(currentYaw, heading, yawAmount);
   const fit = faunaMediumLimits(app.terrainData, app.creekData.field, site, body, x, z, yaw);
   if (!fit) return false;
   const air = site.medium === 'air';
   const clock = actor.time + actor.phase;
-  const bob = onGround || benthic ? 0 : Math.sin(clock * (air ? 1.2 : .67)) * Math.min(.32, body.half[1] * .18);
+  const bob = air ? Math.sin(clock * 1.2) * Math.min(.32, body.half[1] * .18) : 0;
   const boundsY = defaultY + bob;
   const articulationGuard = site.id === 'styxosaurus' ? .12 : site.id === 'quetzalcoatlus' ? .37 : 0;
   const half = body.half;
@@ -60,10 +60,22 @@ function place(app, actor, point, dt, groundGait = 0) {
   const conform = dt ? 1 - Math.exp(-dt * 3) : 1;
   const yawRate = dt ? signedAngle(yaw - currentYaw) / dt : 0;
   const bank = mix(actor.bank ?? 0, clamp(-yawRate * (air ? .3 : .17), -maxLean, maxLean), conform);
-  const pitch = mix(actor.pitch ?? 0, clamp(-Math.cos(clock * (air ? 1.2 : .67)) * (air ? .023 : .016), -maxLean, maxLean), conform);
+  const horizontal = dt ? Math.hypot(x - actor.x, z - actor.z) : 0;
+  const trim = air ? -Math.cos(clock * 1.2) * .023
+    : horizontal > .0001 ? -Math.atan2(defaultY - actor.pathY, horizontal) : 0;
+  const pitch = mix(actor.pitch ?? 0, clamp(trim, -maxLean, maxLean), conform);
   attitude.setFromAxisAngle(up, yaw);
   let margin = 0;
-  if (!onGround && !benthic && site.id !== 'pteranodon') {
+  if (benthic) {
+    // Measure the surface over the crawling animal's footprint. A full
+    // terrain texel spans many body lengths for the 3 cm Hallucigenia.
+    const e = Math.max(.005, Math.min(half[0], half[2]));
+    const terrain = app.terrainData;
+    bedNormal.set(terrain.heightAt(x - e, z) - terrain.heightAt(x + e, z), 2 * e,
+      terrain.heightAt(x, z - e) - terrain.heightAt(x, z + e)).normalize();
+    attitude.premultiply(lean.setFromUnitVectors(up, bedNormal));
+  }
+  if (!onGround && !benthic) {
     attitude.multiply(lean.setFromAxisAngle(body.rightAxis, pitch)).multiply(lean.setFromAxisAngle(body.forwardAxis, bank));
     const { x: qx, y: qy, z: qz, w: qw } = attitude;
     margin = Math.max(0, Math.abs(2 * (qx*qy + qw*qz)) * half[0] + Math.abs(1 - 2 * (qx*qx + qz*qz)) * half[1]
@@ -74,9 +86,10 @@ function place(app, actor, point, dt, groundGait = 0) {
   offset.fromArray(body.center).multiplyScalar(body.scale).applyQuaternion(attitude);
   const rootX = x - offset.x, rootY = y - offset.y, rootZ = z - offset.z;
   if (!placeFaunaTorso(app, actor, rootX, rootY, rootZ, yaw + body.forward, dt > 0 && groundGait > 0)) return false;
+  model.setSwimTurn?.(yawRate, dt);
   model.group.quaternion.copy(attitude);
   model.group.position.set(rootX, rootY, rootZ);
-  actor.x = x; actor.y = y; actor.z = z; actor.yaw = yaw;
+  actor.x = x; actor.y = y; actor.z = z; actor.yaw = yaw; actor.pathY = defaultY;
   actor.bank = bank; actor.pitch = pitch;
   actor.bottomClearance = y - half[1] - margin - fit.bottom;
   actor.surfaceClearance = fit.surface === undefined ? null : fit.surface - y - half[1] - margin;
@@ -110,7 +123,7 @@ function resetActor(app, actor) {
   actor.alert = 0;
   actor.visitorNoticed = false;
   actor.watchSeconds = 0;
-  actor.aquaticSpeed = 0;
+  actor.drive = waterborne(actor.site.medium) ? aquaticDrive(actor.site.id) : null;
   actor.yaw = undefined;
   actor.bank = actor.pitch = actor.headYaw = 0;
   actor.model.groundMotion?.reset(actor.phase);
@@ -120,6 +133,17 @@ function resetActor(app, actor) {
   let fits = place(app, actor, routePoint(actor.route, 0), 0);
   if (!fits) fits = place(app, actor, [...actor.route.origin, actor.route.yaw], 0);
   if (!fits) return false;
+  if (actor.site.medium === 'air' || actor.drive) {
+    // An asynchronous attachment can be drawn before its first simulation tick.
+    // Seat the animal in the flight, hover or swimming pose at its arrival phase.
+    const resting = actor.site.medium === 'benthic' ? actor.clips.idle
+      : actor.drive && ['rest', 'ambush', 'hover'].includes(actor.site.behavior) && actor.clips.hover;
+    actor.clip = resting || actor.clips.movement || actor.clips.idle;
+    const duration = actor.model.clipDuration(actor.clip) || 1;
+    actor.model.layers.length = 0;
+    actor.model.play(actor.clip, { fade: 0, from: actor.phase % duration });
+    actor.model.update(0);
+  }
   // Residency can attach between ticks. Seat the rendered toes before this
   // group joins the scene, including the first frame after a guided jump.
   if (actor.site.medium === 'ground') actor.model.update(0, {
@@ -137,7 +161,10 @@ function moveActor(app, actor, dt, camera) {
   const observerDistance = Math.hypot(camera.x - actor.x, camera.y - actor.y, camera.z - actor.z);
   const active = observerDistance < range + (actor.active ? 12 : 0);
   if (!active) {
-    if (actor.active) model.hold();
+    if (actor.active) {
+      model.hold();
+      if (actor.drive) { actor.drive.speed = 0; actor.drive.loading = 0; }
+    }
     if (actor.collider) actor.collider.solid = false;
     actor.active = group.visible = false;
     return;
@@ -169,27 +196,26 @@ function moveActor(app, actor, dt, camera) {
   const quiet = behavior === 'rest' || behavior === 'ambush' || behavior === 'hover';
   const feeding = /graze|browse|forage/.test(behavior);
   const quietWindow = quiet ? 12 : feeding ? 5 : 1.6;
-  // A guided view can briefly hold a land animal. A flier needs forward
-  // motion even while the visitor is still at the viewing point.
-  const arrivalHold = m !== 'air' && stayedAtArrival && actor.time < 4;
+  // Keep passing marine animals swimming through the observation point.
+  // Crawlers and naturally hovering or ambush species can pause there.
+  const arrivalHold = (ground || benthic || quiet) && stayedAtArrival && actor.time < 4;
   const pause = arrivalHold || (ground && (alert || cycle < quietWindow)) || (benthic && alert)
     || (!ground && quiet && !alert && cycle < quietWindow);
   const moving = route.length > 0 && !pause && (!ground || !!model.groundMotion || !!clips.movement);
   const speed = site.speed ?? 0;
-  const propulsion = wet ? aquaticTravel(actor.aquaticSpeed, speed, moving, alert, benthic, dt) : null;
-  if (propulsion) actor.aquaticSpeed = propulsion.velocity;
+
   const canWatch = ground && (clips.alert || model.headYawLimit);
   actor.response = alert ? ground ? canWatch ? 'watching-visitor' : 'holding-footing' : benthic ? 'holding-bed'
     : m === 'air' ? 'passing-overhead' : 'giving-swimmer-space' : moving ? behavior : 'resting';
   let clip = clips.idle;
   if (m === 'air') clip = clips.movement || clips.idle;
-  else if (propulsion?.propelling ?? moving) clip = ground && model.groundMotion ? clips.strideBase || clips.idle : clips.movement || clips.idle;
+  else if (moving) clip = ground && model.groundMotion ? clips.strideBase || clips.idle : clips.movement || clips.idle;
   else if (!ground && !benthic) clip = clips.hover || clips.movement || clips.idle;
   else clip = (alert && clips.alert) || clips.activity || clips.idle;
   if (clip && clip !== actor.clip) {
     // Match the stroke across Swim/Hover. Changing cadence should not swap
     // a loaded fin for the opposite fin in the middle of its power stroke.
-    const prior = wet ? model.layers.find(layer => layer.clip.name === actor.clip) : undefined;
+    const prior = wet ? model.layers.find(layer => layer.target === 1 && layer.clip.name === actor.clip) : undefined;
     const period = model.clipDuration(clip) || 1;
     const from = prior?.clip.duration > 0 ? (prior.time / prior.clip.duration % 1) * period : actor.phase % period;
     const layer = model.play(clip, { loop: true, from, fade: actor.clip ? .28 : .07 });
@@ -207,7 +233,14 @@ function moveActor(app, actor, dt, camera) {
   }
   const metresPerSecond = ground && model.groundMotion ? model.groundMotion.advance(dt, moving, speed)
     : moving ? speed : 0;
-  const travelled = propulsion?.travelled ?? metresPerSecond * dt;
+  let travelled = metresPerSecond * dt;
+  if (wet) {
+    const stroke = model.layers.find(layer => layer.target === 1 && layer.clip.name === clips.movement);
+    const previousTime = stroke?.time;
+    if (stroke) stroke.speed = alert && !benthic ? 1.32 : 1;
+    model.update(dt);
+    travelled = aquaticTravel(actor.drive, stroke, previousTime, speed, moving, dt);
+  }
   const next = actor.distance + travelled;
   let accepted = 0;
   if (travelled || !ground || !actor.collider?.solid) {
@@ -215,14 +248,11 @@ function moveActor(app, actor, dt, camera) {
       accepted = travelled;
       actor.distance = next;
     } else if (travelled) {
-      if (propulsion) actor.aquaticSpeed = 0;
+      if (wet) { actor.drive.speed = 0; actor.drive.loading = 0; }
       actor.response = 'holding-habitat-edge';
     }
   }
-  if (propulsion) for (const layer of model.layers) {
-    layer.speed = layer.clip.name === clips.movement ? propulsion.cadence : 1;
-  }
-  model.update(dt,
+  if (!wet) model.update(dt,
     ground ? { terrain: app.terrainData, behavior, alert, travelled: accepted } : undefined);
   for (const mesh of model.meshes) mesh.castShadow = !mesh.material.transparent && observerDistance < Math.min(120, range * .67);
 }
