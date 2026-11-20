@@ -42,7 +42,7 @@ import { ShoreWaves } from '../vendor/tidewater/src/ocean/ShoreWaves.js';
 import { ShoreSim } from '../vendor/tidewater/src/ocean/ShoreSim.js';
 import { Caustics } from '../vendor/tidewater/src/ocean/Caustics.js';
 import { installUnderwaterLighting } from '../vendor/tidewater/src/ocean/UnderwaterLighting.js';
-import { RefractionPass } from '../vendor/tidewater/src/ocean/RefractionPass.js';
+import { MuseumRefractionPass } from './MuseumRefractionPass.js';
 import { installGroundBounce } from '../vendor/tidewater/src/materials/GroundBounce.js';
 import { LocalLights, addVillageLights, addBoatLights } from '../vendor/tidewater/src/materials/LocalLights.js';
 import { WaterQuery } from '../vendor/tidewater/src/ocean/WaterQuery.js';
@@ -225,7 +225,7 @@ fn terrainWetness( xz: vec2f, h: f32 ) -> vec2f {
 		installGroundBounce( { terrain: this.terrainGPU, clouds: this.clouds } );
 		this.sceneRenderer = new SceneRenderer( engine.meshRenderer, scene, camera );
 		// the water's refraction source: the scene below the water only, half resolution
-		this.refraction = new RefractionPass( { meshRenderer: engine.meshRenderer, scene, camera, sceneRenderer: this.sceneRenderer, scale: 0.5 } );
+		this.refraction = new MuseumRefractionPass( { meshRenderer: engine.meshRenderer, scene, camera, sceneRenderer: this.sceneRenderer, scale: 0.5 } );
 		this.sceneRenderer.onBeforeWater = () => this.refraction.render( G.seaLevel.value );
 		if ( this.sky.background ) this.sceneRenderer.background = this.sky.background;
 		// lanterns, lamp posts, path lights, lit windows, the boat's cabin / navigation lights and the

@@ -1,10 +1,12 @@
 import {ISLAND_FAUNA_PLAN, ISLAND_FAUNA_REGIONS} from './IslandFaunaPlan.js';
+import {NearbyFaunaGuide} from './NearbyFaunaGuide.js';
 
 const directions = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
 
 export class VisitorGuide {
   constructor(app, travel, lookAt) {
     this.app = app;
+    this.nearby = new NearbyFaunaGuide(app);
     this.select = document.querySelector('#fauna-place');
     this.details = document.querySelector('#field-guide');
     this.destination = document.querySelector('#guide-destination');

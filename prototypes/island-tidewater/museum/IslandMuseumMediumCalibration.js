@@ -1,3 +1,5 @@
+import aquaticRigs from './aquatic-motion/rig-calibration.json' with { type: 'json' };
+
 // Positions and axes were measured in the displayed source pose, using
 // [forward, up, lateral] model units. Masks taper at the anatomical joints.
 const pitch = [0, 0, 1], yaw = [0, 1, 0], roll = [1, 0, 0];
@@ -8,20 +10,21 @@ function ramp(from, to, value) {
   return x * x * (3 - 2 * x);
 }
 
-function finPair(fore) {
-  return [-1, 1].map(side => ({
-    name: `${fore ? 'fore' : 'hind'} flipper ${side}`,
-    pivot: fore ? [.745, -.041, side * .213] : [.005, -.069, side * .185],
-    weight: (f, y, l, material) => material === 'Mosasaurus'
-      ? ramp(.178, .292, l * side) * ramp(.106, .018, y)
-        * (fore ? ramp(.37, .51, f) * ramp(1.0, .83, f) : ramp(.18, .08, f))
-      : 0,
-    followMorph: true,
-    motion: (t, active) => [
-      [fore ? [-.59, -.27, side * .75] : [-.70, -.17, side * .69],
-        side * (active ? 1 : .58) * (fore ? .135 : .108) * sin(2 * t + (fore ? .16 : -.83))],
-    ],
-  }));
+function aquaticCalibration(id) {
+  const { forward, joints } = aquaticRigs[id];
+  return {
+    active: 'Swim', resting: 'Hover', forward,
+    joints: joints.map(({ windows, material, ...joint }) => ({
+      ...joint,
+      weight: (f, y, l, sourceMaterial) => {
+        if (material && material !== sourceMaterial) return 0;
+        const coordinates = [f, y, l];
+        let weight = 1;
+        for (const [axis, from, to] of windows) weight *= ramp(from, to, coordinates[axis]);
+        return weight;
+      },
+    })),
+  };
 }
 
 function wristPair() {
@@ -53,17 +56,8 @@ function insectLegs() {
 }
 
 export const islandMuseumMediumCalibration = {
-  mosasaurus: { active: 'Swim', resting: 'Hover', joints: [...finPair(true), ...finPair(false)] },
-  plesiosaurus: { active: 'Swim', resting: 'Hover', forward: [.394, .919], joints: [
-    {
-      name: 'middle neck', pivot: [215, 28, -57], weight: f => ramp(171, 302, f),
-      motion: (t, active) => [[yaw, (active ? .080 : .053) * sin(t - .28)], [pitch, .042 * cos(t - .39)]],
-    },
-    {
-      name: 'head', parent: 'middle neck', pivot: [445, 167, 99], weight: f => ramp(417, 466, f),
-      motion: (t, active) => [[yaw, -(active ? .072 : .050) * sin(t - .57)], [pitch, -.037 * cos(t - .65)]],
-    },
-  ] },
+  mosasaurus: aquaticCalibration('mosasaurus'),
+  plesiosaurus: aquaticCalibration('plesiosaurus'),
   meganeura: { active: 'Fly', joints: [
     {
       name: 'abdomen', pivot: [.056, -.243, 0],
@@ -77,7 +71,7 @@ export const islandMuseumMediumCalibration = {
     },
     ...insectLegs(),
   ] },
-  rhamphorhynchus: { active: 'Fly', resting: 'Glide', joints: [
+  rhamphorhynchus: { active: 'Fly', joints: [
     {
       name: 'tailstock', pivot: [-.176, .041, 0],
       weight: (f, y, l) => ramp(-.166, -.321, f) * ramp(.072, .031, Math.abs(l)),
@@ -88,7 +82,7 @@ export const islandMuseumMediumCalibration = {
       motion: (t, active) => [[yaw, (active ? .112 : .085) * sin(t - 1.1)], [roll, .155 * cos(t - .38)]],
     },
   ] },
-  tupandactylus: { active: 'Fly', resting: 'Glide', joints: [
+  tupandactylus: { active: 'Fly', joints: [
     {
       name: 'head and crest', pivot: [.166, -.188, 0],
       weight: (f, y, l) => Math.max(ramp(.116, .306, f), ramp(-.12, .035, y) * ramp(.055, .12, f))

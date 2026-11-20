@@ -209,9 +209,11 @@ export async function createVaultBenthos(vault,scene,terrain,{aeger:anchor,coral
     // vertex. Source origins and nominal asset dimensions are not contacts.
     if(isShell)site.embed=.004+(high-low)*(site.embedFraction??.25);
     site.y=site.floor-(site.embed??.015)-low;
+    site.centerY=site.y+(low+high)*.5;
+    site.halfHeight=(high-low)*.5;
     pos.set(site.x,site.y,site.z);size.setScalar(site.span);transform.compose(pos,q,size);matrices.push(Float32Array.from(transform.elements));
    }
-   batch.count=0;scene.add(batch);out.push({kind,mesh:batch,sites,matrices});
+   batch.count=0;scene.add(batch);out.push({kind,mesh:batch,sites,matrices,activeIndices:[]});
   }
  };
  batches(CORALS.map(c=>c.id),coralSites,coralMat,corals,kind=>CORALS.find(c=>c.id===kind).tint,'coral colonies');
@@ -234,8 +236,10 @@ export async function createVaultBenthos(vault,scene,terrain,{aeger:anchor,coral
    lastCamera.copy(camera.position);
    for(const b of [...corals,...shells,...sponges]){
     let count=0;const range=b.mesh.material===shellMat?31:42;
+    b.activeIndices.length=0;
     for(let i=0;i<b.sites.length;i++){
      const p=b.sites[i];if(Math.hypot(camera.position.x-p.x,camera.position.y-p.floor,camera.position.z-p.z)>range)continue;
+     b.activeIndices.push(i);
      b.mesh.instanceMatrix.array.set(b.matrices[i],count++*16);
     }
     b.mesh.count=count;b.mesh.visible=count>0;b.mesh.instanceMatrix.needsUpdate=true;

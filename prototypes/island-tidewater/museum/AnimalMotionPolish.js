@@ -1,14 +1,11 @@
-// Runtime-only pose repair for the four sample museum models. Source GLBs and
-// their locked skeleton/animation bytes stay untouched. Native skin sampling
-// still supplies both current and previous palettes to every render pass.
+// Adapt the standalone sample rigs while preserving the locked source GLBs.
+// Native skin sampling supplies current and previous poses to each render pass.
 import { Matrix4, Quaternion, Vector3 } from '../vendor/tidewater/src/engine/index.js';
 
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const tau=Math.PI*2;
 const normal=q=>{const d=Math.hypot(...q);if(d<1e-12)throw Error('Degenerate museum motion quaternion');return q.map(v=>v/d);};
 const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
 const mul=(a,b)=>[a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]];
-const inverse=q=>[-q[0],-q[1],-q[2],q[3]];
 const axisAngle=(a,v)=>{const s=Math.sin(v*.5);return [a[0]*s,a[1]*s,a[2]*s,Math.cos(v*.5)];};
 const align=(q,to)=>dot(q,to)<0?q.map(v=>-v):q;
 const varies=ch=>{const n=ch.path==='rotation'?4:3;return ch.values.some((v,i)=>Math.abs(v-ch.values[i%n])>1e-6);};
@@ -84,33 +81,10 @@ function repairFinSockets(g){
 }
 
 function fishMotion(g,summary){
- summary.socketRepairs=repairFinSockets(g);const M=restMatrices(g),clip=g.animations.find(a=>a.name==='Idle');
- if(!clip)throw Error('Museum fish lost its swimming clip');
- for(const ch of [...clip.channels])if(ch.path==='rotation'&&varies(ch)&&ch.times.length>2)replaceRotation(clip,ch.node,bake(ch.node,clip.duration,rotationCurve(ch,clip.duration)));
- for(const name of ['front_fin_L','front_fin_R','rear_fin_L','rear_fin_R']){
-  const i=node(g,name),source=clip.channels.find(c=>c.node===i&&c.path==='rotation'),side=name.endsWith('_L')?-1:1,rear=name.startsWith('rear');
-  if(!source)throw Error('Museum fish lost flipper animation '+name);
-  const flapAxis=parentAxis(M,i,[1,0,0]),sweepAxis=parentAxis(M,i,[0,1,0]),phase=(side>0?.38:0)+(rear?.85:0);
-  replaceRotation(clip,i,bake(i,clip.duration,t=>{
-   const p=t/clip.duration*tau,opening=(rear?.065:.10)+Math.sin(p+phase)*(rear?.035:.065),sweep=Math.sin(p+phase+.8)*(rear?.025:.045);
-   return mul(axisAngle(sweepAxis,side*sweep),mul(axisAngle(flapAxis,-side*opening),sample(source,t)));
-  }));
- }
- for(const ch of [...clip.channels])if(ch.path==='rotation'&&/^tail_0[2-6]$/.test(g.nodes[ch.node].name)){
-  const rest=normal(g.nodes[ch.node].r),inv=inverse(rest);
-  replaceRotation(clip,ch.node,bake(ch.node,clip.duration,t=>{
-   const q=align(normal(sample(ch,t)),rest),delta=normal(mul(q,inv)),angle=2*Math.acos(clamp(delta[3],-1,1)),s=Math.sin(angle*.5);
-   if(Math.abs(s)<1e-6)return q;
-   return mul(axisAngle(delta.slice(0,3).map(v=>v/s),angle*1.12),rest);
-  }));
- }
- summary.actions=['four anatomically separated flipper sockets; rest mesh preserved','continuous-tangent source swimming curves with phase-offset flipper opening and sweep','source tail-joint rotations extended by 12%, bone lengths unchanged'];
- // All source vertices were evaluated at 120 Hz through the native sampler.
- // This envelope includes 1.0–1.4 cm of world-space margin around those extrema.
- // Reusing a padded pre-repair envelope would retain a deep fin excursion that
- // the corrected sockets remove and unnecessarily eliminate the swim corridor.
+ summary.socketRepairs=repairFinSockets(g);
+ summary.actions=['four anatomically separated flipper sockets, with the source bind pose preserved',
+   'Blender-authored swim using the same flipper recovery and delayed tail stroke as the museum specimen'];
  summary.revisedEnvelope=sampleIchthyosaurEnvelope;
- summary.padding=[0,0,0];
 }
 
 function lystroMotion(g,summary){
@@ -121,15 +95,8 @@ function lystroMotion(g,summary){
   const p=t/clip.duration*tau,scan=Math.sin(p)*.11+Math.sin(p*2)*.025,nod=Math.sin(p*2+.35)*.035;
   return mul(axisAngle(yaw,scan),mul(axisAngle(pitch,nod),sample(source,t)));
  }));
- summary.actions=['source idle plus neck-led scanning and small nod; four limb chains unchanged'];summary.padding=[.15,.08,.15];
-}
-
-function parasMotion(g,summary){
- const idle=g.animations.find(a=>a.name==='Idle'),walk=g.animations.find(a=>a.name==='Walk');if(!idle||!walk)throw Error('Museum Parasaurolophus clips missing');
- const branches=new Set(),visit=i=>{branches.add(i);for(const c of g.nodes[i].children)visit(c);};
- visit(node(g,'骨骼.003'));visit(node(g,'骨骼.024'));
- for(const ch of idle.channels)if(ch.path==='rotation'&&branches.has(ch.node)&&varies(ch))replaceRotation(walk,ch.node,bake(ch.node,walk.duration,t=>sample(ch,t/walk.duration*idle.duration)));
- summary.actions=['source idle neck/tail articulation carried into the short-step forage','all four walking limb chains, cadence and measured stance velocity unchanged'];summary.padding=[.06,.09,.06];
+ summary.actions=['source idle with neck-led scanning over a Blender-authored stride on all four original leg chains'];
+ summary.padding=[.15,.08,.15];
 }
 
 function pteraMotion(g,summary){
@@ -143,10 +110,17 @@ function pteraMotion(g,summary){
 export function prepareMuseumMotion(source,id){
  const g={...source,nodes:source.nodes.map(n=>({...n,t:[...n.t],r:[...n.r],s:[...n.s],children:[...n.children]})),skins:source.skins.map(s=>({...s,joints:[...s.joints],inverseBindMatrices:Float32Array.from(s.inverseBindMatrices)})),animations:source.animations.map(a=>({...a,channels:a.channels.map(c=>({...c}))}))};
  const summary={schema:'museum-motion-polish-v1',sourceBytesPreserved:true,jointsAdded:0,axes:'source model space',socketRepairs:[],actions:[],padding:[0,0,0]};
- if(id==='ichthyosaur')fishMotion(g,summary);else if(id==='lystrosaurus')lystroMotion(g,summary);else if(id==='parasaurolophus')parasMotion(g,summary);else if(id==='pteranodon')pteraMotion(g,summary);
+ if(id==='ichthyosaur')fishMotion(g,summary);
+ else if(id==='lystrosaurus')lystroMotion(g,summary);
+ else if(id==='parasaurolophus'){
+   summary.actions=['source idle above the Blender-authored ground cycle and terrain foot contacts'];
+   summary.padding=[.06,.09,.06];
+ }else if(id==='pteranodon')pteraMotion(g,summary);
  g.museumMotion=summary;return g;
 }
 
+// The sample socket rig's shared Blender Swim action was evaluated across all
+// three mesh pieces at 120 Hz, then padded for placement and culling.
 export const sampleIchthyosaurEnvelope={min:[-4.02,-.995,-1.57],max:[4.03,.91,1.58],sampleHz:120,minimumMarginMetres:.01};
 
 export function museumMotionEnvelope(metadata,gltf){

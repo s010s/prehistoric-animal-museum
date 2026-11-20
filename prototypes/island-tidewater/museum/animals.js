@@ -128,7 +128,7 @@ export async function createMuseumAnimals(app, residency = null, prepareMaterial
     const halfExtents = definition.data.dimensions.map(v => v * scale * .49);
     const range = definition.id === 'apatosaurus' ? 360 : 240;
     const trail = sample ? sampleAnimalTrail(app, metadata, site) : null;
-    const actor = { definition, group, mount, model: null, ground, site, center, localCenter, halfExtents, range, trail, active: false };
+    const actor = { definition, group, mount, model: null, ground, site, center, trackingSpawn: center.clone(), localCenter, halfExtents, range, trail, active: false };
     animals.push(actor);
     const load = async signal => {
       if (sample) return loadIslandMuseumModel(definition.id, { signal });
@@ -182,6 +182,7 @@ export async function createMuseumAnimals(app, residency = null, prepareMaterial
   }
   return {
     visits,
+    visitTrackingActors(visit) { for (const actor of animals) visit(actor); },
     models() { return animals.flatMap(a => a.model ? [a.model] : []); },
     update(dt) {
       for (const a of animals) {

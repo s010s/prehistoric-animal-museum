@@ -9,6 +9,7 @@ import {LAYERS} from '../vendor/tidewater/src/core/SceneRenderer.js';
 import {OceanFFT} from '../vendor/tidewater/src/ocean/OceanFFT.js';
 import {WaterSurface} from '../vendor/tidewater/src/ocean/WaterSurface.js';
 import {MuseumWaterMaterial} from './MuseumWaterMaterial.js';
+import {mainTidalShading} from './MainEstuary.js';
 import {useHybridShoreDirection} from './CoveShoreField.js';
 import {WaterQuery} from '../vendor/tidewater/src/ocean/WaterQuery.js';
 import {createFoamTexture} from '../vendor/tidewater/src/ocean/FoamTexture.js';
@@ -115,6 +116,14 @@ export function createCoastalOcean(app,data){
  const surface=new WaterSurface({fft,cdlod:oceanLOD,foamTexture});surface.terrain=terrainGPU;
  const seaDetail=new SeaDetail();surface.detail=seaDetail;
  const shore=new ShoreWaves(terrainGPU);useHybridShoreDirection(shore,app.shoreField);surface.shore=shore;
+ // A swash crest needs a continuous alongshore coordinate. Projecting the
+ // 3.6 km world position on each turning 4 m direction sample advances the
+ // phase by dozens of metres between adjacent points on the same sand bank.
+ const phase='let along = dot( xz, vec2f( - dir.y, dir.x ) );';
+ if(!shore.module.code.includes(phase))throw Error('Native alongshore phase seam changed');
+ shore.module.deps.push(mainTidalShading);
+ shore.module.code=shore.module.code.replace(phase,`let outlet=smoothstep(0.0,.22,museumMainTidalWeight(xz));
+ let along=mix(dot(xz,vec2f(-dir.y,dir.x)),xz.y+(xz.x+550.0)*.09,outlet);`);
  const {x:cx,z:cz}=data.coast.coast;
  const shoreSim=new TravellingShoreSim(engine,{terrainGPU,shore,shelf:data.cove.continuous,center:new Vector2(cx,cz),size:480,res:768});surface.shoreSim=shoreSim;
  const surfFoam=new SurfFoam({shoreSim});surface.foamShading=args=>surfFoam.shading(args);
@@ -128,7 +137,18 @@ export function createCoastalOcean(app,data){
  // distinct names, then our hooks can delegate the sea branch without a second
  // copy of their resource graph (module de-duplication uses object identity).
  for(const [mod,name]of [[underwaterLighting.direct,'hookDirectModulation'],[underwaterLighting.ambient,'hookAmbientModulation'],[underwaterLighting.shadowPos,'hookShadowPosition']])mod.code=mod.code.replaceAll(name,'ocean'+name);
- const oceanModule=surface.module; oceanModule.deps.push(data.field.module);
+ // The light map stores resolved splashes at 25 cm near the visitor and 2 m
+ // farther away. A distant smoothed water surface cannot cast the stored
+ // centimetre-scale foam shadow. Otherwise black chevrons march along the
+ // seabed even with the ocean drawn smooth or hidden in inspection mode.
+ const lightSample='let lw = uwMapLookup( P.xz, true );';
+ if(!underwaterLighting.direct.code.includes(lightSample))throw Error('Native subtidal light seam changed');
+ underwaterLighting.direct.deps.push(mainTidalShading);
+ underwaterLighting.direct.code=underwaterLighting.direct.code.replace(lightSample,`var lw=uwMapLookup(P.xz,true);
+ let cell=distance(frame.cameraPos,P)/80.0;
+ let unresolved=museumMainTidalWeight(P.xz)*smoothstep(.75,2.75,cell);
+ lw.height=mix(lw.height,lw.mean,unresolved);lw.slope*=1.0-unresolved;lw.foam*=1.0-unresolved;`);
+ const oceanModule=surface.module; oceanModule.deps.push(data.field.module,mainTidalShading);
  // A plunging crest is sub-metre geometry. At aerial CDLOD spacings its
  // vertex normals/foam alias into white diamonds. Retain the native close
  // waves; converge their unresolved component continuously to its mean.
@@ -138,6 +158,11 @@ export function createCoastalOcean(app,data){
  if(!oceanModule.code.includes(shoreSeam))throw Error('Native shore detail seam changed');
  oceanModule.code=oceanModule.code.replace(shoreSeam,`${shoreSeam}
   let resolved=mix(1.0-smoothstep(.75,2.75,spacing),1.0,museumShoreDetail.legacy);`)
+  // Where an aerial ocean cell spans several metres the centimetre-deep
+  // run-up on the tidal spit must recede with the plunging face. Leaving the
+  // sheet alone makes the folded water triangles glint across the dry sand.
+  .replace('swashLevel = sw.swashLevel;',`let outlet=museumMainTidalWeight(worldXZ);
+  swashLevel=mix(sw.swashLevel,min(sw.swashLevel,frame.seaLevel),outlet*(1.0-resolved));`)
   .replace('extra += sw.disp;','extra += sw.disp * resolved;')
   .replace('shoreN = clamp( sw.nShore, vec3f( -1.0 ), vec3f( 1.0 ) );','shoreN = normalize(mix(vec3f(0.0,1.0,0.0),clamp(sw.nShore,vec3f(-1.0),vec3f(1.0)),resolved));')
   .replace('shoreFoam = sw.foam;','shoreFoam = mix(.035*sw.env,sw.foam,resolved);')

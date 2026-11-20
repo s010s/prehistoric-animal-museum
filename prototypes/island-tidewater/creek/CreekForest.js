@@ -1,3 +1,4 @@
+import {insideMainEstuary} from './MainEstuary.js';
 // Own woodland design; native Tidewater instance LOD, semantic atlas and grass.
 // Atlas/LOD/foliage shader contract: Tidewater4811ba48, MIT (see NOTICE).
 import { Group, BufferGeometry, InterleavedBuffer, InterleavedBufferAttribute, Vector2, Vector3 } from '../vendor/tidewater/src/engine/index.js';
@@ -241,6 +242,7 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
         if(h<Math.max(f[0]+3,7)&&f[1]<30)continue;
       }
       if(field.continuousSample&&field.continuousSample.weight(original.x,original.z)>.05){const f=field.sample(original.x,original.z);if(f[1]<3||terrain.heightAt(original.x,original.z)<f[0]+.8)continue;}
+      if(insideMainEstuary(original.x,original.z)&&terrain.heightAt(original.x,original.z)<field.island.seaLevel+1.8)continue;
       const edge=groveWeight(original.x,original.z);
       if(edge>.05&&(grovePathDistance(original.x,original.z)<6.0||groveOpening(original.x,original.z)>.85||heroes.some(h=>Math.hypot(original.x-h.x,original.z-h.z)<13)))continue;
       if(edge>0&&original.seed<edge*.58)choice={variant:4,scale:2.0+original.seed*.85,keep:true};

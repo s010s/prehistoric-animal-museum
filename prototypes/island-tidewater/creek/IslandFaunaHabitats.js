@@ -1,6 +1,8 @@
 import { ISLAND_FAUNA_PLAN, ISLAND_FAUNA_REGIONS } from './IslandFaunaPlan.js';
 import { createIslandFaunaPopulation } from './IslandFaunaPopulation.js';
 import { sunDirectionFromTime } from '../vendor/tidewater/src/sky/Sky.js';
+import { islandFlightBounds } from '../museum/IslandFlightBounds.js';
+import aquaticBounds from '../museum/aquatic-motion/animated-bounds.json' with { type: 'json' };
 
 const SEA_LEVEL = -.7;
 const INLAND_MARGIN = .15;
@@ -11,7 +13,7 @@ const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
 const submerged = medium => ['marine', 'freshwater', 'benthic'].includes(medium);
 const nearbyAngles = Array.from({ length: 16 }, (_, i) => i * TAU / 16);
 const flightViews = {
-  meganeura: { distance: 2.35, sky: true, altitude: 2.65, incline: .5 },
+  meganeura: { distance: 1.95, maxDistance: 3.1, sky: true, altitude: 3.05, incline: .92, sunSide: .12 },
   anurognathus: { distance: 1.7, sky: true, altitude: 2.55, incline: .92 },
   sordes: { distance: 1.9, sky: true, altitude: 2.75, incline: .92 },
   archaeopteryx: { distance: 1.95, sky: true, altitude: 3, incline: 1.08 },
@@ -65,8 +67,12 @@ export function faunaMediumLimits(terrain, field, site, body, x, z, yaw) {
 export function faunaBodyPlacement(metadata) {
   const bounds = metadata.animatedBounds ?? metadata.bounds;
   const center = bounds.min.map((v, i) => (v + bounds.max[i]) * .5);
+  const motion = islandFlightBounds[metadata.id] ?? aquaticBounds[metadata.id] ?? bounds;
   return {
-    half: bounds.max.map((v, i) => (v - bounds.min[i]) * .5 * metadata.scale),
+    // The model origin stays on the authored route while fins and wings
+    // gain the clearance they require on either side of its original center.
+    half: center.map((c, i) => Math.max(Math.max(bounds.max[i], motion.max[i]) - c,
+      c - Math.min(bounds.min[i], motion.min[i])) * metadata.scale),
     floor: (metadata.bounds.min[1] - center[1]) * metadata.scale,
     forward: Math.atan2(metadata.forward[0], metadata.forward[1]),
   };
@@ -197,7 +203,9 @@ function observationFor(context, site, body, path) {
   const benthic = site.medium === 'benthic';
   const length = site.length;
   const flight = flightViews[site.id];
-  const mammothLight = site.id === 'mammoth' ? sunDirectionFromTime(site.time) : null;
+  const mammoth = site.id === 'mammoth';
+  const sunSideMin = mammoth ? .42 : flight?.sunSide;
+  const daylight = sunSideMin === undefined ? null : sunDirectionFromTime(site.time);
   const view = flight?.distance ?? (wet
     ? clamp(length * 1.12, .37, 19)
     : air ? clamp(length * 2.1, 2.25, 37) : clamp(length * 1.13, 2.4, 29));
@@ -229,15 +237,16 @@ function observationFor(context, site, body, path) {
       if (treeHeightAt(colliders, px, pz, .66) > floor) continue;
       const viewIncline = (gaze[1] - py) / distance;
       if (flight?.sky && viewIncline < flight.incline * .62) continue;
-      const sunSide = mammothLight ? (mammothLight.x * dx + mammothLight.z * dz) / Math.hypot(mammothLight.x, mammothLight.z) : 1;
-      if (mammothLight && sunSide < .42) continue;
+      const sunSide = daylight ? (daylight.x * dx + daylight.z * dz) / Math.hypot(daylight.x, daylight.z) : 1;
+      if (daylight && sunSide < sunSideMin) continue;
+      const lightPenalty = mammoth ? (1 - sunSide) * 1.25 : daylight ? Math.abs(sunSide - .52) * .85 : 0;
       if (air && (viewIncline > (flight?.sky ? 2.05 : 1.7) || viewIncline < -.12)) continue;
       if (!wet && !air && viewIncline < -.57) continue;
       const oblique = Math.abs(dx * Math.sin(heading) + dz * Math.cos(heading));
       if (flight?.sky && (oblique < .20 || oblique > .72)) continue;
       const score = Math.abs(factor - 1) * 4 + Math.abs(oblique - (flight?.sky ? .39 : .35)) * (flight?.sky ? 3 : .95)
         + (air ? Math.abs(viewIncline - (flight?.incline ?? .14)) * 1.25 : 0)
-        + (mammothLight ? (1 - sunSide) * 1.25 : 0) + i * .005;
+        + lightPenalty + i * .005;
       if (best && score >= best.score) continue;
       if (flight?.sky && !openFlightBackdrop(terrain, colliders, gaze, dx, dz, viewIncline)) continue;
       if (!clearSight(terrain, colliders, [px, py, pz], gaze)) continue;

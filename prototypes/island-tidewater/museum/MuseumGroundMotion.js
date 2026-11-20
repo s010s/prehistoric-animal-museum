@@ -1,15 +1,22 @@
 import { Matrix4, Quaternion, Vector3 } from '../vendor/tidewater/src/engine/index.js';
+import { museumGroundActions } from './MuseumGroundActions.js';
 import { museumGroundRigs } from './MuseumGroundRigs.js';
 
 const UP = new Vector3(0, 1, 0);
 const ONE = new Vector3(1, 1, 1);
 const IDENTITY = new Quaternion();
-const TAU = Math.PI * 2;
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 const fraction = x => x - Math.floor(x);
-const smooth = x => x * x * (3 - 2 * x);
 const angleDifference = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 const positionAt = (rows, i) => new Vector3().fromArray(rows, i * 16 + 12);
+
+function sampleAction(frames, phase, result) {
+  const at = phase * (frames.length - 1);
+  const index = Math.floor(at), blend = at - index;
+  const first = frames[index], next = frames[index + 1] ?? first;
+  for (let i = 0; i < result.length; i++) result[i] = first[i] + (next[i] - first[i]) * blend;
+  return result;
+}
 
 function rigidTransform(rotation, from, to = from) {
   const offset = to.clone().sub(from.clone().applyQuaternion(rotation));
@@ -78,7 +85,7 @@ function orientBranch(pose, branch, radians, axis) {
   warp(pose, branch, rigidTransform(new Quaternion().setFromAxisAngle(axis, radians), pivot));
 }
 
-function moveLeg(pose, limb, frame, target, footRotation) {
+function moveLeg(pose, limb, frame, target, footRotation, bodyRotation) {
   const { upper, lower, foot, pole, soleVector } = limb;
   const hip = positionAt(pose.world, upper.i), knee = positionAt(pose.world, lower.i), ankle = positionAt(pose.world, foot.i);
   const upperVector = knee.clone().sub(hip), lowerVector = ankle.clone().sub(knee);
@@ -87,7 +94,7 @@ function moveLeg(pose, limb, frame, target, footRotation) {
   const distance = clamp(axis.length(), Math.abs(upperLength - lowerLength) + upperLength * .002, (upperLength + lowerLength) * .999);
   axis.normalize();
   const along = (upperLength ** 2 + distance ** 2 - lowerLength ** 2) / (2 * distance);
-  const bend = pole.clone().addScaledVector(axis, -pole.dot(axis)).normalize();
+  const bend = pole.clone().applyQuaternion(bodyRotation).projectOnPlane(axis).normalize();
   const kneeVector = axis.clone().multiplyScalar(along).addScaledVector(bend, Math.sqrt(Math.max(0, upperLength ** 2 - along ** 2)));
   const turnUpper = new Quaternion().setFromUnitVectors(upperVector.normalize(), kneeVector.clone().normalize());
   warp(pose, upper, rigidTransform(turnUpper, hip));
@@ -108,6 +115,8 @@ function moveLeg(pose, limb, frame, target, footRotation) {
 function buildRig(id, pose, derived) {
   const source = museumGroundRigs[id];
   if (!source && !derived) return null;
+  const action = museumGroundActions[id];
+  if (!action) throw Error('Missing Blender ground action for ' + id);
   const names = new Map(pose.gltf.nodes.map((node, i) => [node.name, i]));
   const resolve = name => {
     if (name == null) return null;
@@ -115,12 +124,7 @@ function buildRig(id, pose, derived) {
     if (i === undefined || !pose.gltf.nodes[i]) throw Error('Missing museum gait joint ' + id + ' ' + name);
     return i;
   };
-  const profile = source ?? {
-    root: derived.root, head: derived.head, tail: derived.tail,
-    period: derived.chains.length === 2 ? 1.23 : 1.66,
-    stride: .8, lift: derived.chains.length === 2 ? .13 : .085,
-    duty: derived.chains.length === 2 ? .65 : .77,
-  };
+  const profile = source ?? derived;
   const definitions = source?.legs.map(([upper, lower, foot, contact, pitch]) => ({ upper, lower, foot, contact, pitch })) ?? derived.chains;
   const frame = profile.bindFeet ? bindPoseRows(pose) : {
     world: pose.world.slice(), palette: pose.jointData.slice(0, pose.joints * 16),
@@ -137,12 +141,14 @@ function buildRig(id, pose, derived) {
     const pole = definition.pole ? new Vector3(...definition.pole) : knee.clone().sub(hip).projectOnPlane(axis).normalize();
     if (!pole.lengthSq()) throw Error('Degenerate museum gait pole ' + id + ' ' + definition.lower);
     return {
-      upper, lower, foot, ankle, pole, contact, neutral: contact.clone(),
+      upper, lower, foot, ankle, pole, contact,
+      neutral: definition.neutral ? new Vector3(...definition.neutral) : contact.clone(),
       soleVector: contact.clone().sub(ankle),
       reach: knee.distanceTo(hip) + ankle.distanceTo(knee),
-      offset: (fore ? [0, .5, .27, .77] : [0, .5])[i],
+      offset: (fore ? [0, .5, .25, .75] : [0, .5])[i],
       pitch: definition.pitch ?? 0,
-      side: definition.side ?? (i % 2 ? 1 : -1),
+      lane: i >= 2 ? 1 : 0,
+      side: i % 2 ? 1 : -1,
       anchor: new Vector3(), start: new Vector3(), landing: new Vector3(), sole: new Vector3(), target: new Vector3(),
       stance: true, progress: 0, steps: 0, error: 0, clearance: 0,
       fromHeading: new Quaternion(), toHeading: new Quaternion(),
@@ -150,7 +156,7 @@ function buildRig(id, pose, derived) {
     };
   });
   return {
-    profile, frame, limbs, fore,
+    action, frame, limbs, fore,
     root: branchAt(pose, resolve(profile.root)),
     head: branchAt(pose, resolve(profile.head)),
     tail: branchAt(pose, resolve(profile.tail)),
@@ -160,7 +166,7 @@ function buildRig(id, pose, derived) {
 export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
   const rig = buildRig(id, pose, derived);
   if (!rig) return null;
-  const { profile, frame, limbs, fore, root, head, tail } = rig;
+  const { action, frame, limbs, fore, root, head, tail } = rig;
   const forward = new Vector3(metadata.forward[0], 0, metadata.forward[1]).normalize();
   const right = new Vector3().crossVectors(UP, forward);
   const poseScale = metadata.scale;
@@ -169,21 +175,28 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
   for (let i = 0; i < limbs.length; i += 2) {
     const a = limbs[i], b = limbs[i + 1];
     const forePosition = (a.contact.dot(forward) + b.contact.dot(forward)) * .5;
-    for (const foot of [a, b]) foot.neutral.addScaledVector(forward, forePosition - foot.contact.dot(forward));
+    const centerSide = (a.contact.dot(right) + b.contact.dot(right)) * .5;
+    for (const foot of [a, b]) {
+      foot.neutral.addScaledVector(forward, forePosition - foot.contact.dot(forward));
+      foot.side = Math.sign(foot.contact.dot(right) - centerSide) || foot.side;
+      const direction = action.pole?.[foot.lane];
+      if (direction) foot.pole.copy(forward).multiplyScalar(direction[0]).addScaledVector(right, direction[1] * foot.side).normalize();
+    }
   }
   const center = limbs.reduce((v, limb) => v.add(limb.neutral), new Vector3()).divideScalar(limbs.length);
   const shortestLeg = Math.min(...limbs.map(leg => leg.reach));
   const height = shortestLeg * poseScale;
-  const maximumStride = height * profile.stride;
+  const maximumStride = height * action.stride;
   const footSampleRadius = clamp(height * .075, .018, .28);
   const supportSampleRadius = Math.max(footSampleRadius * 2, Math.max(...limbs.map(leg =>
     Math.hypot(leg.neutral.x - center.x, leg.neutral.z - center.z))) * poseScale * .82);
-  const swingFraction = 1 - profile.duty;
+  const swingFraction = 1 - action.duty;
   const correction = new Quaternion();
+  const swingChannels = new Float64Array(4), bodyChannels = new Float64Array(8), posture = new Float64Array(8);
 
   let seeded = false, desired = false, speed = 0, cadenceDistance = maximumStride;
   let phase = 0, gaitWeight = 0, time = 0, started = false, previousYaw = 0, curvature = 0, stalled = 0;
-  let supportOffset = null, balance = 0;
+  let supportOffset = null, lastSwing = null, stepPhase = 1;
   let terrain = null;
   const previousOrigin = new Vector3();
   const origin = new Vector3(), heading = new Quaternion(), inverse = new Quaternion(), rootMatrix = new Matrix4();
@@ -191,8 +204,8 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
 
   function advance(dt, moving, speedRequested) {
     desired = moving;
-    if (moving) cadenceDistance = clamp(speedRequested * profile.period, height * .15, maximumStride);
-    const targetSpeed = moving ? Math.min(speedRequested, maximumStride / (profile.period * .72)) : 0;
+    if (moving) cadenceDistance = clamp(speedRequested * action.period, height * .15, maximumStride);
+    const targetSpeed = moving ? Math.min(speedRequested, maximumStride / (action.period * .72)) : 0;
     speed += (targetSpeed - speed) * Math.min(1, dt / (moving ? .34 : .17));
     if (!moving && speed < .004) speed = 0;
     return speed;
@@ -217,6 +230,8 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
   }
 
   function beginStep(leg, lead) {
+    lastSwing = leg;
+    stepPhase = 0;
     leg.stance = false;
     leg.progress = 0;
     leg.start.copy(leg.anchor);
@@ -230,27 +245,49 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
     if (leg.stance) {
       leg.target.copy(leg.anchor);
       leg.orientation.copy(leg.toHeading);
+      leg.rock = 0;
       return;
     }
-    const settling = desired && stalled < .08 ? 0 : dt / Math.min(.31, swingFraction * profile.period);
+    const settling = desired && stalled < .08 ? 0 : dt / Math.min(.31, swingFraction * action.period);
     leg.progress = Math.min(1, leg.progress + Math.max(phaseStep / swingFraction, settling));
     if (leg.progress === 1) {
       leg.stance = true;
       leg.steps++;
       leg.anchor.copy(leg.landing);
     }
-    const u = leg.progress, eased = smooth(u), lift = Math.sin(Math.PI * u) ** 1.35;
+    const [eased, lift, rock, splay] = sampleAction(action.swing[leg.lane], leg.progress, swingChannels);
     leg.target.lerpVectors(leg.start, leg.landing, eased);
+    const side = splay * leg.side * height;
+    leg.target.x += headingDirection.z * side;
+    leg.target.z -= headingDirection.x * side;
     // The swing clearance follows the intervening bed as the foot traverses
     // an uphill step. Both ends of the curve remain exactly on their anchors.
     const floor = terrain.heightAt(leg.target.x, leg.target.z);
-    const stepHeight = Math.min(leg.reach * poseScale * profile.lift, cadenceDistance * .26);
+    const stepHeight = Math.min(leg.reach * poseScale * action.lift[leg.lane], cadenceDistance * .26);
     leg.target.y = Math.max(leg.target.y, floor) + lift * stepHeight;
     leg.orientation.slerpQuaternions(leg.fromHeading, leg.toHeading, eased);
+    leg.rock = rock;
   }
 
   function startNextStep(displacement, before) {
-    if (displacement < .00001 || limbs.some(leg => !leg.stance)) return;
+    if (limbs.some(leg => !leg.stance)) return;
+    if (displacement < .00001) {
+      if (!fore || !started || desired || stalled < .14) return;
+      // After braking, close a trailing stance one foot at a time. Anchors
+      // that are already near the neutral lane stay fixed on the ground.
+      let recoveryFoot;
+      let recoveryDistance = Math.max(cadenceDistance * .34, height * .12);
+      for (const leg of limbs) {
+        const neutral = toWorld(leg.neutral);
+        const drift = Math.hypot(neutral.x - leg.anchor.x, neutral.z - leg.anchor.z);
+        if (drift > recoveryDistance) {
+          recoveryFoot = leg;
+          recoveryDistance = drift;
+        }
+      }
+      if (recoveryFoot) beginStep(recoveryFoot, 0);
+      return;
+    }
     let choice;
     let priority = 0;
     for (const leg of limbs) {
@@ -260,7 +297,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
       const side = Math.sqrt(Math.max(0, fromSole.lengthSq() - (trail * cadenceDistance) ** 2)) / cadenceDistance;
       const footPhase = fraction(phase + leg.offset);
       const nextInCycle = footPhase < swingFraction && fraction(before + leg.offset) >= swingFraction;
-      const nearingLimit = trail + side * .45 > profile.duty * .47;
+      const nearingLimit = trail + side * .45 > action.duty * .47;
       const nextPlanned = desired && (nextInCycle || !started && footPhase < swingFraction) && trail > -.02;
       if (!nearingLimit && !nextPlanned) continue;
       const score = .1 + trail + side * .45 + (nextPlanned ? .04 : 0);
@@ -270,7 +307,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
       }
     }
     if (choice) {
-      const lead = cadenceDistance * (desired ? swingFraction + profile.duty * .5 : .12);
+      const lead = cadenceDistance * (desired ? swingFraction + action.duty * .5 : .12);
       beginStep(choice, lead);
       started = true;
     }
@@ -311,7 +348,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
     const before = phase;
     phase = fraction(phase + phaseStep);
     time += dt;
-    const strength = desired && movingDistance > .00001 ? clamp(movingDistance / dt * profile.period / cadenceDistance, 0, 1) : 0;
+    const strength = desired && movingDistance > .00001 ? clamp(movingDistance / dt * action.period / cadenceDistance, 0, 1) : 0;
     gaitWeight += (strength - gaitWeight) * Math.min(1, dt / .21);
 
     startNextStep(movingDistance, before);
@@ -321,27 +358,35 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
 
     const planted = limbs.filter(leg => leg.stance);
     const supports = planted.length ? planted : limbs;
-    const supportBalance = fore
-      ? supports.reduce((sum, leg) => sum + leg.side, 0) / supports.length
-      : Math.sin((phase + .03) * TAU);
     const postureBlend = dt === 0 ? 1 : Math.min(1, dt / .10);
-    balance += (supportBalance - balance) * postureBlend;
-    const rise = (fore ? .014 : .026) * Math.cos(phase * TAU * 2 - .5) * gaitWeight;
-    const sway = (fore ? .022 : .05) * balance * gaitWeight;
-    const crouch = shortestLeg * ((fore ? .024 : .035) + rise);
-    const breath = Math.sin(time * 1.78) * shortestLeg * .007;
-    const bodyShift = right.clone().multiplyScalar(sway * shortestLeg);
+    if (lastSwing) {
+      // The action reaches the loading pose at the actual touchdown, even if
+      // the route shortened a step or a stop settled the foot ahead of time.
+      stepPhase = lastSwing.stance
+        ? clamp(Math.max(.76, stepPhase) + phaseStep * limbs.length, 0, 1)
+        : lastSwing.progress * .76;
+      sampleAction(action.body, stepPhase, bodyChannels);
+    }
+    const side = lastSwing?.side ?? 1;
+    const forePitch = lastSwing?.lane === 1 ? -.55 : 1;
+    const direction = [1, side, 1, forePitch, -side, -side, forePitch, side];
+    for (let i = 0; i < posture.length; i++) {
+      posture[i] += (bodyChannels[i] * direction[i] * gaitWeight - posture[i]) * postureBlend;
+    }
+    const [heave, shift, stepAdvance, pitch, bodyRoll, twist, headNod, tailSwing] = posture;
+    const bodyShift = right.clone().multiplyScalar(shift * shortestLeg).addScaledVector(forward, stepAdvance * shortestLeg);
+    const turn = clamp(curvature * height, -.85, .85) * gaitWeight;
     const slope = terrainOrientation(terrain, origin, IDENTITY, supportSampleRadius);
     const modelNormal = UP.clone().applyQuaternion(slope).applyQuaternion(inverse);
     const lean = new Quaternion().setFromUnitVectors(UP, modelNormal);
     const roll = new Quaternion().rotateTowards(lean, .27).slerp(IDENTITY, fore ? .24 : .72)
-      .multiply(new Quaternion().setFromAxisAngle(forward, sway * .72));
+      .multiply(correction.setFromAxisAngle(UP, twist + turn * .065))
+      .multiply(correction.setFromAxisAngle(forward, bodyRoll - turn * .038))
+      .multiply(correction.setFromAxisAngle(right, pitch));
 
     const invGroup = rootMatrix.clone().invert();
     for (const leg of limbs) {
-      const u = leg.stance ? 0 : leg.progress;
-      const rock = Math.sin(Math.PI * u) * Math.cos(Math.PI * u) * (fore ? .44 : .64);
-      leg.orientation.premultiply(inverse).multiply(correction.setFromAxisAngle(right, leg.pitch + rock));
+      leg.orientation.premultiply(inverse).multiply(correction.setFromAxisAngle(right, leg.pitch + leg.rock));
       leg.ankleTarget.copy(leg.target).applyMatrix4(invGroup)
         .sub(leg.soleVector.clone().applyQuaternion(leg.orientation));
     }
@@ -349,13 +394,15 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
     // Lower the trunk only as far as required to keep every stance ankle
     // inside its two-bone reach. This avoids stretching joints on uphill or
     // outward steps and shifts weight before an airborne foot touches down.
-    const rootPivot = positionAt(sampledPose.world, root.i);
+    const rootPivot = limbs.reduce((center, leg) => center.add(positionAt(sampledPose.world, leg.upper.i)), new Vector3())
+      .divideScalar(limbs.length);
     const settleOnSlope = point => point.sub(rootPivot).applyQuaternion(roll).add(rootPivot);
     const groundOffset = supports.reduce((sum, leg) =>
       sum + (leg.target.y - toWorld(settleOnSlope(leg.neutral.clone())).y) / poseScale, 0) / supports.length;
     supportOffset ??= groundOffset;
     supportOffset += (groundOffset - supportOffset) * postureBlend;
-    let baseY = supportOffset - crouch + breath;
+    const breath = Math.sin(time * 1.78) * (1 - gaitWeight) * .004;
+    let baseY = supportOffset + (heave - action.crouch + breath) * shortestLeg;
     let minimumY = -Infinity;
     for (const leg of supports) {
       const hip = positionAt(sampledPose.world, leg.upper.i);
@@ -374,7 +421,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
     warp(sampledPose, root, rigidTransform(roll, rootPivot, rootPivot.clone().add(bodyShift)));
 
     for (const leg of limbs) {
-      const sole = moveLeg(sampledPose, leg, frame, leg.ankleTarget, leg.orientation);
+      const sole = moveLeg(sampledPose, leg, frame, leg.ankleTarget, leg.orientation, roll);
       leg.sole.copy(sole.applyMatrix4(rootMatrix));
       leg.error = leg.sole.distanceTo(leg.target);
       leg.clearance = leg.sole.y - terrain.heightAt(leg.sole.x, leg.sole.z);
@@ -384,11 +431,11 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
     const lowering = Math.max(0, Math.sin(time * .86 - .86)) ** 3;
     const scan = Math.sin(time * .93) + .28 * Math.sin(time * 1.62 + .6);
     const still = (1 - gaitWeight) * (alert ? .19 : 1);
-    const headPitch = gaitWeight * Math.sin(phase * TAU * 2 - .4) * (fore ? .034 : .06)
+    const headPitch = headNod
       + still * (feeding ? (behavior === 'browse' ? .095 : .19) * lowering : .038 * Math.sin(time * 1.3));
     orientBranch(sampledPose, head, headPitch, right);
-    orientBranch(sampledPose, head, .085 * still * scan + clamp(lookYaw, -.18, .18), UP);
-    orientBranch(sampledPose, tail, gaitWeight * Math.sin(phase * TAU + .6) * (fore ? .046 : .085), UP);
+    orientBranch(sampledPose, head, .085 * still * scan + clamp(lookYaw, -.18, .18) + turn * .09, UP);
+    orientBranch(sampledPose, tail, tailSwing - turn * .10, UP);
     return true;
   }
 
@@ -400,7 +447,10 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
       phase = gaitWeight = speed = previousYaw = curvature = stalled = 0;
       time = seedPhaseSeconds;
       supportOffset = null;
-      balance = 0;
+      lastSwing = null;
+      stepPhase = 1;
+      bodyChannels.fill(0);
+      posture.fill(0);
       for (const leg of limbs) {
         leg.stance = true;
         leg.progress = leg.steps = 0;
@@ -411,7 +461,7 @@ export function createMuseumGroundMotion(id, metadata, pose, derived = null) {
         strideMetres: cadenceDistance, phase, speedMetresPerSecond: speed,
         mode: desired && stalled < .08 ? 'walking' : limbs.some(leg => !leg.stance) ? 'settling' : 'holding',
         contacts: limbs.map(leg => ({
-          joint: leg.foot.i, planted: leg.stance, steps: leg.steps,
+          joint: leg.foot.i, planted: leg.stance, steps: leg.steps, swing: leg.stance ? 0 : leg.progress,
           sole: leg.sole.toArray(), target: leg.target.toArray(), errorMetres: leg.error,
           terrainClearanceMetres: leg.clearance,
         })),

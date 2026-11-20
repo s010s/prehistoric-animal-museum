@@ -1,0 +1,18 @@
+{
+  "mosasaurus": {
+    "joints": [
+      {"name":"fore flipper -1","pivot":[0.745,-0.041,-0.213],"windows":[[2,-0.178,-0.292],[1,0.106,0.018],[0,0.37,0.51],[0,1,0.83]],"material":"Mosasaurus","followMorph":true},
+      {"name":"fore flipper 1","pivot":[0.745,-0.041,0.213],"windows":[[2,0.178,0.292],[1,0.106,0.018],[0,0.37,0.51],[0,1,0.83]],"material":"Mosasaurus","followMorph":true},
+      {"name":"hind flipper -1","pivot":[0.005,-0.069,-0.185],"windows":[[2,-0.178,-0.292],[1,0.106,0.018],[0,0.18,0.08]],"material":"Mosasaurus","followMorph":true},
+      {"name":"hind flipper 1","pivot":[0.005,-0.069,0.185],"windows":[[2,0.178,0.292],[1,0.106,0.018],[0,0.18,0.08]],"material":"Mosasaurus","followMorph":true}
+    ]
+  },
+  "plesiosaurus": {
+    "forward":[0.394,0.919],
+    "joints": [
+      {"name":"neck base","pivot":[65,18,-2],"windows":[[0,30,166]]},
+      {"name":"middle neck","parent":"neck base","pivot":[215,28,-54],"windows":[[0,149,318]]},
+      {"name":"head","parent":"middle neck","pivot":[430,150,60],"windows":[[0,391,466]]}
+    ]
+  }
+}

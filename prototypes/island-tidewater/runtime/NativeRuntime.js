@@ -280,7 +280,11 @@ export class NativeRuntime {
     const dt = this.lastSubmit === null ? 1 / 60 : Math.min(.1, Math.max(0, interval / 1000));
     this.lastSubmit = t; this.cpu = {};
     const start = performance.now();
-    try { this.videoMotion?.(callbackStart); this.app.frame(dt); }
+    try {
+      this.videoMotion?.(callbackStart);
+      this.app.frame(dt);
+      this.visitorGuide?.nearby.update(t, !!this.visitorGuide.target);
+    }
     catch (error) { this.fail(error); return; }
     this.inFlight++;
     // Asynchronous resource/backpressure bound, not a GPU timing measurement.

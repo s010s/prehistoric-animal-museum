@@ -34,13 +34,21 @@ export class CreekTerrain extends Terrain {
 #endif
  let sampleField=museumSampleField(P.xz);
  let sampleBank=sampleField.y<12.0;
- let bank=select(1.0-smoothstep(2.0,10.0,abs(wf.y)),1.0-smoothstep(.25,2.0,wf.y),sampleBank)*(1.0-smoothstep(0.6,2.2,P.y-wf.x));
+ // At mean tide the river registry extends over the dry spit. Its surveyed
+ // extent is not a gravel or wetting line on the marine face of the beach.
+ let tidalOutlet=museumMainTidalWeight(P.xz);
+ let tidalSand=tidalOutlet*(1.0-smoothstep(.08,1.2,wf.x-frame.seaLevel));
+ let bank=(1.0-tidalSand)*select(1.0-smoothstep(2.0,10.0,abs(wf.y)),1.0-smoothstep(.25,2.0,wf.y),sampleBank)*(1.0-smoothstep(0.6,2.2,P.y-wf.x));
  let channelStone=bank*smoothstep(.08,.4,1.0-N.y);
  let rockW=max(museumShoreRock(nr.z,N.y),channelStone*.92);
  // Sea and freshwater have separate local bed levels at the mouth.
  let seaDepth=frame.seaLevel-P.y;
  let riverDepth=wf.x-P.y;
- let riverBed=(1.0-smoothstep(-1.0,1.0,wf.y))*smoothstep(.04,.65,riverDepth);
+ // The last river-profile row extends hundreds of metres into the sea.
+ // In that reach deposition follows the tidal fan, rather than two banks
+ // implied by the survey strip. Fade its gravel signal by marine exposure.
+ let seaFan=tidalOutlet*(1.0-smoothstep(-598.0,-401.0,P.x));
+ let riverBed=(1.0-seaFan)*(1.0-smoothstep(-1.0,1.0,wf.y))*smoothstep(.04,.65,riverDepth);
  let seaBed=smoothstep(.04,.75,seaDepth);
  let underBed=max(riverBed,seaBed);
  let marsh=museumWetlandSoil(P.xz);
@@ -108,12 +116,17 @@ export class CreekTerrain extends Terrain {
  ground=mix(ground,rockColour,rockW);
  let sourceWet=museumSourceWet(P);
  ground=mix(ground,rockColour,sourceWet*rockW*.8);
- var wet=(1.0-smoothstep(.08,.7,P.y-wf.x))*(1.0-smoothstep(0.0,2.5,wf.y));
+ var wet=(1.0-tidalSand)*(1.0-smoothstep(.08,.7,P.y-wf.x))*(1.0-smoothstep(0.0,2.5,wf.y));
  let mud=mix(${srgb(.24,.25,.18)},${srgb(.34,.32,.23)},m.w*.5+d.y*.5);
  ground=mix(ground,mud,marsh*(1.0-rockW)*.86);
 
  let coastSand=mix(${srgb(.48,.46,.39)},${srgb(.66,.61,.49)},m.z*0.55+micro.z*0.45);
- ground=mix(ground,coastSand,beach);
+ let estuaryBank=tidalOutlet*smoothstep(-540.0,-394.0,P.x);
+ // Sheltered banks above the wrack line accumulate silt and vegetation,
+ // whereas exposed forebeach sand continues toward the spit.
+ var saltGrass=0.0;
+ if(estuaryBank>0.0){saltGrass=estuaryBank*museumTidalGrowth(P.xz,beachH)*(.55+.38*cover.g);}
+ ground=mix(ground,coastSand,beach*(1.0-saltGrass));
  // Mix two rotated, slowly warped native detail scales. Fine grit affects
  // roughness/near relief; it must not stamp a bright dot into every 28cm tile.
  var bedRelief=0.0;
@@ -234,7 +247,7 @@ export class CreekTerrain extends Terrain {
  if((beachH>-.85 && beachH<5.9)||(bankRise>-.85 && bankRise<5.9)){
   let lakeMargin=museumLakeMargin(P.xz,wf);
   let brackish=(1.0-smoothstep(.05,8.0,wf.y))*smoothstep(0.0,.35,wf.x-frame.seaLevel);
-  var coastSupply=max(mouthRegion,coveW);
+  var coastSupply=max(max(mouthRegion,coveW),tidalSand);
   if(beachH>-.95 && beachH<6.0 && beach>.015 && coastSupply<.99){
    // The marine channel holds *connected water*. Look just downslope to
    // continue its sediment onto the dry shore without tinting inland hollows.
@@ -248,7 +261,7 @@ export class CreekTerrain extends Terrain {
   let bankFace=smoothstep(-.85,-.14,bankRise);
   let saltRim=coastSupply*(1.0-marsh)*mix(seaFace,bankFace*(1.0-smoothstep(2.8,5.9,bankRise)),brackish);
   let freshRim=lakeMargin*bankFace*(1.0-smoothstep(1.6,3.3,bankRise));
-  let softBed=(1.0-rockW)*(1.0-cover.r);
+  let softBed=(1.0-rockW)*(1.0-cover.r)*(1.0-saltGrass);
   let rim=max(saltRim,freshRim)*softBed;
   let grainField=d.z*.56+micro.z*.27+m.z*.17;
   let wick=.40+(m.w-.5)*.26+(d.w-.5)*.12;

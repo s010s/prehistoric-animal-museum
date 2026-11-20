@@ -4,12 +4,14 @@ import { StorageBuffer, Texture } from '../vendor/tidewater/src/engine/gpu/Textu
 import { generateMipmaps } from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
 import { decodeImage } from '../vendor/tidewater/src/engine/loaders/GLTF.js';
 import { Material } from '../vendor/tidewater/src/engine/render/Material.js';
+import { LAYERS } from '../vendor/tidewater/src/engine/render/SceneRenderer.js';
 import { applyIslandHeadTurn, makeIslandHeadTurn } from './IslandMuseumHeadTurn.js';
 import { createIslandModelPose, floatAttribute, islandModelPieces, islandMorphWeights, museumSrgbTextures, museumTextureUsages, parseIslandMuseumModel } from './IslandMuseumModelData.js';
-import { prepareIslandAquaticMotion } from './IslandAquaticMotion.js';
-import { prepareIslandFlightMotion } from './IslandFlightMotion.js';
+import { applyIslandAquaticMotion, loadIslandAquaticClips } from './IslandAquaticMotion.js';
+import { applyIslandFlightMotion, loadIslandFlightClip } from './IslandFlightMotion.js';
 import { augmentIslandLegRig, islandLegRigExtraGpuBytes, syncIslandLegRigPalette } from './IslandMuseumLegRig.js';
 import { createMuseumGroundMotion } from './MuseumGroundMotion.js';
+import { prepareMuseumGroundPose } from './MuseumGroundPose.js';
 import { augmentIslandMediumRig, islandMediumRigExtraGpuBytes } from './IslandMuseumMediumRig.js';
 import lock from './island-museum-models.lock.json';
 
@@ -126,7 +128,7 @@ function makeVertex(pose, piece, morph, uvChannels) {
   return { attributes, varyings, storage, vertex: vertex.join('\n') };
 }
 
-function modelMaterial(source, piece, pose, textures, morph) {
+function modelMaterial(id, source, piece, pose, textures, morph) {
   const pbr = source.pbrMetallicRoughness ?? {};
   const base = pbr.baseColorFactor ?? [1, 1, 1, 1];
   const emissive = source.emissiveFactor ?? [0, 0, 0];
@@ -158,6 +160,18 @@ function modelMaterial(source, piece, pose, textures, morph) {
       default: break;
     }
   }
+  if (id === 'meganeura' && source.name === 'wings') {
+    // The atlas contains veins on clear texels. Give the thin membrane a
+    // small grazing-angle response and retain the vein contrast in the mips.
+    fragment.push(
+      'let vein = clamp(s.alpha, 0.0, 1.0);',
+      'let grazing = 1.0 - abs(dot(normalize(s.normal), in.V));',
+      'let film = mix(0.066, 0.109, grazing * grazing);',
+      's.alpha = 1.0 - (1.0 - film) * pow(1.0 - vein, 1.44);',
+      's.albedo = mix(vec3f(0.42, 0.40, 0.35), s.albedo, smoothstep(0.02, 0.21, vein));',
+      's.translucency = vec3f(0.065, 0.058, 0.048) * (1.0 - vein);',
+    );
+  }
   // Tidewater's dielectric Fresnel coefficient is conventionally 0.04 at IOR 1.5.
   const rgbSpecular = specular?.specularColorFactor ?? [1, 1, 1];
   const brightness = rgbSpecular[0] * .2126 + rgbSpecular[1] * .7152 + rgbSpecular[2] * .0722;
@@ -173,6 +187,11 @@ function modelMaterial(source, piece, pose, textures, morph) {
     uniforms: morph?.uniforms,
     textures: textureBindings,
     surface: fragment.join('\n'),
+    output: id === 'meganeura' && source.alphaMode === 'BLEND' ? /* wgsl */`
+#if PASS_MAIN && PASS_LATE
+  r.velocity = vec4f( r.velocity.xy, smoothstep( 0.015, 0.065, s.alpha ), r.velocity.w );
+#endif
+` : undefined,
     vertexColors: !!piece.primitive.attributes.COLOR_0,
     color: new Color(...base.slice(0, 3)),
     emissive: new Color(...emissive),
@@ -205,17 +224,24 @@ function instanceMorph(shared) {
   return { ...shared, current, previous, uniforms, groundFrame };
 }
 
-async function buildSpecies(id, signal) {
-  const metadata = islandMuseumModels[id];
+async function readSpeciesBytes(id, signal) {
   const response = await fetch(urls['./assets/island/' + id + '.glb.gz'], { signal });
   if (!response.ok || !response.body) throw Error('Island museum model ' + id + ': ' + response.status);
   const unpacked = response.headers.get('Content-Encoding')?.includes('gzip')
     ? response : new Response(response.body.pipeThrough(new DecompressionStream('gzip')));
-  const bytes = await unpacked.arrayBuffer();
+  return unpacked.arrayBuffer();
+}
+
+async function buildSpecies(id, signal) {
+  const metadata = islandMuseumModels[id];
+  const [bytes, aquatic, flight] = await Promise.all([
+    readSpeciesBytes(id, signal), loadIslandAquaticClips(id), loadIslandFlightClip(id),
+  ]);
   signal.throwIfAborted();
   const gltf = parseIslandMuseumModel(bytes);
-  prepareIslandAquaticMotion(gltf, id, metadata);
-  prepareIslandFlightMotion(gltf, id, metadata);
+  prepareMuseumGroundPose(gltf, id);
+  if (aquatic) applyIslandAquaticMotion(gltf, aquatic.default);
+  if (flight) applyIslandFlightMotion(gltf, id, flight.default);
   const { pieces, skin } = islandModelPieces(gltf);
   const legRig = augmentIslandLegRig(id, gltf, pieces, skin);
   augmentIslandMediumRig(id, gltf, pieces, skin, metadata);
@@ -294,7 +320,7 @@ function instantiateSpecies(asset, release) {
       const morph = instanceMorph(draw.morph);
       let material = !morph ? materials.get(draw.materialKey) : null;
       if (!material) {
-        material = modelMaterial(draw.source, draw.materialPiece, pose, draw.textures, morph);
+        material = modelMaterial(id, draw.source, draw.materialPiece, pose, draw.textures, morph);
         owned.add(material);
         if (!morph) materials.set(draw.materialKey, material);
       }
@@ -302,6 +328,11 @@ function instantiateSpecies(asset, release) {
       mesh.name = 'island museum ' + id + ' ' + rig.nodes[draw.nodeIndex].name;
       mesh.receiveShadow = true;
       mesh.castShadow = !material.transparent;
+      if (material.transparent) {
+        // The sky fills depth-zero pixels at the end of the opaque pass.
+        mesh.layers.set(LAYERS.TRANSPARENT);
+        mesh.userData.museumBlend = true;
+      }
       const skinned = draw.materialPiece.influences.length > 0;
       mesh.frustumCulled = !morph && !skinned;
       const row = skinned ? null : pose.world.subarray(draw.nodeIndex * 16, draw.nodeIndex * 16 + 16);

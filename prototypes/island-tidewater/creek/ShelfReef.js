@@ -18,7 +18,7 @@ const forms=[
 
 export class ShelfReef{
  constructor(app,data){
-  this.items=[];this.obstacles=[];this.sites=[];this.enabled=true;this.group=new Group();this.group.name='Museum shelf patch reefs';
+  this.items=[];this.obstacles=[];this.sites=[];this.trackingColonies=[];this.enabled=true;this.group=new Group();this.group.name='Museum shelf patch reefs';
   this.terrain=data.terrain;const rng=mulberry32(51873),kinds=[];
   this.models=forms.map((form,i)=>{
    const start=kinds.length;let geometry;
@@ -48,9 +48,9 @@ export class ShelfReef{
     for(let v=0;v<positions.count;v++){p.set(positions.getX(v),positions.getY(v),positions.getZ(v)).applyMatrix4(matrix);top=Math.max(top,p.y);bottom=Math.min(bottom,p.y);radius=Math.max(radius,Math.hypot(p.x-x,p.z-z));}
     // Keep all living forms well below mean sea, including their real bounds.
     if(top> -1.65){const sink=top+1.65;y-=sink;bottom-=sink;top=-1.65;}
-    const item={x,y,z,s,sx,sy,sz,q:q.clone(),type,model,top,bottom,radius,range:type===0?110:45,seed:rng(),site:site.id};
+    const item={id:this.items.length,x,y,z,s,sx,sy,sz,q:q.clone(),type,model,top,bottom,radius,range:type===0?110:45,seed:rng(),site:site.id};
     local.push(item);this.items.push(item);
-    if(radius>.4){const solid={...item,size:radius,footRadius:radius};this.obstacles.push(solid);app.colliders.addCylinder(x,z,radius*.8,bottom,top,{tag:'submerged reef'});}
+    if(radius>.4){const solid={...item,size:radius,footRadius:radius};this.obstacles.push(solid);item.collider=app.colliders.addCylinder(x,z,radius*.8,bottom,top,{tag:'submerged reef'});}
    }
    this.sites.push({id:site.id,center,count:this.items.length-before,warm});
   }
@@ -80,13 +80,15 @@ export class ShelfReef{
  update(camera){
   const cp=camera.position,range=cp.y<.3?45:Math.min(110,35+Math.max(0,cp.y)*1.4);
   this.view.fields.position.value.copy(cp);this.view.fields.range.value=range;camera.updateMatrixWorld();this.vp.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.vp,camera.coordinateSystem,camera.reversedDepth);
-  this.batch.begin();this.visible=0;this.visibleTypes={};
+  this.batch.begin();this.visible=0;this.visibleTypes={};this.trackingColonies.length=0;
   if(this.enabled)for(let i=0;i<this.items.length;i++){
    const r=this.items[i],d=Math.hypot(cp.x-r.x,cp.y-r.y,cp.z-r.z),max=Math.min(range,r.range);
    if(d>max+r.radius)continue;
    if(d<22&&r.radius>.6)this.batch.add(r.model.proxy,i);
    this.sphere.center.set(r.x,(r.top+r.bottom)*.5,r.z);this.sphere.radius=r.radius+Math.max(0,r.top-r.y);
-   if(!this.frustum.intersectsSphere(this.sphere))continue;
+   const visible=this.frustum.intersectsSphere(this.sphere);
+   if(r.type>0&&r.type<4&&d<max){r.trackingVisible=visible;this.trackingColonies.push(r);}
+   if(!visible)continue;
    const d0=Math.max(5,r.radius*7),d1=Math.max(17,r.radius*19),lod=d<d0?0:d<d1?1:2,kind=r.model.start+lod;
    if(d>max*.85)this.batch.addFade(kind,i,Math.max(0,(max-d)/(max*.15)),false);
    else if(lod<2&&d>(lod?d1:d0)*.88){const fade=(d/(lod?d1:d0)-.88)/.12;this.batch.addFade(kind,i,fade,true);this.batch.addFade(kind+1,i,fade,false);}

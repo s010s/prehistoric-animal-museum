@@ -78,6 +78,28 @@ const lowerReaches = data.island.tributary.filter(([, , , z]) => z > 5618 && z <
 const confluenceDepth = Math.min(...lowerReaches.map(([x, , , z]) => waterDepth(x, z)));
 assert(confluenceDepth > .65, 'lower tributary has a dry interruption at the wetland confluence');
 
+// Walk-in arrival, continuous tidal thalweg and the former square-edged
+// trench below the main outlet. Distances and slopes use the actual bed.
+const estuaryBank = data.hydrology.coasts.find(s => s.id === 'estuary').visit;
+assert(terrain.heightAt(...estuaryBank) > data.island.seaLevel + .35, 'main estuary arrival flooded');
+for (let z=3120; z<=3910; z+=4) {
+  const river=field.riverAt(z), depth=river.level-terrain.heightAt(river.x,z);
+  assert(depth>1 && depth<8, 'main tidal channel has a sill or offshore trench at '+z);
+}
+let greatestFanSlope=0, deepestFan=0;
+for (let z=3650; z<=3810; z+=4) for (let x=-750; x<=-542; x+=4) {
+  greatestFanSlope=Math.max(greatestFanSlope,slope(x,z));
+  deepestFan=Math.max(deepestFan,data.island.seaLevel-terrain.heightAt(x,z));
+}
+assert(greatestFanSlope<.18 && deepestFan<8, 'tidal fan contains an abrupt undersea wall');
+
+// The user's separate, approved west sample has an intentionally deeper
+// mouth bar and sand channel. Compare its actual bed within two centimetres.
+for (const [x,z,reference] of [[-848,118,-2.287],[-870,124,-2.624],[-915,136,-2.935],
+  [-980,145,-3.673],[-1110,170,-2.838],[-822,131,.600]]) {
+  assert(Math.abs(terrain.heightAt(x,z)-reference)<.02, 'west sample bed moved near '+[x,z]);
+}
+
 const apronProbes = data.cove.continuous.summary.apronProbes;
 const [outer, inner] = apronProbes;
 const apronGrade = key => (inner[key] - outer[key]) / 80;
@@ -106,7 +128,7 @@ for (const patch of data.regionalTerrains) {
 }
 assert.equal(new Set(data.regionalTerrains.map(p => p.id)).size, 5);
 console.log(JSON.stringify({
-  walking, offStation, lakeEntryDepth:round(lakeAccess.at(-1).depth), runnels:runnels.map(round), minRunnelDepth:round(minRunnelDepth),
+  walking, offStation, mainEstuary:{deepestFan:round(deepestFan),greatestFanSlope:round(greatestFanSlope)}, lakeEntryDepth:round(lakeAccess.at(-1).depth), runnels:runnels.map(round), minRunnelDepth:round(minRunnelDepth),
   poolMinimumDepth:round(Math.min(...pool)), confluenceDepth:round(confluenceDepth),
   northApronGrade:{before:round(apronGrade('before')),after:round(apronGrade('after'))},
   terrainAtlasLayerBytes:packed.heights.byteLength + packed.normals.byteLength,

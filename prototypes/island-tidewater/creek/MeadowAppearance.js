@@ -1,5 +1,6 @@
 // Shared museum ground/plant representation, using Tidewater's palette and
 // multi-scale handover contract. Botanical forms are visual placeholders.
+import {mainTidalShading} from './MainEstuary.js';
 import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
 import {generateMipmaps} from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
 import {ShaderModule,UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
@@ -49,7 +50,7 @@ export function createMeadowAppearance(data,terrainGPU){
  }
  const fine=make('Museum creek habitat',g.maskRes,data.masks),coarse=make('Museum watershed habitat',data.island.maskRes,data.islandMasks),density=make('Museum multi-form ground cover + marine connectivity',mask.res,densityBytes),sampleGround=make('Museum 2m sample ground mosaic',groundCover.res,groundCover.bytes);
  const review=new UniformBlock('MuseumHabitatReview',{legacyWater:['f32',0],patchCover:['f32',1]});
- const module=new ShaderModule({name:'museumMeadow',deps:[terrainGPU.module,terrainShadingModule(),data.field.module,groveModule,distance.module],uniforms:review,uniformName:'museumHabitatReview',bindings:{museumFineCover:{texture:fine},museumOuterCover:{texture:coarse},museumFlora:{texture:density},museumSampleGroundCover:{texture:sampleGround}},code:`
+ const module=new ShaderModule({name:'museumMeadow',deps:[terrainGPU.module,terrainShadingModule(),data.field.module,groveModule,distance.module,mainTidalShading],uniforms:review,uniformName:'museumHabitatReview',bindings:{museumFineCover:{texture:fine},museumOuterCover:{texture:coarse},museumFlora:{texture:density},museumSampleGroundCover:{texture:sampleGround}},code:`
 ${data.landforms.climate.wgsl}
 ${coveShadingWGSL}
 ${sampleForestWGSL}
@@ -57,6 +58,15 @@ fn museumSampleGroundAt(p:vec2f,footprint:f32)->vec3f{
  if(p.x<${groundCover.origin[0]}.0||p.x>${groundCover.origin[0]+groundCover.size}.0||p.y<${groundCover.origin[1]}.0||p.y>${groundCover.origin[1]+groundCover.size}.0){return vec3f(1.0,1.0,0.0);}
  let uv=(p-vec2f(${groundCover.origin[0]}.0,${groundCover.origin[1]}.0))/${groundCover.size}.0;
  return textureSampleLevel(museumSampleGroundCover,smpLinearClamp,uv,max(0.0,log2(max(footprint,.001)/2.0))).rgb;
+}
+// Finer sediment holds vegetation in pockets behind the tidal strand. The
+// low spit stays open; dry ground and blade instances share its inland edge.
+fn museumTidalGrowth(p:vec2f,rise:f32)->f32{
+ if(rise<.65){return 0.0;}if(rise>10.0){return 1.0;}
+ let pocket=perlin2(p/37.0+vec2f(4.5,7.2))*.68+perlin2(p/11.0)*.32;
+ let toes=1.15+2.4*smoothstep(-.36,.32,pocket);
+ let spaced=smoothstep(toes,toes+2.4,rise)*(.22+.78*smoothstep(-.23,.37,pocket+rise*.038));
+ return mix(spaced,1.0,smoothstep(5.8,10.0,rise));
 }
 fn museumMouthGrassFactor(p:vec2f,h:f32)->f32{
  let q=p-vec2f(-875.0,125.0);let d2=dot(q,q);
@@ -116,6 +126,8 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
   let retreat=smoothstep(margin,margin+.9,h-sf.x);let support=1.0-smoothstep(2.0,8.0,sf.y);m.ga*=mix(1.0,retreat,support);
  }
  m.gba*=museumMouthGrassFactor(p,h);`:''}
+ let tidal=museumMainTidalWeight(p);
+ if(tidal>0.0&&aboveSea<10.0){m.gba*=mix(1.0,museumTidalGrowth(p,aboveSea),tidal);}
  m.gba*=1.0-museumSpringOutcrop(p);
  // A dry opening in the terrace leaves room to see the low animal through
  // the sward without changing its real size. The coarse cover stays intact.

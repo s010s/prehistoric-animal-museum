@@ -49,6 +49,7 @@ export function createIslandVisits(data){
  const t=data.terrain,field=data.field;
  const dryNear=(x,z,level,radius=100)=>findDryBank(data,x,z,level,radius);
  const visits={};
+ visits['main-estuary-overlook']={id:'main-estuary-overlook',title:'主河入海口',note:'从潮口上方观察两岸、潮沟和近海砂洲。',p:[-560,230,3650],gaze:[-515,-1,3650],fly:true,time:12.6};
  const entrance=data.geography.landmarks?.find(place=>place.id==='entrance');
  if(entrance){
   const [x,z]=entrance.p, [tx,,tz]=entrance.gaze;

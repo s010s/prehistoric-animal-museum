@@ -1,3 +1,4 @@
+import {mainEstuaryWeight} from './MainEstuary.js';
 import {TerrainData} from '../vendor/tidewater/src/world/TerrainData.js';
 import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
 import {generateMipmaps} from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
@@ -79,7 +80,7 @@ export async function expandWholeIsland(data,onStage=()=>{}){
   const x=-world.size/2+(i+.5)*maskStep,z=-world.size/2+(j+.5)*maskStep;
   let w=0;for(const lake of world.lakes){const edge=Math.max(Math.abs(x-lake.center[0])-lake.rx*1.75,Math.abs(z-lake.center[1])-lake.rz*1.75);w=Math.max(w,1-smooth(0,96,edge));}
   const apron=data.cove.continuous.apronAt(x,z);
-  w=Math.max(w,apron);
+  w=Math.max(w,apron,mainEstuaryWeight(x,z));
   if(w===0)continue;
   const k=(j*world.maskRes+i)*4,h=global.heightAt(x,z);
   const nx=(global.heightAt(x+2,z)-global.heightAt(x-2,z))/4,nz=(global.heightAt(x,z+2)-global.heightAt(x,z-2))/4;
@@ -90,7 +91,7 @@ export async function expandWholeIsland(data,onStage=()=>{}){
   const old=masks[k+1],next=Math.round(old*(1-w)+density*255*w);
   if(next!==old){masks[k+1]=next;repaired++;}
  }
- data.habitatRepair={texels:repaired,maskMetres:maskStep,outerBlendMetres:96,scope:'lake water-level boxes and graded north/east coastal aprons; actual water, slope, trail, woodland and heath'};
+ data.habitatRepair={texels:repaired,maskMetres:maskStep,outerBlendMetres:96,scope:'lake water-level boxes and graded coastal aprons and estuary; actual water, slope, trail, woodland and heath'};
  // The native grass pool only submits the neighbourhood of the camera. The
  // global occupancy grid is coarse; roots always sample the composed surface.
  const grass=new Uint8Array(masks.length);for(let i=0;i<masks.length;i+=4)grass[i+1]=masks[i+1];data.grass={res:world.maskRes,data:grass};data.coverTerrain=global;

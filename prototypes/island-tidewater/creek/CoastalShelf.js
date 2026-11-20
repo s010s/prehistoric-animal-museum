@@ -1,5 +1,6 @@
 // Museum-authored, coast-following bathymetry. One CPU construction before
 // native height/normal/shadow upload; no additional per-frame simulation.
+import {finishMainEstuary,mainEstuaryHeight,mainEstuaryWeight} from './MainEstuary.js';
 import {Noise2D} from '../vendor/tidewater/src/util/Noise.js';
 const SEA=-.7;
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
@@ -35,7 +36,13 @@ function distanceTransform(ocean,n){
 export function extendCoastalShelf(grids,readHeight,waterField){
  const started=performance.now(),size=32768,n=1024,texel=size/n,origin=-size/2;
  const heights=new Float32Array(n*n),ocean=new Uint8Array(n*n),queue=new Int32Array(n*n);
- for(let j=0;j<n;j++)for(let i=0;i<n;i++)heights[j*n+i]=readHeight(origin+(i+.5)*texel,origin+(j+.5)*texel);
+ for(let j=0;j<n;j++){
+  const z=origin+(j+.5)*texel,river=waterField.riverAt(z);
+  for(let i=0;i<n;i++){
+   const x=origin+(i+.5)*texel,old=readHeight(x,z);
+   heights[j*n+i]=mainEstuaryHeight(x,z,old,river,mainEstuaryWeight(x,z));
+  }
+ }
  let head=0,tail=0;
  const enqueue=k=>{if(!ocean[k]&&heights[k]<SEA){ocean[k]=1;queue[tail++]=k;}};
  for(let i=0;i<n;i++){enqueue(i);enqueue((n-1)*n+i);enqueue(i*n);enqueue(i*n+n-1);}
@@ -168,6 +175,7 @@ export function extendCoastalShelf(grids,readHeight,waterField){
    if(y===old)continue;grid.heights[k]=y;changed++;maxShift=Math.max(maxShift,Math.abs(y-old));if(old>=SEA)dryChanged++;
    const sand=1-smooth(.18,.7,form.reef/2.1);grid.sand[k]=Math.round(sand*255);grid.rock[k]=mix(grid.rock[k],.06+(1-sand)*.5,weight);
   }
+  finishMainEstuary(grid,waterField);
   grid.buildMinMax();changes.push({grid:grid.id??'regional',changed,maxShift,dryChanged,protectedWater,apronChanged,apronMaxShift});
  }
  const apronProbes=landProbes.map((point,i)=>({point,before:oldLand[i],after:readHeight(...point)}));

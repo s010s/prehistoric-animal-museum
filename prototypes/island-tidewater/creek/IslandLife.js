@@ -149,7 +149,7 @@ export class IslandLife{
    benthic:{ready:false,pending:null,attempts:0,retryAt:0,error:null},
   }:null;
   this.vaultLocationReady=false;
-  app.scene.add(this.group);this.q=new Quaternion();this.euler=new Euler(0,0,0,'YXZ');this.frustum=new Frustum();this.viewProjection=new Matrix4();this.sphere=new Sphere();this.screen=new Vector3();this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};this.enabled=true;this.update(0,app.camera);
+  app.scene.add(this.group);this.q=new Quaternion();this.euler=new Euler(0,0,0,'YXZ');this.frustum=new Frustum();this.viewProjection=new Matrix4();this.sphere=new Sphere();this.screen=new Vector3();this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};this.trackingSwimmers=[];this.enabled=true;this.update(0,app.camera);
  }
  createSwimBatch(name,kinds,count,configure,reviewed){
   const batch=new ReefBatch(name,kinds,{maxInstances:Math.max(1,count),dynamic:true,fade:true});
@@ -242,6 +242,8 @@ export class IslandLife{
 
  update(dt,camera){
   if(this.vaultLocationReady)this.queueNearbyVault(camera);
+  this.group.visible=this.enabled;
+  this.trackingSwimmers.length=0;
   this.time+=dt;const cp=camera.position;camera.updateMatrixWorld();this.viewProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.viewProjection,camera.coordinateSystem,camera.reversedDepth);this.pxScale=camera.projectionMatrix.elements[5]*this.app.engine.height*.5;this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};for(const {batch} of this.swimBatches)batch.begin();let live=0,shrimp=0;this.audit.minBedClearance=Infinity;this.audit.minSurfaceClearance=Infinity;
   for(let i=0;i<this.fish.length;i++){
    const f=this.fish[i],g=f.group,dist=Math.hypot(cp.x-g.x,cp.z-g.z);if(!this.enabled||dist>65||cp.y>g.h+8){f.fresh=true;f.sleeping=true;continue;}
@@ -256,7 +258,11 @@ export class IslandLife{
    const clear=y-floor,top=h-y;this.audit.minBedClearance=Math.min(this.audit.minBedClearance,clear);this.audit.minSurfaceClearance=Math.min(this.audit.minSurfaceClearance,top);if(clear<0||top<0)this.audit.violations++;
    const distance=cp.distanceTo(f.p),range=f.shrimp?6:42;if(distance>range){f.fresh=true;continue;}
    const L=f.L,pixels=L*this.pxScale/Math.max(.2,distance);
-   this.sphere.center.copy(f.p);this.sphere.radius=L;if(pixels<1.2||!this.frustum.intersectsSphere(this.sphere)){f.fresh=true;continue;}
+   if(pixels<1.2){f.fresh=true;continue;}
+   this.sphere.center.copy(f.p);this.sphere.radius=L;
+   f.trackingVisible=this.frustum.intersectsSphere(this.sphere);
+   if(distance<range){f.trackingId=i;this.trackingSwimmers.push(f);}
+   if(!f.trackingVisible){f.fresh=true;continue;}
    this.screen.copy(f.p).project(camera);this.frameSight[f.shrimp?'shrimp':'fish'].push({position:f.p.toArray(),length:L,distance,pixels,ndc:[this.screen.x,this.screen.y],habitat:g.id,species:f.vault??'native',bedClearance:clear,surfaceClearance:top});
    if(swim){
     this.q.setFromEuler(this.euler.set(swim.pitch,f.yaw,swim.roll,'YXZ'));

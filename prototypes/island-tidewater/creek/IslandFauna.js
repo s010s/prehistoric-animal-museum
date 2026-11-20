@@ -20,12 +20,12 @@ function motionClips(model, medium, behavior) {
   const match = re => names.find(name => re.test(name));
   const idle = match(/idle|rest|breathe|stand/i) ?? names[0];
   const movement = medium === 'ground' ? match(/walk|amble|forage|trot|stride|wade/i)
-    : medium === 'air' ? match(/fly|flap|flight|hover|soar|glide/i)
-    : medium === 'benthic' ? match(/crawl|walk|scuttle/i)
-    : match(/swim|cruise|pulse|undulat/i);
+    : medium === 'air' ? match(/^fly$/i) ?? match(/fly|flap|flight|hover|soar|glide/i)
+    : medium === 'benthic' ? match(/^crawl$/i) ?? match(/crawl|walk|scuttle/i)
+    : match(/^swim$/i) ?? match(/swim|cruise|pulse|undulat/i);
   const activity = behavior === 'graze' || behavior === 'browse' || behavior === 'forage' ? match(/eat|feed|graze|browse|forage/i)
     : behavior === 'glide' || behavior === 'soar' ? match(/glide|soar/i) : null;
-  return { idle, movement, activity, glide: match(/^glide$/i), hover: match(/^hover$|^feed$/i), alert: match(/alert|watch|look/i) };
+  return { idle, movement, activity, strideBase: match(/^StrideBase$/), hover: match(/^hover$/i) ?? match(/^feed$/i), alert: match(/alert|watch|look/i) };
 }
 
 function bodyBounds(metadata) {
@@ -156,7 +156,9 @@ function moveActor(app, actor, dt, camera) {
   const quiet = behavior === 'rest' || behavior === 'ambush' || behavior === 'hover';
   const feeding = /graze|browse|forage/.test(behavior);
   const quietWindow = quiet ? 12 : feeding ? 5 : 1.6;
-  const arrivalHold = stayedAtArrival && actor.time < 4;
+  // A guided view can briefly hold a land animal. A flier needs forward
+  // motion even while the visitor is still at the viewing point.
+  const arrivalHold = m !== 'air' && stayedAtArrival && actor.time < 4;
   const pause = arrivalHold || (ground && (alert || cycle < quietWindow)) || (benthic && alert)
     || (!ground && quiet && !alert && cycle < quietWindow);
   const moving = route.length > 0 && !pause && (!ground || !!model.groundMotion || !!clips.movement);
@@ -164,12 +166,16 @@ function moveActor(app, actor, dt, camera) {
   actor.response = alert ? ground ? canWatch ? 'watching-visitor' : 'holding-footing' : benthic ? 'holding-bed'
     : m === 'air' ? 'passing-overhead' : 'giving-swimmer-space' : moving ? behavior : 'resting';
   let clip = clips.idle;
-  if (m === 'air') clip = clips.glide && clock % 9.7 > 6.3 ? clips.glide : clips.movement || clips.idle;
-  else if (moving) clip = clips.movement || clips.idle;
+  if (m === 'air') clip = clips.movement || clips.idle;
+  else if (moving) clip = ground && model.groundMotion ? clips.strideBase || clips.idle : clips.movement || clips.idle;
   else if (!ground && !benthic) clip = clips.hover || clips.movement || clips.idle;
   else clip = (alert && clips.alert) || clips.activity || clips.idle;
   if (clip && clip !== actor.clip) {
-    const from = actor.phase % (model.clipDuration(clip) || 1);
+    // Match the stroke across Swim/Hover. Changing cadence should not swap
+    // a loaded fin for the opposite fin in the middle of its power stroke.
+    const prior = wet ? model.layers.find(layer => layer.clip.name === actor.clip) : undefined;
+    const period = model.clipDuration(clip) || 1;
+    const from = prior?.clip.duration > 0 ? (prior.time / prior.clip.duration % 1) * period : actor.phase % period;
     const layer = model.play(clip, { loop: true, from, fade: actor.clip ? .28 : .07 });
     if (!actor.clip) layer.time = from;
     actor.clip = clip;

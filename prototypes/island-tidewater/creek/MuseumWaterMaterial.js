@@ -61,6 +61,13 @@ export class MuseumWaterMaterial extends WaterMaterial{
  if(pos.y<museumGroundH-.015){discard;}`);
   change('let groundH = terrainHeightAt( pos.xz );','let groundH=museumGroundH;');
   if(this.isMuseumOcean){
+   // On the shallow tidal spit a pixel can see many metres along a wet
+   // film. Use the actual sand receiver for its thickness: the half-size
+   // screen depth otherwise stretches foreground texels into glass spikes.
+   change('if ( edgeAA < 1.0 ) {',`let groundFilm=museumMainTidalWeight(pos.xz)*smoothstep(-.35,.02,museumGroundH-frame.seaLevel);
+   let filmCoverage=mix(edgeAA,smoothstep(.002,.10,max(thickness,0.0)),groundFilm);
+   if(filmCoverage<1.0){`);
+   change('outCol = mix( sandC, shaded, edgeAA );','outCol=mix(sandC,shaded,filmCoverage);');
    // Every material use of history (including suspended sand) must share the
    // presentation handover. Filtering only foam leaves a rectangular tint.
    change('let simState = shoreSimSample( pos.xz );','let simState=shoreSimSample(pos.xz)*museumSurfDetailAt(pos.xz);');
@@ -85,6 +92,13 @@ export class MuseumWaterMaterial extends WaterMaterial{
  let receiver=worldFromDepth(screenUV,_waterSceneDepthAt(screenUV));
  if(receiver.y<pos.y+.04){thickness=min(thickness,max(pos.y-receiver.y,0.0));}`);
   change('max( fwidth( thickness ) * 1.5, 0.004 )','max(fwidth(thickness)*1.5,0.025)');
+  if(this.isMuseumOcean){
+   change('if(receiver.y<pos.y+.04){thickness=min(thickness,max(pos.y-receiver.y,0.0));}',`
+   if(receiver.y<pos.y+.04){
+    let sandFilm=museumMainTidalWeight(pos.xz)*smoothstep(-.35,.02,museumGroundH-frame.seaLevel);
+    thickness=mix(min(thickness,max(pos.y-receiver.y,0.0)),thickness,sandFilm);
+   }`);
+  }
   // Screen-depth quantisation must be filtered on both representations.
   // Otherwise the same column changes optical length at the raster handover.
   change('let qDist = length( qView - posV );',`let qDistRaw=length(qView-posV);

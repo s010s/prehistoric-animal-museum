@@ -4,7 +4,7 @@ import { BufferGeometry, Float32BufferAttribute, Mesh, Sphere, Vector3 } from '.
 import { ShaderModule, UniformBlock } from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {makeRefractedFloor} from './RefractedFloor.js';
 import {MuseumWaterMaterial} from './MuseumWaterMaterial.js';
-import { RefractionPass } from '../vendor/tidewater/src/ocean/RefractionPass.js';
+import { MuseumRefractionPass } from '../museum/MuseumRefractionPass.js';
 import { Underwater } from '../vendor/tidewater/src/post/Underwater.js';
 import { SceneLighting } from '../vendor/tidewater/src/materials/SceneLighting.js';
 import { LAYERS } from '../vendor/tidewater/src/core/SceneRenderer.js';
@@ -68,7 +68,7 @@ fn hookShadowPosition(P:vec3f,N:vec3f,pixel:vec2f)->vec3f {
   SceneLighting.set('directModulation',direct);SceneLighting.set('ambientModulation',ambient);SceneLighting.set('shadowPosition',shadow);
 }
 
-export class CreekRefraction extends RefractionPass {
+export class CreekRefraction extends MuseumRefractionPass {
   constructor(options,field,terrain=null){super(options);this.field=field;this.terrain=terrain;this.floor=terrain?makeRefractedFloor(terrain.lod):null;this.maxWaterY=Math.max(...field.g.waterRuns.flat().map(p=>p.level),...(field.island?.lakes.map(p=>p.level)??[]));this._defines={CREEK_REFRACTION:1};}
   render(){
     if(!this.floor)return super.render(this.maxWaterY+.05);

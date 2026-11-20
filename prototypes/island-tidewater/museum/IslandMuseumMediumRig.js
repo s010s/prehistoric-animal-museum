@@ -35,25 +35,33 @@ function sourceVertex(piece, position, offset, weights, result) {
 }
 
 function addMotion(clip, joints, active, toModel, sourceInverse) {
-  const samples = 72;
-  const times = Float32Array.from({ length: samples + 1 }, (_, i) => clip.duration * i / samples);
+  const defaultSamples = 72;
+  const defaultTimes = Float32Array.from({ length: defaultSamples + 1 }, (_, i) => clip.duration * i / defaultSamples);
   const rotation = new Quaternion(), part = new Quaternion();
   const delta = new Vector3(), turned = new Vector3(), d = new Vector3();
   const channels = [...clip.channels];
   for (const joint of joints) {
-    const rotations = new Float32Array(times.length * 4);
+    const authored = clip.aquaticAuxiliary?.get(joint.name);
+    if (!authored && !joint.motion) throw Error('Missing supplemental motion for ' + joint.name);
+    const times = authored?.times ?? defaultTimes;
+    const samples = times.length - 1;
+    const rotations = authored?.values ?? new Float32Array(times.length * 4);
     const translations = joint.anchor ? new Float32Array(times.length * 3) : null;
     const anchor = joint.anchor;
     const values = anchor && new Float32Array(anchor.weights.length);
     const layers = [{ clip, time: 0, weight: 1 }];
     for (let i = 0; i < samples; i++) {
-      const phase = i / samples * TAU;
-      rotation.identity();
-      for (const [axis, angle] of joint.motion(phase, active)) {
-        const localAxis = toModel(axis).transformDirection(sourceInverse);
-        rotation.premultiply(part.setFromAxisAngle(localAxis, angle));
+      if (authored) {
+        rotation.fromArray(rotations, i * 4).normalize();
+      } else {
+        const phase = i / samples * TAU;
+        rotation.identity();
+        for (const [axis, angle] of joint.motion(phase, active)) {
+          const localAxis = toModel(axis).transformDirection(sourceInverse);
+          rotation.premultiply(part.setFromAxisAngle(localAxis, angle));
+        }
+        rotation.normalize().toArray(rotations, i * 4);
       }
-      rotation.normalize().toArray(rotations, i * 4);
       if (translations) {
         layers[0].time = times[i];
         islandMorphWeights(anchor.piece, layers, values);
@@ -67,7 +75,7 @@ function addMotion(clip, joints, active, toModel, sourceInverse) {
         delta.sub(turned).add(joint.offset).toArray(translations, i * 3);
       }
     }
-    rotations.copyWithin(samples * 4, 0, 4);
+    if (!authored) rotations.copyWithin(samples * 4, 0, 4);
     channels.push({ node: joint.node, path: 'rotation', times, values: rotations });
     if (translations) {
       translations.copyWithin(samples * 3, 0, 3);
@@ -168,5 +176,8 @@ export function augmentIslandMediumRig(id, gltf, pieces, skin, metadata) {
   if (joints.some(joint => !joint.affected || (joint.followMorph && !joint.anchor))) {
     throw Error(`Missing supplemental joint geometry in island ${id}`);
   }
-  for (const clip of clips) addMotion(clip, joints, clip.name === config.active, toModel, sourceInverse);
+  for (const clip of clips) {
+    addMotion(clip, joints, clip.name === config.active, toModel, sourceInverse);
+    delete clip.aquaticAuxiliary;
+  }
 }

@@ -1,12 +1,15 @@
 // Museum-authored regional extension: the same 4m terrain grid reaches the
 // original river's sea-level outlet, while the accepted 1m creek core stays.
 import {TerrainData} from '../vendor/tidewater/src/world/TerrainData.js';
+import {shapeMainTidalReach} from './MainEstuary.js';
 import {bedRelief} from './BedRelief.js';
 import {readTerrainAsset} from './TerrainTransport.js';
 
 export async function expandWatershed(data){
  const [layout,h,m,p]=await Promise.all(['watershed-layout.json','watershed-heights.bin','watershed-masks.bin','river-profile.bin'].map(readTerrainAsset));
- data.field.extendRiver(layout,new Float32Array(p));
+ const profile=new Float32Array(p);
+ shapeMainTidalReach(layout,profile);
+ data.field.extendRiver(layout,profile);
  const cover=data.terrain,core=data.coreTerrain,outer=Object.create(TerrainData.prototype),masks=new Uint8Array(m),n=layout.res**2;
  Object.assign(outer,{size:layout.size,res:layout.res,texel:layout.texel,origin:layout.origin,heights:new Float32Array(h),pads:[],rockSites:[],paths:[],timings:{source:'museum original main watershed'}});
  outer.rock=new Float32Array(n);for(const key of ['sand','path','gully','seagrass','rubble','scarp'])outer[key]=new Uint8Array(n);

@@ -1,9 +1,10 @@
 // A small representative cast from the museum's 36-animal mainCollection.
-// Source joint motion and runtime pose repairs drive native WebGPU skinning.
+// Source and Blender-authored actions feed the same native WebGPU skinning.
 import { Group, Vector3, Sphere } from '../vendor/tidewater/src/engine/index.js';
 import { mergeMuseumSkins } from '../museum/NativeMuseumSkin.js';
 import { prepareMuseumMotion, museumMotionEnvelope, sampleIchthyosaurEnvelope } from '../museum/AnimalMotionPolish.js';
 import { createMuseumGroundMotion } from '../museum/MuseumGroundMotion.js';
+import { prepareIslandAquaticMotion } from '../museum/IslandAquaticMotion.js';
 import { museumMaterialOptions } from '../museum/animals.js';
 import { findMuseumGround, museumGroundSupport, museumTrunkClear, seatMuseumModel, museumGroundVisit, museumXZ } from '../museum/MuseumGrounding.js';
 import { markStreamedFaunaMaterials } from '../museum/StreamedFaunaPipelines.js';
@@ -22,6 +23,7 @@ const source = [
   { data: ichthy, costMiB: 68, title: '鱼龙', habitat: 'marine', range: 100, url: new URL('../museum/assets/sample-ichthyosaur.glb', import.meta.url).href },
 ];
 const sea = -.7, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const marineRadii = [20, 10], marineBob = .025, marineBank = .018;
 const yawFor = (data, dx, dz) => Math.atan2(dx, dz) - Math.atan2(data.forward[0], data.forward[1]);
 const envelope = data => data.motionEnvelope ?? ({ min: [0, 1, 2].map(k => Math.min(...data.animationEnvelope.clips.map(c => c.min[k]))), max: [0, 1, 2].map(k => Math.max(...data.animationEnvelope.clips.map(c => c.max[k]))) });
 function plainSite(site) {
@@ -65,19 +67,22 @@ function parasRoute(app) {
     if (site.clear < .12 || site.edge < .1 || site.slope > .14 || site.residual > .055 || !museumTrunkClear(app, site, data, contactCenter, .7)) throw Error('Parasaurolophus dry patrol no longer clears water, support or trunks');
     points.push([x, site.y, z]); supports.push(site);
   }
-  return { center, dir, length, yaw, contactCenter, supportHalf, supports, points, speed: .18, sourceStanceVelocity: .1800,
+  return { center, dir, length, yaw, contactCenter, supportHalf, supports, points, speed: .50, sourceStanceVelocity: .1800,
     trackPath: { start: points[0], end: points.at(-1), points, stepMetres: 1.08, traceStepMetres: 1.08, footLengthMetres: .54,
       halfTrackMetres: .34, bankOffsetMetres: -.9, correspondence: 'older normal walking pass; the current foraging gait keeps separate live foot contacts' } };
 }
 
 function findMarineRoute(app, data) {
-  const env = envelope(data), roll = .018, c = Math.cos(roll), s = Math.sin(roll);
-  // The coastal circuit banks slightly. Bound that rotation as well as every
-  // local joint pose before selecting a height between reef and wave trough.
+  const env = envelope(data), [rx, rz] = marineRadii;
+  // In this rig the nose is -X. Bank about X and pitch about Z, keeping the
+  // complete swim pose between the reef and the local wave troughs.
   const ex = Math.max(Math.abs(env.min[0]), Math.abs(env.max[0]));
-  const minY = (env.min[1] * c - ex * s) * data.scale, maxY = (env.max[1] * c + ex * s) * data.scale;
-  const hx = Math.max(Math.abs(env.min[0]), Math.abs(env.max[0])) * data.scale + .12;
-  const hz = Math.max(Math.abs(env.min[2]), Math.abs(env.max[2])) * data.scale + .12;
+  const ez = Math.max(Math.abs(env.min[2]), Math.abs(env.max[2]));
+  const pitch = Math.atan2(2 * marineBob, Math.min(rx, rz));
+  const verticalTilt = ez * Math.sin(marineBank) + ex * Math.sin(pitch);
+  const minY = (env.min[1] - verticalTilt) * data.scale;
+  const maxY = (env.max[1] + verticalTilt) * data.scale;
+  const hx = ex * data.scale + .12, hz = ez * data.scale + .12;
   const reefs = [...(app.creekData.sampleBenthicDetails?.coralSites ?? []), ...(app.creekData.sampleBenthicDetails?.spongeSites ?? [])];
   const rocks = app.coveRocks?.instances ?? [];
   const candidates = [];
@@ -87,7 +92,7 @@ function findMarineRoute(app, data) {
     let bed = -Infinity, occupiedTop = -Infinity;
     const points = [];
     for (let i = 0; i < 72; i++) {
-      const a = i * Math.PI / 36, x = center.x + Math.cos(a) * 20, z = center.z + Math.sin(a) * 10, yaw = yawFor(data, -20 * Math.sin(a), 10 * Math.cos(a));
+      const a = i * Math.PI / 36, x = center.x + Math.cos(a) * rx, z = center.z + Math.sin(a) * rz, yaw = yawFor(data, -rx * Math.sin(a), rz * Math.cos(a));
       let localBed = -Infinity;
       for (const lx of [-hx, -hx / 2, 0, hx / 2, hx]) for (const lz of [-hz, 0, hz]) {
         const [dx, dz] = museumXZ(lx, lz, yaw);
@@ -105,10 +110,10 @@ function findMarineRoute(app, data) {
       }
       points.push([x, z]);
     }
-    const lower = occupiedTop + .32 - minY + .025, upper = sea - .55 - maxY - .025;
+    const lower = occupiedTop + .32 - minY + marineBob, upper = sea - .55 - maxY - marineBob;
     if (lower > upper) continue;
     const y = (lower + upper) / 2;
-    return { ...center, y, radii: [20, 10], points, bedMaximum: bed, occupiedTop, envelope: env, rollEnvelopeRadians: roll, verticalEnvelopeMetres: [minY,maxY], minimumBedClearance: y + minY - bed - .025, minimumOccupiedClearance: y + minY - occupiedTop - .025, minimumMeanSurfaceClearance: sea - (y + maxY + .025), scaleLabel: '5 m representative fish-shaped marine reptile; no age/adult claim', exactWater: 'mean sea level; .55 m minimum top margin covers ordinary local wave troughs, not extreme waves' };
+    return { ...center, y, radii: marineRadii, points, bedMaximum: bed, occupiedTop, envelope: env, rollEnvelopeRadians: marineBank, pitchEnvelopeRadians: pitch, verticalEnvelopeMetres: [minY,maxY], minimumBedClearance: y + minY - bed - marineBob, minimumOccupiedClearance: y + minY - occupiedTop - marineBob, minimumMeanSurfaceClearance: sea - (y + maxY + marineBob), scaleLabel: '5 m representative fish-shaped marine reptile; no age/adult claim', exactWater: 'mean sea level; .55 m minimum top margin covers ordinary local wave troughs, not extreme waves' };
   }
   throw Error('No 5m ichthyosaur route with full animated body, reef and surface clearance');
 }
@@ -143,7 +148,7 @@ export class SampleMuseumLife {
       const id = original.data.id;
       const data = id === 'ichthyosaur' ? { ...original.data, motionEnvelope: sampleIchthyosaurEnvelope } : original.data;
       const definition = { ...original, data };
-      const actor = { definition, group: new Group(), model: null, active: false, time: 0, distance: 0, mode: 'idle', hiddenFrames: 0, poseNodes: [] };
+      const actor = { definition, group: new Group(), model: null, active: false, time: 0, nearTime: 0, distance: 0, mode: 'idle', hiddenFrames: 0, poseNodes: [] };
       actor.group.scale.setScalar(data.scale);
       if (id === 'lystrosaurus') {
         actor.contactCenter = [0, .35]; actor.supportHalf = [.13, .22];
@@ -171,8 +176,9 @@ export class SampleMuseumLife {
         const entry = dryEntry(app, app.islandVisits?.['sample-mouth']?.p ?? [-823, 119]);
         this.visits['sample-' + id] = { id: 'sample-' + id, title: '海风中的无齿翼龙', p: entry.p, gaze: [-946, altitude, 160], time: 12.6, note: '', footing: entry };
       } else {
-        actor.route = findMarineRoute(app, data); actor.route.phase = 0; actor.mode = 'swimming';
-        sites[id] = { id, metres: data.metres, habitat: 'marine only; open sand corridor beside the outer gardens', path: actor.route, action: 'four separated fin sockets with rest-preserving skin bindings and extended tail articulation; all 3 source pieces retained' };
+        actor.route = { ...findMarineRoute(app, data), phase: 0, speed: 1.25 };
+        actor.mode = 'swimming';
+        sites[id] = { id, metres: data.metres, habitat: 'marine only; open sand corridor beside the outer gardens', path: actor.route, action: 'four separated fin sockets with rest-preserving skin bindings and a Blender-authored swimming cycle' };
         const entry = marineEntry(app, actor.route);
         this.visits['sample-' + id] = { id: 'sample-' + id, title: '浅湾外缘的鱼龙', p: entry.p, gaze: [actor.route.x, actor.route.y, actor.route.z], diveLevel: sea, eyeBelowSurface: sea - actor.route.y, time: 12.6, note: '', habitatAvailable: true, underwaterEntry: entry, waterClearance: { bottom: actor.route.minimumOccupiedClearance, meanSurface: actor.route.minimumMeanSurfaceClearance } };
       }
@@ -187,6 +193,7 @@ export class SampleMuseumLife {
         bytes: definition.costMiB * 1024 ** 2, priority: 8,
         load: async signal => {
           const gltf = prepareMuseumMotion(mergeMuseumSkins(await loadSampleGLB(definition.url, signal)), id);
+          if (id === 'ichthyosaur') await prepareIslandAquaticMotion(gltf, id);
           signal.throwIfAborted();
           const probes = { lystrosaurus: ['head_065_62', 'Tail_3_033_29'], parasaurolophus: ['骨骼.018_end', '骨骼.030_end'], pteranodon: ['Lwing03.37_37', 'Rwing03.67_67'], ichthyosaur: ['front_fin_L', 'rear_fin_R', 'tail_05', 'tail_06'] };
           actor.poseNodes = probes[id].map(name => gltf.nodes.findIndex(n => n.name === name));
@@ -209,7 +216,7 @@ export class SampleMuseumLife {
           }
           model.group.name = `museum-sample:${id}`;
           model.group.scale.copy(actor.group.scale);
-          model.play('Idle', { fade: 0, loop: true, speed: 1 });
+          model.play(id === 'ichthyosaur' ? 'Swim' : 'Idle', { fade: 0, loop: true, speed: 1 });
           model.update(0);
           if (definition.habitat === 'land') actor.groundMotion = createMuseumGroundMotion(id, data, model);
           if (actor.colliderHalf) actor.collider = app.colliders?.addBox(new Vector3(), new Vector3(...actor.colliderHalf), actor.site.yaw, { tag: 'museum sample herbivore', solid: true });
@@ -252,16 +259,18 @@ export class SampleMuseumLife {
   place(actor, dt) {
     const app = this.app, data = actor.definition.data, id = data.id, model = actor.model ?? { group: actor.group, layers: [] };
     if (actor.definition.habitat === 'land') {
-      const route = actor.route, pedestrian = app.player?.position;
+      const route = actor.route;
+      const visitor = app.freeCam ? app.camera.position : app.player?.position ?? app.camera.position;
       const paras = id === 'parasaurolophus';
-      const front = pedestrian && Math.hypot(pedestrian.x - actor.site.x, pedestrian.z - actor.site.z) < (paras ? 4.2 : .85);
-      const walking = actor.time >= (paras ? 4 : 3.5) && actor.distance < route.length - .025 && !front;
-      if (paras && actor.model) {
-        const clip = walking ? 'Walk' : 'Idle';
-        if (model.current !== clip) model.play(clip, { fade: .55, loop: true, speed: 1 });
-      }
+      const distance = Math.hypot(visitor.x - actor.site.x, visitor.y - actor.site.y, visitor.z - actor.site.z);
+      const front = distance < (paras ? 4.2 : .85);
+      actor.nearTime = distance < (paras ? 28 : 7) ? actor.nearTime + dt : 0;
+      const remaining = Math.max(0, route.length - actor.distance);
+      const walking = actor.nearTime >= (paras ? 4 : 3.5) && remaining > .005 && !front;
       const previous = actor.distance;
-      const speed = actor.groundMotion?.advance(dt, walking, route.speed) ?? 0;
+      // The ground action already animates these limbs from Blender swing
+      // curves. The source Walk would pose the same joints again.
+      const speed = actor.groundMotion?.advance(dt, walking, Math.min(route.speed, Math.sqrt(.85 * remaining))) ?? 0;
       actor.distance = Math.min(route.length, actor.distance + speed * dt);
       actor.mode = front ? 'yielding-to-visitor' : walking ? 'short-step-foraging' : actor.distance > route.length - .08 ? 'resting-at-end-of-trail' : 'idle-before-foraging';
       const start = route.points[0], x = start[0] + route.dir[0] * actor.distance, z = start[2] + route.dir[1] * actor.distance;
@@ -279,10 +288,15 @@ export class SampleMuseumLife {
       model.group.position.set(x, r.altitude + Math.sin(a * 2) * 1.3, z);
       model.group.rotation.set(.035 * Math.cos(a * 2), yawFor(data, -r.radii[0] * Math.sin(a), r.radii[1] * Math.cos(a)), -.10, 'YXZ');
     } else {
-      const r = actor.route; r.phase += dt * .72 / 16;
-      const a = r.phase, x = r.x + Math.cos(a) * r.radii[0], z = r.z + Math.sin(a) * r.radii[1];
-      model.group.position.set(x, r.y + Math.sin(a * 2) * .025, z);
-      model.group.rotation.set(0, yawFor(data, -r.radii[0] * Math.sin(a), r.radii[1] * Math.cos(a)), .018 * Math.sin(a), 'YXZ');
+      const r = actor.route, [rx, rz] = r.radii;
+      const rate = r.speed / Math.hypot(rx * Math.sin(r.phase), rz * Math.cos(r.phase));
+      r.phase += dt * rate;
+      const a = r.phase, alongX = -rx * Math.sin(a), alongZ = rz * Math.cos(a);
+      const x = r.x + Math.cos(a) * rx, z = r.z + Math.sin(a) * rz;
+      const rise = Math.cos(a * 2) * 2 * marineBob * rate;
+      const bank = -marineBank * (1 + 2 * Math.cos(a) ** 2) / 3;
+      model.group.position.set(x, r.y + Math.sin(a * 2) * marineBob, z);
+      model.group.rotation.set(bank, yawFor(data, alongX, alongZ), -Math.atan2(rise, r.speed), 'YXZ');
     }
     this.updateCollider(actor);
   }
@@ -294,7 +308,8 @@ export class SampleMuseumLife {
       const active = d < actor.definition.range + (actor.active ? 10 : 0);
       if (!active) {
         if (actor.active) actor.model.hold();
-        actor.active = false; actor.model.group.visible = false; actor.hiddenFrames++; continue;
+        actor.active = false; actor.nearTime = 0;
+        actor.model.group.visible = false; actor.hiddenFrames++; continue;
       }
       if (!actor.active) { actor.model.update(0); actor.model.hold(); for (const mesh of actor.model.meshes) mesh.resetVelocity = true; }
       actor.active = true; actor.model.group.visible = true; actor.time += step;

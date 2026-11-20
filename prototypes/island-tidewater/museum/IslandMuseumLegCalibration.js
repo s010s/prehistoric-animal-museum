@@ -63,7 +63,7 @@ export const islandMuseumLegCalibration = {
     ],
   },
   carnotaurus: {
-    forward: [0, 1], materials: ['BODY', 'CLAW'], addedVertexBytes: 16,
+    forward: [0, 1], materials: ['BODY', 'CLAW'], upperBlend: .86, upperHalo: .23, addedVertexBytes: 16,
     legs: [
       leg(-1, false, 'Object_2', [0, 1, 3], [
         [-.58, 2.68, -.79, .52, .42], [-.246, 1.53, -.906, .36, .24],
@@ -94,6 +94,10 @@ export const islandMuseumLegCalibration = {
   },
   phorusrhacos: {
     forward: [1, 0], root: 'Root', head: 'NeckBase', tail: 'Tail', addedVertexBytes: 16,
+    // The source stands mid-stride. Leave room for its broad toes when both feet are planted.
+    laneOutset: .11,
+    // Its thigh vertices also carry native tail weights. Keep the tail's pose out of solved legs.
+    isolateGroundLegs: true,
     legs: [
       leg(-1, false, 'Body', [0, 1, 3], [
         [-.741, 1.61, -.296, .218, .183], [-.55, .919, -.21, .134, .105],
@@ -145,23 +149,25 @@ export const islandMuseumLegCalibration = {
   },
   mammoth: {
     forward: [-1, 0], root: 'root', head: 'head', tail: 'tail_1',
+    // The source labels switch inside the same feet. Follow each anatomical lane.
+    laneDivider: [.445, .324], upperBlend: .83, upperHalo: .24,
     legs: [
       leg(-1, true, 'leg_front_right', [0, 1, 2], [
         [.166, .678, .251, .27, .25], [.174, .276, .326, .132, .145],
         [.165, .073, .323, .095, .096], [.187, -.052, .322, .125, .111],
-      ]),
+      ], ['leg_front_right', 'leg_front_left']),
       leg(1, true, 'leg_front_left', [0, 1, 2], [
         [.164, .672, .65, .27, .22], [.175, .282, .55, .128, .13],
         [.173, .074, .544, .108, .092], [.187, -.052, .545, .125, .108],
-      ]),
+      ], ['leg_front_right', 'leg_front_left']),
       leg(-1, false, 'leg_rear_right', [0, 1, 2], [
-        [-.499, .725, .254, .27, .28], [-.495, .31, .253, .186, .236],
-        [-.491, .077, .273, .164, .215], [-.478, -.052, .291, .181, .202],
-      ]),
+        [-.50, .67, .162, .22, .147], [-.48, .31, .191, .177, .129],
+        [-.528, .077, .201, .112, .097], [-.523, -.052, .215, .130, .094],
+      ], ['leg_rear_right', 'leg_rear_left']),
       leg(1, false, 'leg_rear_left', [0, 1, 2], [
-        [-.493, .721, .644, .26, .161], [-.442, .302, .551, .19, .113],
-        [-.462, .076, .485, .099, .064], [-.443, -.052, .479, .116, .055],
-      ]),
+        [-.493, .672, .645, .236, .148], [-.456, .305, .466, .174, .128],
+        [-.461, .077, .435, .107, .099], [-.443, -.052, .435, .123, .092],
+      ], ['leg_rear_right', 'leg_rear_left']),
     ],
   },
 };

@@ -1,16 +1,32 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { posix } from 'node:path';
 import { writeBuildInfo } from './tools/write-build-info.mjs';
 import { submergedShadingContract } from './tools/submerged-shading-contract.mjs';
 import { cloudViewContract } from './tools/cloud-view-contract.mjs';
 import { meshJitterContract } from './tools/mesh-jitter-contract.mjs';
+import { temporalCoverageContract } from './tools/temporal-coverage-contract.mjs';
 import { prepareFaunaLods } from './tools/prepare-fauna-lods.mjs';
 import { prepareTerrainTransport } from './tools/prepare-terrain-transport.mjs';
 await writeBuildInfo();
 await prepareTerrainTransport();
 await prepareFaunaLods();
 const path = name => fileURLToPath(new URL(name, import.meta.url));
+// Check the literal URLs the shipped browser code requests. The build can
+// emit a motion chunk yet leave a dangling source JSON import in its caller.
+function verifyLazyModules() {
+  return { name: 'museum-lazy-module-urls', generateBundle: { order: 'post', handler(options, bundle) {
+    for (const chunk of Object.values(bundle)) {
+      if (chunk.type !== 'chunk' || !chunk.code.includes('import(')) continue;
+      const imports = chunk.code.matchAll(/\bimport\(\s*["'`](\.{1,2}\/[\w./-]+\.(?:js|json))["'`]/g);
+      for (const [, url] of imports) {
+        const resolved = posix.join(posix.dirname(chunk.fileName), url);
+        if (!Object.hasOwn(bundle, resolved)) this.error(`Missing lazy module ${url} requested by ${chunk.fileName}`);
+      }
+    }
+  } } };
+}
 function serveLocalReview(server){
     server.middlewares.use('/__native-review', (request, response) => {
       if (request.method !== 'POST' || request.headers.origin !== `http://${request.headers.host}` || !/^127\.0\.0\.1:\d+$/.test(request.headers.host ?? '')) { response.statusCode = 403; response.end(); return; }
@@ -47,7 +63,7 @@ function serveLocalReview(server){
 }
 export default defineConfig({
   root: path('./'), base: './', publicDir: path('vendor/tidewater/public'),
-  plugins: [submergedShadingContract(),cloudViewContract(),meshJitterContract(),{name:'private-native-review',configureServer:serveLocalReview,configurePreviewServer:serveLocalReview}],
+  plugins: [submergedShadingContract(),cloudViewContract(),meshJitterContract(),temporalCoverageContract(),verifyLazyModules(),{name:'private-native-review',configureServer:serveLocalReview,configurePreviewServer:serveLocalReview}],
   build: { target: 'esnext', outDir: '.review-dist', chunkSizeWarningLimit: 4000, assetsInlineLimit: 0, rollupOptions: { input: { home: path('index.html'), island: path('island/index.html'), reference: path('reference/index.html'), museum: path('museum/index.html'), creek: path('creek/index.html') } } },
   server: { host: '127.0.0.1', port: 4402, strictPort: true, hmr: false },
 });

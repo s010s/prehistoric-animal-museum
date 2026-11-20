@@ -32,6 +32,8 @@ export const ISLAND_FAUNA_POPULATION_PLAN = [
   patch('west-cove-channel', 'west-coast', [-1070, 30], 80, [['ichthyosaur', 3]], 'shelf'),
   patch('west-shore-spur', 'west-coast', [-893, -535], 100, [['rhamphorhynchus', 4]], 'sea-edge'),
   patch('west-shingle-cove', 'west-coast', [-924, -1070], 90, [['rhamphorhynchus', 4]], 'sea-edge'),
+  patch('main-estuary-fishing-reach', 'west-coast', [-365, 3617], 38, [['rhamphorhynchus', 2]], 'sea-edge'),
+  patch('main-estuary-mouth-bar', 'west-coast', [-543, 3646], 54, [['ammonite', 3]], 'shoal'),
   patch('cambrian-flats', 'west-coast', [-1447, 242], 31, [['anomalocaris', 5], ['opabinia', 4], ['hallucigenia', 3]], 'shoal'),
   patch('lagoon-north-shoals', 'west-coast', [-120, 5500], 120, [['rhamphorhynchus', 5], ['ammonite', 5]], 'sea-edge'),
   patch('lagoon-channel', 'west-coast', [-380, 5900], 180, [['ichthyosaur', 4], ['plesiosaurus', 2]], 'shelf'),

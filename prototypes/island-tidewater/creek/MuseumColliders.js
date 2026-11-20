@@ -24,6 +24,19 @@ export class MuseumColliders extends Colliders {
     if (index >= 0) this.boxes.splice(index, 1);
   }
 
+  // Use the engine's oriented-box intersection while excluding the animal
+  // being identified. Only nearby boxes can lie on this short sight line.
+  sightDistance(origin, dir, distance, ownCollider) {
+    const query = this.sightQuery ??= new Colliders();
+    query.boxes.length = 0;
+    for (const box of this.boxes) {
+      if (box === ownCollider || !box.solid) continue;
+      const reach = distance + box.radius;
+      if (Math.abs(box.center.x-origin.x) <= reach && Math.abs(box.center.z-origin.z) <= reach) query.boxes.push(box);
+    }
+    return query.raycast(origin, dir, distance);
+  }
+
   resolveCapsule(pos, radius, height, stepHeight = .35) {
     const all = this.cylinders, near = this.nearTrees;
     near.length = 0;

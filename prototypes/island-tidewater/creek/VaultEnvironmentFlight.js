@@ -10,11 +10,16 @@ import { reviewedGeometryLods, loadReviewedIndices } from './VaultGeometryLods.j
 
 const SEA = -.7;
 const TYPES = {
- ichthyornis: {kind:'bird',span:.82,sourceSpan:.994,range:136,preload:203,frequency:3.9,stroke:.61,root:[.082,.088,.10]},
- sapeornis: {kind:'bird',span:.89,sourceSpan:.983,range:126,preload:190,frequency:3.25,stroke:.68,root:[.088,.071,.04]},
- meganeura: {kind:'insect',span:.57,sourceSpan:.996,range:36,preload:94,frequency:9.1,stroke:.65,root:[.06,.037,.10]},
- stenodictya: {kind:'insect',span:.145,sourceSpan:.14053,range:20,preload:76,frequency:11.3,stroke:.55,root:[.067,.076,.09]},
- juracimbrophlebia: {kind:'insect',span:.082,sourceSpan:.081,range:13,preload:65,frequency:12.8,stroke:.71,root:[.029,.018,.075]},
+ ichthyornis: {kind:'bird',span:.82,sourceSpan:.994,range:136,preload:203,frequency:3.9,stroke:.49,
+  root:[.098,.100,.092,.045],tuck:1.10},
+ sapeornis: {kind:'bird',span:.89,sourceSpan:.983,range:126,preload:190,frequency:3.25,stroke:.55,
+  root:[.107,.115,.101,.09],tuck:1.28},
+ meganeura: {kind:'insect',span:.57,sourceSpan:.996,range:36,preload:94,frequency:9.1,stroke:.61,
+  root:[.052,.025,.131,-.08],hind:[.052,.028,.079,.10],wingLag:1.17,tuck:.52},
+ stenodictya: {kind:'insect',span:.145,sourceSpan:.14053,range:20,preload:76,frequency:11.3,stroke:.48,
+  root:[.031,.070,.083,-.025],hind:[.026,.070,.027,.28],wingLag:.48,tuck:.18},
+ juracimbrophlebia: {kind:'insect',span:.082,sourceSpan:.081,range:13,preload:65,frequency:12.8,stroke:.58,
+  root:[.015,.015,.145,.24],hind:[.012,.010,.110,.97],wingLag:.82,tuck:.12},
 };
 
 const flightModule = new ShaderModule({name:'reviewedVaultFlight',deps:[kitModule],code:/* wgsl */`
@@ -27,29 +32,35 @@ fn vaultFlightRx(v:vec3f, angle:f32)->vec3f {
 fn vaultFlightRy(v:vec3f, angle:f32)->vec3f {
  let s=sin(angle); let c=cos(angle); return vec3f(c*v.x+s*v.z,v.y,c*v.z-s*v.x);
 }
-fn vaultFlightBend(p:vec3f, curve:vec4f, joint:vec3f, w:vec4f, translate:f32)->vec3f {
+fn vaultFlightBend(p:vec3f, curve:vec4f, fore:vec4f, hind:vec4f, w:vec4f, translate:f32, bird:bool)->vec3f {
  let side=w.y;
+ let joint=mix(fore,hind,w.z);
+ let yaw=joint.w*side;
+ let root=vec3f(joint.x*side,joint.y,joint.z)*translate;
+ let local=vaultFlightRy(p-root,-yaw);
  let shoulder=mix(curve.x,curve.y,w.z)*side;
- let elbow=curve.z*side;
- let wrist=curve.w*side;
- let root=vec3f(joint.x*side,joint.y,joint.z-w.z*0.13)*translate;
- let middle=vec3f((joint.x+0.135)*side,joint.y+0.022,joint.z-w.z*0.145)*translate;
- let tip=vec3f((joint.x+0.262)*side,joint.y,joint.z-w.z*0.16-0.025)*translate;
- // Wrist and elbow rotate in their parent frames. The skin weights keep the
- // pivots continuous across the reviewed mesh's feather and membrane seams.
- let folded=tip+vaultFlightRy(vaultFlightRz(p-tip,wrist),-side*abs(curve.w)*0.58);
- let distal=mix(p,folded,smoothstep(0.50,0.93,w.w));
- let elbowPose=middle+vaultFlightRy(vaultFlightRz(distal-middle,elbow),-side*abs(curve.z)*0.39);
- let upper=mix(p,elbowPose,smoothstep(0.20,0.53,w.w));
- let shoulderPose=root+vaultFlightRz(upper-root,shoulder);
- return mix(p,shoulderPose,w.x);
-}
-fn vaultFlightBody(p:vec3f, joint:vec3f, wing:vec4f, body:vec4f, curve:vec4f, translate:f32, bird:bool)->vec3f {
+ var wing=local;
  if(bird){
-  let root=vec3f(0.050*wing.y,-0.075,-0.07)*translate;
-  let feet=root+vaultFlightRx(p-root,0.82+curve.z*0.16);
-  let tailRoot=vec3f(0.0,-0.03,-0.15)*translate;
-  let tail=tailRoot+vaultFlightRx(p-tailRoot,curve.z*0.27);
+  let elbow=vec3f(.138*side,.035,.024)*translate;
+  let wrist=vec3f(.259*side,.020,.013)*translate;
+  let feathers=wrist+vaultFlightRy(vaultFlightRz(wing-wrist,curve.w*side),max(0.0,curve.w)*side*.25);
+  wing=mix(wing,feathers,smoothstep(.57,.95,w.w));
+  let forearm=elbow+vaultFlightRz(wing-elbow,curve.z*side);
+  wing=mix(wing,forearm,smoothstep(.25,.61,w.w));
+ }else{
+  // A slight torsion follows the stroke; each membrane shares its hinge with its veins.
+  let wrist=vec3f(.17*side,.02,0.0)*translate;
+  let flex=wrist+vaultFlightRx(wing-wrist,curve.w*.32);
+  wing=mix(wing,flex,w.w*w.w);
+ }
+ return mix(p,root+vaultFlightRy(vaultFlightRz(wing,shoulder),yaw),w.x);
+}
+fn vaultFlightBody(p:vec3f, joint:vec4f, wing:vec4f, body:vec4f, curve:vec4f, translate:f32, bird:bool, tuck:f32)->vec3f {
+ if(bird){
+  let root=vec3f(.066*wing.y,-.091,-.036)*translate;
+  let feet=root+vaultFlightRx(p-root,tuck+curve.z*.23);
+  let tailRoot=vec3f(0.0,-.036,-.151)*translate;
+  let tail=tailRoot+vaultFlightRx(p-tailRoot,curve.z*.31-.05);
   return mix(mix(p,feet,body.y),tail,body.x);
  }
  // The abdomen flexes from its base before the posterior segment follows.
@@ -57,8 +68,8 @@ fn vaultFlightBody(p:vec3f, joint:vec3f, wing:vec4f, body:vec4f, curve:vec4f, tr
  let abdomenEnd=vec3f(0.0,0.004,-0.22)*translate;
  let tip=abdomenEnd+vaultFlightRy(p-abdomenEnd,curve.w*0.47);
  let bent=abdomen+vaultFlightRx(mix(p,tip,body.w)-abdomen,curve.z*0.34);
- let hip=vec3f(joint.x*wing.y*0.45,0.0,0.06)*translate;
- let leg=hip+vaultFlightRz(vaultFlightRx(p-hip,curve.w*0.50),curve.z*wing.y*0.27);
+ let hip=vec3f(joint.x*wing.y*0.57,0.0,0.12)*translate;
+ let leg=hip+vaultFlightRz(vaultFlightRx(p-hip,tuck+curve.w*.48),wing.y*(tuck*.24+curve.z*.29));
  let feeler=vec3f(joint.x*wing.y*0.32,0.02,0.16)*translate;
  let antenna=feeler+vaultFlightRy(p-feeler,curve.w*wing.y*0.32);
  return mix(mix(mix(p,bent,body.x),leg,body.y),antenna,body.z);
@@ -67,29 +78,60 @@ fn vaultFlightBody(p:vec3f, joint:vec3f, wing:vec4f, body:vec4f, curve:vec4f, tr
 
 function flightWeights(kind, type, [x,y,z], node) {
  const side=x<0?-1:1, ax=Math.abs(x);
- const span=smooth(type.root[0],.49,ax);
- if (type.kind==='bird') return [smooth(type.root[0]*.68,type.root[0]+.047,ax),side,0,span];
- const membrane=kind==='meganeura'||(kind==='stenodictya'?/wings|venation/i.test(node):/membranes|veins/i.test(node));
- // Wing veins and membranes share weights. The cuticle and appendages use
- // their own pivots in the same pose, with no bending assigned to their roots.
- const root=kind==='stenodictya'?.11:.095;
- return [membrane?smooth(root,root+.065,ax):0,side,z<(kind==='meganeura'?.04:kind==='stenodictya'?.028:-.004)?1:0,span];
+ if (type.kind==='bird') {
+  // Source feet extend sideways below the pectoral; include only the wing fan here.
+  const aboveFeet=smooth(type.tuck>1.2?-.20:-.12,type.tuck>1.2?-.102:.002,y);
+  const aheadTail=Math.max(smooth(-.23,-.105,z),smooth(.16,.23,ax));
+  return [smooth(.068,.168,ax)*aboveFeet*aheadTail,side,0,smooth(.09,.47,ax)];
+ }
+ const start=type.root[0], span=smooth(start,.47,ax);
+ if(kind==='meganeura') {
+  const wing=smooth(.053,.131,ax)*smooth(-.015,.021,y)*(1-smooth(.209,.255,z));
+  return [wing,side,1-smooth(.012,.086,z),span];
+ }
+ if(kind==='stenodictya') {
+  // The four membranes overlap in plan view. Their heights separate them over
+  // the span, and the anterior lobes at the thorax retain their resting pose.
+  const flying=/wings|venation/i.test(node) && z<.153;
+  const hind=1-smooth(-.002,.003,y-.069-.052*ax+.04*(z-.028));
+  return [flying?smooth(.031,.112,ax):0,side,hind,span];
+ }
+ const flying=/membranes|veins/i.test(node) && z<.166;
+ // The broad forewings rise away from the lower swept hindwings.
+ const hind=1-smooth(-.003,.003,y-.010-.035*ax);
+ return [flying?smooth(.016,.076,ax):0,side,hind,span];
 }
 
 function flightBodyWeights(kind, [x,y,z], node) {
  const ax=Math.abs(x);
  if(TYPES[kind].kind==='bird'){
-  const tail=(1-smooth(-.39,-.14,z))*(1-smooth(.079,.157,ax));
-  const feet=(1-smooth(-.17,-.08,y))*(1-smooth(.075,.17,ax))*smooth(-.24,-.10,z);
+  const tail=(1-smooth(-.34,-.16,z))*(1-smooth(.142,.205,ax));
+  const small=kind==='ichthyornis';
+  const feet=(1-smooth(small?-.185:-.231,small?-.084:-.125,y))*(1-smooth(.17,.208,ax))*smooth(-.23,-.10,z);
   return [tail,feet,0,0];
  }
  const abdomen=1-smooth(-.27,-.085,z), axial=1-smooth(.060,.114,ax);
  const steno=kind==='stenodictya';
- const legs=(1-smooth(steno?.019:-.035,steno?.075:.012,y))*smooth(.025,steno?.075:.14,ax)*(1-smooth(.19,.28,ax));
- const feelers=smooth(kind==='meganeura'?.255:.22,kind==='meganeura'?.365:.36,z)*(1-smooth(.10,.26,ax));
+ const legs=kind==='meganeura'
+  ? (1-smooth(-.039,.014,y))*smooth(.025,.085,ax)*smooth(.13,.23,z)
+  : (1-smooth(steno?.019:-.032,steno?.075:.010,y))*smooth(.021,steno?.075:.135,ax);
+ const feelers=smooth(kind==='meganeura'?.255:.22,kind==='meganeura'?.365:.36,z)*(1-smooth(.10,.18,ax));
  const cuticle=kind==='meganeura'||/body|abdomen|tergites|ridges|thoracic/i.test(node);
  const appendages=kind==='meganeura'||/legs|antennae/i.test(node);
  return [cuticle?abdomen*axial:0,appendages?legs:0,appendages?feelers:0,1-smooth(-.38,-.23,z)];
+}
+
+export function reviewedFlightAngles(kind, phase, effort, drift) {
+ const {kind: family, stroke, wingLag}=TYPES[kind];
+ const bird=family==='bird';
+ const front=stroke*effort*(Math.sin(phase)-.16*Math.sin(phase*2+.25));
+ const hind=bird?front:stroke*.84*effort*Math.sin(phase-wingLag);
+ return [
+  (bird?.026:.09)+front,
+  (bird?.026:.035)+hind,
+  (bird?.165:.14)*effort*Math.sin(phase-.72),
+  (bird?.155:.13)*effort*Math.sin(phase-1.29)+(bird?.025:0)*Math.sin(drift),
+ ];
 }
 
 export function reviewedFlightGeometry(gltf,kind) {
@@ -124,11 +166,12 @@ async function createFlightBatch(kind, type, capacity, field, signal) {
    vertex:/* wgsl */`
     let center = ${F(0)}; let q=${F(1)}; let wings=${F(2)};
     let oldCenter = ${F(3)}; let oldQ=${F(4)}; let oldWings=${F(5)};
-    let joint = vec3f(${type.root.join(',')});
+    let fore = vec4f(${type.root.join(',')}); let hind = vec4f(${(type.hind??type.root).join(',')});
+    let bird = ${type.kind==='bird'}; let tuck = ${type.tuck.toFixed(3)};
     let wing = v.aWing; let body = v.aFlightBody;
-    let p=vaultFlightBend(vaultFlightBody(v.position,joint,wing,body,wings,1.0,${type.kind==='bird'}),wings,joint,wing,1.0);
-    let previous=vaultFlightBend(vaultFlightBody(v.position,joint,wing,body,oldWings,1.0,${type.kind==='bird'}),oldWings,joint,wing,1.0);
-    let n=normalize(vaultFlightBend(vaultFlightBody(v.normal,joint,wing,body,wings,0.0,${type.kind==='bird'}),wings,joint,wing,0.0));
+    let p=vaultFlightBend(vaultFlightBody(v.position,fore,wing,body,wings,1.0,bird,tuck),wings,fore,hind,wing,1.0,bird);
+    let previous=vaultFlightBend(vaultFlightBody(v.position,fore,wing,body,oldWings,1.0,bird,tuck),oldWings,fore,hind,wing,1.0,bird);
+    let n=normalize(vaultFlightBend(vaultFlightBody(v.normal,fore,wing,body,wings,0.0,bird,tuck),wings,fore,hind,wing,0.0,bird));
     v.useWorld=true;
     v.worldPos=center.xyz+rotateQ(q,p*center.w);
     v.worldNormal=rotateQ(q,n);
@@ -229,6 +272,7 @@ export class VaultEnvironmentFlight {
   this.habitats=flightHabitats(data,visits);
   this.types=new Map(Object.keys(TYPES).map(id=>[id,{id,type:TYPES[id],fliers:[],batch:null}]));
   this.fliers=[];
+  this.trackingFliers=[];
   this.sphere=new Sphere(); this.projection=new Vector3(); this.euler=new Euler(0,0,0,'YXZ'); this.q=new Quaternion();
   const rng=mulberry32(181029);
   for (const habitat of this.habitats) {
@@ -266,6 +310,7 @@ export class VaultEnvironmentFlight {
  update(time,camera,frustum,pxScale,sight,enabled) {
   const cp=camera.position, terrain=this.data.terrain;
   this.visible={birds:0,insects:0,triangles:0};
+  this.trackingFliers.length=0;
   for (const state of this.types.values()) {
    const {type,batch}=state;
    if (!batch) continue;
@@ -295,16 +340,18 @@ export class VaultEnvironmentFlight {
     const distance=cp.distanceTo(f.position), scale=f.span*(1-smooth(range*.82,range,distance));
     const pixels=scale*pxScale/Math.max(.2,distance);
     f.active=bird&&distance<range;
+    if (pixels<1.7) {f.fresh=true;continue;}
     this.sphere.center.copy(f.position); this.sphere.radius=scale*.7;
-    if (pixels<1.7||!frustum.intersectsSphere(this.sphere)) {f.fresh=true;continue;}
+    f.trackingVisible=frustum.intersectsSphere(this.sphere);
+    f.trackingSpan=scale;
+    this.trackingFliers.push(f);
+    if (!f.trackingVisible) {f.fresh=true;continue;}
     this.q.setFromEuler(this.euler.set((bird?.19:.02)+Math.sin(wobble)*(bird?.061:.13),Math.atan2(dx,dz),bird?.15*Math.sin(a)+.12:Math.sin(wobble)*.22,'YXZ'));
     if (!f.fresh) f.record.copyWithin(12,0,12);
     const cycle=time*f.frequency*TAU+f.phase;
     const flightGate=bird?.045+.955*smooth(-.52,.32,Math.sin(time*.55+f.phase)):activity;
     f.record.set([x,y,z,scale,this.q.x,this.q.y,this.q.z,this.q.w,
-     .035+type.stroke*flightGate*Math.sin(cycle),.025+type.stroke*flightGate*Math.sin(cycle-1.43),
-     (bird?.32:.17)*flightGate*Math.sin(cycle-.82),
-     (bird?.32:.19)*flightGate*Math.sin(cycle-1.42)+(bird?.045:0)*Math.sin(wobble)],0);
+     ...reviewedFlightAngles(f.species,cycle,flightGate,wobble)],0);
     if (f.fresh) f.record.copyWithin(12,0,12);
     f.fresh=false;
     f.lod=flightLodAt(pixels,f.lod);

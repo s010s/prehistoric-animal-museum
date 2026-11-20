@@ -51,7 +51,7 @@ function smoothstep(min, max, value) {
   return t * t * (3 - 2 * t);
 }
 
-function sliceWeight(sections, f, y, l) {
+function sliceWeight(sections, f, y, l, halo) {
   if (y > sections[0][1]) return 0;
   let i = 1;
   while (i < sections.length - 1 && y < sections[i][1]) i++;
@@ -60,7 +60,7 @@ function sliceWeight(sections, f, y, l) {
   const u = 1 - t;
   const forward = Math.abs(f - a[0] * u - b[0] * t) / (a[3] * u + b[3] * t);
   const lateral = Math.abs(l - a[2] * u - b[2] * t) / (a[4] * u + b[4] * t);
-  return 1 - smoothstep(.86, 1.18, Math.max(forward, lateral));
+  return 1 - smoothstep(.86 - halo, 1.18 + halo, Math.max(forward, lateral));
 }
 
 function influenceSet(vertexCount) {
@@ -102,6 +102,7 @@ function solePatch(candidates, ankleHeight, id, side, fore) {
 export function augmentIslandLegRig(id, gltf, pieces, skin) {
   if (!Object.hasOwn(islandMuseumLegCalibration, id)) return null;
   const calibration = islandMuseumLegCalibration[id];
+  const { upperBlend = .58, upperHalo = 0, laneDivider, laneOutset = 0 } = calibration;
 
   const reference = visibleReference(gltf, skin);
   const inverseBind = Array.from(skin.inverseBindMatrices);
@@ -211,9 +212,11 @@ export function augmentIslandLegRig(id, gltf, pieces, skin) {
       const y = point.y;
       let leg = null, coverage = 0;
       for (const candidate of legs) {
-        const { sections, sourceRows, hip, knee } = candidate;
+        const { sections, sourceRows, hip, knee, ankle, side, fore } = candidate;
         if (y >= hip) continue;
-        const outer = sliceWeight(sections, f, y, l);
+        const shinHeight = smoothstep(ankle, knee, y);
+        const halo = upperHalo * shinHeight;
+        const outer = sliceWeight(sections, f, y, l, halo);
         if (!(outer > 0)) continue;
         let authored = 1;
         if (wasSkinned && sourceRows.size) {
@@ -223,7 +226,10 @@ export function augmentIslandLegRig(id, gltf, pieces, skin) {
           }
           authored = smoothstep(.08, .72, sourceWeight / uintWeight);
         }
-        const score = outer * authored * smoothstep(0, .58, (hip - y) / (hip - knee));
+        const divider = laneDivider?.[fore ? 0 : 1];
+        // Separate close feet and let the shared inner thigh return to its source skin.
+        const lane = divider === undefined ? 1 : smoothstep(0, .012 + .055 * shinHeight, (l - divider) * side);
+        const score = lane * outer * authored * smoothstep(0, upperBlend, (hip - y) / (hip - knee));
         if (score <= coverage) continue;
         coverage = score;
         leg = candidate;
@@ -281,14 +287,17 @@ export function augmentIslandLegRig(id, gltf, pieces, skin) {
     const pole = kneePoint.clone().sub(hipPoint);
     pole.addScaledVector(axis, -pole.dot(axis)).normalize();
     const { contact, samples } = solePatch(candidates, ankle, id, side, fore);
+    const outset = laneOutset * side;
+    const neutral = [contact[0] + fz * outset, contact[1], contact[2] - fx * outset];
     const sole = new Vector3().fromArray(contact).applyMatrix4(bones[2].world.clone().invert()).toArray();
     const palette = bones.map(({ index, inverseOffset, rows }) => ({
       index: index * 16, inverseOffset, rows: [...rows].map(([source, derived]) => [source * 16, derived * 16]),
     }));
-    return { upper, lower, foot, side, fore, sole, contact, pole: pole.toArray(), samples, attachment: attachment * 16, palette };
+    return { upper, lower, foot, side, fore, sole, contact, neutral, pole: pole.toArray(), samples, attachment: attachment * 16, palette };
   });
   return {
     root, chains, head: calibration.head && nodeByName(calibration.head), tail: calibration.tail && nodeByName(calibration.tail),
+    isolateGroundLegs: calibration.isolateGroundLegs,
     attachmentMatrix: new Matrix4(), delta: new Matrix4(), originalMatrix: new Matrix4(),
   };
 }
@@ -302,7 +311,8 @@ export function syncIslandLegRigPalette(pose, rig, resetPrevious = false, ground
   if (!rig) return;
   const { attachmentMatrix, delta, originalMatrix } = rig;
   const { world, jointData } = pose;
-  for (const chain of rig.chains) {
+  const chains = grounded && rig.isolateGroundLegs ? [] : rig.chains;
+  for (const chain of chains) {
     attachmentMatrix.fromArray(world, chain.attachment).invert();
     // Ground motion already places the distal rows with reference mesh shape.
     // Reapplying original animated rows there would reintroduce foot sliding.

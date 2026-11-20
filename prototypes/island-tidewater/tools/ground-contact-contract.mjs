@@ -13,6 +13,7 @@ import { prepareMuseumMotion } from '../museum/AnimalMotionPolish.js';
 import { createIslandModelPose, floatAttribute, islandMorphWeights, islandModelPieces, parseIslandMuseumModel } from '../museum/IslandMuseumModelData.js';
 import { augmentIslandLegRig, syncIslandLegRigPalette } from '../museum/IslandMuseumLegRig.js';
 import { createMuseumGroundMotion } from '../museum/MuseumGroundMotion.js';
+import { prepareMuseumGroundPose } from '../museum/MuseumGroundPose.js';
 import { mergeMuseumSkins } from '../museum/NativeMuseumSkin.js';
 
 StorageBuffer.prototype.write = () => {};
@@ -89,6 +90,7 @@ function openSpecimen(id) {
   const bytes = sample ? read('../museum/assets/' + id + '.glb') : gunzipSync(read('../museum/assets/island/' + id + '.glb.gz'));
   const raw = parseIslandMuseumModel(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
   const gltf = sample ? prepareMuseumMotion(mergeMuseumSkins(raw), key) : raw;
+  prepareMuseumGroundPose(gltf, key);
   const meta = sample ? JSON.parse(read('../museum/assets/' + id + '.json')) : lock[key];
   const { pieces, skin } = islandModelPieces(gltf);
   const rig = sample ? null : augmentIslandLegRig(key, gltf, pieces, skin);
@@ -155,7 +157,7 @@ function run(site, data, terrain, realSite = null, field = null) {
     const proposed = dt * motion.advance(dt, moving, site.speed);
     const step = proposed && seat(distance + proposed) ? proposed : 0;
     distance += step;
-    if (pose.clipDuration('Walk')) pose.play(moving ? 'Walk' : 'Idle', { fade: .45 });
+    if (pose.clipDuration('StrideBase')) pose.play(moving ? 'StrideBase' : 'Idle', { fade: .28 });
     pose.update(dt);
     motion.apply(pose, { dt, terrain, travelled: step, behavior: site.behavior });
     syncIslandLegRigPalette(pose, rig, false, true);
