@@ -4,9 +4,12 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { writeBuildInfo } from './tools/write-build-info.mjs';
 import { submergedShadingContract } from './tools/submerged-shading-contract.mjs';
 import { cloudViewContract } from './tools/cloud-view-contract.mjs';
+import { meshJitterContract } from './tools/mesh-jitter-contract.mjs';
+import { prepareFaunaLods } from './tools/prepare-fauna-lods.mjs';
 import { prepareTerrainTransport } from './tools/prepare-terrain-transport.mjs';
 await writeBuildInfo();
 await prepareTerrainTransport();
+await prepareFaunaLods();
 const path = name => fileURLToPath(new URL(name, import.meta.url));
 function serveLocalReview(server){
     server.middlewares.use('/__native-review', (request, response) => {
@@ -44,7 +47,7 @@ function serveLocalReview(server){
 }
 export default defineConfig({
   root: path('./'), base: './', publicDir: path('vendor/tidewater/public'),
-  plugins: [submergedShadingContract(),cloudViewContract(),{name:'private-native-review',configureServer:serveLocalReview,configurePreviewServer:serveLocalReview}],
+  plugins: [submergedShadingContract(),cloudViewContract(),meshJitterContract(),{name:'private-native-review',configureServer:serveLocalReview,configurePreviewServer:serveLocalReview}],
   build: { target: 'esnext', outDir: '.review-dist', chunkSizeWarningLimit: 4000, assetsInlineLimit: 0, rollupOptions: { input: { home: path('index.html'), island: path('island/index.html'), reference: path('reference/index.html'), museum: path('museum/index.html'), creek: path('creek/index.html') } } },
   server: { host: '127.0.0.1', port: 4402, strictPort: true, hmr: false },
 });

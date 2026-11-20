@@ -1,0 +1,334 @@
+import {Euler, Quaternion, Sphere, Vector3} from '../vendor/tidewater/src/engine/index.js';
+import {ShaderModule} from '../vendor/tidewater/src/engine/gpu/Shader.js';
+import {Material} from '../vendor/tidewater/src/engine/render/Material.js';
+import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
+import {InstanceRecords, instancedMesh, kitModule, TAU, smooth} from '../vendor/tidewater/src/world/wildlife/Kit.js';
+import {loadReviewedFauna, reviewedAlbedo, reviewedGeometry} from './VaultEnvironmentAssets.js';
+import {clipCreekRefraction} from './CreekWater.js';
+
+import { reviewedGeometryLods, loadReviewedIndices } from './VaultGeometryLods.js';
+
+const SEA = -.7;
+const TYPES = {
+ ichthyornis: {kind:'bird',span:.82,sourceSpan:.994,range:136,preload:203,frequency:3.9,stroke:.61,root:[.082,.088,.10]},
+ sapeornis: {kind:'bird',span:.89,sourceSpan:.983,range:126,preload:190,frequency:3.25,stroke:.68,root:[.088,.071,.04]},
+ meganeura: {kind:'insect',span:.57,sourceSpan:.996,range:36,preload:94,frequency:9.1,stroke:.65,root:[.06,.037,.10]},
+ stenodictya: {kind:'insect',span:.145,sourceSpan:.14053,range:20,preload:76,frequency:11.3,stroke:.55,root:[.067,.076,.09]},
+ juracimbrophlebia: {kind:'insect',span:.082,sourceSpan:.081,range:13,preload:65,frequency:12.8,stroke:.71,root:[.029,.018,.075]},
+};
+
+const flightModule = new ShaderModule({name:'reviewedVaultFlight',deps:[kitModule],code:/* wgsl */`
+fn vaultFlightRz(v:vec3f, angle:f32)->vec3f {
+ let s = sin(angle); let c = cos(angle); return vec3f(c*v.x-s*v.y,s*v.x+c*v.y,v.z);
+}
+fn vaultFlightRx(v:vec3f, angle:f32)->vec3f {
+ let s = sin(angle); let c = cos(angle); return vec3f(v.x,c*v.y-s*v.z,s*v.y+c*v.z);
+}
+fn vaultFlightRy(v:vec3f, angle:f32)->vec3f {
+ let s=sin(angle); let c=cos(angle); return vec3f(c*v.x+s*v.z,v.y,c*v.z-s*v.x);
+}
+fn vaultFlightBend(p:vec3f, curve:vec4f, joint:vec3f, w:vec4f, translate:f32)->vec3f {
+ let side=w.y;
+ let shoulder=mix(curve.x,curve.y,w.z)*side;
+ let elbow=curve.z*side;
+ let wrist=curve.w*side;
+ let root=vec3f(joint.x*side,joint.y,joint.z-w.z*0.13)*translate;
+ let middle=vec3f((joint.x+0.135)*side,joint.y+0.022,joint.z-w.z*0.145)*translate;
+ let tip=vec3f((joint.x+0.262)*side,joint.y,joint.z-w.z*0.16-0.025)*translate;
+ // Wrist and elbow rotate in their parent frames. The skin weights keep the
+ // pivots continuous across the reviewed mesh's feather and membrane seams.
+ let folded=tip+vaultFlightRy(vaultFlightRz(p-tip,wrist),-side*abs(curve.w)*0.58);
+ let distal=mix(p,folded,smoothstep(0.50,0.93,w.w));
+ let elbowPose=middle+vaultFlightRy(vaultFlightRz(distal-middle,elbow),-side*abs(curve.z)*0.39);
+ let upper=mix(p,elbowPose,smoothstep(0.20,0.53,w.w));
+ let shoulderPose=root+vaultFlightRz(upper-root,shoulder);
+ return mix(p,shoulderPose,w.x);
+}
+fn vaultFlightBody(p:vec3f, joint:vec3f, wing:vec4f, body:vec4f, curve:vec4f, translate:f32, bird:bool)->vec3f {
+ if(bird){
+  let root=vec3f(0.050*wing.y,-0.075,-0.07)*translate;
+  let feet=root+vaultFlightRx(p-root,0.82+curve.z*0.16);
+  let tailRoot=vec3f(0.0,-0.03,-0.15)*translate;
+  let tail=tailRoot+vaultFlightRx(p-tailRoot,curve.z*0.27);
+  return mix(mix(p,feet,body.y),tail,body.x);
+ }
+ // The abdomen flexes from its base before the posterior segment follows.
+ let abdomen=vec3f(0.0,0.015,-0.085)*translate;
+ let abdomenEnd=vec3f(0.0,0.004,-0.22)*translate;
+ let tip=abdomenEnd+vaultFlightRy(p-abdomenEnd,curve.w*0.47);
+ let bent=abdomen+vaultFlightRx(mix(p,tip,body.w)-abdomen,curve.z*0.34);
+ let hip=vec3f(joint.x*wing.y*0.45,0.0,0.06)*translate;
+ let leg=hip+vaultFlightRz(vaultFlightRx(p-hip,curve.w*0.50),curve.z*wing.y*0.27);
+ let feeler=vec3f(joint.x*wing.y*0.32,0.02,0.16)*translate;
+ let antenna=feeler+vaultFlightRy(p-feeler,curve.w*wing.y*0.32);
+ return mix(mix(mix(p,bent,body.x),leg,body.y),antenna,body.z);
+}
+`});
+
+function flightWeights(kind, type, [x,y,z], node) {
+ const side=x<0?-1:1, ax=Math.abs(x);
+ const span=smooth(type.root[0],.49,ax);
+ if (type.kind==='bird') return [smooth(type.root[0]*.68,type.root[0]+.047,ax),side,0,span];
+ const membrane=kind==='meganeura'||(kind==='stenodictya'?/wings|venation/i.test(node):/membranes|veins/i.test(node));
+ // Wing veins and membranes share weights. The cuticle and appendages use
+ // their own pivots in the same pose, with no bending assigned to their roots.
+ const root=kind==='stenodictya'?.11:.095;
+ return [membrane?smooth(root,root+.065,ax):0,side,z<(kind==='meganeura'?.04:kind==='stenodictya'?.028:-.004)?1:0,span];
+}
+
+function flightBodyWeights(kind, [x,y,z], node) {
+ const ax=Math.abs(x);
+ if(TYPES[kind].kind==='bird'){
+  const tail=(1-smooth(-.39,-.14,z))*(1-smooth(.079,.157,ax));
+  const feet=(1-smooth(-.17,-.08,y))*(1-smooth(.075,.17,ax))*smooth(-.24,-.10,z);
+  return [tail,feet,0,0];
+ }
+ const abdomen=1-smooth(-.27,-.085,z), axial=1-smooth(.060,.114,ax);
+ const steno=kind==='stenodictya';
+ const legs=(1-smooth(steno?.019:-.035,steno?.075:.012,y))*smooth(.025,steno?.075:.14,ax)*(1-smooth(.19,.28,ax));
+ const feelers=smooth(kind==='meganeura'?.255:.22,kind==='meganeura'?.365:.36,z)*(1-smooth(.10,.26,ax));
+ const cuticle=kind==='meganeura'||/body|abdomen|tergites|ridges|thoracic/i.test(node);
+ const appendages=kind==='meganeura'||/legs|antennae/i.test(node);
+ return [cuticle?abdomen*axial:0,appendages?legs:0,appendages?feelers:0,1-smooth(-.38,-.23,z)];
+}
+
+export function reviewedFlightGeometry(gltf,kind) {
+ const type=TYPES[kind];
+ return reviewedGeometry(gltf,(x,y,z,normal)=>{
+  const orientation=kind==='meganeura'?-1:1;
+  const s=normal?1:1/type.sourceSpan;
+  return [x*s*orientation,y*s,z*s*orientation];
+ },(p,name)=>flightWeights(kind,type,p,name),(p,name)=>flightBodyWeights(kind,p,name));
+}
+
+// At the switch the projected simplification error is below one pixel.
+// A small hysteresis band keeps a gliding bird on one mesh at the boundary.
+function flightLodAt(pixels, previous) {
+  if (pixels > (previous === 0 ? 112 : 132)) return 0;
+  if (pixels > (previous === 1 ? 26 : 32)) return 1;
+  return 2;
+}
+
+async function createFlightBatch(kind, type, capacity, field, signal) {
+ const [gltf,indices]=await Promise.all([loadReviewedFauna(kind,signal),loadReviewedIndices(kind,signal)]);
+ const geometry=reviewedFlightGeometry(gltf,kind);
+ const geometryLevels=reviewedGeometryLods(geometry,indices);
+ const texture=await reviewedAlbedo(gltf,kind,signal);
+ const levels=geometryLevels.map(levelGeometry=>{
+  const records=new InstanceRecords('vaultFlightInstances',capacity,6);
+  const F=i=>records.field(i);
+  const material=new Material({
+   name:`Vault flying ${kind}`, vertexColors:true, side:type.kind==='insect'?'double':'front',
+   roughness:.76, metalness:0, modules:[flightModule], textures:texture?{vaultFlightAlbedo:texture}:{},
+   storage:{vaultFlightInstances:records.buffer}, attributes:{aWing:'vec4f',aFlightBody:'vec4f'},
+   vertex:/* wgsl */`
+    let center = ${F(0)}; let q=${F(1)}; let wings=${F(2)};
+    let oldCenter = ${F(3)}; let oldQ=${F(4)}; let oldWings=${F(5)};
+    let joint = vec3f(${type.root.join(',')});
+    let wing = v.aWing; let body = v.aFlightBody;
+    let p=vaultFlightBend(vaultFlightBody(v.position,joint,wing,body,wings,1.0,${type.kind==='bird'}),wings,joint,wing,1.0);
+    let previous=vaultFlightBend(vaultFlightBody(v.position,joint,wing,body,oldWings,1.0,${type.kind==='bird'}),oldWings,joint,wing,1.0);
+    let n=normalize(vaultFlightBend(vaultFlightBody(v.normal,joint,wing,body,wings,0.0,${type.kind==='bird'}),wings,joint,wing,0.0));
+    v.useWorld=true;
+    v.worldPos=center.xyz+rotateQ(q,p*center.w);
+    v.worldNormal=rotateQ(q,n);
+    v.prevWorldPos=oldCenter.xyz+rotateQ(oldQ,previous*oldCenter.w);
+   `,
+   surface:`${texture?'s.albedo*=textureSample(vaultFlightAlbedo,smpAnisoRepeat,in.uv).rgb;':''}
+    s.specularIntensity=${type.kind==='bird'?'.15':'.24'};`,
+  });
+  clipCreekRefraction(material,field);
+  const mesh=instancedMesh(kind,levelGeometry,material,records);
+  mesh.visible=false;
+  return {mesh,records,triangles:levelGeometry.index.count/3};
+ });
+ return {levels,meshes:levels.map(level=>level.mesh),dispose(){
+  for(const {mesh,records} of levels){
+   mesh.geometry.dispose();
+   mesh.material.uniformBlock.buffer?.destroy();
+   mesh.material.dispose();
+   records.buffer.destroy();
+  }
+  texture?.destroy();
+ }};
+}
+
+function nearestDryBank(terrain, field, x, z, level) {
+ let best=null;
+ for (let ring=0;ring<=12;ring+=2) for (let i=0;i<8;i++) {
+  const a=i*TAU/8, px=x+Math.cos(a)*ring, pz=z+Math.sin(a)*ring, bed=terrain.heightAt(px,pz);
+  const water=field.sample(px,pz), physical=water[1]<0?Math.max(SEA,water[0]):SEA;
+  const rise=bed-Math.max(physical,level);
+  if (rise<.16||rise>3.8) continue;
+  const score=ring+Math.abs(rise-.45)*2;
+  if (!best||score<best.score) best={x:px,z:pz,score};
+ }
+ return best;
+}
+
+export function flightHabitats(data, visits) {
+ const {terrain,field}=data;
+ const habitats=[];
+ const add=(species,id,x,z,count,rx,rz,alt,heading=0)=>habitats.push({species,id,x,z,count,rx,rz,alt,heading});
+ const coast=data.coast.coast;
+ add('ichthyornis','west-coast',coast.x-38,coast.z+10,9,28,19,6.2,1.2);
+ add('ichthyornis','east-bay',visits['east-bay'].p[0]+24,visits['east-bay'].p[1]-19,8,39,21,8,.8);
+ for (const station of data.cove.continuous.stations) {
+  const [x,z]=station.at(118,50);
+  add('ichthyornis',station.id,x,z,6,31,17,9,Math.atan2(station.normal[1],station.normal[0])+Math.PI/2);
+ }
+ const river=field.continuousSample;
+ if (river) {
+  add('ichthyornis','sample-estuary',-867,126,9,23,11,4.5,1.16);
+  add('ichthyornis','sample-shoal',-945,157,8,47,16,7.3,.37);
+  add('juracimbrophlebia','sample-spring-understory',-642.8,-497.2,5,1.9,1.5,.62,.75);
+  add('meganeura','sample-wet-mouth-margin',-837,117,5,5.2,3.1,1.35,1.60);
+  for (const [id,x,z,rx,rz,alt] of [
+   ['sample-upper',-677,-460,22,12,5.3],['sample-forest-edge',-718,-351,24,17,11],
+   ['sample-log-gap',-698,-267,26,14,6],['sample-bend',-746,-162,21,13,5.8],
+   ['sample-reed-bend',-749,-43,26,17,5.5],['sample-low-bank',-796,68,32,13,4.5],
+  ]) add('sapeornis',id,x,z,6,rx,rz,alt,1.28);
+  for (let distance=20;distance<685;distance+=34) {
+   const p=river.points.find(candidate=>candidate.distance>=distance);
+   if (!p||p.level<.28) continue;
+   const dir=river.nearest(p.x,p.z).dir;
+   const side=Math.sin(distance*1.73)>0?1:-1, across=side*(p.width+2);
+   const bank=nearestDryBank(terrain,field,p.x+dir[1]*across,p.z-dir[0]*across,p.level);
+   if (!bank) continue;
+   const heading=Math.atan2(dir[1],dir[0]);
+   add('meganeura',`sample-water-${distance}`,p.x,p.z,4,5.8,Math.max(2,p.width*.65),1.45,heading);
+   add('juracimbrophlebia',`sample-bank-${distance}`,bank.x,bank.z,5,2.7,1.8,.81,heading);
+   if (distance>68) add('stenodictya',`sample-bank-${distance}`,bank.x,bank.z,4,4.5,2.2,1.7,heading);
+  }
+ }
+ for (const id of ['lake','highland-lake','wetland','east-source','north-source','giant-glade','giant-log','grassland']) {
+  const visit=visits[id], [x,z]=visit.p;
+  const forest=id.startsWith('giant-');
+  add('sapeornis',id,x+8,z-17,7,forest?20:31,forest?14:23,forest?17:8,1.12);
+  if (id==='grassland') continue;
+  const dx=visit.gaze[0]-x,dz=visit.gaze[2]-z,look=Math.hypot(dx,dz)||1;
+  const bankX=x+dx/look*3, bankZ=z+dz/look*3;
+  add('juracimbrophlebia',id,bankX,bankZ,6,3.6,2.25,1.1,Math.atan2(dz,dx));
+  if (forest) {
+   add('stenodictya',id,x+6,z-7,4,4,3,2.2,.8);
+  } else if (id!=='highland-lake') {
+   add('meganeura',id,x+dx/look*7,z+dz/look*7,6,6,4,1.8,Math.atan2(dz,dx));
+  }
+ }
+ add('juracimbrophlebia','entrance-side-spring',-50.5,-68.3,5,2.2,1.35,.62,.83);
+ add('sapeornis','original-creek-ford',-19,-25,6,16,10,5.8,1.16);
+ add('juracimbrophlebia','original-creek-ford',-11.4,-23.2,4,2.55,1.4,.76,1.20);
+ return habitats;
+}
+
+export class VaultEnvironmentFlight {
+ constructor(group,data,visits,residency,prepare) {
+  this.group=group;
+  this.data=data;
+  this.residency=residency;
+  this.habitats=flightHabitats(data,visits);
+  this.types=new Map(Object.keys(TYPES).map(id=>[id,{id,type:TYPES[id],fliers:[],batch:null}]));
+  this.fliers=[];
+  this.sphere=new Sphere(); this.projection=new Vector3(); this.euler=new Euler(0,0,0,'YXZ'); this.q=new Quaternion();
+  const rng=mulberry32(181029);
+  for (const habitat of this.habitats) {
+   const state=this.types.get(habitat.species), bird=state.type.kind==='bird', seed=rng()*TAU;
+   for (let i=0;i<habitat.count;i++) {
+    const flier={id:`${habitat.id}-${habitat.species}-${i+1}`,species:habitat.species,habitat,position:new Vector3(),active:false,
+     phase:rng()*TAU, orbit:seed+(bird&&i>=Math.ceil(habitat.count*.64)?Math.PI:0)+i*(bird?.15:.62)+rng()*.24,
+     rx:habitat.rx*(.80+rng()*.29), rz:habitat.rz*(.76+rng()*.37), altitude:habitat.alt+(rng()-.5)*(bird?3.2:.65),
+     rate:bird?(.91+rng()*.18)*(habitat.species==='ichthyornis'?.34:.43):.5+rng()*.46,
+     span:state.type.span*(.86+rng()*.28), frequency:state.type.frequency*(.83+rng()*.33),record:new Float32Array(24), fresh:true};
+    state.fliers.push(flier); this.fliers.push(flier);
+   }
+  }
+  if(residency)for(const state of this.types.values()){
+   const {type,id}=state;
+   const habitats=this.habitats.filter(h=>h.species===id).map(h=>{
+    const ground=Math.max(SEA,data.terrain.heightAt(h.x,h.z));
+    return {x:h.x,z:h.z,radius:Math.max(h.rx,h.rz)*1.15,minY:ground-4,maxY:ground+h.alt+12};
+   });
+   if(!habitats.length)continue;
+   const bytes=(id==='juracimbrophlebia'?1:id==='stenodictya'?5:15)*1024**2;
+   residency.add({id,habitats,bytes,range:type.preload,hysteresis:type.kind==='bird'?75:42,
+    load:signal=>createFlightBatch(id,type,state.fliers.length,data.field,signal),prepare:(batch,signal)=>prepare(id,batch,signal),
+    attach:batch=>{state.batch=batch;this.group.add(...batch.meshes);},
+    detach:batch=>{
+     for(const mesh of batch.meshes)mesh.removeFromParent();
+     state.batch=null;
+     for(const f of state.fliers){f.fresh=true;f.active=false;}
+    },
+    dispose:batch=>batch.dispose(),
+   });
+  }
+ }
+
+ update(time,camera,frustum,pxScale,sight,enabled) {
+  const cp=camera.position, terrain=this.data.terrain;
+  this.visible={birds:0,insects:0,triangles:0};
+  for (const state of this.types.values()) {
+   const {type,batch}=state;
+   if (!batch) continue;
+   const bird=type.kind==='bird', channel=bird?'birds':'insects';
+   for(const level of batch.levels)level.records.begin();
+   for (const f of state.fliers) {
+    const h=f.habitat, range=type.range, anchorDistance=Math.hypot(cp.x-h.x,cp.z-h.z);
+    f.active=false;
+    if (!enabled||anchorDistance>range+Math.max(h.rx,h.rz)*1.2) {f.fresh=true;continue;}
+    const a=time*f.rate+f.orbit,wobble=f.phase+time*(bird?.62:1.4),c=Math.cos(h.heading),s=Math.sin(h.heading);
+    const tx=Math.cos(a)*f.rx+Math.cos(wobble)*(bird?1.4:.42),tz=Math.sin(a)*f.rz+Math.sin(a*2+f.phase)*(bird?2.45:.42);
+    const vx=-Math.sin(a)*f.rx*f.rate-Math.sin(wobble)*(bird?.87:.59);
+    const vz=Math.cos(a)*f.rz*f.rate+Math.cos(a*2+f.phase)*(bird?4.9:.84)*f.rate;
+    const x=h.x+tx*c-tz*s,z=h.z+tx*s+tz*c, dx=vx*c-vz*s,dz=vx*s+vz*c;
+    const ground=Math.max(SEA,terrain.heightAt(x,z));
+    const water=bird?null:this.data.field.sample(x,z);
+    const cover=Math.max(ground,water?.[1]<0?water[0]:SEA);
+    let activity=1, y;
+    if (bird) {
+     const ahead=Math.max(SEA,terrain.heightAt(x+dx*.52,z+dz*.52));
+     y=Math.max(cover,ahead-.6)+f.altitude+Math.sin(a+f.phase)*.72;
+    } else {
+     activity=.52+.48*smooth(-.3,.85,Math.sin(time*.38+f.phase));
+     y=cover+Math.max(.24,f.altitude*activity+Math.sin(wobble*1.4)*.24);
+    }
+    f.position.set(x,y,z);
+    const distance=cp.distanceTo(f.position), scale=f.span*(1-smooth(range*.82,range,distance));
+    const pixels=scale*pxScale/Math.max(.2,distance);
+    f.active=bird&&distance<range;
+    this.sphere.center.copy(f.position); this.sphere.radius=scale*.7;
+    if (pixels<1.7||!frustum.intersectsSphere(this.sphere)) {f.fresh=true;continue;}
+    this.q.setFromEuler(this.euler.set((bird?.19:.02)+Math.sin(wobble)*(bird?.061:.13),Math.atan2(dx,dz),bird?.15*Math.sin(a)+.12:Math.sin(wobble)*.22,'YXZ'));
+    if (!f.fresh) f.record.copyWithin(12,0,12);
+    const cycle=time*f.frequency*TAU+f.phase;
+    const flightGate=bird?.045+.955*smooth(-.52,.32,Math.sin(time*.55+f.phase)):activity;
+    f.record.set([x,y,z,scale,this.q.x,this.q.y,this.q.z,this.q.w,
+     .035+type.stroke*flightGate*Math.sin(cycle),.025+type.stroke*flightGate*Math.sin(cycle-1.43),
+     (bird?.32:.17)*flightGate*Math.sin(cycle-.82),
+     (bird?.32:.19)*flightGate*Math.sin(cycle-1.42)+(bird?.045:0)*Math.sin(wobble)],0);
+    if (f.fresh) f.record.copyWithin(12,0,12);
+    f.fresh=false;
+    f.lod=flightLodAt(pixels,f.lod);
+    const {records}=batch.levels[f.lod];
+    records.data.set(f.record,records.push());
+    this.projection.copy(f.position).project(camera);
+    sight[channel].push({id:f.id,kind:f.species,position:f.position.toArray(),span:scale,pixels,distance,ndc:[this.projection.x,this.projection.y],habitat:h.id,groundClearance:y-cover});
+   }
+   for(const {mesh,records,triangles} of batch.levels){
+    mesh.visible=records.count>0;
+    if(records.count)records.commit();
+    this.visible[channel]+=records.count;
+    this.visible.triangles+=records.count*triangles;
+   }
+  }
+ }
+
+ hold() {for (const f of this.fliers) f.fresh=true;}
+
+ stats() {
+  return {
+   types:Object.fromEntries([...this.types.values()].map(s=>[s.id,{kind:s.type.kind,count:s.fliers.length,ready:!!s.batch,status:this.residency?.state(s.id)?.status??'outside',error:this.residency?.state(s.id)?.error??null,visible:s.batch?.levels.reduce((sum,l)=>sum+l.records.count,0)??0}])),
+   habitats:this.habitats.map(h=>({id:h.id,species:h.species,center:[h.x,h.z],count:h.count})),
+   visible:this.visible,
+  };
+ }
+}

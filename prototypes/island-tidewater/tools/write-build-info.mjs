@@ -60,6 +60,11 @@ export async function writeBuildInfo() {
   for(const item of sample.assets){if(sha(await readFile(new URL('creek/'+item.path,root)))!==item.sha256)throw Error('Authored sample asset changed: '+item.path);}
   const reef=JSON.parse(await readFile(new URL('creek/vault-reef.lock.json',root),'utf8'));
   for(const item of reef.assets){const bytes=await readFile(new URL('creek/'+item.path,root));if(bytes.length!==item.bytes||sha(bytes)!==item.sha256)throw Error('Vault reef asset changed: '+item.id);}
+  const environmentFauna=JSON.parse(await readFile(new URL('creek/vault-environment.lock.json',root),'utf8'));
+  for(const item of environmentFauna.assets){
+    const bytes=await readFile(new URL('creek/'+item.path,root));
+    if(bytes.length!==item.bytes||sha(bytes)!==item.sha256)throw Error('Reviewed environmental fauna changed: '+item.id);
+  }
   const habitat=JSON.parse(await readFile(new URL('creek/sample-habitat.lock.json',root),'utf8'));
   for(const item of habitat.assets){
     const path=item.path.replace(/^prototypes\/island-tidewater\//,''),bytes=await readFile(new URL(path,root));

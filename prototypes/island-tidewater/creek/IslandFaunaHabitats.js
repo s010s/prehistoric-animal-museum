@@ -1,4 +1,5 @@
 import { ISLAND_FAUNA_PLAN, ISLAND_FAUNA_REGIONS } from './IslandFaunaPlan.js';
+import { createIslandFaunaPopulation } from './IslandFaunaPopulation.js';
 import { sunDirectionFromTime } from '../vendor/tidewater/src/sky/Sky.js';
 
 const SEA_LEVEL = -.7;
@@ -99,7 +100,7 @@ function preferredAltitude(site, body) {
   return clamp(body.half[0] * 2.5, 1.7, 7);
 }
 
-function routeAt(context, site, body, x, z, radius, axis) {
+function routeAt(context, site, body, x, z, radius, axis, population = null) {
   const { terrain, field, colliders } = context;
   const ground = site.medium === 'ground';
   const air = site.medium === 'air';
@@ -108,9 +109,10 @@ function routeAt(context, site, body, x, z, radius, axis) {
   const s = Math.sin(axis);
   const steps = radius ? 32 : 1;
   const points = Array.from({ length: steps }, (_, i) => {
-    const a = i * TAU / steps;
+    const a = i * TAU / steps + (population?.phase ?? 0);
     const u = radius * Math.cos(a);
-    const v = radius * .77 * Math.sin(a);
+    const v = population ? radius * (population.aspect * Math.sin(a) + .11 * Math.sin(a * 2 + population.phase))
+      : radius * .77 * Math.sin(a);
     return [x + u * c - v * s, z + v * c + u * s];
   });
   const path = [];
@@ -128,7 +130,7 @@ function routeAt(context, site, body, x, z, radius, axis) {
       if (!fit) return null;
       const h = terrain.heightAt(sx, sz);
       if (ground && gradeAt(terrain, sx, sz) > .42) return null;
-      const treeTop = (ground || air) ? treeHeightAt(colliders, sx, sz, Math.hypot(body.half[0], body.half[2])) : -Infinity;
+      const treeTop = !population && (ground || air) ? treeHeightAt(colliders, sx, sz, Math.hypot(body.half[0], body.half[2])) : -Infinity;
       if (ground && treeTop > h) return null;
       const min = air ? Math.max(fit.min, treeTop + body.half[1] + .7) : fit.min;
       minY = Math.max(minY, min);
@@ -140,7 +142,11 @@ function routeAt(context, site, body, x, z, radius, axis) {
   if (ground || benthic) return { path, minY: Math.min(...path.map(p => p[1])), maxY: Math.max(...path.map(p => p[1])) };
   if (minY > maxY) return null;
   if (air) {
-    const base = Math.max(minY, terrain.heightAt(x, z) + preferredAltitude(site, body));
+    const floor = terrain.heightAt(x, z);
+    const takeoff = population ? Math.max(floor, waterAt(field, x, z).level) : floor;
+    const altitude = preferredAltitude(site, body) * (population?.altitude ?? 1);
+    if (population && minY > takeoff + altitude * 1.55) return null;
+    const base = Math.max(minY, takeoff + altitude);
     const lift = .3 + Math.min(1.3, radius * .025);
     for (let i = 0; i < steps; i++) path[i][1] = base + lift * (1 + Math.sin(i * TAU / steps));
     return { path, minY, maxY: base + 2 * lift };
@@ -303,5 +309,8 @@ export function createIslandFaunaHabitats(data, catalog, { colliders = null } = 
     visits[spec.visitId] = { ...match.visit, time: times.get(spec.regionId) };
   }
   if (unavailable.length) throw Error('No suitable habitat for: ' + unavailable.join(', '));
-  return { sites, visits, regions, elapsedMs: performance.now() - started };
+  const population = createIslandFaunaPopulation({
+    data, colliders, catalog, sites, visits, routeAt, bodyPlacement: faunaBodyPlacement,
+  });
+  return { sites, visits, regions, population, elapsedMs: performance.now() - started };
 }

@@ -1,8 +1,10 @@
 // Native blue-noise patches and actual 35/12/2 triangle LOD stay intact.
 // Adapt only placement, shared ground appearance and museum habitat forms.
-import {Float32BufferAttribute,InstancedBufferAttribute,DynamicDrawUsage} from '../vendor/tidewater/src/engine/index.js';
-import {GrassField,CELL} from '../vendor/tidewater/src/world/vegetation/GrassField.js';
-import {GPU,StorageBuffer,ComputeKernel,readBuffer} from '../vendor/tidewater/src/engine/webgpu.js';
+import {Float32BufferAttribute,InstancedBufferAttribute,DynamicDrawUsage,Vector2} from '../vendor/tidewater/src/engine/index.js';
+import {GrassField,CELL,FADE_T1,FADE_T2} from '../vendor/tidewater/src/world/vegetation/GrassField.js';
+import {f,uGustOffset} from '../vendor/tidewater/src/world/vegetation/VegNodes.js';
+import {srgb} from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
+import {GPU,StorageBuffer,ComputeKernel,readBuffer,G} from '../vendor/tidewater/src/engine/webgpu.js';
 import {ShaderModule,UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {GrassRootCache} from './GrassRootCache.js';
 
@@ -27,6 +29,31 @@ export class CreekGrass extends GrassField {
   const mat=this.material;mat.modules.push(data.appearance.module);delete mat.bindings.grassHeights;
   this.review=new UniformBlock('MuseumGrassReuseReview',{enabled:['f32',1]});
   mat.modules.push(new ShaderModule({name:'museumGrassReuseReview',uniforms:this.review}));
+  this.previousWind=new UniformBlock('MuseumGrassPreviousWind',{
+   gustOffset:['vec2f',new Vector2()],direction:['vec2f',new Vector2()],speed:['f32',0],time:['f32',0]
+  });
+  this.wind={gustOffset:new Vector2(),direction:new Vector2(),speed:0,time:undefined};
+  mat.modules.push(new ShaderModule({name:'museumGrassMotion',uniforms:this.previousWind,uniformName:'museumGrassPreviousWind',code:`
+fn museumGrassLOD(tier:f32,dist:f32,cut:f32,isGrass:bool)->vec2f{
+ let own=vegGrassTierFade(tier,dist,cut);
+ let f2=1.0-smoothstep(${FADE_T2.map(f).join(',')},dist);
+ let f1=1.0-smoothstep(${FADE_T1.map(f).join(',')},dist);
+ let comp=7.0/(f2*3.0+f1*2.0+2.0);
+ return select(vec2f(own,1.0),vec2f(1.0,comp*own),isGrass);
+}
+fn museumGrassBend(rest:vec3f,windDir:vec2f,w:f32,g:f32,tm:f32,ph:f32,rootX:f32,bRnd:f32,flex:f32)->vec3f{
+ let bend=w*(g*.55+.22)+sin(tm*1.9+ph+rootX*.2)*w*.1;
+ let flutter=sin(tm*7.3+ph*3.0+bRnd*20.0)*(w*.06+.015);
+ let restLength=length(rest);
+ let displacement=(windDir*(bend*flex)+vec2f(-windDir.y,windDir.x)*(flutter*flex))*(restLength+1e-4);
+ return normalize(rest+vec3f(displacement.x,1e-5,displacement.y))*restLength;
+}
+fn museumGrassGust(p:vec2f)->f32{
+ let n=textureSampleLevel(vegDetail,smpLinearRepeat,p/140.0,0.0).w*.62
+      +textureSampleLevel(vegDetail,smpLinearRepeat,p/61.0+.37,0.0).w*.38;
+ return smoothstep(.46,.6,n);
+}
+`}));
   const change=(from,to)=>{if(!mat.vertex.includes(from))throw Error('Pinned grass adapter seam changed: '+from.slice(0,45));mat.vertex=mat.vertex.replace(from,to);};
   change('let xz = cell + slot.xy;',`let cellYaw=floor(vegHash12(cell*.137+vec2f(7.1,19.3))*4.0)*1.57079632679;
  let cs=cos(cellYaw);let sn=sin(cellYaw);let q=slot.xy-vec2f(4.0);
@@ -36,44 +63,82 @@ export class CreekGrass extends GrassField {
   const maskEnd=mat.vertex.indexOf('let isGrass',maskStart);
   if(maskStart<0||maskEnd<0)throw Error('Pinned flora mask seam changed');
   mat.vertex=mat.vertex.slice(0,maskStart)+'let m = museumFloraAt(xz,0.0);\n\t'+mat.vertex.slice(maskEnd);delete mat.bindings.grassMask;
+  change('let dune = m.r;','let dune=0.0;');
   // Every native template triangle has one slot and one kind. An absent plant
   // can collapse to one finite point before tone, ground, wind and prior pose.
-  change('let present = select( 0.0, 1.0, r < density ) * flowerOk;',`let present = select( 0.0, 1.0, r < density ) * flowerOk;
+  change('let present = select( 0.0, 1.0, r < density ) * flowerOk;',`let seedHead=isOat&&kind>1.5;
+ let presenceDensity=density*select(1.0,m.r*.52,seedHead);
+ let present=select(0.0,1.0,r<presenceDensity)*flowerOk;
  if(museumGrassReuseReview.enabled>.5&&present==0.0){
   let collapsed=vec3f(xz.x,0.0,xz.y);
   v.useWorld=true;v.worldPos=collapsed;v.prevWorldPos=collapsed;v.worldNormal=vec3f(0.0,1.0,0.0);
   return;
  }`);
-  change('let dist = length( xz - vegParams.camPos.xz );','let dist=distance(vec3f(xz.x,terrainHeightAt(xz),xz.y),vegParams.camPos);');
+  change('let dist = length( xz - vegParams.camPos.xz );',`let clumpHeight=terrainHeightAt(xz);
+ let clump=vec3f(xz.x,clumpHeight,xz.y);
+ let dist=distance(clump,vegParams.camPos);`);
   change('let cut = mix( 67.0, 87.0, cutK - floor( cutK ) );','let cut=mix(museumGrassDistance.fade.x+5.0,museumGrassDistance.fade.y,fract(cutK));');
   change('let flowerOk = select( 1.0, select( 0.0, 1.0, r2 < 0.35 ), kind > 3.5 );','let flowerOk = select(1.0,0.0,kind>3.5);');
   const toneStart=mat.vertex.indexOf('let mA = textureSampleLevel( vegDetail');
   const toneEnd=mat.vertex.indexOf('// size:',toneStart);
   if(toneStart<0||toneEnd<0)throw Error('Pinned shared meadow tone seam changed');
   mat.vertex=mat.vertex.slice(0,toneStart)+'let mt = museumMeadowAt(xz,0.0);\n\t'+mat.vertex.slice(toneEnd);
-  change('let scale = hScale * present * sizeK;','let stand=vegNoise(xz*.012+vec2f(17.0,41.0));let waterField=creekFieldAt(xz);let marsh=(1.0-smoothstep(.78,1.26,length((xz-vec2f(5600.0,6050.0))/vec2f(2250.0,1500.0))))*(1.0-smoothstep(.5,2.2,terrainHeightAt(xz)-waterField.x));let wetBank=max(1.0-smoothstep(2.0,18.0,abs(waterField.y)),marsh);let tall=mix(.52,1.05,smoothstep(.48,.7,stand));let scale=hScale*present*sizeK*select(mix(tall,1.25,wetBank)*mix(1.0,.6,museumCover(xz,0.0).a),.42,kind>=2.5);');
-  change('let scale=hScale*present*sizeK*select(', 'let edgeHeight=select(1.0,mix(.35,1.0,smoothstep(.015,.32,density)),isGrass);let scale=hScale*present*sizeK*edgeHeight*select(');
+  const lodStart=mat.vertex.indexOf('let own = vegGrassTierFade');
+  const lodEnd=mat.vertex.indexOf('// per-slot random yaw',lodStart);
+  if(lodStart<0||lodEnd<0)throw Error('Pinned grass LOD seam changed');
+  mat.vertex=mat.vertex.slice(0,lodStart)+`let lod=museumGrassLOD(tier,dist,cut,isGrass);
+ let stand=vegNoise(xz*.012+vec2f(17.0,41.0));
+ let waterField=creekFieldAt(xz);
+ let marsh=(1.0-smoothstep(.78,1.26,length((xz-vec2f(5600.0,6050.0))/vec2f(2250.0,1500.0))))*(1.0-smoothstep(.5,2.2,clumpHeight-waterField.x));
+ let wetBank=max(1.0-smoothstep(2.0,18.0,abs(waterField.y)),marsh);
+ let tall=mix(.52,1.05,smoothstep(.48,.7,stand));
+ let edgeHeight=select(1.0,mix(.35,1.0,smoothstep(.015,.32,density)),isGrass);
+ let heightScale=select(mix(tall,1.25,wetBank)*mix(1.0,.6,museumCover(xz,0.0).a),.42,kind>=2.5);
+ let habitatScale=heightScale*select(1.0,mix(.55,.78,m.r),isOat);
+ let scale=hScale*present*lod.x*edgeHeight*habitatScale;
+ `+mat.vertex.slice(lodEnd);
   const groundStart=mat.vertex.indexOf('// terrain height (float texels');
   const groundEnd=mat.vertex.indexOf('let pl =',groundStart);
   if(groundStart<0||groundEnd<0)throw Error('Pinned grass ground seam changed');
   mat.vertex=mat.vertex.slice(0,groundStart)+`// Every blade uses its own root, sampled from the rendered fine/coarse terrain.
- let rootLocal=v.aRoot*spread*scale;
- let rootXZ=xz+vec2f(rootLocal.x*cy-rootLocal.y*sy,rootLocal.x*sy+rootLocal.y*cy);
+ let rootOffset=vec2f(v.aRoot.x*cy-v.aRoot.y*sy,v.aRoot.x*sy+v.aRoot.y*cy)*spread;
+ let rootXZ=xz+rootOffset*scale;
  let ground=museumGrassGround(rootXZ);
  let base=vec3f(xz.x,ground,xz.y);
  `+mat.vertex.slice(groundEnd);
-  change('let pos = base + ob + sideR * wide;',`var pos=base+ob+sideR*wide;
- if(kind>=2.5){pos.y=terrainHeightAt(pos.xz)+max(ob.y-.004,.003);}`);
-  // Same native wind envelope; supply the previous pose for temporal reprojection.
-  mat.vertex+=`
- let oldTm=frame.time-frame.dt;
- let oldBend=w*(g*.55+.22)+sin(oldTm*1.9+ph+xz.x*.2)*w*.1;
- let oldFlut=sin(oldTm*7.3+ph*3.0+bRnd*20.0)*(w*.06+.015);
- let oldDisp=(vegWindDir3()*(oldBend*hf2*stiff)+vegWindPerp3()*(oldFlut*hf2*stiff))*(length(o0)+1e-4);
- let oldOb=normalize(o0+oldDisp+vec3f(0.0,1e-5,0.0))*oL;
- var oldPos=base+oldOb+sideR*wide;
+  const poseStart=mat.vertex.indexOf('let o0 =');
+  const poseEnd=mat.vertex.indexOf('// lighting normal',poseStart);
+  if(poseStart<0||poseEnd<0)throw Error('Pinned grass pose seam changed');
+  mat.vertex=mat.vertex.slice(0,poseStart)+`let rest=vec3f(pl.x*cy-pl.z*sy,pl.y,pl.x*sy+pl.z*cy);
+ let w=vegWindStrength();
+ let g=vegGustAt(xz);
+ let ph=r*6.2832;
+ let stiff=select(select(.08,.8,isOat),1.0,isGrass);
+ let flex=hf*hf*stiff;
+ let ob=museumGrassBend(rest*scale,frame.windDir,w,g,frame.time,ph,xz.x,bRnd,flex);
+ let wScale=select(1.0,mix(1.5,1.55,duneF),isGrass);
+ let wide=wScale*lod.y*min(scale*2.0,max(scale,.5));
+ let sideR=vec3f(side.x*cy-side.z*sy,side.y,side.x*sy+side.z*cy);
+ var pos=base+ob+sideR*wide;
+ if(kind>=2.5){pos.y=terrainHeightAt(pos.xz)+max(ob.y-.004,.003);}
+#if PASS_MAIN
+ // Match the last rendered wind and the camera-dependent blade shape and
+ // width through the tier fades.
+ let oldDist=distance(clump,frame.prevCameraPos);
+ let oldLOD=museumGrassLOD(tier,oldDist,cut,isGrass);
+ let oldScale=hScale*present*oldLOD.x*edgeHeight*habitatScale;
+ var oldGround=ground;
+ if(oldScale!=scale){oldGround=museumGrassGround(xz+rootOffset*oldScale);}
+ let oldG=museumGrassGust(xz-museumGrassPreviousWind.gustOffset);
+ let oldW=max(museumGrassPreviousWind.speed*.1,.03);
+ let oldOb=museumGrassBend(rest*oldScale,museumGrassPreviousWind.direction,oldW,oldG,museumGrassPreviousWind.time,ph,xz.x,bRnd,flex);
+ let oldWide=wScale*oldLOD.y*min(oldScale*2.0,max(oldScale,.5));
+ var oldPos=vec3f(xz.x,oldGround,xz.y)+oldOb+sideR*oldWide;
  if(kind>=2.5){oldPos.y=terrainHeightAt(oldPos.xz)+max(oldOb.y-.004,.003);}
- v.prevWorldPos=oldPos;`;
+ v.prevWorldPos=oldPos;
+#endif
+ `+mat.vertex.slice(poseEnd);
+  change('select( blade.w, 0.0, kind < 2.5 )','select(select(blade.w,m.r,kind<2.5),abs(across),isGrass)');
   mat.attributes.aRoot='vec2f';
   for(const level of this.levels){
    const geometry=level.geometry,p=geometry.attributes.position,b=geometry.attributes.aBlade,roots=new Float32Array(p.count*2);let x=0,z=0;
@@ -82,6 +147,17 @@ export class CreekGrass extends GrassField {
     roots[i*2]=x;roots[i*2+1]=z;
    }
    geometry.setAttribute('aRoot',new Float32BufferAttribute(roots,2));
+   // Native coastal spikelets have four vertices starting at the stalk
+   // attachment. Tighten the outline without moving that anchor.
+   for(let i=0;i<p.count;i++){
+    if(b.getY(i)!==2)continue;
+    const [x,y,z]=[p.getX(i),p.getY(i),p.getZ(i)];
+    for(let j=i+1;j<i+4;j++){
+     if(b.getY(j)!==2||b.getX(j)!==b.getX(i)||b.getZ(j)!==b.getZ(i))throw Error('Pinned coastal spikelet seam changed');
+     p.setXYZ(j,x+(p.getX(j)-x)*.62,y+(p.getY(j)-y)*.62,z+(p.getZ(j)-z)*.62);
+    }
+    i+=3;
+   }
   }
   this.capacity=[64,192,1280];this.overflowSeen=[0,0,0];this.rangeAudit={};
   for(let i=0;i<this.levels.length;i++){
@@ -106,6 +182,30 @@ export class CreekGrass extends GrassField {
    const [lo,hi]=t.boundsFor(x-this.envelope,z-this.envelope,x+CELL+this.envelope,z+CELL+this.envelope);this.cellMinY[k]=lo;this.cellMaxY[k]=hi;
   }
   mat.surface+=`
+ // Each row carries the maximum across coordinate. Its interpolation gives
+ // the narrowing tip's half-width in the same units as across. Convert that
+ // width to pixels using the cross-blade gradient, including oblique views.
+ let acrossStep=length(vec2f(dpdx(across),dpdy(across)));
+ let bladePixels=2.0*in.vs.vVegGrass2.y/max(acrossStep,1e-4);
+ if(kind<.5){
+  let resolved=smoothstep(.65,2.2,bladePixels);
+  let meadowTone=in.vs.vVegGrassTone.xyz;
+  let sward=mix(museumMeadowSoil(meadowTone),meadowTone,smoothstep(.008,.36,in.vs.vVegGrass2.x));
+  let windTint=1.0+vec3f(.14,.12,.04)*in.vs.vVegGust*.5;
+  s.albedo=mix(sward*windTint,albedo,mix(.40,1.0,resolved));
+  s.specularIntensity*=mix(.65,1.0,resolved);
+  s.translucency*=mix(.70,1.0,resolved);
+ }
+ if(kind>.5&&kind<2.5){
+  let height=smoothstep(.06,.94,hf);
+  let shoot=mix(${srgb(.18,.23,.12)},${srgb(.35,.42,.23)},height*(.67+rnd*.33));
+  let dryStem=mix(shoot,${srgb(.41,.37,.23)},smoothstep(.53,.94,rnd)*height);
+  let ripeHead=mix(${srgb(.34,.29,.18)},${srgb(.49,.43,.30)},rnd);
+  s.albedo=select(mix(shoot,dryStem,centre),ripeHead,kind>1.5);
+  s.roughness=.91;
+  s.specularIntensity=.12;
+  s.translucency=s.albedo*(.10*height);
+ }
  if(kind>2.5&&kind<3.5){
   let leafAge=smoothstep(.45,.95,rnd);
   let olive=mix(tone*vec3f(.64,.68,.57),vec3f(.045,.042,.021),leafAge*.5);
@@ -120,6 +220,15 @@ export class CreekGrass extends GrassField {
   mat.needsUpdate=true;this.groundAudit=null;
  }
  update(camera){
+  const wind=this.wind,previous=this.previousWind.fields;
+  previous.gustOffset.value.copy(wind.time===undefined?uGustOffset.value:wind.gustOffset);
+  previous.direction.value.copy(wind.time===undefined?G.windDir.value:wind.direction);
+  previous.speed.value=wind.time===undefined?G.windSpeed.value:wind.speed;
+  previous.time.value=wind.time??G.time.value;
+  wind.gustOffset.copy(uGustOffset.value);
+  wind.direction.copy(G.windDir.value);
+  wind.speed=G.windSpeed.value;
+  wind.time=G.time.value;
   const e=camera.matrixWorld.elements,pe=camera.projectionMatrix.elements,L=this._last;
   if(Math.abs(e[12]-L[0])<.05&&Math.abs(e[13]-L[1])<.05&&Math.abs(e[14]-L[2])<.05&&Math.abs(e[8]-L[3])<1e-3&&Math.abs(e[9]-L[4])<1e-3&&Math.abs(e[10]-L[5])<1e-3&&pe[0]===L[6]&&pe[5]===L[7]){this.rootCache.update(this.levels,{selectionUnchanged:true});return false;}
   L.set([e[12],e[13],e[14],e[8],e[9],e[10],pe[0],pe[5]]);

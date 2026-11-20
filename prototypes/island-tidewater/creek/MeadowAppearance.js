@@ -84,7 +84,8 @@ struct MuseumFloraSample { forms:vec4f, coverFactor:f32 };
 fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
  var out:MuseumFloraSample;out.forms=vec4f(0.0);out.coverFactor=1.0;
  if(max(abs(p.x),abs(p.y))>16368.0){return out;}
- var m=textureSampleLevel(museumFlora,smpLinearClamp,(p+16384.0)/32768.0,max(0.0,log2(max(footprint,0.001)/32.0)));m.r=0.0;
+ var m=textureSampleLevel(museumFlora,smpLinearClamp,(p+16384.0)/32768.0,max(0.0,log2(max(footprint,0.001)/32.0)));
+ let marine=m.r;
  let cov=museumCover(p,footprint);m.g=mix(m.g,cov.g,terrainFineWeight(p));
  // The nearest owner may be a lake kilometres away and hundreds of metres
  // above this dry slope. Its level applies only inside its signed-edge support.
@@ -92,11 +93,19 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
  let f=creekFieldAt(p);let h=terrainHeightAt(p);
  let support=1.0-smoothstep(0.0,2.5,f.y);
  let dry=mix(1.0,smoothstep(.08,.6,h-f.x),mix(support,1.0,museumHabitatReview.legacyWater));m.g*=dry;
- let damp=(1.0-smoothstep(1.0,12.0,abs(f.y)))*dry;
- // Give the southern marsh's curved, jointed clumps their own vertical
- // layer. The coastal seed-head cards recede across the marsh footprint.
- let coastalUprights=1.0-museumWetlandSoil(p);
- m.b=max(m.b,m.g*damp*.85)*coastalUprights;
+ let rise=h-f.x;
+ let freshWater=smoothstep(.55,1.55,f.x-frame.seaLevel);
+ let bank=1.0-smoothstep(1.5,6.5,abs(f.y));
+ let freshBank=freshWater*bank*smoothstep(.08,.38,rise)*(1.0-smoothstep(1.1,2.35,rise));
+ let aboveSea=h-frame.seaLevel;
+ let strand=smoothstep(.025,.28,marine)*smoothstep(.50,1.12,aboveSea)*(1.0-smoothstep(2.8,5.7,aboveSea));
+ let saline=strand*(1.0-freshWater*bank);
+ // R admits coastal seed heads. B admits shorter upright shoots on dry
+ // freshwater margins and exposed shore. The marsh has jointed rushes.
+ m.r=saline;
+ let shoreStalks=max(m.b,m.g*.85*(1.0-smoothstep(1.0,12.0,abs(f.y)))*dry)*saline*.58;
+ let freshShoots=max(m.b,m.g*.85)*freshBank;
+ m.b=max(freshShoots,shoreStalks)*(1.0-museumWetlandSoil(p));
  let grove=museumGroveFloor(p);let gk=1.0-grove.x*(.92-grove.y*.30-smoothstep(.6,.9,grove.z)*.30);
  // Fine reconstruction also observes the same world-fixed litter/opening field.
  m.g=mix(m.g,m.g*gk,terrainFineWeight(p));m.a*=1.0-grove.x*.75;
@@ -144,6 +153,7 @@ fn museumMeadowAt(p:vec2f,footprint:f32)->MeadowTone{
  tone.tone=mix(tone.tone,${srgb(.41,.36,.27)},upland*.52);tone.tone=mix(tone.tone,${srgb(.32,.36,.30)},heath*.72);return tone;
 }
 struct MuseumSward { albedo:vec3f, relief:f32 };
+fn museumMeadowSoil(tone:vec3f)->vec3f{return mix(tone*.75,${srgb(.29,.28,.22)},.55);}
 // Take the derivatives before testing visibility so that adjacent covered
 // fragments still contribute to the footprint of warped meadow textures.
 struct SwardDetailUV { uv:vec2f, dx:vec2f, dy:vec2f };
@@ -178,7 +188,7 @@ fn museumSward(p:vec3f,footprint:f32,gustOffset:vec2f,visible:bool)->MuseumSward
  let gustA=swardDetail(gustAUV).w;let gustB=swardDetail(gustBUV).w;
  let gust=smoothstep(.46,.6,gustA*.62+gustB*.38)*clamp(frame.windSpeed*.05,0.0,.35);
  lawn=mix(lawn,lawn*vec3f(1.14,1.12,1.04),gust*.5);
- var base=mix(mt.tone*.75,${srgb(.29,.28,.22)},.55)*(1.0+(dN.y-.45)*.22)*(1.0+(dF.y-.4)*.08*fine);
+ var base=museumMeadowSoil(mt.tone)*(1.0+(dN.y-.45)*.22)*(1.0+(dF.y-.4)*.08*fine);
  // A thin sward exposes soil, dry litter and small clumps gradually. This is
  // the same continuous density that decides the world-fixed blade presence.
  let spatialCover=smoothstep(.008,.36,density);

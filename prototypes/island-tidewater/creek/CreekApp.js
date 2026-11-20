@@ -101,6 +101,7 @@ export class CreekApp extends MuseumApp {
     this.groveDetails=new GroveDetails({scene,data,forest:this.vegetation,colliders:this.colliders});
     this.localLights=new LocalLights();
     this.sceneRenderer=new SceneRenderer(engine.meshRenderer,scene,camera);this.sceneRenderer.background=this.sky.background;
+    this.sceneRenderer.mainPassDefines={MUSEUM_CLIP_SPACE_JITTER:1};
     this.refraction=new CreekRefraction({meshRenderer:engine.meshRenderer,scene,camera,sceneRenderer:this.sceneRenderer,scale:.5},data.field,this.terrain);
     this.sceneRenderer.onBeforeWater=()=>this.refraction.render();
     await progress(.67,'准备海潮与浅水波纹…');
@@ -130,7 +131,7 @@ export class CreekApp extends MuseumApp {
     this.airMotes=new ForestMotes({terrain:this.terrainGPU,clouds:this.clouds,csm:this.shadows},data.field,data.terrain);scene.add(this.airMotes.mesh);
     await progress(.77,'准备附近的动物…');
     this.islandFaunaHabitats=createIslandFaunaHabitats(data,islandMuseumModels,{colliders:this.colliders});
-    this.islandFauna=new IslandFauna(this,this.islandFaunaHabitats.sites);
+    this.islandFauna=new IslandFauna(this,this.islandFaunaHabitats.sites,this.islandFaunaHabitats.population);
     try{
       this.animals=await createMuseumAnimals(this,this.islandFauna.residency,material=>clipCreekRefraction(material,data.field));
       this.sampleMuseumLife=SampleMuseumLife.create(this,this.islandFauna.residency);
@@ -178,6 +179,7 @@ export class CreekApp extends MuseumApp {
     this.player.dropAtCamera();
   }
   disposeFauna(){
+    this.life?.dispose();
     this.islandFauna?.dispose();
     this.dynamicMuseumShadows?.dispose();
     this.islandEcology?.dispose();

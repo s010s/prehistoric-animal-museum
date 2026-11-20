@@ -62,7 +62,7 @@ export function createVaultSwimMotion(batch){
  const previous=new Float32Array(batch.maxInstances*8);
  const buffer=new StorageBuffer({label:'Museum life.previous articulation',count:batch.maxInstances*2,type:'vec4f'});
  const module=new ShaderModule({name:'museum-vault-swim',bindings:{vaultSwimPrevious:{storage:buffer,access:'read'}},code:motionCode});
- return {previous,module,upload(){buffer.write(previous);}};
+ return {previous,module,upload(){buffer.write(previous);},dispose(){buffer.destroy();}};
 }
 
 export function articulateVaultSwimMaterial(material,motion){

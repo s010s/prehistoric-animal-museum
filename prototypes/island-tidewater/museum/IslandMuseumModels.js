@@ -6,9 +6,20 @@ import { decodeImage } from '../vendor/tidewater/src/engine/loaders/GLTF.js';
 import { Material } from '../vendor/tidewater/src/engine/render/Material.js';
 import { applyIslandHeadTurn, makeIslandHeadTurn } from './IslandMuseumHeadTurn.js';
 import { createIslandModelPose, floatAttribute, islandModelPieces, islandMorphWeights, museumSrgbTextures, museumTextureUsages, parseIslandMuseumModel } from './IslandMuseumModelData.js';
+import { prepareIslandAquaticMotion } from './IslandAquaticMotion.js';
+import { prepareIslandFlightMotion } from './IslandFlightMotion.js';
+import { augmentIslandLegRig, islandLegRigExtraGpuBytes, syncIslandLegRigPalette } from './IslandMuseumLegRig.js';
+import { createMuseumGroundMotion } from './MuseumGroundMotion.js';
+import { augmentIslandMediumRig, islandMediumRigExtraGpuBytes } from './IslandMuseumMediumRig.js';
 import lock from './island-museum-models.lock.json';
 
 export const islandMuseumModels = Object.freeze(lock.animals);
+export function islandMuseumResidencyBudget(metadata) {
+  const extra = islandLegRigExtraGpuBytes(metadata.id, metadata.geometry) + islandMediumRigExtraGpuBytes(metadata.id, metadata.geometry);
+  const instanceBytes = 8192 + 128 * (metadata.geometry.paletteRows + (extra ? 32 : 0));
+  return { assetId: metadata.id, instanceBytes, bytes: metadata.gpuBytes + extra + instanceBytes };
+}
+
 const urls = import.meta.glob('./assets/island/*.glb.gz', { eager: true, query: '?url', import: 'default' });
 
 function wgsl(value) {
@@ -27,6 +38,7 @@ function makeGeometry(piece) {
     geometry.setAttribute('museumJoint' + i, new BufferAttribute(joints, 4));
     geometry.setAttribute('museumWeight' + i, new BufferAttribute(weights, 4, true));
   }
+  if (piece.groundMorphMask) geometry.setAttribute('museumGroundMorph', new BufferAttribute(piece.groundMorphMask, 1));
   if (primitive.indices) {
     const indices = primitive.indices instanceof Uint8Array ? Uint16Array.from(primitive.indices) : primitive.indices;
     geometry.setIndex(new BufferAttribute(indices, 1));
@@ -35,7 +47,7 @@ function makeGeometry(piece) {
   return geometry;
 }
 
-function makeMorph(primitive) {
+function makeMorph({ primitive, groundMorphWeights }) {
   const count = primitive.targets.length;
   if (!count) return null;
   if (count > 8) throw Error('Island animal exceeds the native morph target limit');
@@ -49,24 +61,29 @@ function makeMorph(primitive) {
       }
     }
   }
-  const current = new Float32Array(count), previous = new Float32Array(count), uniforms = {};
-  let vertex = '';
-  for (let i = 0; i < count; i += 4) {
-    uniforms['museumMorphCur' + i] = ['vec4f', current.subarray(i, i + 4)];
-    uniforms['museumMorphPrev' + i] = ['vec4f', previous.subarray(i, i + 4)];
-  }
+  let vertex = groundMorphWeights ? [
+    'let groundMorphCurrent = v.museumGroundMorph * mat.museumGroundMorphFrame.x;',
+    'let groundMorphPrevious = v.museumGroundMorph * mat.museumGroundMorphFrame.y;',
+    '',
+  ].join('\n') : '';
   for (let i = 0; i < count; i++) {
     const block = i - i % 4, component = 'xyzw'[i % 4];
+    const current = 'mat.museumMorphCur' + block + '.' + component;
+    const previous = 'mat.museumMorphPrev' + block + '.' + component;
+    // Ground motion poses the distal leg around its measured reference sole.
+    // Damp the authored morph there by the same foot weight used by skinning.
+    const currentWeight = groundMorphWeights ? 'mix(' + current + ', ' + wgsl(groundMorphWeights[i]) + ', groundMorphCurrent)' : current;
+    const previousWeight = groundMorphWeights ? 'mix(' + previous + ', ' + wgsl(groundMorphWeights[i]) + ', groundMorphPrevious)' : previous;
     vertex += [
       'let m' + i + ' = v.vertex * ' + 6 * count + 'u + ' + 6 * i + 'u;',
       'let md' + i + ' = vec3f(museumMorph[m' + i + '], museumMorph[m' + i + ' + 1u], museumMorph[m' + i + ' + 2u]);',
-      'point += md' + i + ' * mat.museumMorphCur' + block + '.' + component + ';',
-      'previousPoint += md' + i + ' * mat.museumMorphPrev' + block + '.' + component + ';',
-      'normal += vec3f(museumMorph[m' + i + ' + 3u], museumMorph[m' + i + ' + 4u], museumMorph[m' + i + ' + 5u]) * mat.museumMorphCur' + block + '.' + component + ';',
+      'point += md' + i + ' * ' + currentWeight + ';',
+      'previousPoint += md' + i + ' * ' + previousWeight + ';',
+      'normal += vec3f(museumMorph[m' + i + ' + 3u], museumMorph[m' + i + ' + 4u], museumMorph[m' + i + ' + 5u]) * ' + currentWeight + ';',
       '',
     ].join('\n');
   }
-  return { buffer: new StorageBuffer({ label: 'museum morph deltas', count: data.length, type: 'f32', data }), current, previous, uniforms, vertex };
+  return { buffer: new StorageBuffer({ label: 'museum morph deltas', count: data.length, type: 'f32', data }), count, vertex, groundMorph: !!groundMorphWeights };
 }
 
 function makeVertex(pose, piece, morph, uvChannels) {
@@ -82,6 +99,7 @@ function makeVertex(pose, piece, morph, uvChannels) {
   vertex.push('var point = v.position;', 'var previousPoint = v.position;', 'var normal = v.normal;');
   if (morph) {
     storage.museumMorph = morph.buffer;
+    if (morph.groundMorph) attributes.museumGroundMorph = 'f32';
     vertex.push(morph.vertex);
   }
   const sets = piece.influences.length;
@@ -168,111 +186,167 @@ function modelMaterial(source, piece, pose, textures, morph) {
   });
 }
 
-export async function loadIslandMuseumModel(id, { signal } = {}) {
-  if (!Object.hasOwn(islandMuseumModels, id)) throw Error('Unknown island museum animal ' + id);
-  const url = urls['./assets/island/' + id + '.glb.gz'];
-  const response = await fetch(url, { signal });
+// Geometry, immutable morph targets and images live once per resident species.
+// Each individual binds its own palette and morph weights to these assets.
+const speciesAssets = new Map();
+let assetLoads = 0;
+let liveInstances = 0;
+
+function instanceMorph(shared) {
+  if (!shared) return null;
+  const current = new Float32Array(shared.count), previous = new Float32Array(shared.count);
+  const uniforms = {};
+  for (let i = 0; i < shared.count; i += 4) {
+    uniforms['museumMorphCur' + i] = ['vec4f', current.subarray(i, i + 4)];
+    uniforms['museumMorphPrev' + i] = ['vec4f', previous.subarray(i, i + 4)];
+  }
+  const groundFrame = shared.groundMorph ? new Float32Array(2) : null;
+  if (groundFrame) uniforms.museumGroundMorphFrame = ['vec2f', groundFrame];
+  return { ...shared, current, previous, uniforms, groundFrame };
+}
+
+async function buildSpecies(id, signal) {
+  const metadata = islandMuseumModels[id];
+  const response = await fetch(urls['./assets/island/' + id + '.glb.gz'], { signal });
   if (!response.ok || !response.body) throw Error('Island museum model ' + id + ': ' + response.status);
-  // A static host may already have decoded gzip if it set Content-Encoding.
   const unpacked = response.headers.get('Content-Encoding')?.includes('gzip')
     ? response : new Response(response.body.pipeThrough(new DecompressionStream('gzip')));
   const bytes = await unpacked.arrayBuffer();
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   const gltf = parseIslandMuseumModel(bytes);
+  prepareIslandAquaticMotion(gltf, id, metadata);
+  prepareIslandFlightMotion(gltf, id, metadata);
   const { pieces, skin } = islandModelPieces(gltf);
+  const legRig = augmentIslandLegRig(id, gltf, pieces, skin);
+  augmentIslandMediumRig(id, gltf, pieces, skin, metadata);
   const headTurn = makeIslandHeadTurn(id, gltf.nodes, skin);
-  const pose = createIslandModelPose(gltf, skin);
-  const group = pose.group, meshes = [], resources = new Set([pose.jointBuffer]);
-  const texCache = new Map(), materials = new Map(), animated = [];
-  const mipEncoder = GPU.device.createCommandEncoder({ label: 'island museum textures' });
-  const dispose = () => {
-    group.removeFromParent();
-    for (const mesh of meshes) mesh.geometry.dispose();
-    for (const resource of resources) {
-      if (resource.isMaterial) {
-        resource.uniformBlock.buffer?.destroy();
-        resource.dispose();
-      } else resource.destroy();
-    }
-    resources.clear();
-    group.clear();
-  };
+  const rig = { nodes: gltf.nodes, roots: gltf.roots, animations: gltf.animations };
+  const draws = [], geometries = [], immutable = new Set(), texturesByImage = new Map();
+  const encoder = GPU.device.createCommandEncoder({ label: 'island museum textures' });
+  function dispose() {
+    for (const geometry of geometries) geometry.dispose();
+    for (const resource of immutable) resource.destroy();
+    immutable.clear();
+  }
   try {
     for (const piece of pieces) {
-      const { primitive, nodeIndex, influences } = piece;
+      const { primitive, nodeIndex, influences, defaultWeights } = piece;
       const source = gltf.materials[primitive.material] ?? {};
-      const morph = makeMorph(primitive);
-      if (morph) resources.add(morph.buffer);
-      const key = primitive.material + ':' + influences.length + ':' + !!primitive.attributes.COLOR_0;
-      let material = !morph ? materials.get(key) : null;
-      if (!material) {
-        const textures = {};
-        for (const [role, get] of Object.entries(museumTextureUsages)) {
-          const info = get(source);
-          if (!info) continue;
-          const imageIndex = gltf.textures[info.index].source;
-          const srgb = museumSrgbTextures.has(role);
-          const key = imageIndex + ':' + srgb;
-          if (!texCache.has(key)) {
-            const image = gltf.images[imageIndex];
-            const pixels = await decodeImage(image.bytes, image.mimeType);
-            signal?.throwIfAborted();
-            const texture = new Texture({
-              label: 'island museum ' + id + ':' + imageIndex,
-              width: pixels.width, height: pixels.height, mips: true, data: pixels.data,
-              format: srgb ? 'rgba8unorm-srgb' : 'rgba8unorm',
-            });
-            resources.add(texture);
-            generateMipmaps(texture, mipEncoder);
-            texCache.set(key, texture);
-          }
-          textures[role] = texCache.get(key);
+      const textures = {};
+      for (const [role, get] of Object.entries(museumTextureUsages)) {
+        const info = get(source);
+        if (!info) continue;
+        const imageIndex = gltf.textures[info.index].source, srgb = museumSrgbTextures.has(role);
+        const key = imageIndex + ':' + srgb;
+        if (!texturesByImage.has(key)) {
+          const image = gltf.images[imageIndex];
+          const pixels = await decodeImage(image.bytes, image.mimeType);
+          signal.throwIfAborted();
+          const texture = new Texture({ label: 'island museum ' + id + ':' + imageIndex, width: pixels.width,
+            height: pixels.height, mips: true, data: pixels.data, format: srgb ? 'rgba8unorm-srgb' : 'rgba8unorm' });
+          immutable.add(texture);
+          generateMipmaps(texture, encoder);
+          texturesByImage.set(key, texture);
         }
-        material = modelMaterial(source, piece, pose, textures, morph);
-        resources.add(material);
-        if (!morph) materials.set(key, material);
+        textures[role] = texturesByImage.get(key);
       }
-      const mesh = new Mesh(makeGeometry(piece), material);
-      mesh.name = 'island museum ' + id + ' ' + gltf.nodes[nodeIndex].name;
+      const geometry = makeGeometry(piece);
+      geometries.push(geometry);
+      const morph = makeMorph(piece);
+      if (morph) immutable.add(morph.buffer);
+      // Shaders need only the joint-set count and the presence of vertex color.
+      const materialPiece = { influences: { length: influences.length },
+        primitive: { attributes: { COLOR_0: !!primitive.attributes.COLOR_0 } } };
+      draws.push({ geometry, morph, nodeIndex, defaultWeights, source, textures, materialPiece,
+        materialKey: primitive.material + ':' + influences.length + ':' + !!primitive.attributes.COLOR_0 });
+    }
+    signal.throwIfAborted();
+    GPU.queue.submit([encoder.finish()]);
+    assetLoads++;
+    return { id, metadata, draws, rig, skin, headTurn, legRig, dispose };
+  } catch (error) {
+    dispose();
+    throw error;
+  }
+}
+
+function instantiateSpecies(asset, release) {
+  const { id, metadata, draws, rig, skin, headTurn, legRig } = asset;
+  const pose = createIslandModelPose(rig, skin);
+  const group = pose.group, meshes = [], animated = [], materials = new Map(), owned = new Set();
+  let disposed = false, headYaw = 0, groundMotion = null, footGrounded = false;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    group.removeFromParent();
+    for (const material of owned) {
+      material.uniformBlock.buffer?.destroy();
+      material.dispose();
+    }
+    pose.jointBuffer.destroy();
+    group.clear();
+    liveInstances--;
+    release();
+  };
+  liveInstances++;
+  try {
+    for (const draw of draws) {
+      const morph = instanceMorph(draw.morph);
+      let material = !morph ? materials.get(draw.materialKey) : null;
+      if (!material) {
+        material = modelMaterial(draw.source, draw.materialPiece, pose, draw.textures, morph);
+        owned.add(material);
+        if (!morph) materials.set(draw.materialKey, material);
+      }
+      const mesh = new Mesh(draw.geometry, material);
+      mesh.name = 'island museum ' + id + ' ' + rig.nodes[draw.nodeIndex].name;
       mesh.receiveShadow = true;
       mesh.castShadow = !material.transparent;
-      mesh.frustumCulled = !morph && !influences.length;
-      const row = influences.length ? null : pose.world.subarray(nodeIndex * 16, nodeIndex * 16 + 16);
+      const skinned = draw.materialPiece.influences.length > 0;
+      mesh.frustumCulled = !morph && !skinned;
+      const row = skinned ? null : pose.world.subarray(draw.nodeIndex * 16, draw.nodeIndex * 16 + 16);
       if (row) {
         mesh.matrixAutoUpdate = false;
         mesh.matrix.fromArray(row);
         mesh.matrixWorldNeedsUpdate = true;
       }
-      if (morph || row) animated.push({ piece: { nodeIndex, defaultWeights: piece.defaultWeights }, mesh, morph, row });
+      if (morph || row) animated.push({ draw, mesh, morph, row });
       meshes.push(mesh);
       group.add(mesh);
     }
-    signal?.throwIfAborted();
-    GPU.queue.submit([mipEncoder.finish()]);
+    pose.play('Idle', { loop: true, fade: 0 });
+    pose.update(0);
+    groundMotion = createMuseumGroundMotion(id, metadata, pose, legRig);
   } catch (error) {
     dispose();
     throw error;
   }
-  // Keep only the pose, vertex/index buffers and native materials resident.
   pose.gltf = null;
-  const sync = (reset) => {
-    for (const { piece, mesh, morph, row } of animated) {
+  const sync = reset => {
+    for (const { draw, mesh, morph, row } of animated) {
       if (row) {
         mesh.matrix.fromArray(row);
         mesh.matrixWorldNeedsUpdate = true;
       }
       if (morph) {
         morph.previous.set(morph.current);
-        islandMorphWeights(piece, pose.layers, morph.current);
+        if (morph.groundFrame) {
+          morph.groundFrame[1] = reset ? Number(footGrounded) : morph.groundFrame[0];
+          morph.groundFrame[0] = Number(footGrounded);
+        }
+        islandMorphWeights(draw, pose.layers, morph.current);
         if (reset) morph.previous.set(morph.current);
       }
     }
   };
-  let headYaw = 0;
-  const update = dt => {
+  const update = (dt, motion) => {
     pose.update(dt);
-    if (headTurn && headYaw) {
-      applyIslandHeadTurn(pose, headTurn, headYaw, dt === 0);
+    const grounded = motion && groundMotion?.apply(pose, { ...motion, dt, lookYaw: headTurn ? 0 : headYaw });
+    if (headTurn && headYaw) applyIslandHeadTurn(pose, headTurn, headYaw);
+    footGrounded = !!grounded;
+    if (legRig) syncIslandLegRigPalette(pose, legRig, dt === 0, footGrounded);
+    if (legRig || grounded || (headTurn && headYaw)) {
+      if (dt === 0) pose.jointData.copyWithin(pose.joints * 16, 0, pose.joints * 16);
       pose.jointBuffer.write(pose.jointData);
     }
     sync(dt === 0);
@@ -283,17 +357,49 @@ export async function loadIslandMuseumModel(id, { signal } = {}) {
     for (const mesh of meshes) mesh.resetVelocity = true;
   };
   group.name = 'island museum ' + id;
-  pose.play('Idle', { loop: true, fade: 0 });
-  update(0);
+  sync(true);
   hold();
-  return {
-    group, meshes, update, hold, dispose,
-    headYawLimit: headTurn?.limit ?? 0,
-    setHeadYaw: radians => { headYaw = radians; },
-    clipNames: () => pose.clipNames(),
-    clipDuration: name => pose.clipDuration(name),
-    play: (name, options) => pose.play(name, options),
-    get current() { return pose.current; },
-    get layers() { return pose.layers; },
+  return { group, meshes, update, hold, dispose, groundMotion, get local() { return pose.local; }, get world() { return pose.world; }, get joints() { return pose.joints; },
+    headYawLimit: headTurn?.limit ?? groundMotion?.headYawLimit ?? 0, setHeadYaw: radians => { headYaw = radians; },
+    clipNames: () => pose.clipNames(), clipDuration: name => pose.clipDuration(name),
+    play: (name, options) => pose.play(name, options), get current() { return pose.current; }, get layers() { return pose.layers; } };
+}
+
+export function islandAssetStats() {
+  return { species: speciesAssets.size, loads: assetLoads, instances: liveInstances };
+}
+
+export async function loadIslandMuseumModel(id, { signal } = {}) {
+  if (!Object.hasOwn(islandMuseumModels, id)) throw Error('Unknown island museum animal ' + id);
+  signal?.throwIfAborted();
+  let entry = speciesAssets.get(id);
+  if (!entry) {
+    entry = { references: 0, controller: new AbortController(), asset: null };
+    entry.ready = buildSpecies(id, entry.controller.signal).then(asset => (entry.asset = asset));
+    speciesAssets.set(id, entry);
+  }
+  entry.references++;
+  let released = false, abort;
+  const release = () => {
+    if (released) return;
+    released = true;
+    if (--entry.references) return;
+    if (speciesAssets.get(id) === entry) speciesAssets.delete(id);
+    entry.controller.abort();
+    // Last waiters can leave immediately before the build promise resolves.
+    entry.ready.then(asset => asset.dispose(), () => {});
   };
+  try {
+    const asset = signal ? await Promise.race([entry.ready, new Promise((_, reject) => {
+      abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+    })]) : await entry.ready;
+    signal?.throwIfAborted();
+    return instantiateSpecies(asset, release);
+  } catch (error) {
+    release();
+    throw error;
+  } finally {
+    if (abort) signal.removeEventListener('abort', abort);
+  }
 }

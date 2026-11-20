@@ -49,6 +49,12 @@ export function createIslandVisits(data){
  const t=data.terrain,field=data.field;
  const dryNear=(x,z,level,radius=100)=>findDryBank(data,x,z,level,radius);
  const visits={};
+ const entrance=data.geography.landmarks?.find(place=>place.id==='entrance');
+ if(entrance){
+  const [x,z]=entrance.p, [tx,,tz]=entrance.gaze;
+  // Keep the spring trail's heading while looking ahead from standing eye height.
+  visits.entrance={...entrance,time:12.6,gaze:[x+4*(tx-x),t.heightAt(x,z)+1.15,z+4*(tz-z)]};
+ }
  visits['review-cove-safe']={id:'review-cove-safe',title:'浅湾与海底石脊',note:'从海上俯视浅湾与岸肩，沿岸平移检查水色、床面和落石的连续性。',p:[-980,65,100],gaze:[-890,-2,-20],fly:true,time:10.7};
  visits['review-cove-boundary']={id:'review-cove-boundary',title:'浅湾波场接续',note:'沿岸平移检查局部精细传播场与整岛波场的连续接续。',p:[-1000,100,330],gaze:[-830,-1,330],fly:true,time:10.7};
  visits['cove-close']={id:'cove-close',title:'西岸浅砂岩湾',note:'顺着浅砂舌看向海底石脊和落石。左前方有鱼群；可降低飞速接近观察。',p:[-833,24,60],gaze:[-920,-2,-35],fly:true,time:10.7};
@@ -88,8 +94,10 @@ export function createIslandVisits(data){
   visits[station.id+'-under']={id:station.id+'-under',title:station.label+' · 浅海水下',note:'沿缓坡游过砂槽与潜石，抬头看水面和光线。WASD 游动，空格上浮，C 下潜。',p:d,gaze:site?.gaze??[d[0]+station.normal[0]*12,-2.2,d[1]+station.normal[1]*12],diveLevel:-.7,time:station.sector<3?9.5:14.2};
  }
  for(const reef of data.reefObservations??[]){visits[reef.id]={...reef,title:({'reef-east':'东岸珊瑚浅礁','reef-south':'南岸砂槽与暗礁','reef-northeast':'东北岸珊瑚与碎礁'})[reef.id],note:'低饱和珊瑚团块、盘状群落与碎礁依附浅海床生长，砂槽留出游览空间。目前采用环境形态代理。',diveLevel:-.7,time:reef.id==='reef-northeast'?14.2:9.5};}
- const life=data.lifeObservations;if(life?.creek){const g=life.creek;let footing=null;for(let dz=-4;dz<=4;dz+=.25)for(let dx=-4;dx<=4;dx+=.25){const x=g.x+dx,z=g.z+dz,d=Math.hypot(dx,dz),h=t.heightAt(x,z),depth=g.h-h;if(d<1.0||d>3.2||depth<-.1||depth>.6)continue;const score=Math.abs(d-1.8)+Math.abs(depth-.2);if(!footing||score<footing.score)footing={p:[x,z],score};}visits['creek-life']={id:'creek-life',title:'溪边浅水小鱼',note:'站在浅水石边低头观察环境鱼形。',p:footing?.p??[g.x,g.z],gaze:[g.x,g.floor+.2,g.z],time:12.6};}
- if(life?.west){const g=life.west,c=data.coast.coast;visits['coast-birds']={id:'coast-birds',title:'浅湾海鸟掠岸',note:'留在岸边观察低空掠过岩湾的海鸟。开启自然声，可以听见来自实际鸟位的叫声。',p:[c.x+5,c.z],gaze:[c.x-45,7,c.z+7],time:10.7};visits['shore-life']={id:'shore-life',title:'浅湾潜水看鱼',note:'潜入砂槽，在清水中观察小鱼。WASD 游动，空格上浮，C 下潜；岸上的海鸟仍在飞行。',diveLevel:g.h,p:[g.x+4,g.z+1],gaze:[g.x,g.h-1,g.z],time:10.7};}
+ const life=data.lifeObservations;if(life?.creek){const g=life.creek;let footing=null;for(let dz=-4;dz<=4;dz+=.25)for(let dx=-4;dx<=4;dx+=.25){const x=g.x+dx,z=g.z+dz,d=Math.hypot(dx,dz),h=t.heightAt(x,z),depth=g.h-h;if(d<1.0||d>3.2||depth<-.1||depth>.6)continue;const score=Math.abs(d-1.8)+Math.abs(depth-.2);if(!footing||score<footing.score)footing={p:[x,z],score};}visits['creek-life']={id:'creek-life',title:'溪边浅水小鱼',note:'站在浅水石边观察溪鱼成群穿过石槽。',p:footing?.p??[g.x,g.z],gaze:[g.x,g.floor+.2,g.z],time:12.6};}
+ const c=data.coast.coast;
+ visits['coast-birds']={id:'coast-birds',title:'鱼鸟掠过浅湾',note:'留在岸边观察成群的鱼鸟贴着海面低飞。开启自然声可听到来自鸟群位置的现代海鸟录音。',p:[c.x+5,c.z],gaze:[c.x-45,7,c.z+7],time:10.7};
+ if(life?.west){const g=life.west;visits['shore-life']={id:'shore-life',title:'浅湾潜水看鱼',note:'潜入砂槽，在清水中观察小鱼。WASD 游动，空格上浮，C 下潜；岸上的海鸟仍在飞行。',diveLevel:g.h,p:[g.x+4,g.z+1],gaze:[g.x,g.h-1,g.z],time:10.7};}
  Object.assign(visits,regionalLandformVisits(t),sampleVisits(data));
  for(const v of Object.values(visits)){v.ground=t.heightAt(v.p[0],v.p.at(-1));v.waterAtArrival=field.sample(v.p[0],v.p.at(-1))[0];}
  return visits;

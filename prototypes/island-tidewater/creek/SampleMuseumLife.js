@@ -3,6 +3,7 @@
 import { Group, Vector3, Sphere } from '../vendor/tidewater/src/engine/index.js';
 import { mergeMuseumSkins } from '../museum/NativeMuseumSkin.js';
 import { prepareMuseumMotion, museumMotionEnvelope, sampleIchthyosaurEnvelope } from '../museum/AnimalMotionPolish.js';
+import { createMuseumGroundMotion } from '../museum/MuseumGroundMotion.js';
 import { museumMaterialOptions } from '../museum/animals.js';
 import { findMuseumGround, museumGroundSupport, museumTrunkClear, seatMuseumModel, museumGroundVisit, museumXZ } from '../museum/MuseumGrounding.js';
 import { markStreamedFaunaMaterials } from '../museum/StreamedFaunaPipelines.js';
@@ -23,14 +24,6 @@ const source = [
 const sea = -.7, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const yawFor = (data, dx, dz) => Math.atan2(dx, dz) - Math.atan2(data.forward[0], data.forward[1]);
 const envelope = data => data.motionEnvelope ?? ({ min: [0, 1, 2].map(k => Math.min(...data.animationEnvelope.clips.map(c => c.min[k]))), max: [0, 1, 2].map(k => Math.max(...data.animationEnvelope.clips.map(c => c.max[k]))) });
-function clipFloor(data, clip, time) {
-  const frames = data.animationEnvelope.clips.find(c => c.name === clip)?.frames;
-  if (!frames?.length) return data.bounds.min[1];
-  let i = 0;
-  while (i < frames.length - 2 && frames[i + 1].time <= time) i++;
-  const a = frames[i], b = frames[Math.min(i + 1, frames.length - 1)], t = clamp((time - a.time) / Math.max(.0001, b.time - a.time), 0, 1);
-  return a.minY + (b.minY - a.minY) * t;
-}
 function plainSite(site) {
   return { x: site.x, y: site.y, z: site.z, yaw: site.yaw, slope: site.slope, residual: site.residual, groundClearance: site.clear, waterEdge: site.edge };
 }
@@ -48,6 +41,20 @@ function dryEntry(app, preferred) {
   return best;
 }
 
+function lystroRoute(app, start, supportHalf, contactCenter) {
+  const { yaw } = start, dir = [Math.sin(yaw), Math.cos(yaw)];
+  const points = [[start.x, start.y, start.z]];
+  const length = .49, spacing = .07;
+  for (let distance = spacing; distance <= length + .00001; distance += spacing) {
+    const x = start.x + dir[0] * distance, z = start.z + dir[1] * distance;
+    const site = museumGroundSupport(app.terrainData, app.creekData.field, x, z, yaw, supportHalf);
+    if (site.clear < .22 || site.edge < .3 || site.slope > .15 || site.residual > .028 ||
+        !museumTrunkClear(app, site, lystro, contactCenter, .65)) break;
+    points.push([site.x, site.y, site.z]);
+  }
+  return { yaw, dir, supportHalf, points, length: (points.length - 1) * spacing, speed: .18 };
+}
+
 function parasRoute(app) {
   const data = paras, center = [-774, 72], dir = [-.29552020666133955, .955336489125606], length = 12;
   const yaw = yawFor(data, ...dir), contactCenter = [-1.88, .004], supportHalf = [.58, .68];
@@ -58,7 +65,9 @@ function parasRoute(app) {
     if (site.clear < .12 || site.edge < .1 || site.slope > .14 || site.residual > .055 || !museumTrunkClear(app, site, data, contactCenter, .7)) throw Error('Parasaurolophus dry patrol no longer clears water, support or trunks');
     points.push([x, site.y, z]); supports.push(site);
   }
-  return { center, dir, length, yaw, contactCenter, supportHalf, supports, points, speed: .18, sourceStanceVelocity: .1800, cycleSeconds: 2, currentStepMetres: .18, currentCycleStrideMetres: .36, trackPath: { start: points[0], end: points.at(-1), points, stepMetres: 1.08, traceStepMetres: 1.08, footLengthMetres: .54, halfTrackMetres: .34, bankOffsetMetres: -.9, currentStepMetres: .18, currentCycleStrideMetres: .36, correspondence: 'older normal walking pass; current source Walk clip is a slower short-step forage, not a live footprint simulation' } };
+  return { center, dir, length, yaw, contactCenter, supportHalf, supports, points, speed: .18, sourceStanceVelocity: .1800,
+    trackPath: { start: points[0], end: points.at(-1), points, stepMetres: 1.08, traceStepMetres: 1.08, footLengthMetres: .54,
+      halfTrackMetres: .34, bankOffsetMetres: -.9, correspondence: 'older normal walking pass; the current foraging gait keeps separate live foot contacts' } };
 }
 
 function findMarineRoute(app, data) {
@@ -139,7 +148,9 @@ export class SampleMuseumLife {
       if (id === 'lystrosaurus') {
         actor.contactCenter = [0, .35]; actor.supportHalf = [.13, .22];
         actor.site = findMuseumGround(app, data, { preferred: [-772, 53], yaw: -.4, supportHalf: actor.supportHalf, contactCenter: actor.contactCenter, radius: 18, maxSlope: .13, maxResidual: .025 });
-        sites[id] = { id, ...plainSite(actor.site), metres: data.metres, habitat: 'dry bank near the lower-creek vegetation', contactCenter: actor.contactCenter, supportHalf: actor.supportHalf };
+        actor.route = lystroRoute(app, actor.site, actor.supportHalf, actor.contactCenter);
+        sites[id] = { id, ...plainSite(actor.site), metres: data.metres, habitat: 'dry bank near the lower-creek vegetation',
+          contactCenter: actor.contactCenter, supportHalf: actor.supportHalf, path: actor.route.points };
         this.visits['sample-' + id] = museumGroundVisit(app, 'sample-' + id, '岸边的水龙兽', actor.site, .23, 2.7);
         actor.colliderHalf = [.18, .24, .52];
       } else if (id === 'parasaurolophus') {
@@ -199,9 +210,11 @@ export class SampleMuseumLife {
           model.group.name = `museum-sample:${id}`;
           model.group.scale.copy(actor.group.scale);
           model.play('Idle', { fade: 0, loop: true, speed: 1 });
-          model.update(0); model.hold();
+          model.update(0);
+          if (definition.habitat === 'land') actor.groundMotion = createMuseumGroundMotion(id, data, model);
           if (actor.colliderHalf) actor.collider = app.colliders?.addBox(new Vector3(), new Vector3(...actor.colliderHalf), actor.site.yaw, { tag: 'museum sample herbivore', solid: true });
           this.place(actor, 0);
+          model.hold();
           this.group.add(model.group);
           sites[id].motion = model.gltf.museumMotion;
           if (id === 'pteranodon') {
@@ -216,6 +229,7 @@ export class SampleMuseumLife {
           actor.group.position.copy(model.group.position);
           actor.group.quaternion.copy(model.group.quaternion);
           actor.model = null; actor.active = false;
+          actor.groundMotion = null;
           removeSampleCollider(app.colliders, actor.collider);
           actor.collider = null;
         },
@@ -237,21 +251,28 @@ export class SampleMuseumLife {
   }
   place(actor, dt) {
     const app = this.app, data = actor.definition.data, id = data.id, model = actor.model ?? { group: actor.group, layers: [] };
-    if (id === 'lystrosaurus') {
-      const layer = model.layers.find(l => l.target === 1);
-      seatMuseumModel(model, data, actor.site, actor.contactCenter, clipFloor(data, 'Idle', layer?.time ?? 0));
-    } else if (id === 'parasaurolophus') {
+    if (actor.definition.habitat === 'land') {
       const route = actor.route, pedestrian = app.player?.position;
-      const front = pedestrian && Math.hypot(pedestrian.x - actor.site.x, pedestrian.z - actor.site.z) < 4.2;
-      const walking = actor.time >= 4 && actor.distance < route.length - .045 && !front;
-      if (actor.model && walking && model.current !== 'Walk') model.play('Walk', { fade: .55, loop: true, speed: 1 });
-      if (actor.model && !walking && model.current !== 'Idle') model.play('Idle', { fade: .55, loop: true, speed: 1 });
-      const weight = model.layers.find(l => l.clip.name === 'Walk')?.weight ?? 0;
-      actor.distance = Math.min(route.length, actor.distance + route.speed * weight * dt);
+      const paras = id === 'parasaurolophus';
+      const front = pedestrian && Math.hypot(pedestrian.x - actor.site.x, pedestrian.z - actor.site.z) < (paras ? 4.2 : .85);
+      const walking = actor.time >= (paras ? 4 : 3.5) && actor.distance < route.length - .025 && !front;
+      if (paras && actor.model) {
+        const clip = walking ? 'Walk' : 'Idle';
+        if (model.current !== clip) model.play(clip, { fade: .55, loop: true, speed: 1 });
+      }
+      const previous = actor.distance;
+      const speed = actor.groundMotion?.advance(dt, walking, route.speed) ?? 0;
+      actor.distance = Math.min(route.length, actor.distance + speed * dt);
       actor.mode = front ? 'yielding-to-visitor' : walking ? 'short-step-foraging' : actor.distance > route.length - .08 ? 'resting-at-end-of-trail' : 'idle-before-foraging';
       const start = route.points[0], x = start[0] + route.dir[0] * actor.distance, z = start[2] + route.dir[1] * actor.distance;
       actor.site = museumGroundSupport(app.terrainData, app.creekData.field, x, z, route.yaw, route.supportHalf);
       seatMuseumModel(model, data, actor.site, actor.contactCenter);
+      if (actor.groundMotion?.apply(model, {
+        dt, terrain: app.terrainData, behavior: paras ? 'browse' : 'forage', alert: front, travelled: actor.distance - previous,
+      })) {
+        if (dt === 0) model.jointData.copyWithin(model.joints * 16, 0, model.joints * 16);
+        model.jointBuffer.write(model.jointData);
+      }
     } else if (id === 'pteranodon') {
       const r = actor.route; r.phase += dt * r.speed / 58;
       const a = r.phase, x = r.center[0] + Math.cos(a) * r.radii[0], z = r.center[1] + Math.sin(a) * r.radii[1];
@@ -300,7 +321,7 @@ export class SampleMuseumLife {
     return {
       collection: 'six curated sample encounters', addedSpecies: this.actors.length,
       sampleCounts: { land: 4, pterosaurs: 1, birds: 0, marineReptiles: 1 },
-      localAnimation: 'native current and previous source skin poses, including sample-specific joint repairs',
+      localAnimation: 'native skin poses with sampled limb contact, supported weight shifts and sample-specific joint repairs',
       culling: 'nearby assets resident, hidden actors hold history, distant resources released',
       sites: this.app.creekData.sampleMuseumLifeSites,
       actors: this.actors.map(a => {
@@ -314,6 +335,7 @@ export class SampleMuseumLife {
           joints: model?.joints ?? 0, sourcePieces: model?.gltf.museumPieces ?? 0, meshCount: model?.meshes.length ?? 0, range: a.definition.range,
           clip: model?.current ?? null, layers: model?.layers.map(l => ({ clip: l.clip.name, time: l.time, weight: l.weight, speed: l.speed })) ?? [],
           contact: a.site ? plainSite(a.site) : null, residency: this.app.islandFauna.residency.state('sample:' + id)?.status,
+          groundMotion: a.groundMotion?.diagnostics() ?? null,
         };
       }),
     };

@@ -113,6 +113,8 @@
 
 `VaultArticulation.js`、`VaultSwimRigData.js` 与 `VaultSwimMotion.js` 是本馆为上述 CC BY 4.0 静态模型增加的功能绑定与展示动作。它们在运行时增加骨骼、权重、附肢根部及相位，原始拓扑、来源颜色和 GLB 字节保留。翼龙的肩肘腕指、昆虫四翼及腹节、Eryon 分节步足与尾扇、Aeger 步足/颚足/腹泳足/触须、鱼类成对鳍及奇虾侧瓣采用不同驱动。动作频率和幅度属于美术推断，不是化石测得的生物力学数据；奇虾连续侧瓣波的现代模拟参考 [Usami 2006](https://doi.org/10.1016/j.jtbi.2005.05.008)。署名、原始来源和许可继续按上表及资产锁逐项保留。
 
+本岛环境动物使用 Lowpoly Vault 的 `repair/live-models-review` 固定版本。Ichthyornis、Sapeornis、Meganeura、Stenodictya、Juracimbrophlebia、Falcatus 和 Cheiracanthus 由 **Leon Made This / s010s** 制作，依 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可。逐件来源、审查范围与原始 GLB 校验值见 `creek/vault-environment.lock.json`。模型文件保持来源字节，运行时增加翼、尾和鳍的功能绑定与动作，按世界坐标在溪岸、林隙、湖面和沿海浅水中分布。[Lowpoly Vault 源版本](https://github.com/s010s/lowpoly-vault/tree/8a9df831e193d347671f46708addd5a19c486536)
+
 `museum/AnimalMotionPolish.js` 在运行时克隆馆藏绑定与动画，修正鱼龙鳍根和各 skin 的逆绑定，平滑旋转曲线，并复用副栉龙源 Idle 的颈尾通道；没有改写源 GLB、重新授权模型或丢弃原来的署名文件。
 
 `creek/assets/sample-fissure.json` 是本项目以米制在 Blender 制作并检查的闭合风化岩体，不是外部扫描或已测泉口。`ContinuousSample.js`、`SampleTerrain.js` 与样板林地/倒木为自有地貌与生态结构设计，采用现代类比，未把不同原始测绘的高程零点拼成实测复原。

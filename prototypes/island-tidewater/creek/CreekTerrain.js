@@ -21,6 +21,9 @@ export class CreekTerrain extends Terrain {
  // The level-zero comparison samples every active terrain atlas a second time.
  // Only the diagnostics blend uses it; the visitor path uses the filtered normal.
  if(museumGroundReview.filtered!=1.0){N=normalize(mix(terrainNormalAt(P.xz),filteredN,museumGroundReview.filtered));}
+ let worldGrad=terrainImplicitGrad(P);
+ // The longer pixel axis controls relief resolution on grazing surfaces.
+ let reliefFootprint=max(length(worldGrad.dpdx),length(worldGrad.dpdy));
  let footprint=max(length(fwidth(P)),.001);let cover=museumCover(P.xz,footprint);
  let d=textureSample(terrainDetailTex,smpAnisoRepeat,P.xz/3.5);let m=textureSample(terrainDetailTex,smpAnisoRepeat,P.xz/27.0);
  let micro=textureSample(terrainDetailTex,smpAnisoRepeat,P.xz/0.28);
@@ -80,7 +83,7 @@ export class CreekTerrain extends Terrain {
  // Wide cliffs use larger fractures in the same native material. Evaluate
  // rock only on exposed faces. Analytic warp gradients keep the mip footprint
  // exact without adding several Perlin evaluations over every grass pixel.
- let worldGrad=terrainImplicitGrad(P);var rockColour=vec3f(0.0);var rockRough=.94;var rockRelief=0.0;
+ var rockColour=vec3f(0.0);var rockRough=.94;var rockRelief=0.0;
  if(rockW>.001){
   let a=vec3f(.017,.023,.011);let b=vec3f(-.013,.019,.021);
   let phase=vec2f(dot(P,a),dot(P,b));let warp=sin(phase);let warpCos=cos(phase);
@@ -96,7 +99,11 @@ export class CreekTerrain extends Terrain {
   let rockMacro=terrainDetailGrad(uv,gx,gy).w;
   let rock=terrainRockSurface(rockP,N,P.y,rockMacro,0.37,0.22,grad);
   let weathered=mix(${srgb(.27,.26,.23)},${srgb(.44,.42,.37)},rockMacro);
-  rockColour=mix(rock.albedo,weathered,.25);rockRough=rock.rough;rockRelief=rock.hd*.8+rock.height*.14;
+  // Keep resolved stone relief on close faces. At grazing angles the longer
+  // pixel axis can span several plate edges while the other axis is sharp.
+  let plateWeight=1.0-smoothstep(.14,.72,reliefFootprint);
+  rockColour=mix(rock.albedo,weathered,.25);rockRough=rock.rough;
+  rockRelief=(rock.hd*.8+rock.height*.14-.16)*plateWeight;
  }
  ground=mix(ground,rockColour,rockW);
  let sourceWet=museumSourceWet(P);
@@ -216,6 +223,7 @@ export class CreekTerrain extends Terrain {
  // Fine sand ripples are filtered at their projected wavelength; broad bed
  // undulation comes from shared CPU/GPU terrain heights (BedRelief).
  let ripplePhase=P.x*13.0+P.z*4.1+sin(P.z*.72+m.y*3.0)*(.65+mouthRegion*.8)+mouthRegion*(d.x*3.0+m.z*4.0);
+ let rippleWidth=fwidth(ripplePhase);
  // Native ocean history supplies the moving wet boundary. A narrow capillary
  // fringe continues it on land and along the freshwater margin. The signed
  // inland field sets that local datum through the channel mouth and lakes.
@@ -267,7 +275,7 @@ export class CreekTerrain extends Terrain {
    grainRelief+=(d.z-.43)*(.004+sort*.009+lakeMargin*.006)*fine*rim;
   }
  }
- let rippleFilter=1.0-smoothstep(.08,.3,footprint);
+ let rippleFilter=1.0-smoothstep(.6,2.2,rippleWidth);
  let sandRipples=sin(ripplePhase)*.0025*rippleFilter*underBed*(1.0-stoneShare);
  wet=max(max(wet,shoreWet.x),sourceWet*.94);
  // Shore darkening belongs on exposed damp sand. The inherited river-field
@@ -279,8 +287,13 @@ export class CreekTerrain extends Terrain {
  s.albedo=ground*mix(1.0,.72,surfaceWet)*mix(vec3f(1.0),vec3f(.72,.77,.82),dampFilm);
  s.roughness=mix(mix(mix(mix(.94,rockRough,rockW),.48,surfaceWet),mix(.86,rockRough,stoneShare*.7),underBed),.34,dampFilm);
  s.specularIntensity=.22+.20*dampFilm;
- let swardRelief=meadowRelief*(1.0-underBed)*(1.0-mouthSand)*(1.0-snow*museumGroundReview.snow);
- let soilRelief=(d.y*.022+micro.z*.003)*(1.0-smoothstep(.18,.8,footprint))*(1.0-mouthSand);
+ // Fade each relief scale before its gradient becomes unresolved. The
+ // filtered albedo and broad terrain normal still carry the same substrate.
+ let litterWeight=1.0-smoothstep(.030,.135,reliefFootprint);
+ let sandGrainWeight=1.0-smoothstep(.004,.026,reliefFootprint);
+ let swardWeight=1.0-smoothstep(.055,.27,reliefFootprint);
+ let swardRelief=meadowRelief*swardWeight*(1.0-underBed)*(1.0-mouthSand)*(1.0-snow*museumGroundReview.snow);
+ let soilRelief=((d.y-.35)*.022*litterWeight+(micro.z-.45)*.003*sandGrainWeight)*(1.0-mouthSand);
  s.normal=terrainPerturbNormal(P,N,(mix(soilRelief+swardRelief,rockRelief,rockW)*(1.0-underBed)+bedRelief+sandRipples+grainRelief)*museumGroundReview.bump,1.0);s.ao=mix(.72,1.0,nr.w);
  if(underBed>.5){if(museumGroundReview.bedDebug==1.0){s.albedo=vec3f(.2);}if(museumGroundReview.bedDebug==2.0){s.normal=vec3f(0.0,1.0,0.0);}if(museumGroundReview.bedDebug==3.0){s.albedo=vec3f(.15+(wf.x-P.y)*.025);s.normal=vec3f(0.0,1.0,0.0);}if(museumGroundReview.bedDebug==4.0){s.albedo=vec3f(.2);s.normal=vec3f(0.0,1.0,0.0);s.ao=1.0;}}
 `;

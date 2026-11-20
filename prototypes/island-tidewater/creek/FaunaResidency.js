@@ -7,10 +7,30 @@ export function distanceToFauna(camera, site) {
   return Math.hypot(horizontal, Math.max(0, (site.minY ?? site.y) - camera.y, camera.y - (site.maxY ?? site.y)));
 }
 
+// A herd reserves immutable mesh/texture storage once and an independent
+// skin palette/material budget per individual. Legacy models remain standalone.
+function reservation() { return { species: new Set(), bytes: 0 }; }
+
+function assetKey(definition) {
+  return definition.assetId ?? definition;
+}
+
+function addedCost(budget, definition, sharedBytes) {
+  const { assetId, bytes, instanceBytes = bytes } = definition;
+  if (assetId == null) return bytes;
+  return instanceBytes + (budget.species.has(assetId) ? 0 : sharedBytes.get(assetId));
+}
+
+function reserve(budget, definition, sharedBytes) {
+  budget.bytes += addedCost(budget, definition, sharedBytes);
+  budget.species.add(assetKey(definition));
+}
+
 export class FaunaResidency {
-  constructor({ concurrency = 2, residentLimit = 8, byteLimit = 128 * MiB } = {}) {
-    this.limits = { concurrency, residentLimit, byteLimit };
+  constructor({ concurrency = 2, residentLimit = 16, speciesLimit = 8, byteLimit = 128 * MiB } = {}) {
+    this.limits = { concurrency, residentLimit, speciesLimit, byteLimit };
     this.entries = new Map();
+    this.sharedBytes = new Map();
     this.pending = new Set();
     this.camera = null;
     this.disposed = false;
@@ -18,10 +38,14 @@ export class FaunaResidency {
   }
 
   add(definition) {
-    const { id, bytes } = definition;
-    if (this.entries.has(id) || !Number.isFinite(bytes) || bytes <= 0 || bytes > this.limits.byteLimit) {
+    const { id, bytes, assetId, instanceBytes = bytes } = definition;
+    if (this.entries.has(id) || !Number.isFinite(bytes) || bytes <= 0 || bytes > this.limits.byteLimit ||
+        !Number.isFinite(instanceBytes) || instanceBytes < 0 || instanceBytes > bytes) {
       throw Error(`Invalid fauna residency entry ${id} (${bytes} bytes)`);
     }
+    // Guided and ambient actors can estimate the same asset separately.
+    // Reserve enough for the shared allocation whichever actor arrives first.
+    if (assetId != null) this.sharedBytes.set(assetId, Math.max(this.sharedBytes.get(assetId) ?? 0, bytes - instanceBytes));
     this.entries.set(id, { definition, status: 'outside', distance: Infinity, wanted: false, errors: 0, waiters: [] });
   }
 
@@ -32,7 +56,9 @@ export class FaunaResidency {
     const candidates = [];
     for (const entry of this.entries.values()) {
       const { definition, wanted } = entry;
-      entry.distance = distanceToFauna(camera, definition);
+      entry.distance = definition.habitats
+        ? definition.habitats.reduce((nearest, habitat) => Math.min(nearest, distanceToFauna(camera, habitat)), Infinity)
+        : distanceToFauna(camera, definition);
       entry.inRange = entry.distance <= definition.range + (wanted ? (definition.hysteresis ?? 28) : 0);
       if (entry.inRange) candidates.push(entry);
       else if (entry.errors) {
@@ -44,12 +70,14 @@ export class FaunaResidency {
     }
     candidates.sort((a, b) => this.priority(a) - this.priority(b) || a.definition.id.localeCompare(b.definition.id));
     const wanted = new Set();
-    let bytes = 0;
+    const budget = reservation();
     for (const entry of candidates) {
       if (wanted.size >= this.limits.residentLimit) break;
-      if (entry.errors > RETRY_DELAY.length || bytes + entry.definition.bytes > this.limits.byteLimit) continue;
+      const d = entry.definition;
+      if (entry.errors > RETRY_DELAY.length || budget.bytes + addedCost(budget, d, this.sharedBytes) > this.limits.byteLimit) continue;
+      if (!budget.species.has(assetKey(d)) && budget.species.size >= this.limits.speciesLimit) continue;
       wanted.add(entry);
-      bytes += entry.definition.bytes;
+      reserve(budget, d, this.sharedBytes);
     }
     for (const entry of this.entries.values()) {
       entry.wanted = wanted.has(entry);
@@ -68,16 +96,18 @@ export class FaunaResidency {
 
   pump() {
     if (this.disposed) return;
-    let bytes = 0;
-    for (const entry of this.entries.values()) if (entry.model) bytes += entry.definition.bytes;
-    this.counters.peakResidentBytes = Math.max(bytes, this.counters.peakResidentBytes);
-    for (const entry of this.pending) bytes += entry.definition.bytes;
+    const budget = reservation();
+    for (const entry of this.entries.values()) if (entry.model) reserve(budget, entry.definition, this.sharedBytes);
+    this.counters.peakResidentBytes = Math.max(budget.bytes, this.counters.peakResidentBytes);
+    for (const entry of this.pending) if (!entry.model) reserve(budget, entry.definition, this.sharedBytes);
     const queued = [...this.entries.values()].filter(e => e.wanted && !e.request && e.status === 'queued');
     queued.sort((a, b) => this.priority(a) - this.priority(b));
     for (const entry of queued) {
       if (this.pending.size >= this.limits.concurrency) break;
-      if (bytes + entry.definition.bytes > this.limits.byteLimit) continue;
-      bytes += entry.definition.bytes;
+      const d = entry.definition;
+      if (budget.bytes + addedCost(budget, d, this.sharedBytes) > this.limits.byteLimit) continue;
+      if (!budget.species.has(assetKey(d)) && budget.species.size >= this.limits.speciesLimit) continue;
+      reserve(budget, d, this.sharedBytes);
       this.start(entry);
     }
   }
@@ -182,8 +212,10 @@ export class FaunaResidency {
   stats() {
     const entries = [...this.entries.values()];
     const resident = entries.filter(e => e.model);
+    const budget = reservation();
+    for (const entry of resident) reserve(budget, entry.definition, this.sharedBytes);
     return { limits: this.limits, ...this.counters, total: entries.length, resident: resident.length,
-      residentBytes: resident.reduce((sum, entry) => sum + entry.definition.bytes, 0),
+      residentSpecies: budget.species.size, residentBytes: budget.bytes,
       inFlight: this.pending.size, queued: entries.filter(e => e.status === 'queued').length,
       disposed: this.disposed };
   }

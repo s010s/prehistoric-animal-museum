@@ -64,10 +64,8 @@ fn main(@builtin(global_invocation_id) gid:vec3u){
  let xz=museumGrassRootData[museumRootRow+1u].xy;`);
   change('let m = museumFloraAt(xz,0.0);','let m=museumGrassRootData[museumRootRow];');
   change('let mt = museumMeadowAt(xz,0.0);','let museumToneDry=museumGrassRootData[museumRootRow+3u];var mt:MeadowTone;mt.tone=museumToneDry.xyz;mt.dry=museumToneDry.w;mt.lush=museumGrassRootData[museumRootRow+2u].z;');
-  change('let dist=distance(vec3f(xz.x,terrainHeightAt(xz),xz.y),vegParams.camPos);',`let museumClumpHeight=museumGrassRootData[museumRootRow+1u].z;
- let dist=distance(vec3f(xz.x,museumClumpHeight,xz.y),vegParams.camPos);`);
+  change('let clumpHeight=terrainHeightAt(xz);','let clumpHeight=museumGrassRootData[museumRootRow+1u].z;');
   change('let waterField=creekFieldAt(xz);','let waterField=vec4f(museumGrassRootData[museumRootRow+2u].xy,0.0,0.0);let museumRootCover=museumGrassRootData[museumRootRow+1u].w;');
-  change('terrainHeightAt(xz)-waterField.x','museumClumpHeight-waterField.x');
   change('mix(1.0,.6,museumCover(xz,0.0).a)','mix(1.0,.6,museumRootCover)');
   material.vertex=`#if MUSEUM_GRASS_ROOT_CACHE\n${material.vertex}\n#else\n${originalVertex}\n#endif\n`;
   material.defines.MUSEUM_GRASS_ROOT_CACHE=1;

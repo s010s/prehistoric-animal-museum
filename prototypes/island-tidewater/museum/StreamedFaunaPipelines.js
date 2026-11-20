@@ -4,9 +4,8 @@ import { buildMeshShader } from '../vendor/tidewater/src/engine/render/MeshShade
 import { DEPTH_FORMAT, LAYERS, SCENE_FORMATS } from '../vendor/tidewater/src/engine/render/SceneRenderer.js';
 import { SceneLighting } from '../vendor/tidewater/src/engine/render/wgsl/lighting.js';
 
-const mainPass = late => ({ kind: 'main', late, colorFormats: SCENE_FORMATS, depthFormat: DEPTH_FORMAT,
-  depthCompare: 'greater-equal', passKey: `main.${Number(late)}.${SCENE_FORMATS.join(',')}.${DEPTH_FORMAT}.greater-equal..` });
-const opaquePass = mainPass(false), latePass = mainPass(true);
+const mainPass = (late, defines) => ({ kind: 'main', late, colorFormats: SCENE_FORMATS, depthFormat: DEPTH_FORMAT, defines,
+  depthCompare: 'greater-equal', passKey: `main.${Number(late)}.${SCENE_FORMATS.join(',')}.${DEPTH_FORMAT}.greater-equal..${defines ? JSON.stringify(defines) : ''}` });
 const lateLayers = (1 << LAYERS.WATER) | (1 << LAYERS.TRANSPARENT);
 
 async function waitForCompilation(jobs, signal) {
@@ -31,7 +30,8 @@ export function markStreamedFaunaMaterials(model, assetId) {
 // The native renderer pairs each pipeline with a material's actual bindings.
 // Keep only compiled shader/pipeline handles in a stable cache and scope the
 // material bindings to the lifetime of the drawable geometry/material.
-export function attachStreamedFaunaPipelines(renderer) {
+export function attachStreamedFaunaPipelines(renderer, mainPassDefines) {
+  const opaquePass = mainPass(false, mainPassDefines), latePass = mainPass(true, mainPassDefines);
   const nativePipeline = renderer._pipeline;
   const variants = new Map();
   const instances = new WeakMap();
@@ -43,7 +43,7 @@ export function attachStreamedFaunaPipelines(renderer) {
     let own = instances.get(material);
     if (!own) instances.set(material, own = new Map());
     const cached = own.get(scope);
-    if (cached?.version === material.version) return cached.pipeline;
+    if (cached?.version === material.version && !cached.pipeline.handle.failed) return cached.pipeline;
     // Version and numeric material id vary between reacquisitions. The remaining
     // native key covers fixed-function state. The hooks and defines distinguish
     // the reversible wing review shader variants using that same asset slot.
@@ -52,7 +52,7 @@ export function attachStreamedFaunaPipelines(renderer) {
       material.vertex, material.surface, material.output, material.shadow]);
     let compiled = variants.get(variant);
     let bound;
-    if (compiled) {
+    if (compiled && !compiled.handle.failed) {
       const source = buildMeshShader(material, layout.layout, pass);
       const composed = composeShader({ ...source, stage: 'render', label: material.name });
       bound = { ...compiled, bindings: composed.bindings };

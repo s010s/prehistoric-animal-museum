@@ -23,6 +23,7 @@ import {GeometryCanopy,TREE_ATLAS_PIXELS} from './GeometryCanopy.js';
 import {CanopyShadows,hasFixedCanopyShadow,fixedCanopyShadowWGSL} from './CanopyShadows.js';
 
 const RANGE=65;
+const CONIFER_BASE_BURIAL=.65;
 const review=new UniformBlock('MuseumCanopyReview',{coverage:['f32',.5],mode:['f32',0],wind:['f32',1],parallax:['f32',0],thinning:['f32',0],shade:['f32',0],shadows:['f32',1],fixedShadows:['f32',0],solo:['f32',0],pixelScale:['f32',1105],probeXZ:['vec2f',new Vector2(5.963828455,48.907625301)]},{label:'Museum canopy comparison'});
 const shader=new ShaderModule({name:'museumConifer',deps:[vegModule],uniforms:review,uniformName:'museumCanopy',bindings:{creekNeedles:{texture:()=>coniferTextures.needles},creekBark:{texture:()=>coniferTextures.bark}},code:`
 const MUSEUM_LOD_BAND:f32=.28;
@@ -85,11 +86,18 @@ if(museumCanopy.shade==4.0){r.color=vec4f(s.translucency,1.0);}
 if(museumCanopy.shade==5.0){r.color=vec4f(1.0);}
 `;
 
-function mergeParts(parts) {
+function mergeParts(parts, buryConiferBases=false) {
   const packed=[],indices=[];
   for(const {geometry,leaf,height,variant} of parts){
     const p=geometry.attributes.position,n=geometry.attributes.normal,uv=geometry.attributes.uv,c=geometry.attributes.color,base=packed.length/16;
-    for(let i=0;i<p.count;i++){const shade=c?c.getY(i):.7,hf=Math.max(0,p.getY(i)/height),exposure=leaf>.5?Math.max(.45,Math.min(1,.55+(shade-.46)*.9)):Math.max(.35,Math.min(.85,.35+hf*.5));packed.push(p.getX(i),p.getY(i),p.getZ(i),n.getX(i),n.getY(i),n.getZ(i),uv.getX(i),uv.getY(i),leaf,exposure,shade,variant,hf,leaf*.7,leaf*.5,(i%19)/19);}
+    const bury=buryConiferBases&&leaf===0&&variant<2;
+    for(let i=0;i<p.count;i++){
+      const y=p.getY(i),shade=c?c.getY(i):.7,hf=Math.max(0,y/height),exposure=leaf>.5?Math.max(.45,Math.min(1,.55+(shade-.46)*.9)):Math.max(.35,Math.min(.85,.35+hf*.5));
+      // The existing cap and bottom ring extend through the downhill soil.
+      // Keep wind height, bark UVs and the rest of the conifer template intact.
+      const seatedY=bury&&Math.abs(y)<1e-5?-CONIFER_BASE_BURIAL:y;
+      packed.push(p.getX(i),seatedY,p.getZ(i),n.getX(i),n.getY(i),n.getZ(i),uv.getX(i),uv.getY(i),leaf,exposure,shade,variant,hf,leaf*.7,leaf*.5,(i%19)/19);
+    }
     const ix=geometry.index?.array??Array.from({length:p.count},(_,i)=>i);for(const v of ix)indices.push(v+base);
   }
   const geometry=new BufferGeometry(),buffer=new InterleavedBuffer(new Float32Array(packed),16);
@@ -118,7 +126,7 @@ export class CreekForest {
     const templates=[coniferTemplate(3,0),coniferTemplate(11,1),fanTreeTemplate(),coniferTemplate(87,3),coniferTemplate(141,2)];
     const heroes=this.heroes=data.groveHeroes=locateGroveHeroes(data);
     const parts=templates.flatMap((t,variant)=>[{geometry:t.wood,leaf:0,height:t.height,variant},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant}]);
-    const allGeometry=mergeParts(parts),nearGeometry=mergeParts(parts.filter(p=>p.variant<2)),variants=templates.map((_,i)=>mergeParts(parts.filter(p=>p.variant===i)));
+    const allGeometry=mergeParts(parts),nearGeometry=mergeParts(parts.filter(p=>p.variant<2),true),variants=templates.map((_,i)=>mergeParts(parts.filter(p=>p.variant===i)));
     const bounds=this.bounds=canopyBounds(allGeometry),group={variants,...bounds};
     this.atlas=new MuseumImpostorAtlas([group,{variants:[],...bounds}],{albedo:bakeMaterial(false),normal:bakeMaterial(true)});
     const rootContact=new ShaderModule({name:'museumGiantRootContact',deps:[terrainGPU.module],code:`
@@ -259,14 +267,14 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
     this.canopies=[makeCanopy('museum conifers',records.filter(r=>r.variant<2),nearGeometry),... [2,3,4].map(i=>makeCanopy('museum '+speciesNames[i],records.filter(r=>r.variant===i),variants[i],i===4?190:RANGE))];
     this.canopy=this.canopies[0];this.types=[...this.canopies];
     const middleTemplates=[coniferTemplate(3,0,null,null,1),coniferTemplate(11,1,null,null,1),templates[2],coniferTemplate(87,3,null,null,1),coniferTemplate(141,2,null,null,1)];
-    this.canopyShadows=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}]);const items=field.continuousSample?records.filter(r=>hasFixedCanopyShadow(r)&&r.castsFixedShadow!==false&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i):[];return new CanopyShadows('museum depth-only '+speciesNames[i],items,geometry,shadowMaterial);});
+    this.canopyShadows=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}],true);const items=field.continuousSample?records.filter(r=>hasFixedCanopyShadow(r)&&r.castsFixedShadow!==false&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i):[];return new CanopyShadows('museum depth-only '+speciesNames[i],items,geometry,shadowMaterial);});
     this.types.push(...this.canopyShadows);for(const type of this.canopyShadows)for(const mesh of type.meshes)this.group.add(mesh);
-    this.geometryCanopies=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}]);const items=records.filter(r=>r.stableGeometry&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i);return new GeometryCanopy('museum middle '+speciesNames[i],items,geometry,mid,canopyBounds(geometry));});
+    this.geometryCanopies=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}],true);const items=records.filter(r=>r.stableGeometry&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i);return new GeometryCanopy('museum middle '+speciesNames[i],items,geometry,mid,canopyBounds(geometry));});
     this.types.push(...this.geometryCanopies);for(const type of this.geometryCanopies)for(const mesh of type.meshes){mesh.renderOrder=1;mesh.underwaterLighting='none';mesh.material.underwaterLighting='none';this.group.add(mesh);}
     for(const type of this.canopies)for(const mesh of type.meshes){mesh.renderOrder=mesh===type.far.meshes[0]?2:1;mesh.underwaterLighting='none';mesh.material.underwaterLighting='none';this.group.add(mesh);}
     for(const r of records){let low=r.y;if(r.variant===4)for(let i=0;i<12;i++)low=Math.min(low,terrain.heightAt(r.x+Math.cos(i*Math.PI/6)*.86*r.s,r.z+Math.sin(i*Math.PI/6)*.86*r.s)-.1);colliders.addCylinder(r.x,r.z,(r.variant===4?.53:.24)*r.s,low,r.y+r.H,{tag:r.variant===4?'museum giant trunk':'museum tree trunk'});if(r.variant===4)colliders.addCylinder(r.x,r.z,.82*r.s,low,r.y+2.0,{tag:'museum giant root collar'});}
     this.species=speciesNames.map((name,i)=>({name,variant:i,instances:records.filter(r=>r.variant===i).length,nearGeometryTriangles:(i<2?nearGeometry:variants[i]).index.count/3}));
-    this.atlasBudget={variants:templates.length,width:this.atlas.width,height:this.atlas.height,textureCount:2,framePixels:96,mipLevels:6,lastFrameAlignedMip:5,normalMipFilter:new URLSearchParams(location.search).get('atlasMips')==='box'?'box-oct diagnostic':'startup coverage-weight XYZ',angularHandover:"continuous sparse barycentric band .10; 1–3 views",normalViewMix:"decode each oct normal then coverage-weight XYZ",viewGrid:8,viewCoverage:"full sphere including crown undersides",depthParallax:"diagnostic only, off by default",coreNearGeometryUnchanged:true,giantTemplateHeightMetres:[Math.min(...records.filter(r=>r.variant===4).map(r=>r.H)),Math.max(...records.filter(r=>r.variant===4).map(r=>r.H))],giantNearToGeometryMetres:190,atlasTransitionHeightPixels:TREE_ATLAS_PIXELS,giantAtlasUsesNormalisedTreeBounds:true,channels:{A:"linear RGB and coverage",B:"oct-normal RG / leaf B / crown exposure A"},farCrownOcclusion:"native .26–1 exposure-squared compensation for absent crown self-shadow"};
+    this.atlasBudget={variants:templates.length,width:this.atlas.width,height:this.atlas.height,textureCount:2,framePixels:96,mipLevels:6,lastFrameAlignedMip:5,normalMipFilter:new URLSearchParams(location.search).get('atlasMips')==='box'?'box-oct diagnostic':'startup coverage-weight XYZ',angularHandover:"continuous sparse barycentric band .10; 1–3 views",normalViewMix:"decode each oct normal then coverage-weight XYZ",viewGrid:8,viewCoverage:"full sphere including crown undersides",depthParallax:"diagnostic only, off by default",coreNearCanopyUnchanged:true,coniferBaseBurialTemplateUnits:CONIFER_BASE_BURIAL,giantTemplateHeightMetres:[Math.min(...records.filter(r=>r.variant===4).map(r=>r.H)),Math.max(...records.filter(r=>r.variant===4).map(r=>r.H))],giantNearToGeometryMetres:190,atlasTransitionHeightPixels:TREE_ATLAS_PIXELS,giantAtlasUsesNormalisedTreeBounds:true,channels:{A:"linear RGB and coverage",B:"oct-normal RG / leaf B / crown exposure A"},farCrownOcclusion:"native .26–1 exposure-squared compensation for absent crown self-shadow"};
     // Native procedural fern geometry, with our wet-forest placement only.
     const fernRecords=[];
     for(let i=0;i<records.length;i+=2){const r=records[i],x=r.x+(r.variant===4?5.5:2.5),z=r.z-1.7;if((Math.hypot(x,z)>245&&Math.hypot(x+600,z-630)>260&&groveWeight(x,z)<.15)||field.sample(x,z)[1]<1.4)continue;fernRecords.push({x,y:terrain.heightAt(x,z)-.03,z,s:.8+(r.seed%1)*.7,yaw:r.yaw,la:0,l:0,H:.05,seed:UNDERSTORY.FERN+(r.seed%1)*.999,qr:UNDER_FERN_FADE[1]+8});}

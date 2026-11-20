@@ -1,0 +1,72 @@
+{
+  "source": "https://github.com/s010s/lowpoly-vault",
+  "revision": "8a9df831e193d347671f46708addd5a19c486536",
+  "branch": "repair/live-models-review",
+  "author": "Leon Made This / s010s",
+  "license": "CC-BY-4.0",
+  "assets": [
+    {
+      "id": "ichthyornis",
+      "path": "assets/environment-ichthyornis-vault.glb",
+      "source": "assets/additions/ichthyornis/reviewed-batch41-20261114/model.glb",
+      "bytes": 2108040,
+      "sha256": "8e55e7cc457b97c16871abbb8b12399a00ce15bbdf264e841ad5051f4552693d",
+      "triangles": 33000,
+      "review": "independent_scoped_review_passed"
+    },
+    {
+      "id": "sapeornis",
+      "path": "assets/environment-sapeornis-vault.glb",
+      "source": "assets/additions/sapeornis/reviewed-release-20261114-06/model.glb",
+      "bytes": 2032340,
+      "sha256": "c247fbe0efea51193c946d68e96741f9dc8b78b48f42dbbc0439b30cb03d23c4",
+      "triangles": 32999,
+      "review": "independent_scoped_review_passed"
+    },
+    {
+      "id": "juracimbrophlebia",
+      "path": "assets/environment-juracimbrophlebia-vault.glb",
+      "source": "assets/additions/juracimbrophlebia/small-life-v1/juracimbrophlebia.glb",
+      "bytes": 117624,
+      "sha256": "b6fa8ebf0995614401b27cafea2e5095f6f48bbdcb69fd99957cacd60272fa94",
+      "triangles": 2128,
+      "review": "accepted_environment_prop"
+    },
+    {
+      "id": "stenodictya",
+      "path": "assets/environment-stenodictya-vault.glb",
+      "source": "assets/additions/stenodictya/lean-ready60-r001/model.glb",
+      "bytes": 1187960,
+      "sha256": "d4f163fba9c943e1aaba695e57d97f9df77ca90eb5fc79698336332af780aa65",
+      "triangles": 21924,
+      "review": "accepted_for_production"
+    },
+    {
+      "id": "falcatus",
+      "path": "assets/environment-falcatus-vault.glb",
+      "source": "assets/additions/falcatus/reviewed-release-20261114-04/model-12391d8ce12a.glb",
+      "bytes": 1870356,
+      "sha256": "12391d8ce12ada56e75ccee365c842bd4a4e39a7f9a2450be2cb393355ed9a69",
+      "triangles": 33000,
+      "review": "independent_scoped_review_passed"
+    },
+    {
+      "id": "cheiracanthus",
+      "path": "assets/environment-cheiracanthus-vault.glb",
+      "source": "assets/additions/cheiracanthus/reviewed-release-20261114-07/model.glb",
+      "bytes": 2012792,
+      "sha256": "1a436fd68f8ed76f5f81281417c3fc1f7b4f677dc33f75d0146d8a7299674ccb",
+      "triangles": 32999,
+      "review": "independent_scoped_review_passed"
+    },
+    {
+      "id": "meganeura",
+      "path": "assets/environment-meganeura-vault.glb",
+      "source": "assets/additions/meganeura/reviewed-release-20261114-08/model.glb",
+      "bytes": 2260508,
+      "sha256": "418fd1353c187d90636ca5d05a8774216ea738da6bad91c99e7bf71779e74e60",
+      "triangles": 33336,
+      "review": "independent_scoped_review_passed"
+    }
+  ]
+}
