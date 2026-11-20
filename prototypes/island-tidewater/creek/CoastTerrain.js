@@ -3,11 +3,11 @@ import {TerrainData} from '../vendor/tidewater/src/world/TerrainData.js';
 import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
 import {generateMipmaps} from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
 import {bakeTerrainMaps} from '../vendor/tidewater/src/world/terrain/TerrainBake.js';
+import {readTerrainAsset} from './TerrainTransport.js';
 
 const blend=p=>{const t=Math.max(0,Math.min(1,(Math.max(Math.abs(p[0]),Math.abs(p[1]))-448)/48));return 1-t*t*(3-2*t);};
 export async function expandMuseumCoast(data){
- const read=async url=>{const r=await fetch(url);if(!r.ok)throw Error('Own coast data unavailable');return r;};
- const [layout,h,m]=await Promise.all([(await read(new URL('./assets/coast-layout.json',import.meta.url))).json(),(await read(new URL('./assets/coast-heights.bin',import.meta.url))).arrayBuffer(),(await read(new URL('./assets/coast-masks.bin',import.meta.url))).arrayBuffer()]);
+ const [layout,h,m]=await Promise.all(['coast-layout.json','coast-heights.bin','coast-masks.bin'].map(readTerrainAsset));
  const core=data.terrain,outer=Object.create(TerrainData.prototype),masks=new Uint8Array(m),n=layout.res*layout.res;
  Object.assign(outer,{size:layout.size,res:layout.res,texel:layout.texel,origin:layout.origin,heights:new Float32Array(h),pads:[],rockSites:[],paths:[],timings:{source:'museum western coast'}});
  outer.rock=new Float32Array(n);for(const k of ['sand','path','gully','seagrass','rubble','scarp'])outer[k]=new Uint8Array(n);

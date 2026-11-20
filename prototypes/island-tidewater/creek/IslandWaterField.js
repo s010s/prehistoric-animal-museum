@@ -3,6 +3,7 @@
 import {packOceanWaterSupport} from './OceanWaterSupport.js';
 import {createHeadwater} from './HeadwaterDesign.js';
 import {createTributarySource} from './TributarySource.js';
+import {authorRegionalTributary,regionalTributaryDrift} from './RegionalLandforms.js';
 import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
 import {createContinuousSample,sampleDisabledWGSL} from './ContinuousSample.js';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
@@ -11,6 +12,7 @@ export function installIslandWater(field,world,headwater){
  const continuous=field.continuousSample=new URLSearchParams(location.search).get('sample')==='baseline'?null:createContinuousSample();
  const head=field.headwater=createHeadwater(world.source);
  const east=field.tributarySource=createTributarySource(world);
+ world.tributary=authorRegionalTributary(world.tributary);
  // The export enabled the wide main-river extent in one row at Z=-3280.
  // Reconstruct its 40m confluence on the existing half-metre atlas before
  // CPU queries, terrain materials, grass and GPU water share these values.
@@ -39,7 +41,8 @@ export function installIslandWater(field,world,headwater){
  // Retain the same atlas dimensions and sampled bindings as the snapshot.
  if(continuous)for(let j=0;j<512;j++)packed.set(continuous.bytes.subarray(j*512*4,(j+1)*512*4),((j+512)*W+1024)*4);
  packed.set(field.riverProfile,W*n*4);
- const start=field.riverProfile.length/4,trip=world.tributary.flat();packed.set(trip,(W*n+start)*4);
+ const start=field.riverProfile.length/4,drift=regionalTributaryDrift(world.tributary);
+ const trip=world.tributary.flatMap(([x,y,w],i)=>[x,y,w,drift[i]]);packed.set(trip,(W*n+start)*4);
  const oceanSupport=packOceanWaterSupport(field,world,packed,W,W*n+start+trip.length/4);
  const old=field.texture;field.texture=new Texture({label:'Museum inland-water atlas',width:W,height:H,format:'rgba32float',data:packed,usage:['sample','copyDst']});field.module.bindings.creekFieldTex.texture=field.texture;old.destroy();
  const l=field.riverLayout,T=world.tributary,M=world.marsh;
@@ -59,7 +62,7 @@ fn creekFieldAt(p:vec2f)->vec4f{
  let r=creekRiverAt(p.y);let flow=normalize(vec2f(r.w,1.0))*.38;
  var best=vec4f(r.y,select(10000.0,abs(p.x-r.x)-r.z,r.z>0.0),flow);
  ${world.lakes.map(b=>`let e_${b.id}=(length((p-vec2f(${b.center.map(num).join(',')}))/vec2f(${num(b.rx)},${num(b.rz)}))-1.06)*${num(Math.min(b.rx,b.rz))};if(e_${b.id}<best.y){best=vec4f(${num(b.level)},e_${b.id},.025,.008);}`).join('\n')}
- let t=islandTributary(p.y);let te=abs(p.x-t.x)-t.z;if(t.z>0.0&&te<best.y){best=vec4f(t.y,te,.035,.3);}
+ let t=islandTributary(p.y);let te=abs(p.x-t.x)-t.z;if(t.z>0.0&&te<best.y){best=vec4f(t.y,te,select(.035,t.w,p.y>1536.0),.3);}
  let me=(length((p-vec2f(${num(M.x)},${num(M.z)}))/vec2f(${num(M.rx)},${num(M.rz)}))-1.04)*${num(Math.min(M.rx,M.rz))};
  if(me<best.y){best=vec4f(2.4-3.1*smoothstep(6850.0,7850.0,p.y),me,.025,.07);}
  return best;
@@ -106,13 +109,31 @@ ${oceanSupport}
  field.module.code=(fineCode+(continuous?.wgsl??sampleDisabledWGSL)+head.wgsl+east.wgsl+sample).replace('return creekFieldAt(p).y<0.05;','return creekFieldAt(p).y<0.05&&creekMeanAt(p)>frame.seaLevel+.5;');
  field.height=(x,z)=>{const f=field.sample(x,z);return f[1]<.05&&f[0]>-.2?f[0]:-90;};
  const fineSample=field._fineSample,raw=(bytes,res,x,z,c,size,out)=>{const fx=(x-c[0]+size/2)/size*res-.5,fz=(z-c[1]+size/2)/size*res-.5;if(fx<0||fz<0||fx>=res-1||fz>=res-1){out[0]=0;out[1]=10000;out[2]=out[3]=0;return out;}const ix=Math.floor(fx),iz=Math.floor(fz),u=fx-ix,v=fz-iz,k=(iz*res+ix)*4;for(let q=0;q<4;q++)out[q]=(bytes[k+q]*(1-u)+bytes[k+4+q]*u)*(1-v)+(bytes[k+res*4+q]*(1-u)+bytes[k+(res+1)*4+q]*u)*v;return out;};
+ // Terrain construction scans whole rows. Interpolate the linear profiles
+ // once per row while still resolving every X-dependent wet edge separately.
+ let profileZ=NaN,river,tributary,flowX,flowZ,tributaryFlowX;
+ const profilesAt=z=>{
+  profileZ=z;
+  river=field.riverAt(z);
+  const norm=Math.hypot(river?.slope??0,1);
+  flowX=(river?.slope??0)/norm*.38;
+  flowZ=1/norm*.38;
+  const f=(z-T[0][3])/8;
+  tributary=null;
+  if(f>=0&&f<T.length-1){
+   const i=Math.floor(f),u=f-i,e=east.at(z);
+   tributary=e?[e.x,e.level,e.width]:T[i].slice(0,3).map((v,q)=>v*(1-u)+T[i+1][q]*u);
+   tributaryFlowX=e ? .035 : drift[i]*(1-u)+drift[i+1]*u;
+  }
+ };
  field.sample=(x,z,out=[0,0,0,0])=>{
   if(continuous&&x> -1536&&x< -512&&z> -672&&z<352){continuous.sample(x,z,out);if(out[1]<44)return out;}
   if(Math.max(Math.abs(x),Math.abs(z))<255.49)return fineSample(x,z,out);
   if(Math.max(Math.abs(x-sg.center[0]),Math.abs(z-sg.center[1]))<127.49)return head.sample(x,z,raw(headwater,512,x,z,sg.center,256,out));
-  const r=field.riverAt(z);out[0]=r?.level??-90;out[1]=r?Math.abs(x-r.x)-r.width:10000;const norm=Math.hypot(r?.slope??0,1);out[2]=(r?.slope??0)/norm*.38;out[3]=1/norm*.38;
+  if(z!==profileZ)profilesAt(z);
+  out[0]=river?.level??-90;out[1]=river?Math.abs(x-river.x)-river.width:10000;out[2]=flowX;out[3]=flowZ;
   for(const b of world.lakes){const e=(Math.hypot((x-b.center[0])/b.rx,(z-b.center[1])/b.rz)-1.06)*Math.min(b.rx,b.rz);if(e<out[1]){out[0]=b.level;out[1]=e;out[2]=.025;out[3]=.008;}}
-  const f=(z-T[0][3])/8;if(f>=0&&f<T.length-1){const i=Math.floor(f),u=f-i,profile=east.at(z),t=profile?[profile.x,profile.level,profile.width,z]:T[i].map((v,q)=>v*(1-u)+T[i+1][q]*u),e=Math.abs(x-t[0])-t[2];if(e<out[1]){out[0]=t[1];out[1]=e;out[2]=.035;out[3]=.3;}}
+  if(tributary){const e=Math.abs(x-tributary[0])-tributary[2];if(e<out[1]){out[0]=tributary[1];out[1]=e;out[2]=tributaryFlowX;out[3]=.3;}}
   const e=(Math.hypot((x-M.x)/M.rx,(z-M.z)/M.rz)-1.04)*Math.min(M.rx,M.rz);if(e<out[1]){out[0]=2.4-3.1*smooth(6850,7850,z);out[1]=e;out[2]=.025;out[3]=.07;}return out;
  };
  field.island=world;field.northRuns=world.source.runs;field.sourceWater=headwater;field.sourceCenter=sg.center;

@@ -42,6 +42,7 @@ prototypes/*
 prototypes/island-tidewater/node_modules/
 prototypes/island-tidewater/.review-dist/
 prototypes/island-tidewater/.review-baselines/
+prototypes/island-tidewater/creek/assets/.transport/
 prototypes/island-tidewater/patches/
 prototypes/island-exploration/.source/
 prototypes/island-exploration/.review-dist/

@@ -1,1 +1,43 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>史前天地 · Tidewater 原生迁移</title><link rel="stylesheet" href="runtime/study.css"><main class="home"><h1>史前天地 · 原生场景接入</h1><p>先保留完整的天空、地形、植被、海洋、阴影和时域重建，再逐步接入博物馆的内容与空间。</p><a href="creek/">进入溪畔的巨影<small> · 自有溪谷、针叶林、海岸与水下观察</small></a><a href="reference/">原版参考场景<small> · 固定 Tidewater 4811ba48</small></a><a href="museum/">进入动物接入场景<small> · 迷惑龙与三角龙，完整原生渲染链</small></a><p>溪谷默认持续观察，可自由升空；原版与动物兼容入口观察 45 秒后暂停。一次只运行一个实时场景。</p><p>溪谷精细核心已接入同一岛屿的自有西岸。原版参考与首轮动物兼容场景继续保留作对照，完整岛屿仍待迁移。</p></main></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="沿着地形图探索史前天地的九处展区，走进溪谷、巨木林与浅海。">
+  <title>史前天地</title>
+  <link rel="stylesheet" href="./island/style.css">
+</head>
+<body>
+  <header class="site-header shell">
+    <span class="wordmark" aria-current="page">史前天地</span>
+    <nav aria-label="主导航">
+      <a href="./island/">岛屿地图</a>
+    </nav>
+  </header>
+
+  <main class="home shell">
+    <div class="hero-copy">
+      <h1>走进<span>史前天地</span></h1>
+      <p class="hero-intro">从溪谷的细泉走到海边，穿过巨木林和开阔草甸，寻找生活在不同年代的史前动物。</p>
+      <div class="hero-actions">
+        <a class="action" href="./island/">打开岛屿地图 <span aria-hidden="true">↗</span></a>
+        <a class="text-link" href="./creek/?place=sample-source">从溪谷出发 <span aria-hidden="true">→</span></a>
+      </div>
+      <p class="scientific-note">这是一座为游览设计的想象岛屿。展区借鉴不同地貌和生境，动物来自不同年代、不同地区。</p>
+    </div>
+    <figure class="hero-map">
+      <div class="map-surface">
+        <img src="./island/assets/terrain.webp" width="512" height="512" fetchpriority="high" alt="整岛地形图，北侧为高地，西侧为溪谷和岩湾，东侧为草甸和浅海，南侧为湿地。">
+        <span class="compass" aria-hidden="true">↑<small>北</small></span>
+        <span class="map-scale" aria-hidden="true">4 km</span>
+      </div>
+      <figcaption>全岛地形 <span>9 处展区</span></figcaption>
+    </figure>
+  </main>
+
+  <footer class="site-footer shell">
+    <p>史前动物博物馆</p>
+    <p>三维漫游需要支持 WebGPU 的桌面浏览器</p>
+  </footer>
+</body>
+</html>

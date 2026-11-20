@@ -17,7 +17,10 @@ export class CreekTerrain extends Terrain {
     this.review=new UniformBlock('MuseumGroundReview',{snow:['f32',1],bump:['f32',1],filtered:['f32',1],seabedLegacy:['f32',0],bedDebug:['f32',0],inlandBedLegacy:['f32',0]});
     mat.modules.push(new ShaderModule({name:'museumGroundReview',uniforms:this.review}));
     mat.surface=`
- let P=in.P;let nr=terrainNormalRock(P.xz);let filteredN=normalize(vec3f(nr.x,sqrt(max(1.0-dot(nr.xy,nr.xy),.0025)),nr.y));let N=normalize(mix(terrainNormalAt(P.xz),filteredN,museumGroundReview.filtered));
+ let P=in.P;let nr=terrainNormalRock(P.xz);let filteredN=normalize(vec3f(nr.x,sqrt(max(1.0-dot(nr.xy,nr.xy),.0025)),nr.y));var N=normalize(filteredN);
+ // The level-zero comparison samples every active terrain atlas a second time.
+ // Only the diagnostics blend uses it; the visitor path uses the filtered normal.
+ if(museumGroundReview.filtered!=1.0){N=normalize(mix(terrainNormalAt(P.xz),filteredN,museumGroundReview.filtered));}
  let footprint=max(length(fwidth(P)),.001);let cover=museumCover(P.xz,footprint);
  let d=textureSample(terrainDetailTex,smpAnisoRepeat,P.xz/3.5);let m=textureSample(terrainDetailTex,smpAnisoRepeat,P.xz/27.0);
  let micro=textureSample(terrainDetailTex,smpAnisoRepeat,P.xz/0.28);

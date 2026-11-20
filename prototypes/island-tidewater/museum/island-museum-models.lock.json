@@ -1,0 +1,4201 @@
+{
+  "schema": "museum-island-models-v1",
+  "revision": "d2ea7a79eba73bca45178d0e10d8ffdd710bb64d",
+  "referencePose": "Idle at 0 seconds",
+  "envelopeSampleIntervalSeconds": 0.24,
+  "ids": [
+    "stegosaurus",
+    "pteranodon",
+    "pachycephalosaurus",
+    "ankylosaurus",
+    "regaliceratops",
+    "ichthyosaur",
+    "opabinia",
+    "tyrannosaurus-rex",
+    "rhamphorhynchus",
+    "anurognathus",
+    "hallucigenia",
+    "triceratops",
+    "apatosaurus",
+    "livyatan",
+    "sarcosuchus",
+    "plesiosaurus",
+    "gigantoraptor",
+    "parasaurolophus",
+    "tupandactylus",
+    "therizinosaurus",
+    "mammoth",
+    "gallimimus",
+    "megalodon",
+    "tullimonstrum",
+    "phorusrhacos",
+    "maiasaura",
+    "sauropelta",
+    "allosaurus-pandras",
+    "meganeura",
+    "sordes",
+    "dilophosaurus",
+    "dimetrodon",
+    "mosasaurus",
+    "spinosaurus",
+    "quetzalcoatlus",
+    "xiphactinus",
+    "lystrosaurus",
+    "baryonyx",
+    "ammonite",
+    "dallasaurus",
+    "archaeopteryx",
+    "carnotaurus",
+    "styxosaurus",
+    "anomalocaris",
+    "dakosaurus"
+  ],
+  "animals": {
+    "stegosaurus": {
+      "id": "stegosaurus",
+      "name": "剑龙",
+      "englishName": "Stegosaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 8,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -1.02458097,
+          -0.0138297568,
+          -6.071952
+        ],
+        "max": [
+          1.54600122,
+          4.59137425,
+          2.60198491
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.71138622,
+          -0.0188665011,
+          -6.16114231
+        ],
+        "max": [
+          1.54600122,
+          4.59137425,
+          2.60198491
+        ]
+      },
+      "dimensions": [
+        2.57058218,
+        4.605204,
+        8.67393691
+      ],
+      "scale": 0.922303226912,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 1.25,
+          "channels": 41,
+          "bounds": {
+            "min": [
+              -1.71138622,
+              -0.0188665011,
+              -6.16114231
+            ],
+            "max": [
+              1.54600122,
+              4.59137425,
+              2.60198491
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 1653882,
+        "triangles": 19839,
+        "vertices": 11016,
+        "paletteRows": 159
+      },
+      "textureBytes": 9786700,
+      "gpuBytes": 11440582,
+      "bytes": 639393,
+      "unpackedBytes": 1940272,
+      "path": "museum/assets/island/stegosaurus.glb.gz",
+      "sha256": "41d17360422915752baf6fec1790f4c4be6a921f902fd60a4d947a697c131464",
+      "source": "src/content/animals/stegosaurus/model/model.glb",
+      "sourceSha256": "2f1564c1f3f07e41ddb21b1f190621baba2ea5ea9c97c36cd89256ff60bddcea",
+      "sourceBytes": 3884968,
+      "attribution": {
+        "author": "Ferocious Industries",
+        "title": "PBR Stegasaurus (Animated)",
+        "url": "https://sketchfab.com/3d-models/pbr-stegasaurus-animated-ec254ea1554941fe8a131f62db0faf3d",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "2ebe901f9f3cb05e2a3b183068b41d6de083d0d8ebab8ec9ff1be2ee4a46e926",
+        "sourceRecordSha256": "45d99fb2d7ddc4498d9ad39b9908577723df03199be7d080a37eadaa199da269"
+      }
+    },
+    "pteranodon": {
+      "id": "pteranodon",
+      "name": "无齿翼龙",
+      "englishName": "Pteranodon",
+      "habitat": "air",
+      "metric": "wingspan",
+      "metres": 7,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -0.502543098,
+          0.010472193,
+          -0.187324137
+        ],
+        "max": [
+          0.509963602,
+          0.135848329,
+          0.186630225
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.512216018,
+          -0.28545682,
+          -0.26686069
+        ],
+        "max": [
+          0.515010677,
+          0.398308714,
+          0.189902122
+        ]
+      },
+      "dimensions": [
+        1.0125067,
+        0.125376136,
+        0.373954363
+      ],
+      "scale": 6.91353449329,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 10.666667,
+          "channels": 375,
+          "bounds": {
+            "min": [
+              -0.512216018,
+              -0.28545682,
+              -0.26686069
+            ],
+            "max": [
+              0.515010677,
+              0.398308714,
+              0.189902122
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 473188,
+        "triangles": 13494,
+        "vertices": 7838,
+        "paletteRows": 125
+      },
+      "textureBytes": 6990500,
+      "gpuBytes": 7463688,
+      "bytes": 519714,
+      "unpackedBytes": 943156,
+      "path": "museum/assets/island/pteranodon.glb.gz",
+      "sha256": "a1edd129efb5140549304a20a97b8e664e04cedd20fb3afed7e8bb5c0ce32451",
+      "source": "src/content/animals/pteranodon/model/model.glb",
+      "sourceSha256": "abcde65b2ea29c6ae86d8232a5e1a604b05099deb34cebfb30495aff53f61af1",
+      "sourceBytes": 3819812,
+      "attribution": {
+        "author": "Chistodrako._. / Oscar López Riviello",
+        "title": "Pteranodon (Animated)",
+        "url": "https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "c921e5b41307d833e0117c304f4c4224c23cb0e927cb8d796661c6e4b003b35d",
+        "sourceRecordSha256": "d411e2d5cd60b467ed62c15ae25244d7245e189bbeafc99d6bda2b3166dc0d3c"
+      }
+    },
+    "pachycephalosaurus": {
+      "id": "pachycephalosaurus",
+      "name": "肿头龙",
+      "englishName": "Pachycephalosaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 4,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -1.07345492,
+          -0.000249456826,
+          -2.02766972
+        ],
+        "max": [
+          0.506498672,
+          2.06732821,
+          1.39283629
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.07345492,
+          -0.00267138266,
+          -2.30612679
+        ],
+        "max": [
+          1.0832647,
+          2.16581565,
+          1.39283629
+        ]
+      },
+      "dimensions": [
+        1.5799536,
+        2.06757767,
+        3.42050601
+      ],
+      "scale": 1.16941762066,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 3.083333,
+          "channels": 98,
+          "bounds": {
+            "min": [
+              -1.07345492,
+              -0.00267138266,
+              -2.30612679
+            ],
+            "max": [
+              1.0832647,
+              2.16581565,
+              1.39283629
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 2753056,
+        "triangles": 26112,
+        "vertices": 14193,
+        "paletteRows": 428
+      },
+      "textureBytes": 11184800,
+      "gpuBytes": 13937856,
+      "bytes": 941868,
+      "unpackedBytes": 3113996,
+      "path": "museum/assets/island/pachycephalosaurus.glb.gz",
+      "sha256": "645ace8be9152e5ca1ab656d09238ad60ff433fc818f32ef53fb89d1039f1acb",
+      "source": "src/content/animals/pachycephalosaurus/model/model.glb",
+      "sourceSha256": "ac3539e1119aed28af89296f92f1bae02f0f5a796323bd1738f91c6b069dda48",
+      "sourceBytes": 4079428,
+      "attribution": {
+        "author": "Ferocious Industries",
+        "title": "PBR Pachycephalasaurus Animated",
+        "url": "https://sketchfab.com/3d-models/pbr-pachycephalasaurus-animated-6eea5cee4afa4730bf75c6329a43e56d",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "2ebe901f9f3cb05e2a3b183068b41d6de083d0d8ebab8ec9ff1be2ee4a46e926",
+        "sourceRecordSha256": "b37614c1e5ad2e12f86e0f2b5ec8e05fe90ae994efcb0fce3cbccf16a275f549"
+      }
+    },
+    "ankylosaurus": {
+      "id": "ankylosaurus",
+      "name": "甲龙",
+      "englishName": "Ankylosaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 8,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -3.99123469,
+          -7.6124294e-8,
+          -1.65225158
+        ],
+        "max": [
+          3.99052289,
+          3.32650425,
+          1.66050981
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -3.99138381,
+          -0.00000678622236,
+          -1.6559765
+        ],
+        "max": [
+          4.0141311,
+          3.32962693,
+          1.66430165
+        ]
+      },
+      "dimensions": [
+        7.98175758,
+        3.32650433,
+        3.31276139
+      ],
+      "scale": 1.00228551442,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 57,
+          "bounds": {
+            "min": [
+              -3.99138381,
+              -7.6124294e-8,
+              -1.6559765
+            ],
+            "max": [
+              4.0141311,
+              3.32962693,
+              1.66430165
+            ]
+          }
+        },
+        {
+          "name": "Walk",
+          "duration": 8,
+          "channels": 57,
+          "bounds": {
+            "min": [
+              -3.99134592,
+              -0.00000678622236,
+              -1.65184322
+            ],
+            "max": [
+              3.99151369,
+              3.32616186,
+              1.66009412
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 210332,
+        "triangles": 5562,
+        "vertices": 3636,
+        "paletteRows": 19
+      },
+      "textureBytes": 4893348,
+      "gpuBytes": 5103680,
+      "bytes": 368764,
+      "unpackedBytes": 631884,
+      "path": "museum/assets/island/ankylosaurus.glb.gz",
+      "sha256": "257a3757277c5611011fb8648214ef29885244b903d7c5bc879dfe2e922daee9",
+      "source": "src/content/animals/ankylosaurus/model/model.glb",
+      "sourceSha256": "7447dc70cba8321b85e40356ae5f92477f319b3bc01ea309917d2b7927455b75",
+      "sourceBytes": 4334176,
+      "attribution": {
+        "author": "pikabobalex",
+        "title": "甲龙",
+        "url": "https://sketchfab.com/3d-models/dino-ankylosaurus-55b9adcbcf7846e8a833bfc77eaf3d3f",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "f19191edbc1d917859ae7a46b1efab06d9c07a75127ad895be5a1c53e18404ea",
+        "sourceRecordSha256": "0418a4085de88f47b0e107c49dea879dfea8dba0f8c4b167d434d78c10798134"
+      }
+    },
+    "regaliceratops": {
+      "id": "regaliceratops",
+      "name": "帝王角龙",
+      "englishName": "Regaliceratops",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 5,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.60019896,
+          0,
+          -0.443365966
+        ],
+        "max": [
+          1.5999295,
+          1.38766416,
+          0.443365904
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60019896,
+          0,
+          -0.469593543
+        ],
+        "max": [
+          1.61142226,
+          1.39771697,
+          0.465583099
+        ]
+      },
+      "dimensions": [
+        3.20012847,
+        1.38766416,
+        0.88673187
+      ],
+      "scale": 1.56243727369,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 36,
+          "bounds": {
+            "min": [
+              -1.60019896,
+              0,
+              -0.469593543
+            ],
+            "max": [
+              1.61142226,
+              1.39771697,
+              0.465583099
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 5697362,
+        "triangles": 179995,
+        "vertices": 97458,
+        "paletteRows": 12
+      },
+      "textureBytes": 9786700,
+      "gpuBytes": 15484062,
+      "bytes": 4125625,
+      "unpackedBytes": 6500768,
+      "path": "museum/assets/island/regaliceratops.glb.gz",
+      "sha256": "59b639365a136ca2bf08c8ace931d0cc1551d4e3cd03a49c8bebc5c45d0a060b",
+      "source": "src/content/animals/regaliceratops/model/model.glb",
+      "sourceSha256": "01d95a9184c58ff23d81c66d9c1b580cda9d4e5369c384835f981527788d25f2",
+      "sourceBytes": 17652732,
+      "attribution": {
+        "author": "Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy)",
+        "title": "Regaliceratops",
+        "url": "https://sketchfab.com/3d-models/regaliceratops-fb292480dc88483f919c3b11637da3da",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "f4421e876631e591a93ded9033dda89a05da4e45d33a6d6dfa60c0f825b0a069",
+        "sourceRecordSha256": "639137985282ffd3b8008d88bbd13a35bd0616cd625fe66c2f4c1c00a396cec7"
+      }
+    },
+    "ichthyosaur": {
+      "id": "ichthyosaur",
+      "name": "鱼龙类",
+      "englishName": "Ichthyosaurs",
+      "habitat": "water",
+      "metric": "group-range",
+      "metres": 5,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -4.00066385,
+          -0.80145414,
+          -1.50703867
+        ],
+        "max": [
+          3.95899059,
+          0.890867804,
+          1.48371122
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -4.00068085,
+          -1.07467056,
+          -1.52597686
+        ],
+        "max": [
+          4.00725667,
+          0.890872158,
+          1.5268153
+        ]
+      },
+      "dimensions": [
+        7.95965444,
+        1.69232194,
+        2.99074989
+      ],
+      "scale": 0.628167973559,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 6,
+          "channels": 13,
+          "bounds": {
+            "min": [
+              -4.00068085,
+              -1.07467056,
+              -1.52597686
+            ],
+            "max": [
+              4.00725667,
+              0.890872158,
+              1.5268153
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 2779524,
+        "triangles": 80398,
+        "vertices": 47745,
+        "paletteRows": 42
+      },
+      "textureBytes": 6990500,
+      "gpuBytes": 9770024,
+      "bytes": 1701361,
+      "unpackedBytes": 3180080,
+      "path": "museum/assets/island/ichthyosaur.glb.gz",
+      "sha256": "aa7e92127aba770111a8201906373559bea49b9ef022b404f97016be609e4925",
+      "source": "src/content/animals/ichthyosaur/model/model.glb",
+      "sourceSha256": "226f5f6055656f10498c641f0aa5a124dcfffc228d945b0f7484bfd480817f31",
+      "sourceBytes": 5737920,
+      "attribution": {
+        "author": "Julian Johnson-Mortimer / FreddyFoxFreddy",
+        "title": "ichthyosaurus",
+        "url": "https://sketchfab.com/3d-models/ichthyosaurus-ef8609f5efa84984bc1800bdb36aac3c",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "ea7ea37b74d11529c236998e9088920f3245b6fd56a8d948ca2bc3d25a144f28",
+        "sourceRecordSha256": "ad94a103593a058160423daf39330fa9893fd66e8c05b7c80ddca387232693d3"
+      }
+    },
+    "opabinia": {
+      "id": "opabinia",
+      "name": "欧巴宾虫",
+      "englishName": "Opabinia",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 0.1,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.60000251,
+          -0.50157887,
+          -0.498077593
+        ],
+        "max": [
+          1.59999859,
+          0.50158021,
+          0.498069485
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60000251,
+          -0.540668581,
+          -0.505191436
+        ],
+        "max": [
+          1.62448458,
+          0.50158021,
+          0.509441698
+        ]
+      },
+      "dimensions": [
+        3.2000011,
+        1.00315908,
+        0.996147078
+      ],
+      "scale": 0.031249989277,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 54,
+          "bounds": {
+            "min": [
+              -1.60000251,
+              -0.540668581,
+              -0.505191436
+            ],
+            "max": [
+              1.62448458,
+              0.50158021,
+              0.509441698
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 175704,
+        "triangles": 4836,
+        "vertices": 3008,
+        "paletteRows": 18
+      },
+      "textureBytes": 2796200,
+      "gpuBytes": 2971904,
+      "bytes": 277945,
+      "unpackedBytes": 388812,
+      "path": "museum/assets/island/opabinia.glb.gz",
+      "sha256": "b0e439afe4a8429fdf3c1a11149181ac89a35faf030995ea3651fe2052f51273",
+      "source": "src/content/animals/opabinia/model/model.glb",
+      "sourceSha256": "fb511c5c844507782e3a686ab0afedeb1b7792fd0b3301050e95d37a65ca0b62",
+      "sourceBytes": 1444496,
+      "attribution": {
+        "author": "billionlioe",
+        "title": "Cambrian Alien - Alien weekly challenge",
+        "url": "https://sketchfab.com/models/d2111e360cdc4243aac23871836c49f5",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "0a789bcce10bc38a87fb36401e8ecbba89e6f6d4f6fbb85ca46a0fa000e446f6",
+        "sourceRecordSha256": "ff65125c660722d2575c9f9bc5b41eee17ba6ec326d782d38e9658672a4267c4"
+      }
+    },
+    "tyrannosaurus-rex": {
+      "id": "tyrannosaurus-rex",
+      "name": "霸王龙",
+      "englishName": "Tyrannosaurus rex",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 12,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -0.391494619,
+          0.001674413,
+          -1.79121596
+        ],
+        "max": [
+          0.391494619,
+          1.16287913,
+          1.52097063
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.476752786,
+          0.001674413,
+          -1.79121596
+        ],
+        "max": [
+          0.391494619,
+          1.18178466,
+          1.52295879
+        ]
+      },
+      "dimensions": [
+        0.782989238,
+        1.16120472,
+        3.31218658
+      ],
+      "scale": 3.62298430282,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 10,
+          "bounds": {
+            "min": [
+              -0.476752786,
+              0.001674413,
+              -1.79121596
+            ],
+            "max": [
+              0.391494619,
+              1.18178466,
+              1.52295879
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 2130340,
+        "triangles": 59310,
+        "vertices": 36899,
+        "paletteRows": 26
+      },
+      "textureBytes": 9786700,
+      "gpuBytes": 11917040,
+      "bytes": 1434519,
+      "unpackedBytes": 2779648,
+      "path": "museum/assets/island/tyrannosaurus-rex.glb.gz",
+      "sha256": "03a381c434d710d1f6f50582b13473da6bf739004d67739731d258c425c75467",
+      "source": "src/content/animals/tyrannosaurus-rex/model/model.glb",
+      "sourceSha256": "ea15319ca1fa3724f1a961515c36b4834446f5ac30a9b0de49b62881877efa54",
+      "sourceBytes": 6304976,
+      "attribution": {
+        "author": "Marcel Schanz",
+        "title": "Tyrant King - Tyrannosaurus",
+        "url": "https://sketchfab.com/3d-models/tyrant-king-tyrannosaurus-6465a297fa784598adc49f6e0042d449",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "44706330f9d9274d6ea882586958345cb4e2c1e9ccf7a858930964806a028050",
+        "sourceRecordSha256": "28aa10c086fc121ee3041116d20a8b33ff0e1a853321fbcd87e526e1f10d2a06"
+      }
+    },
+    "rhamphorhynchus": {
+      "id": "rhamphorhynchus",
+      "name": "喙嘴翼龙",
+      "englishName": "Rhamphorhynchus",
+      "habitat": "air",
+      "metric": "wingspan",
+      "metres": 1.5,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -1.08167372,
+          -0.168160251,
+          -1.60000014
+        ],
+        "max": [
+          1.08167372,
+          0.16812934,
+          1.60000014
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.08167372,
+          -0.731442542,
+          -1.60000014
+        ],
+        "max": [
+          1.08167372,
+          0.762556693,
+          1.60000014
+        ]
+      },
+      "dimensions": [
+        2.16334744,
+        0.336289591,
+        3.20000029
+      ],
+      "scale": 0.46874995809,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 1,
+          "bounds": {
+            "min": [
+              -1.08167372,
+              -0.731442542,
+              -1.60000014
+            ],
+            "max": [
+              1.08167372,
+              0.762556693,
+              1.60000014
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 1634672,
+        "triangles": 15744,
+        "vertices": 19251,
+        "paletteRows": 1
+      },
+      "textureBytes": 4194300,
+      "gpuBytes": 5828972,
+      "bytes": 611793,
+      "unpackedBytes": 1744996,
+      "path": "museum/assets/island/rhamphorhynchus.glb.gz",
+      "sha256": "a63885fad902a3ccd027c9fe26d6080404412659e2c9308b146d19a80d5c262b",
+      "source": "src/content/animals/rhamphorhynchus/model/model.glb",
+      "sourceSha256": "16b5ab37ac44e177c3e12c229e6f0b27fab669c3d6e74e5b5bdf54ed3a68a935",
+      "sourceBytes": 2398216,
+      "attribution": {
+        "author": "Robear (@xiaorobear)",
+        "title": "Low-poly Rhamphorhynchus idle",
+        "url": "https://sketchfab.com/3d-models/low-poly-rhamphorhynchus-idle-c1e35c7ac4374c778f78025717694675",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "721c16d2ccf6d00f7b1eae42e903536841437c7d360d37409315ce63eb8247d8"
+      }
+    },
+    "anurognathus": {
+      "id": "anurognathus",
+      "name": "蛙嘴翼龙",
+      "englishName": "Anurognathus",
+      "habitat": "air",
+      "metric": "wingspan",
+      "metres": 0.35,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "bounds": {
+        "min": [
+          -0.645127657,
+          -0.21342416,
+          -1.46342195
+        ],
+        "max": [
+          0.702338995,
+          0.539326319,
+          1.46342177
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.646764029,
+          -0.796218528,
+          -1.62723392
+        ],
+        "max": [
+          0.74748755,
+          0.924464839,
+          1.54914756
+        ]
+      },
+      "dimensions": [
+        1.34746665,
+        0.75275048,
+        2.92684372
+      ],
+      "scale": 0.112760871212,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 40,
+          "bounds": {
+            "min": [
+              -0.646764029,
+              -0.796218528,
+              -1.62723392
+            ],
+            "max": [
+              0.74748755,
+              0.924464839,
+              1.54914756
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 2811776,
+        "triangles": 36536,
+        "vertices": 23376,
+        "paletteRows": 13
+      },
+      "textureBytes": 1398100,
+      "gpuBytes": 4209876,
+      "bytes": 1199511,
+      "unpackedBytes": 3025432,
+      "path": "museum/assets/island/anurognathus.glb.gz",
+      "sha256": "cebc2261232c56e34e0a0c289e0d4dd0c8ba1f3002e306dbb1b99d402bf4f2a8",
+      "source": "src/content/animals/anurognathus/model/model.glb",
+      "sourceSha256": "1111268fa0b96095febb8741053dddc0a2119b4f7f8d671c0c90499e0a0fff70",
+      "sourceBytes": 2299268,
+      "attribution": {
+        "author": "Robert_the_whale (https://sketchfab.com/Robert_the_whale)",
+        "title": "Anurognathus pterosaur",
+        "url": "https://sketchfab.com/3d-models/anurognathus-pterosaur-bc7fe93b9c254bd2bd9f905e063ec86c",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "fdecf6863760762dda683d089f765154efb8e437386ccb109f3f98ffd1208557",
+        "sourceRecordSha256": "65c22ce15f37c532697461b399b79499fcc09d5ba795a47bd11d8c21e729403b"
+      }
+    },
+    "hallucigenia": {
+      "id": "hallucigenia",
+      "name": "怪诞虫",
+      "englishName": "Hallucigenia",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 0.03,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -0.0150057428,
+          -1.6671495e-7,
+          -0.00684366246
+        ],
+        "max": [
+          0.0149943594,
+          0.0117218553,
+          0.00684316038
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.01501607,
+          -0.00000234094762,
+          -0.00684366246
+        ],
+        "max": [
+          0.0155415224,
+          0.0117218553,
+          0.00684316038
+        ]
+      },
+      "dimensions": [
+        0.0300001022,
+        0.011722022,
+        0.0136868228
+      ],
+      "scale": 0.999996593318,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 327,
+          "bounds": {
+            "min": [
+              -0.01501607,
+              -0.00000234094762,
+              -0.00684366246
+            ],
+            "max": [
+              0.0155415224,
+              0.0117218553,
+              0.00684316038
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 1888920,
+        "triangles": 50396,
+        "vertices": 28082,
+        "paletteRows": 109
+      },
+      "textureBytes": 4194300,
+      "gpuBytes": 6083220,
+      "bytes": 1850123,
+      "unpackedBytes": 3145888,
+      "path": "museum/assets/island/hallucigenia.glb.gz",
+      "sha256": "796a4069ee8a6a9809b348b8293e24178844f99ac783726f103e69f40c807160",
+      "source": "src/content/animals/hallucigenia/model/model.glb",
+      "sourceSha256": "2f1c725ab3410bc0b650ee442d7028555e63b51288fb8a6531997941dc8daa1e",
+      "sourceBytes": 5640768,
+      "attribution": {
+        "author": "huykhoi2407",
+        "title": "怪诞虫",
+        "url": "https://sketchfab.com/3d-models/hallucigenia-cambrian-animal-fad8306e863a4960b48e49c16c3806cf",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "0a789bcce10bc38a87fb36401e8ecbba89e6f6d4f6fbb85ca46a0fa000e446f6",
+        "sourceRecordSha256": "208cd40bb33c7179d51c6136a4465d49e8c80d57938feb65c4d990db7dedddbf"
+      }
+    },
+    "triceratops": {
+      "id": "triceratops",
+      "name": "三角龙",
+      "englishName": "Triceratops",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 8.5,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -0.755509629,
+          -0.00184713143,
+          -2.51520819
+        ],
+        "max": [
+          0.755509629,
+          1.82153798,
+          2.0704771
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.755509629,
+          -0.00184713143,
+          -2.51520819
+        ],
+        "max": [
+          0.755509629,
+          1.83624993,
+          2.10227673
+        ]
+      },
+      "dimensions": [
+        1.51101926,
+        1.82338511,
+        4.58568529
+      ],
+      "scale": 1.85359427491,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 4,
+          "bounds": {
+            "min": [
+              -0.755509629,
+              -0.00184713143,
+              -2.51520819
+            ],
+            "max": [
+              0.755509629,
+              1.83624993,
+              2.10227673
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 430496,
+        "triangles": 12560,
+        "vertices": 7372,
+        "paletteRows": 10
+      },
+      "textureBytes": 4194300,
+      "gpuBytes": 4624796,
+      "bytes": 406125,
+      "unpackedBytes": 657668,
+      "path": "museum/assets/island/triceratops.glb.gz",
+      "sha256": "c5995b5eae63ea711d32edd1395d88fcc0c78d98e7b11eaca4efb6504ea494ce",
+      "source": "src/content/animals/triceratops/model/model.glb",
+      "sourceSha256": "e51eeb1c3b9c890cdef1f78c65a74179f2da6d4ed899b32e8833b87d2777cf33",
+      "sourceBytes": 3178460,
+      "attribution": {
+        "author": "wojciechmiedziocha",
+        "title": "Triceratops dinosaur",
+        "url": "https://sketchfab.com/3d-models/triceratops-dinosaur-87527079bad44917ab1b98a456b46c7e",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "ec0f764d2cebfaa5479416591d127ec7579580c31fb4088c89709803f2996d34",
+        "sourceRecordSha256": "6d9dd978ea24dc2cdaf2de6b0d2122fc7d59376440a2877b128175c103c80b19"
+      }
+    },
+    "apatosaurus": {
+      "id": "apatosaurus",
+      "name": "迷惑龙",
+      "englishName": "Apatosaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 22,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.5999999,
+          -0.0000219254719,
+          -0.215778052
+        ],
+        "max": [
+          1.5999999,
+          0.882426838,
+          0.215778052
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.5999999,
+          -0.0000219254719,
+          -0.24406274
+        ],
+        "max": [
+          1.5999999,
+          0.904128971,
+          0.24406274
+        ]
+      },
+      "dimensions": [
+        3.19999981,
+        0.882448764,
+        0.431556104
+      ],
+      "scale": 6.87500040978,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 1,
+          "bounds": {
+            "min": [
+              -1.5999999,
+              -0.0000219254719,
+              -0.24406274
+            ],
+            "max": [
+              1.5999999,
+              0.904128971,
+              0.24406274
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 904872,
+        "triangles": 18004,
+        "vertices": 9959,
+        "paletteRows": 1
+      },
+      "textureBytes": 4194300,
+      "gpuBytes": 5099172,
+      "bytes": 483279,
+      "unpackedBytes": 1102900,
+      "path": "museum/assets/island/apatosaurus.glb.gz",
+      "sha256": "65901c1aa3d5fb7e5d2718f7954350ae69a33304e3d43e8e5197e4ef6c8b6be3",
+      "source": "src/content/animals/apatosaurus/model/model.glb",
+      "sourceSha256": "9d9f151933a33ae5824eb7532e16a7416b012b9ffff154aca2957ad37a2a540a",
+      "sourceBytes": 3513136,
+      "attribution": {
+        "author": "toro ardido modelos 3d",
+        "title": "Apatosaurus",
+        "url": "https://sketchfab.com/3d-models/apatosaurus-fecabec8e4ef42ef98b5480dbf50c57d",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "cd6975acd9575bd16c973ef1b83bd538a6b3f77c987b78e72fc6fae684c614bc",
+        "sourceRecordSha256": "66059162e7346415e646d266234a9d15ea47e160c2e30fd1751e1e88d16c43fe"
+      }
+    },
+    "livyatan": {
+      "id": "livyatan",
+      "name": "梅氏利维坦鲸",
+      "englishName": "Livyatan",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 13.5,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.59753266,
+          -0.481736845,
+          -0.527770844
+        ],
+        "max": [
+          1.58258851,
+          0.476474223,
+          0.527770072
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.59753266,
+          -0.588341073,
+          -0.52777085
+        ],
+        "max": [
+          1.61224112,
+          0.541646379,
+          0.527770084
+        ]
+      },
+      "dimensions": [
+        3.18012117,
+        0.958211068,
+        1.05554092
+      ],
+      "scale": 4.2451212672,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 51,
+          "bounds": {
+            "min": [
+              -1.59753266,
+              -0.481990924,
+              -0.52777085
+            ],
+            "max": [
+              1.6116902,
+              0.541646379,
+              0.527770074
+            ]
+          }
+        },
+        {
+          "name": "Swim",
+          "duration": 8,
+          "channels": 48,
+          "bounds": {
+            "min": [
+              -1.59753266,
+              -0.588341073,
+              -0.527770848
+            ],
+            "max": [
+              1.61224112,
+              0.509579649,
+              0.527770084
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 4471640,
+        "triangles": 80132,
+        "vertices": 41550,
+        "paletteRows": 16
+      },
+      "textureBytes": 2796200,
+      "gpuBytes": 7267840,
+      "bytes": 2459788,
+      "unpackedBytes": 3772612,
+      "path": "museum/assets/island/livyatan.glb.gz",
+      "sha256": "8bf97411a2298086d9a27ffece11962fe241916aa2568fade47be193a9182e02",
+      "source": "src/content/animals/livyatan/model/model.glb",
+      "sourceSha256": "74d0c2f720cc16ad3427a906f111a7da70c1ad877740e9183e6b772dfd239452",
+      "sourceBytes": 5588140,
+      "attribution": {
+        "author": "majorgalah",
+        "title": "Livyatan melvillei",
+        "url": "https://sketchfab.com/models/8313bd7fde514b108c9ef469817b62ba",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "0a789bcce10bc38a87fb36401e8ecbba89e6f6d4f6fbb85ca46a0fa000e446f6",
+        "sourceRecordSha256": "700d5e58050eb074628d23fd4afb97c81947437d1ae3eb546b22fca379813c9e"
+      }
+    },
+    "sarcosuchus": {
+      "id": "sarcosuchus",
+      "name": "帝鳄",
+      "englishName": "Sarcosuchus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 9,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.59999974,
+          -0.195550799,
+          -0.563380301
+        ],
+        "max": [
+          1.60000047,
+          0.195550825,
+          0.563380301
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.59999974,
+          -0.195550799,
+          -0.563380301
+        ],
+        "max": [
+          1.60036055,
+          0.197281861,
+          0.563380301
+        ]
+      },
+      "dimensions": [
+        3.20000021,
+        0.391101624,
+        1.1267606
+      ],
+      "scale": 2.81249981769,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 24,
+          "bounds": {
+            "min": [
+              -1.59999974,
+              -0.195550799,
+              -0.563380301
+            ],
+            "max": [
+              1.60036055,
+              0.197281861,
+              0.563380301
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 7767262,
+        "triangles": 249997,
+        "vertices": 130547,
+        "paletteRows": 8
+      },
+      "textureBytes": 13981000,
+      "gpuBytes": 21748262,
+      "bytes": 5881302,
+      "unpackedBytes": 8975452,
+      "path": "museum/assets/island/sarcosuchus.glb.gz",
+      "sha256": "473e1aab82910232b5d1d663733a21345345e039ceae4b424fb4db035040917c",
+      "source": "src/content/animals/sarcosuchus/model/model.glb",
+      "sourceSha256": "f31490d167289a724a77f33b2040fc66f377c52a7f01bb1e361a2e5f011ceb20",
+      "sourceBytes": 17945692,
+      "attribution": {
+        "author": "Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy)",
+        "title": "Sarcosuchus",
+        "url": "https://sketchfab.com/3d-models/sarcosuchus-6cb4e0c2b53447409cc092f9cfa97c51",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "a9c93835fa31f7af56653f1df4e751e4df6d207c81e718d13e5ab534855dd6d5",
+        "sourceRecordSha256": "66ad9a57ea9d7d0d41e8de122381ffaba6b9e4168278acd81ebee78776fe7478"
+      }
+    },
+    "plesiosaurus": {
+      "id": "plesiosaurus",
+      "name": "蛇颈龙类",
+      "englishName": "Plesiosaurs",
+      "habitat": "water",
+      "metric": "group-range",
+      "metres": 5,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0.394,
+        0,
+        0.919
+      ],
+      "bounds": {
+        "min": [
+          -218.569708,
+          -128.985061,
+          -553.842602
+        ],
+        "max": [
+          384.336953,
+          221.544354,
+          391.677534
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -229.888193,
+          -177.324841,
+          -563.361788
+        ],
+        "max": [
+          391.353635,
+          244.428001,
+          391.677534
+        ]
+      },
+      "dimensions": [
+        602.90666,
+        350.529415,
+        945.520136
+      ],
+      "scale": 0.00483827505934,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 1,
+          "bounds": {
+            "min": [
+              -229.888193,
+              -177.324841,
+              -563.361788
+            ],
+            "max": [
+              391.353635,
+              244.428001,
+              391.677534
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 7760440,
+        "triangles": 90292,
+        "vertices": 56395,
+        "paletteRows": 1
+      },
+      "textureBytes": 4194300,
+      "gpuBytes": 11954740,
+      "bytes": 2618232,
+      "unpackedBytes": 7899176,
+      "path": "museum/assets/island/plesiosaurus.glb.gz",
+      "sha256": "fc3b524652c18ed615a657ccb723a92d4a6f3fc92f4617bb2353a3baeb6a5bef",
+      "source": "src/content/animals/plesiosaurus/model/model.glb",
+      "sourceSha256": "4edc54ab21f61eb7b5e38c3b5d87a1816621547a9e7fde33cfdf3efd93b788a8",
+      "sourceBytes": 2519664,
+      "attribution": {
+        "author": "leo kerjean",
+        "title": "Plesiosaure",
+        "url": "https://sketchfab.com/3d-models/plesiosaure-2f59d503e0754c9d9e157a90ed415c38",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "a58ec196943da1ed8bda5a6946dacc5d5a8b20f67289acfa1cb9e418e511db37",
+        "sourceRecordSha256": "f86111538f1ee3934cc877cd5dfcc7721d5f30c06ffc7c840f4198cd944617a0"
+      }
+    },
+    "gigantoraptor": {
+      "id": "gigantoraptor",
+      "name": "巨盗龙",
+      "englishName": "Gigantoraptor",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 8,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -1.65473857,
+          -0.344669744,
+          -2.59520784
+        ],
+        "max": [
+          -0.115932851,
+          4.85857008,
+          3.79983523
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.65473857,
+          -0.344669744,
+          -2.59911512
+        ],
+        "max": [
+          0.0675419095,
+          4.92372668,
+          3.93990072
+        ]
+      },
+      "dimensions": [
+        1.53880572,
+        5.20323983,
+        6.39504306
+      ],
+      "scale": 1.25096890202,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 6.5,
+          "channels": 29,
+          "bounds": {
+            "min": [
+              -1.65473857,
+              -0.344669744,
+              -2.59911512
+            ],
+            "max": [
+              0.0675419095,
+              4.92372668,
+              3.93990072
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 2791904,
+        "triangles": 83568,
+        "vertices": 46244,
+        "paletteRows": 553
+      },
+      "textureBytes": 1398100,
+      "gpuBytes": 4190004,
+      "bytes": 1439997,
+      "unpackedBytes": 3047152,
+      "path": "museum/assets/island/gigantoraptor.glb.gz",
+      "sha256": "e3c2370f0b2a9cb37e68b5eb564f9d48e806ae0626a1aba7029f369b0a00cfc6",
+      "source": "src/content/animals/gigantoraptor/model/model.glb",
+      "sourceSha256": "26b137edc63f38defdf04d85903a30ad7817c83c5b3d5f5626a1fb2e6f216c0e",
+      "sourceBytes": 1333576,
+      "attribution": {
+        "author": "seth the yutyrannus",
+        "title": "Gigantoraptor",
+        "url": "https://sketchfab.com/3d-models/gigantoraptor-e51509d66d464104aef1b72c298a40cf",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "2ebe901f9f3cb05e2a3b183068b41d6de083d0d8ebab8ec9ff1be2ee4a46e926",
+        "sourceRecordSha256": "2aa79da5bc10d24a6ff64d7a06c2f8d6e5422239fbbd355255aba54a4ca318e1"
+      }
+    },
+    "parasaurolophus": {
+      "id": "parasaurolophus",
+      "name": "副栉龙",
+      "englishName": "Parasaurolophus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 9.45,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -4.72526893,
+          -5.54536927e-7,
+          -0.772450372
+        ],
+        "max": [
+          4.72440685,
+          3.82261059,
+          0.772451438
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -4.72770809,
+          -0.00000684885108,
+          -0.774954077
+        ],
+        "max": [
+          4.75579952,
+          3.82686629,
+          0.774847643
+        ]
+      },
+      "dimensions": [
+        9.44967578,
+        3.82261114,
+        1.54490181
+      ],
+      "scale": 1.00003431039,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 174,
+          "bounds": {
+            "min": [
+              -4.72770809,
+              -5.54536927e-7,
+              -0.772450372
+            ],
+            "max": [
+              4.75579952,
+              3.82686629,
+              0.772451438
+            ]
+          }
+        },
+        {
+          "name": "Walk",
+          "duration": 8,
+          "channels": 174,
+          "bounds": {
+            "min": [
+              -4.72500047,
+              -0.00000684885108,
+              -0.774954077
+            ],
+            "max": [
+              4.72496645,
+              3.72650767,
+              0.774847643
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 765980,
+        "triangles": 25690,
+        "vertices": 12886,
+        "paletteRows": 58
+      },
+      "textureBytes": 585852,
+      "gpuBytes": 1351832,
+      "bytes": 655363,
+      "unpackedBytes": 1433000,
+      "path": "museum/assets/island/parasaurolophus.glb.gz",
+      "sha256": "555430d94f2409a0cd9541be20821a7998aade624f8c59ec47dd544ecbfcd64f",
+      "source": "src/content/animals/parasaurolophus/model/model.glb",
+      "sourceSha256": "c1290e59f4ce65246ee964dbf4b435ec49df5fb6d4b2d222bb54f4527d3b438e",
+      "sourceBytes": 2396824,
+      "attribution": {
+        "author": "htqj寒潭秋镜",
+        "title": "副栉龙",
+        "url": "https://sketchfab.com/3d-models/parasaurolophus-0f25fa4a55ba48c88adef066161f5e83",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "1c327a723c35cb1ab39f1668a19e9e49d44d3ec941ae5df487ef02ad7cba0979",
+        "sourceRecordSha256": "4f4ff89af9f426ebf002979f4d5b78276e741ea74899dde0c4c3ef0134c43b30"
+      }
+    },
+    "tupandactylus": {
+      "id": "tupandactylus",
+      "name": "古神翼龙",
+      "englishName": "Tupandactylus",
+      "habitat": "air",
+      "metric": "wingspan",
+      "metres": 2.7,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -0.665352305,
+          -0.455694024,
+          -1.5999999
+        ],
+        "max": [
+          0.665352305,
+          0.455710699,
+          1.5999999
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.666963682,
+          -1.0871305,
+          -1.5999999
+        ],
+        "max": [
+          0.665352305,
+          0.492287745,
+          1.5999999
+        ]
+      },
+      "dimensions": [
+        1.33070461,
+        0.911404722,
+        3.19999981
+      ],
+      "scale": 0.843750050291,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 1,
+          "bounds": {
+            "min": [
+              -0.666963682,
+              -1.0871305,
+              -1.5999999
+            ],
+            "max": [
+              0.665352305,
+              0.492287745,
+              1.5999999
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 2843080,
+        "triangles": 23280,
+        "vertices": 25993,
+        "paletteRows": 1
+      },
+      "textureBytes": 4194300,
+      "gpuBytes": 7037380,
+      "bytes": 669247,
+      "unpackedBytes": 2938964,
+      "path": "museum/assets/island/tupandactylus.glb.gz",
+      "sha256": "c2430ad056d7cb008293ff63e349791f175264383c685956c4ba542fbfa30f0d",
+      "source": "src/content/animals/tupandactylus/model/model.glb",
+      "sourceSha256": "e2c232534c909899d266fb75e1787117d7e17396d677a82e1a63a0872f2f385e",
+      "sourceBytes": 1216972,
+      "attribution": {
+        "author": "Paleo Modelist (@victory_)",
+        "title": "Tupandactylus",
+        "url": "https://sketchfab.com/3d-models/tupandactylus-4ea8f4466c2c4e61bc57c12af296d43a",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "eba250210ea6d141c3dce6cba606a618770a45f08710a7ebdcb8d1e0d3c4990d"
+      }
+    },
+    "therizinosaurus": {
+      "id": "therizinosaurus",
+      "name": "镰刀龙",
+      "englishName": "Therizinosaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 10,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.5999997,
+          -1.16943598,
+          -0.465631306
+        ],
+        "max": [
+          1.59999969,
+          1.1694362,
+          0.465631207
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.5999997,
+          -1.16943598,
+          -0.465631306
+        ],
+        "max": [
+          1.61837079,
+          1.19818618,
+          0.482823858
+        ]
+      },
+      "dimensions": [
+        3.19999939,
+        2.33887218,
+        0.931262514
+      ],
+      "scale": 3.12500059872,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 45,
+          "bounds": {
+            "min": [
+              -1.5999997,
+              -1.16943598,
+              -0.465631306
+            ],
+            "max": [
+              1.61837079,
+              1.19818618,
+              0.482823858
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 5480256,
+        "triangles": 119520,
+        "vertices": 74394,
+        "paletteRows": 15
+      },
+      "textureBytes": 6990500,
+      "gpuBytes": 12470756,
+      "bytes": 3066216,
+      "unpackedBytes": 6055176,
+      "path": "museum/assets/island/therizinosaurus.glb.gz",
+      "sha256": "932437aaee0e85ce83b643a909c38dcceaa8c78b8c20590781ec09c4f86827b3",
+      "source": "src/content/animals/therizinosaurus/model/model.glb",
+      "sourceSha256": "9311e4108c29cfc9f5efe78ea4335a7a6a247a96a068a8559ae25facf13af440",
+      "sourceBytes": 16199980,
+      "attribution": {
+        "author": "Julian Johnson-Mortimer (https://sketchfab.com/FreddyFoxFreddy)",
+        "title": "Therizinosaurus",
+        "url": "https://sketchfab.com/3d-models/therizinosaurus-1fa8b9e2dd4b40c9b8ffcaead0bd8e66",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "fa9dfe17445e0b73f5a6b97c29442289e8ed3eb7dbc85f1ece937ce45eaaa863",
+        "sourceRecordSha256": "539301b5a2658196d695b3fa8558aa93693ec3ea2fda117f4002ad652dfdb8fb"
+      }
+    },
+    "mammoth": {
+      "id": "mammoth",
+      "name": "长毛猛犸象",
+      "englishName": "Woolly mammoth",
+      "habitat": "land",
+      "metric": "shoulder-height",
+      "metres": 3.25,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.25346539,
+          -0.0449340088,
+          -0.0140895224
+        ],
+        "max": [
+          0.80620843,
+          1.27420392,
+          0.848625145
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.28406393,
+          -0.0449340088,
+          -0.0140895224
+        ],
+        "max": [
+          0.859558741,
+          1.29732525,
+          0.90143869
+        ]
+      },
+      "dimensions": [
+        2.05967382,
+        1.31913793,
+        0.862714667
+      ],
+      "scale": 2.46373024182,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 2,
+          "bounds": {
+            "min": [
+              -1.28406393,
+              -0.0449340088,
+              -0.0140895224
+            ],
+            "max": [
+              0.859558741,
+              1.29732525,
+              0.90143869
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 1774252,
+        "triangles": 56994,
+        "vertices": 29818,
+        "paletteRows": 8
+      },
+      "textureBytes": 1398100,
+      "gpuBytes": 3172352,
+      "bytes": 996502,
+      "unpackedBytes": 1943032,
+      "path": "museum/assets/island/mammoth.glb.gz",
+      "sha256": "0364e90f8cac1c3af91af6afaf1f5c677db8b17fcaecc8347f3fe03d7168094a",
+      "source": "src/content/animals/mammoth/model/model.glb",
+      "sourceSha256": "623a62621f1c6f2955fd3fe6442be8dfd34cdc94064e1bbb0c5e43e8970a1ece",
+      "sourceBytes": 1198456,
+      "attribution": {
+        "author": "SDPM Esare",
+        "title": "3D High-poly Baby Woolly Mammoth",
+        "url": "https://sketchfab.com/3d-models/3d-high-poly-baby-woolly-mammoth-fce1c86ccedf47a5b9627098be6719d5",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "fbe23941dc602a549ffbef4ded9055c054a06fd0ef14c256919b4e388a72bdef",
+        "sourceRecordSha256": "833a2ca5c6c94261d3bbdc0e12d8fa5545128453bae1db9748e29c74b5360a0a"
+      }
+    },
+    "gallimimus": {
+      "id": "gallimimus",
+      "name": "似鸡龙",
+      "englishName": "Gallimimus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 6,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -3.00003845,
+          8.8582761e-7,
+          -0.507923118
+        ],
+        "max": [
+          2.99988851,
+          3.11234865,
+          0.507923134
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -3.00034862,
+          -0.0000468249822,
+          -0.513308741
+        ],
+        "max": [
+          3.01169167,
+          3.11428366,
+          0.513453349
+        ]
+      },
+      "dimensions": [
+        5.99992696,
+        3.11234776,
+        1.01584625
+      ],
+      "scale": 1.00001217369,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 135,
+          "bounds": {
+            "min": [
+              -3.00034862,
+              8.8582761e-7,
+              -0.507923118
+            ],
+            "max": [
+              3.01169167,
+              3.11428366,
+              0.507923134
+            ]
+          }
+        },
+        {
+          "name": "Walk",
+          "duration": 8,
+          "channels": 135,
+          "bounds": {
+            "min": [
+              -3.0000035,
+              -0.0000468249822,
+              -0.513308741
+            ],
+            "max": [
+              2.99999347,
+              3.04013636,
+              0.513453349
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 1616508,
+        "triangles": 43878,
+        "vertices": 22458,
+        "paletteRows": 45
+      },
+      "textureBytes": 1412440,
+      "gpuBytes": 3028948,
+      "bytes": 955019,
+      "unpackedBytes": 2185384,
+      "path": "museum/assets/island/gallimimus.glb.gz",
+      "sha256": "b44a70f3c75ad215fc7e8f6b0715d5aee045ec7ff3e89409a49268e1fc9576a1",
+      "source": "src/content/animals/gallimimus/model/model.glb",
+      "sourceSha256": "d6f28eccc1a91b432b4a5fcc2364d69c024fd42eb1b7377b46ebb9782a8d348a",
+      "sourceBytes": 3579240,
+      "attribution": {
+        "author": "htqj寒潭秋镜",
+        "title": "似鸡龙",
+        "url": "https://sketchfab.com/3d-models/gallimimus-3694e4706ca844549ce9a6d57c555091",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "ec153a2df8413fbb4cb758af50fefcb318b6b5f11e9a432d274cca16377a3b62",
+        "sourceRecordSha256": "ec9c9d9950706850c4841a170215bdc4e7af15cbd197d356f2132b57c46617c3"
+      }
+    },
+    "megalodon": {
+      "id": "megalodon",
+      "name": "巨齿鲨",
+      "englishName": "Megalodon",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 16,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -4.86870417,
+          1.53878296,
+          -13.9807823
+        ],
+        "max": [
+          5.00946808,
+          11.3899444,
+          14.1782007
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -6.12727092,
+          0.692047528,
+          -14.0525199
+        ],
+        "max": [
+          6.23873382,
+          11.3899444,
+          14.1804831
+        ]
+      },
+      "dimensions": [
+        9.87817225,
+        9.85116143,
+        28.158983
+      ],
+      "scale": 0.568202339234,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 87,
+          "bounds": {
+            "min": [
+              -6.12727092,
+              0.692047528,
+              -14.0525199
+            ],
+            "max": [
+              6.23873382,
+              11.3899444,
+              14.1804831
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 141580,
+        "triangles": 3690,
+        "vertices": 2411,
+        "paletteRows": 29
+      },
+      "textureBytes": 699052,
+      "gpuBytes": 840632,
+      "bytes": 131715,
+      "unpackedBytes": 236352,
+      "path": "museum/assets/island/megalodon.glb.gz",
+      "sha256": "918af953b4517116f180ae3729f54e5f42fc73b271b4b92da0d419c972837997",
+      "source": "src/content/animals/megalodon/model/model.glb",
+      "sourceSha256": "dcd9ab8192cd1d38adf1c2ed664e040fed24a8d8498295fca138c887822d2070",
+      "sourceBytes": 155328,
+      "attribution": {
+        "author": "CanYuTsai",
+        "title": "Otodus Megalodon updated animations",
+        "url": "https://sketchfab.com/3d-models/otodus-megalodon-updated-animations-7e65b8c51251440e9aca8385f286714f",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "b0200b38978eeb783cd39033949476170ee3895a11e55f2d8409b0e03c44d495",
+        "sourceRecordSha256": "35645a078c312f1e3bd88b08cbeab80c4aa9376fa7b7ba2c16d7ef12f49fcccd"
+      }
+    },
+    "tullimonstrum": {
+      "id": "tullimonstrum",
+      "name": "塔利怪物",
+      "englishName": "Tully monster",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 0.3,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -0.149939322,
+          0.000500568395,
+          -0.0341590246
+        ],
+        "max": [
+          0.15007447,
+          0.0599857718,
+          0.03459536
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.150236367,
+          -0.003286442,
+          -0.0341759265
+        ],
+        "max": [
+          0.15007447,
+          0.0617987618,
+          0.0346422699
+        ]
+      },
+      "dimensions": [
+        0.300013792,
+        0.0594852034,
+        0.0687543847
+      ],
+      "scale": 0.999954027667,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 84,
+          "bounds": {
+            "min": [
+              -0.150236367,
+              -0.003286442,
+              -0.0341759265
+            ],
+            "max": [
+              0.15007447,
+              0.0617987618,
+              0.0346422699
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 819392,
+        "triangles": 25056,
+        "vertices": 13864,
+        "paletteRows": 28
+      },
+      "textureBytes": 4194300,
+      "gpuBytes": 5013692,
+      "bytes": 793526,
+      "unpackedBytes": 1129732,
+      "path": "museum/assets/island/tullimonstrum.glb.gz",
+      "sha256": "e5f1693d8a17da6b3d38151ce96dc2ba428bf7688f8a65b195b05034ff3086ea",
+      "source": "src/content/animals/tullimonstrum/model/model.glb",
+      "sourceSha256": "89c10f5b4ac2846d1be41b5103dcc1cdf4647037073a19fd532aba370e35fec6",
+      "sourceBytes": 4482112,
+      "attribution": {
+        "author": "huykhoi2407",
+        "title": "塔利怪物",
+        "url": "https://sketchfab.com/3d-models/tully-monster-tullimonstrum-48e46fb0c1ba436a88a4b9e5bda693ee",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "0a789bcce10bc38a87fb36401e8ecbba89e6f6d4f6fbb85ca46a0fa000e446f6",
+        "sourceRecordSha256": "e08f35ddb95d6111521568431f7b24b9dbfca03b8eefa6963bba2153672886e8"
+      }
+    },
+    "phorusrhacos": {
+      "id": "phorusrhacos",
+      "name": "骇鸟",
+      "englishName": "Phorusrhacos",
+      "habitat": "land",
+      "metric": "standing-height",
+      "metres": 2.4,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.59963918,
+          0.0000820809946,
+          -0.728263893
+        ],
+        "max": [
+          1.60003092,
+          2.474854,
+          0.727993655
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60755411,
+          0.0000820809946,
+          -0.7306803
+        ],
+        "max": [
+          1.62755712,
+          2.48137767,
+          0.72977452
+        ]
+      },
+      "dimensions": [
+        3.19967009,
+        2.47477192,
+        1.45625755
+      ],
+      "scale": 0.969786338595,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 24,
+          "bounds": {
+            "min": [
+              -1.60755411,
+              0.0000820809946,
+              -0.7306803
+            ],
+            "max": [
+              1.62755712,
+              2.48137767,
+              0.72977452
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 4900240,
+        "triangles": 120000,
+        "vertices": 72067,
+        "paletteRows": 8
+      },
+      "textureBytes": 2796200,
+      "gpuBytes": 7696440,
+      "bytes": 2707400,
+      "unpackedBytes": 5326624,
+      "path": "museum/assets/island/phorusrhacos.glb.gz",
+      "sha256": "324ca4f729b13f4aadb9e4df328eed210c5de0ff24a2eada0a821852c10c7524",
+      "source": "src/content/animals/phorusrhacos/model/model.glb",
+      "sourceSha256": "9620e5c0ab96b0d4d2d9211780766df1c08c40d1dcfe4400a5a92973745c62eb",
+      "sourceBytes": 13688836,
+      "attribution": {
+        "author": "Museo [UV] Historia Natural; sculpture Dr. Julio Pitarch Reig; scan Jose A. Villena",
+        "title": "Phorusrhacos longissimus (terror bird)",
+        "url": "https://sketchfab.com/3d-models/phorusrhacos-longissimus-terror-bird-31a09128a2114480b62feeef92a9fba0",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "c081a21171665052bed1ac2c5b5607d0a9cfc964c4d3e6194f07df9cfe3f9822",
+        "sourceRecordSha256": "1bb2499a8833c7928a4b0de766d318aabc3e4911951210e9be336c5133d404d6"
+      }
+    },
+    "maiasaura": {
+      "id": "maiasaura",
+      "name": "慈母龙",
+      "englishName": "Maiasaura",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 8,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -0.408748441,
+          -0.0226394512,
+          -3.22086815
+        ],
+        "max": [
+          0.413140757,
+          1.74043002,
+          1.9041781
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.622903696,
+          -0.025258657,
+          -3.29683639
+        ],
+        "max": [
+          0.615584485,
+          1.80389021,
+          1.91348592
+        ]
+      },
+      "dimensions": [
+        0.821889199,
+        1.76306947,
+        5.12504625
+      ],
+      "scale": 1.56096152207,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 261,
+          "bounds": {
+            "min": [
+              -0.622903696,
+              -0.025258657,
+              -3.29683639
+            ],
+            "max": [
+              0.615584485,
+              1.80389021,
+              1.91348592
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 591768,
+        "triangles": 17948,
+        "vertices": 9853,
+        "paletteRows": 87
+      },
+      "textureBytes": 2796200,
+      "gpuBytes": 3387968,
+      "bytes": 428948,
+      "unpackedBytes": 758616,
+      "path": "museum/assets/island/maiasaura.glb.gz",
+      "sha256": "daf3efcb803b02f52553dc8196ae940260217dd91eb44bf37582a95cf214b374",
+      "source": "src/content/animals/maiasaura/model/model.glb",
+      "sourceSha256": "31dca5fff3c4c361153385ac6e603c8f6916c26576bb4b8bae4db4f735b6fd27",
+      "sourceBytes": 1454384,
+      "attribution": {
+        "author": "Dino Dan",
+        "title": "Maiasaura With Rig",
+        "url": "https://sketchfab.com/3d-models/maiasaura-with-rig-3da9f211ae304bd0afd1d15a290eabbd",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "cb836b8c5ac534a5a82bffbad5852c91043ebfdd7e47ae42c5a07abc4c36a025",
+        "sourceRecordSha256": "6358ca2500c8080e786b3f2d360f62287f57e5e80ab98937ab82ad61da529144"
+      }
+    },
+    "sauropelta": {
+      "id": "sauropelta",
+      "name": "胄甲龙",
+      "englishName": "Sauropelta",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 5.5,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.60000002,
+          0.0000174227816,
+          -0.610614357
+        ],
+        "max": [
+          1.60000002,
+          0.933053716,
+          0.610614357
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60000002,
+          -0.00577885372,
+          -0.621634594
+        ],
+        "max": [
+          1.60000002,
+          0.943203935,
+          0.6219246
+        ]
+      },
+      "dimensions": [
+        3.20000005,
+        0.933036294,
+        1.22122871
+      ],
+      "scale": 1.71874997439,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 1,
+          "bounds": {
+            "min": [
+              -1.60000002,
+              -0.00577885372,
+              -0.621634594
+            ],
+            "max": [
+              1.60000002,
+              0.943203935,
+              0.6219246
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 5028696,
+        "triangles": 82708,
+        "vertices": 56654,
+        "paletteRows": 1
+      },
+      "textureBytes": 5592400,
+      "gpuBytes": 10621096,
+      "bytes": 2338951,
+      "unpackedBytes": 5334596,
+      "path": "museum/assets/island/sauropelta.glb.gz",
+      "sha256": "abfd006fc1be6381b4c11f1ce681c57d7a9db0239def301fdc483e4e4684a179",
+      "source": "src/content/animals/sauropelta/model/model.glb",
+      "sourceSha256": "ef283def4b17e92122442c8cfb617dce7abecf0bdc1962dc2ff1f18835e7a58c",
+      "sourceBytes": 3591444,
+      "attribution": {
+        "author": "Anees Animates",
+        "title": "Animated Sauropelta (Free)",
+        "url": "https://sketchfab.com/3d-models/animated-sauropelta-free-c6373f12f3954facb8d5fe48055c9161",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "95cba873b01398cbd705ae0d0fb409b82d1866961e693964670be50f45a99109"
+      }
+    },
+    "allosaurus-pandras": {
+      "id": "allosaurus-pandras",
+      "name": "异特龙",
+      "englishName": "Allosaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 9.7,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -4.84999943,
+          1.12235415e-7,
+          -0.978536848
+        ],
+        "max": [
+          4.89208137,
+          3.10483336,
+          0.978537169
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -4.8504242,
+          -0.00000648795535,
+          -0.978537023
+        ],
+        "max": [
+          5.06106245,
+          3.29018365,
+          0.978538088
+        ]
+      },
+      "dimensions": [
+        9.7420808,
+        3.10483325,
+        1.95707402
+      ],
+      "scale": 0.99568051253,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 183,
+          "bounds": {
+            "min": [
+              -4.85001803,
+              1.12235415e-7,
+              -0.978536848
+            ],
+            "max": [
+              5.06106245,
+              3.29018365,
+              0.978537169
+            ]
+          }
+        },
+        {
+          "name": "Walk",
+          "duration": 8,
+          "channels": 39,
+          "bounds": {
+            "min": [
+              -4.8504242,
+              -0.00000648795535,
+              -0.978537023
+            ],
+            "max": [
+              4.86699033,
+              3.10806289,
+              0.978538088
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 4014126,
+        "triangles": 96173,
+        "vertices": 56934,
+        "paletteRows": 157
+      },
+      "textureBytes": 5592400,
+      "gpuBytes": 9606526,
+      "bytes": 2585684,
+      "unpackedBytes": 5244212,
+      "path": "museum/assets/island/allosaurus-pandras.glb.gz",
+      "sha256": "f08004a84d5fcd1899642194048f69c7d2869789fb7472ae109586fd32906759",
+      "source": "src/content/animals/allosaurus-pandras/model/model.glb",
+      "sourceSha256": "265e4d435674defcf29fa01283051d1a2f025e768c240605d6200b2ead1922d3",
+      "sourceBytes": 9604028,
+      "attribution": {
+        "author": "PAndras (PusztaiAndras)",
+        "title": "Allosaurus",
+        "url": "https://sketchfab.com/3d-models/allosaurus-6c5142e093a147bdb86e0eeb837b476c",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "78643d2681d90462be689d855c2fe9b02cdaeedd553a544270d6e36a8971eb3f",
+        "sourceRecordSha256": "aa14f2c6193e627accb13e3d7424e98c3ce638447ceb1cb994663dfba15125e2"
+      }
+    },
+    "meganeura": {
+      "id": "meganeura",
+      "name": "巨脉蜻蜓",
+      "englishName": "Meganeura",
+      "habitat": "air",
+      "metric": "wingspan",
+      "metres": 0.7,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -1.20957336,
+          -0.922871495,
+          -1.59999448
+        ],
+        "max": [
+          1.20957336,
+          0.922830458,
+          1.59999448
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.20957336,
+          -0.940352576,
+          -1.81358685
+        ],
+        "max": [
+          1.20957336,
+          1.58298127,
+          1.81721037
+        ]
+      },
+      "dimensions": [
+        2.41914673,
+        1.84570195,
+        3.19998896
+      ],
+      "scale": 0.192795123977,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 1,
+          "bounds": {
+            "min": [
+              -1.20957336,
+              -0.940352576,
+              -1.81358685
+            ],
+            "max": [
+              1.20957336,
+              1.58298127,
+              1.81721037
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 2878428,
+        "triangles": 51530,
+        "vertices": 32114,
+        "paletteRows": 1
+      },
+      "textureBytes": 2796200,
+      "gpuBytes": 5674628,
+      "bytes": 1167127,
+      "unpackedBytes": 3144748,
+      "path": "museum/assets/island/meganeura.glb.gz",
+      "sha256": "594534428e2a83b5cbc4c5f43be8d1c81de28013cbba7d011382bbbc2199eea2",
+      "source": "src/content/animals/meganeura/model/model.glb",
+      "sourceSha256": "4e388ade5b32132cc60054fa51dc7ac0fe48372efafaf4c57732697b3874589b",
+      "sourceBytes": 1915624,
+      "attribution": {
+        "author": "Nobilis the Palaeovespa (@nobilishornet)",
+        "title": "Meganeura Dinoraul but it is a bit accurate",
+        "url": "https://sketchfab.com/3d-models/meganeura-dinoraul-but-it-is-a-bit-accurate-1aaab4a72fbc42b4901d5f1dde12a281",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "ef4c675268f4410c9b9aafc45a236e3b1fcdfbf3a758c0b96199a0e7a061c38e"
+      }
+    },
+    "sordes": {
+      "id": "sordes",
+      "name": "索德斯翼龙",
+      "englishName": "Sordes",
+      "habitat": "air",
+      "metric": "wingspan",
+      "metres": 0.6,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "bounds": {
+        "min": [
+          -1.07045196,
+          0.326518349,
+          -1.53482173
+        ],
+        "max": [
+          1.0459918,
+          0.671311174,
+          1.55705461
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.07161207,
+          -0.882618197,
+          -1.59896054
+        ],
+        "max": [
+          1.07042776,
+          0.938442485,
+          1.5979859
+        ]
+      },
+      "dimensions": [
+        2.11644376,
+        0.344792825,
+        3.09187634
+      ],
+      "scale": 0.188013133344,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 66,
+          "bounds": {
+            "min": [
+              -1.07161207,
+              -0.882618197,
+              -1.59896054
+            ],
+            "max": [
+              1.07042776,
+              0.938442485,
+              1.5979859
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 245840,
+        "triangles": 6752,
+        "vertices": 4219,
+        "paletteRows": 22
+      },
+      "textureBytes": 12582900,
+      "gpuBytes": 12828740,
+      "bytes": 291748,
+      "unpackedBytes": 482184,
+      "path": "museum/assets/island/sordes.glb.gz",
+      "sha256": "791488b41fbf25882eff2057a17ef3b85d355cd1fab5c86add3a7b8b8a49b0cc",
+      "source": "src/content/animals/sordes/model/model.glb",
+      "sourceSha256": "4a21b059e3a3d820eaf19dcced5b8eba079af7a69dd6457ce70956c92fd1adae",
+      "sourceBytes": 1928200,
+      "attribution": {
+        "author": "victory_mirosya (embedded credit); Paleo Modelist / victory_ (current model owner)",
+        "title": "Sordes Pilosus — mesh and rig only",
+        "url": "https://sketchfab.com/3d-models/sordes-pilosus-45afc7fc47f3402db1bca10e5b1ca6c5",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "7e6e582ec394b09cc3dc539190f35bb360688ed31fe551aefaff615b74bd4527",
+        "sourceRecordSha256": "0a748525f0c05f9e4f87a28a4ae4c008ad54cf9b827bbc6c2d46fa884b1c247f"
+      }
+    },
+    "dilophosaurus": {
+      "id": "dilophosaurus",
+      "name": "双冠龙",
+      "englishName": "Dilophosaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 6.5,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.60000002,
+          -0.0000100611158,
+          -0.261726741
+        ],
+        "max": [
+          1.60000002,
+          0.959345379,
+          0.261726741
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60000002,
+          -0.00252344866,
+          -0.26834855
+        ],
+        "max": [
+          1.60000002,
+          0.983464233,
+          0.26834855
+        ]
+      },
+      "dimensions": [
+        3.20000005,
+        0.95935544,
+        0.523453482
+      ],
+      "scale": 2.03124996973,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 1,
+          "bounds": {
+            "min": [
+              -1.60000002,
+              -0.00252344866,
+              -0.26834855
+            ],
+            "max": [
+              1.60000002,
+              0.983464233,
+              0.26834855
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 3822856,
+        "triangles": 61168,
+        "vertices": 33307,
+        "paletteRows": 1
+      },
+      "textureBytes": 8388600,
+      "gpuBytes": 12211456,
+      "bytes": 1720566,
+      "unpackedBytes": 4440796,
+      "path": "museum/assets/island/dilophosaurus.glb.gz",
+      "sha256": "7a173457b15d7a137b1ed9771cce87b67d5cbc0464738ea76ed8f1e5d1c84693",
+      "source": "src/content/animals/dilophosaurus/model/model.glb",
+      "sourceSha256": "51b895d460d1fc73103e92a632c4aea22e025ee468ab2a011474711711f965f6",
+      "sourceBytes": 7467036,
+      "attribution": {
+        "author": "Marcel Schanz",
+        "title": "Dilophosaurus",
+        "url": "https://sketchfab.com/3d-models/dilophosaurus-d09b3aa874db4e1cbf29a14797ca351f",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "41f7480872ff77ddfaa2913bbf67a717babce9c27f8904a00d1cd936d63c0a07"
+      }
+    },
+    "dimetrodon": {
+      "id": "dimetrodon",
+      "name": "异齿龙",
+      "englishName": "Dimetrodon",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 3,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.49698424,
+          7.5054545e-7,
+          -0.22091554
+        ],
+        "max": [
+          1.49999473,
+          1.67721006,
+          0.220915688
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.49708526,
+          -0.00000772424925,
+          -0.222175978
+        ],
+        "max": [
+          1.52938744,
+          1.67836775,
+          0.25700251
+        ]
+      },
+      "dimensions": [
+        2.99697897,
+        1.6772093,
+        0.441831228
+      ],
+      "scale": 1.00100802409,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 184,
+          "bounds": {
+            "min": [
+              -1.49698424,
+              7.5054545e-7,
+              -0.221024322
+            ],
+            "max": [
+              1.52938744,
+              1.67836775,
+              0.25700251
+            ]
+          }
+        },
+        {
+          "name": "Walk",
+          "duration": 8,
+          "channels": 54,
+          "bounds": {
+            "min": [
+              -1.49708526,
+              -0.00000772424925,
+              -0.222175978
+            ],
+            "max": [
+              1.49999986,
+              1.67708313,
+              0.223345454
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 3196082,
+        "triangles": 80247,
+        "vertices": 43995,
+        "paletteRows": 148
+      },
+      "textureBytes": 2796200,
+      "gpuBytes": 5992282,
+      "bytes": 2102956,
+      "unpackedBytes": 4217288,
+      "path": "museum/assets/island/dimetrodon.glb.gz",
+      "sha256": "91a9153648ecd232f87a90b3550059b58eacdac6ad65230b98619f0668a61ae9",
+      "source": "src/content/animals/dimetrodon/model/model.glb",
+      "sourceSha256": "5843890d9a33da3cbdedc84c30763881c347264c96af67340bdb8e11e1216b3c",
+      "sourceBytes": 6578256,
+      "attribution": {
+        "author": "cp4096",
+        "title": "异齿龙",
+        "url": "https://sketchfab.com/3d-models/dimetrodon-3ac7c6aada5e4c03849f9544bbc1afed",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "4d9b89941b2d78dc6dca611d4f8a24a05906ade22d042387984fe71e5c46e929",
+        "sourceRecordSha256": "a77d796397928f2a7eda723f9a9dc8a47376b33b61c5db4f39ed211943f4a07c"
+      }
+    },
+    "mosasaurus": {
+      "id": "mosasaurus",
+      "name": "沧龙",
+      "englishName": "Mosasaurus",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 12,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.60000002,
+          -0.290376444,
+          -0.421057755
+        ],
+        "max": [
+          1.60000002,
+          0.290354194,
+          0.421057755
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60000002,
+          -0.290376444,
+          -0.456929959
+        ],
+        "max": [
+          1.60000002,
+          0.290354194,
+          0.456929959
+        ]
+      },
+      "dimensions": [
+        3.20000005,
+        0.580730638,
+        0.84211551
+      ],
+      "scale": 3.74999994412,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 1,
+          "bounds": {
+            "min": [
+              -1.60000002,
+              -0.290376444,
+              -0.456929959
+            ],
+            "max": [
+              1.60000002,
+              0.290354194,
+              0.456929959
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 2451504,
+        "triangles": 22964,
+        "vertices": 15221,
+        "paletteRows": 1
+      },
+      "textureBytes": 5592400,
+      "gpuBytes": 8043904,
+      "bytes": 842262,
+      "unpackedBytes": 2722272,
+      "path": "museum/assets/island/mosasaurus.glb.gz",
+      "sha256": "7e6726c9e31d047e553db046f95469e712f44e2703155406a539611053e60e40",
+      "source": "src/content/animals/mosasaurus/model/model.glb",
+      "sourceSha256": "c36e49446fb6f34a25deb1e1421118d24aaf608fde1654c2f667437702863e59",
+      "sourceBytes": 3392200,
+      "attribution": {
+        "author": "Lukiethewesly13",
+        "title": "Mosasaurus",
+        "url": "https://sketchfab.com/3d-models/mosasaurus-fe0c25c4ed4e4d4aa05312121e2f68df",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "fd0a59ae91351e70ae2ac858fc2f01f0232d58e6759cc89fe5b7175128662e87"
+      }
+    },
+    "spinosaurus": {
+      "id": "spinosaurus",
+      "name": "棘龙",
+      "englishName": "Spinosaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 14.5,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -122.715375,
+          -0.342073317,
+          -779.838003
+        ],
+        "max": [
+          122.768255,
+          442.68838,
+          465.43179
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -150.29091,
+          -0.342073317,
+          -786.917153
+        ],
+        "max": [
+          231.716445,
+          442.68838,
+          472.292791
+        ]
+      },
+      "dimensions": [
+        245.48363,
+        443.030453,
+        1245.26979
+      ],
+      "scale": 0.0116440630631,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 297,
+          "bounds": {
+            "min": [
+              -150.29091,
+              -0.342073317,
+              -786.917153
+            ],
+            "max": [
+              231.716445,
+              442.68838,
+              472.292791
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 1392672,
+        "triangles": 41240,
+        "vertices": 23595,
+        "paletteRows": 99
+      },
+      "textureBytes": 4194300,
+      "gpuBytes": 5586972,
+      "bytes": 835305,
+      "unpackedBytes": 1726052,
+      "path": "museum/assets/island/spinosaurus.glb.gz",
+      "sha256": "d7c495b3db692a13fa1b13dace0a4324e5e44b04a0c7e6d80361edf2ad6279c6",
+      "source": "src/content/animals/spinosaurus/model/model.glb",
+      "sourceSha256": "b4b97f2df0acc376495689351bc2c5e1067ab17bd2cd5f8ce4be83e3213d4c84",
+      "sourceBytes": 733612,
+      "attribution": {
+        "author": "Pedro B. Goulart",
+        "title": "Spinosaurus",
+        "url": "https://sketchfab.com/3d-models/spinosaurus-2a325726dd7b4a7c888277f262fd09bc",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "29ba20064ba8b57517e9f27566fa9be322eed05adbca39de1d3ac53218738f54"
+      }
+    },
+    "quetzalcoatlus": {
+      "id": "quetzalcoatlus",
+      "name": "风神翼龙",
+      "englishName": "Quetzalcoatlus",
+      "habitat": "air",
+      "metric": "wingspan",
+      "metres": 10,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "bounds": {
+        "min": [
+          -1.00670103,
+          -0.902617627,
+          -1.59997042
+        ],
+        "max": [
+          1.00676157,
+          0.867694853,
+          1.59974839
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.00670764,
+          -1.23440751,
+          -1.63113727
+        ],
+        "max": [
+          1.13281178,
+          0.888171407,
+          1.68407872
+        ]
+      },
+      "dimensions": [
+        2.01346259,
+        1.77031248,
+        3.19971881
+      ],
+      "scale": 3.01639471681,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 111,
+          "bounds": {
+            "min": [
+              -1.00670764,
+              -1.23440751,
+              -1.63113727
+            ],
+            "max": [
+              1.13281178,
+              0.888171407,
+              1.68407872
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 17933240,
+        "triangles": 145554,
+        "vertices": 337122,
+        "paletteRows": 37
+      },
+      "textureBytes": 1398100,
+      "gpuBytes": 19331340,
+      "bytes": 7757996,
+      "unpackedBytes": 19402880,
+      "path": "museum/assets/island/quetzalcoatlus.glb.gz",
+      "sha256": "90360ec566e91bbf26430bd329bed94b161a460399533c423d2241377124e153",
+      "source": "src/content/animals/quetzalcoatlus/model/model.glb",
+      "sourceSha256": "e9950c23d9ba58536466cfa72846dac66e1c79981a5328660f9dfcb0a1a70fe5",
+      "sourceBytes": 6627276,
+      "attribution": {
+        "author": "seirogan (https://sketchfab.com/seirogan)",
+        "title": "Pterosaur Quetzalcoatlus",
+        "url": "https://sketchfab.com/3d-models/pterosaur-quetzalcoatlus-5ef112b3208d4444a51e480beca56277",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "e064ec06c603250de604342e8605feefa9135d7bfc09211b335d66a0bcd4fd9e",
+        "sourceRecordSha256": "ae1f498748734775969648809e1aed538d4b284424a967e964acdd16fff8e9fe"
+      }
+    },
+    "xiphactinus": {
+      "id": "xiphactinus",
+      "name": "剑射鱼",
+      "englishName": "Xiphactinus",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 5.5,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -2.75000028,
+          6.74200391e-8,
+          -0.920939293
+        ],
+        "max": [
+          2.75000402,
+          1.98452028,
+          0.920938814
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -2.77225895,
+          -0.15814926,
+          -0.978857395
+        ],
+        "max": [
+          2.78575797,
+          2.05694429,
+          1.02360609
+        ]
+      },
+      "dimensions": [
+        5.5000043,
+        1.98452021,
+        1.84187811
+      ],
+      "scale": 0.99999921755,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 125,
+          "bounds": {
+            "min": [
+              -2.77225895,
+              -0.15814926,
+              -0.978857395
+            ],
+            "max": [
+              2.78575797,
+              2.05694429,
+              1.02360609
+            ]
+          }
+        },
+        {
+          "name": "Swim",
+          "duration": 8,
+          "channels": 120,
+          "bounds": {
+            "min": [
+              -2.75000028,
+              -1.64378689e-7,
+              -0.924735621
+            ],
+            "max": [
+              2.76731663,
+              1.98452091,
+              0.924771001
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 5404854,
+        "triangles": 92893,
+        "vertices": 50571,
+        "paletteRows": 40
+      },
+      "textureBytes": 8388600,
+      "gpuBytes": 13793454,
+      "bytes": 3158891,
+      "unpackedBytes": 4917988,
+      "path": "museum/assets/island/xiphactinus.glb.gz",
+      "sha256": "f2a856803dbda57e232f8c1e4d432d71db35569b25013827d69a46ae5586fb9b",
+      "source": "src/content/animals/xiphactinus/model/model.glb",
+      "sourceSha256": "c884219f70e83b88cdfd439505eee42cb3c505d29b4565ab2f8702c2a34af417",
+      "sourceBytes": 9033624,
+      "attribution": {
+        "author": "Julian Johnson-Mortimer",
+        "title": "Xiphactinus",
+        "url": "https://sketchfab.com/3d-models/xiphactinus-4deb7371eed84a8ab539bb0072384198",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "0a789bcce10bc38a87fb36401e8ecbba89e6f6d4f6fbb85ca46a0fa000e446f6",
+        "sourceRecordSha256": "25fe7ad798b5b2f20496b0d22f04bac2ed028929dc497902b35cd34288010b60"
+      }
+    },
+    "lystrosaurus": {
+      "id": "lystrosaurus",
+      "name": "水龙兽",
+      "englishName": "Lystrosaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 1.1,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -0.37249889,
+          -0.111122331,
+          -0.957366143
+        ],
+        "max": [
+          0.372499841,
+          0.918442619,
+          1.85658032
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.37249889,
+          -0.125244114,
+          -0.957366143
+        ],
+        "max": [
+          0.372499841,
+          0.946642389,
+          1.87200809
+        ]
+      },
+      "dimensions": [
+        0.744998731,
+        1.02956495,
+        2.81394646
+      ],
+      "scale": 0.390910067179,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 210,
+          "bounds": {
+            "min": [
+              -0.37249889,
+              -0.125244114,
+              -0.957366143
+            ],
+            "max": [
+              0.372499841,
+              0.946642389,
+              1.87200809
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 839984,
+        "triangles": 25216,
+        "vertices": 14161,
+        "paletteRows": 70
+      },
+      "textureBytes": 1398100,
+      "gpuBytes": 2238084,
+      "bytes": 476254,
+      "unpackedBytes": 987544,
+      "path": "museum/assets/island/lystrosaurus.glb.gz",
+      "sha256": "ab3325ea4b93a51f2858941d7a10155e51cf6359f161d4d50b626be7799ec7a0",
+      "source": "src/content/animals/lystrosaurus/model/model.glb",
+      "sourceSha256": "f3edc52dc7bbfec681cb7b30b8246f65b84f2980b6bd04f8eee46e5f6a62551a",
+      "sourceBytes": 339248,
+      "attribution": {
+        "author": "seth the yutyrannus",
+        "title": "Lystrosaurus",
+        "url": "https://sketchfab.com/3d-models/lystrosaurus-32ea6a3bedd948638f9add8da7483b28",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "1a1ef0e5c6402b6e8baa1676c6198b9cd3616ee0aa160139ab2be185df3abe9e"
+      }
+    },
+    "baryonyx": {
+      "id": "baryonyx",
+      "name": "重爪龙",
+      "englishName": "Baryonyx",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 8.75,
+      "forward": [
+        0,
+        -1
+      ],
+      "axis": [
+        0,
+        0,
+        -1
+      ],
+      "bounds": {
+        "min": [
+          -2.5300447,
+          -3.32811588,
+          -6.45121992
+        ],
+        "max": [
+          2.02948946,
+          1.82538051,
+          7.24537715
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -2.5300447,
+          -3.32811588,
+          -6.45563788
+        ],
+        "max": [
+          2.02948946,
+          1.82538051,
+          7.24537715
+        ]
+      },
+      "dimensions": [
+        4.55953416,
+        5.15349639,
+        13.6965971
+      ],
+      "scale": 0.638844813293,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 7.375,
+          "channels": 267,
+          "bounds": {
+            "min": [
+              -2.5300447,
+              -3.32811588,
+              -6.45563788
+            ],
+            "max": [
+              2.02948946,
+              1.82538051,
+              7.24537715
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 1927478,
+        "triangles": 62633,
+        "vertices": 34239,
+        "paletteRows": 528
+      },
+      "textureBytes": 3726452,
+      "gpuBytes": 5653930,
+      "bytes": 989036,
+      "unpackedBytes": 2221284,
+      "path": "museum/assets/island/baryonyx.glb.gz",
+      "sha256": "1a0dfa5204deab437a8df6ea648f5b9ee6d32816c80672e2594d0582a224d408",
+      "source": "src/content/animals/baryonyx/model/model.glb",
+      "sourceSha256": "6bd4dbf4924e8b0c22e3687eaed30889d8bbf4f0463395cffc9e458d2688ffdc",
+      "sourceBytes": 822340,
+      "attribution": {
+        "author": "Paleo Modelist",
+        "title": "Baryonyx",
+        "url": "https://sketchfab.com/3d-models/baryonyx-09b838e4bad84b33a647c647f42f4acd",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "6704690e9832ff87408bb5e9d8f692e902403b6c6a8fa762bbc82a150f710099"
+      }
+    },
+    "ammonite": {
+      "id": "ammonite",
+      "name": "菊石类",
+      "englishName": "Ammonites",
+      "habitat": "water",
+      "metric": "unknown",
+      "metres": 0.45,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -0.101635319,
+          -2.34913045e-7,
+          -0.0246247984
+        ],
+        "max": [
+          0.102201001,
+          0.126828316,
+          0.0299419021
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.101865864,
+          -2.34913045e-7,
+          -0.0250131265
+        ],
+        "max": [
+          0.102201001,
+          0.126828316,
+          0.0299419021
+        ]
+      },
+      "dimensions": [
+        0.20383632,
+        0.126828551,
+        0.0545667005
+      ],
+      "scale": 2.20765366946,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 18,
+          "bounds": {
+            "min": [
+              -0.101865864,
+              -2.34913045e-7,
+              -0.0250131265
+            ],
+            "max": [
+              0.102201001,
+              0.126828316,
+              0.0299419021
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 899208,
+        "triangles": 29356,
+        "vertices": 15048,
+        "paletteRows": 6
+      },
+      "textureBytes": 2796200,
+      "gpuBytes": 3695408,
+      "bytes": 650063,
+      "unpackedBytes": 1016596,
+      "path": "museum/assets/island/ammonite.glb.gz",
+      "sha256": "e92a7783e14f09450b2505317d552892a7f790a70a881aa8cc55e19e1210dc6d",
+      "source": "src/content/animals/ammonite/model/model.glb",
+      "sourceSha256": "72b099427fc277500ae38f9291f2e46ddbfe25342faa05394cfed4797dd02d04",
+      "sourceBytes": 3629608,
+      "attribution": {
+        "author": "Emil van Dam",
+        "title": "菊石类",
+        "url": "https://sketchfab.com/3d-models/ammonite-6f835b20078e4d7fbfa42d1dfe6797ba",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "0a789bcce10bc38a87fb36401e8ecbba89e6f6d4f6fbb85ca46a0fa000e446f6",
+        "sourceRecordSha256": "a813507120af3ea8019ae3e3762f3f2bc1ad137d10b212fb63cfc681404fad3a"
+      }
+    },
+    "dallasaurus": {
+      "id": "dallasaurus",
+      "name": "达拉斯蜥蜴",
+      "englishName": "Dallasaurus",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 1,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.5999996,
+          -0.178056231,
+          -0.254850769
+        ],
+        "max": [
+          1.60000025,
+          0.178056232,
+          0.2548515
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60532109,
+          -0.210216688,
+          -0.260480687
+        ],
+        "max": [
+          1.6000979,
+          0.273418893,
+          0.27809458
+        ]
+      },
+      "dimensions": [
+        3.19999985,
+        0.356112463,
+        0.509702269
+      ],
+      "scale": 0.312500014339,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 306,
+          "bounds": {
+            "min": [
+              -1.60532109,
+              -0.210216688,
+              -0.260480687
+            ],
+            "max": [
+              1.6000979,
+              0.273418893,
+              0.27809458
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 3937012,
+        "triangles": 119998,
+        "vertices": 66819,
+        "paletteRows": 101
+      },
+      "textureBytes": 2796200,
+      "gpuBytes": 6733212,
+      "bytes": 3157683,
+      "unpackedBytes": 4683004,
+      "path": "museum/assets/island/dallasaurus.glb.gz",
+      "sha256": "1dfd26e0f551e99c3ffe03e73fde70a8552b18f1817c29231ece4de4f18b7312",
+      "source": "src/content/animals/dallasaurus/model/model.glb",
+      "sourceSha256": "dbc02f36ad7e9dddcf8ad38b59068ab95f3bdd85b77a932ae95fa1096f2cac8f",
+      "sourceBytes": 12114960,
+      "attribution": {
+        "author": "Julian Johnson-Mortimer (FreddyFoxFreddy)",
+        "title": "Dallasaurus",
+        "url": "https://sketchfab.com/3d-models/dallasaurus-bfec76fbd5624d9fa9375668565af45c",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "b15df9b92843350eaa9afa517ae32fe5e47848c1e9694be69d503bbd84be6f75",
+        "sourceRecordSha256": "036dff68e2db7a6d5a4edbe03358166b7c2a33fbae1b5660d38782b94d81e5e6"
+      }
+    },
+    "archaeopteryx": {
+      "id": "archaeopteryx",
+      "name": "始祖鸟",
+      "englishName": "Archaeopteryx",
+      "habitat": "air",
+      "metric": "body-length",
+      "metres": 0.5,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -1.25985411,
+          -0.0472639243,
+          -2.16308358
+        ],
+        "max": [
+          0.991297361,
+          1.89650711,
+          0.888535966
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60916578,
+          -0.0507108052,
+          -2.165066
+        ],
+        "max": [
+          1.50221279,
+          1.91180619,
+          0.9499305
+        ]
+      },
+      "dimensions": [
+        2.25115147,
+        1.94377103,
+        3.05161955
+      ],
+      "scale": 0.163847423203,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 223,
+          "bounds": {
+            "min": [
+              -1.60916578,
+              -0.0507108052,
+              -2.165066
+            ],
+            "max": [
+              1.50221279,
+              1.91180619,
+              0.9499305
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 4584484,
+        "triangles": 70310,
+        "vertices": 65241,
+        "paletteRows": 1169
+      },
+      "textureBytes": 12670280,
+      "gpuBytes": 17254764,
+      "bytes": 2181551,
+      "unpackedBytes": 5599576,
+      "path": "museum/assets/island/archaeopteryx.glb.gz",
+      "sha256": "b2eb044046738478989ed53ce9cf188ad5e8048f4b9529a164461726d9293206",
+      "source": "src/content/animals/archaeopteryx/model/model.glb",
+      "sourceSha256": "bf3e125a0b834202ba4a3709788375165d68bcd79691692a17debc22702e89da",
+      "sourceBytes": 5954164,
+      "attribution": {
+        "author": "khata",
+        "title": "Archaeopteryx",
+        "url": "https://sketchfab.com/3d-models/archaeopteryx-cbec5591c584438392824d13fbef401b",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "579c642a7b30d68b4f3d6f28e121c2018069a92e50d09a871c8113a5401dcb26"
+      }
+    },
+    "carnotaurus": {
+      "id": "carnotaurus",
+      "name": "食肉牛龙",
+      "englishName": "Carnotaurus",
+      "habitat": "land",
+      "metric": "body-length",
+      "metres": 8,
+      "forward": [
+        0,
+        1
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds": {
+        "min": [
+          -1.31446971,
+          0.0122638166,
+          -5.31344104
+        ],
+        "max": [
+          2.05477667,
+          3.43880681,
+          2.54236497
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.31446971,
+          0.0122638166,
+          -5.45282791
+        ],
+        "max": [
+          2.3761209,
+          3.43880681,
+          2.54236497
+        ]
+      },
+      "dimensions": [
+        3.36924637,
+        3.42654299,
+        7.85580601
+      ],
+      "scale": 1.01835508488,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 3,
+          "bounds": {
+            "min": [
+              -1.31446971,
+              0.0122638166,
+              -5.45282791
+            ],
+            "max": [
+              2.3761209,
+              3.43880681,
+              2.54236497
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 7575592,
+        "triangles": 98836,
+        "vertices": 71704,
+        "paletteRows": 1
+      },
+      "textureBytes": 29360100,
+      "gpuBytes": 36935692,
+      "bytes": 3351145,
+      "unpackedBytes": 9054500,
+      "path": "museum/assets/island/carnotaurus.glb.gz",
+      "sha256": "9612d17c202713732b0d87d4e2aaf27a43a18563b2d0a27ec50db05fcb142a3d",
+      "source": "src/content/animals/carnotaurus/model/model.glb",
+      "sourceSha256": "e66ebb901782706aadd2a054bd7965f1c819ead52f73baa5fcf34ca3427265f8",
+      "sourceBytes": 4173696,
+      "attribution": {
+        "author": "Cenker Turhan",
+        "title": "CARNOTAURUS DİNOSAUR",
+        "url": "https://sketchfab.com/3d-models/carnotaurus-dinosaur-548c9a0575b14deaae1f12ca9a6c31ca",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "a6512ed855f7497d5cf3e74c47da8649e731a1c9c5368a4a2bc09d04d592f570"
+      }
+    },
+    "styxosaurus": {
+      "id": "styxosaurus",
+      "name": "冥河龙",
+      "englishName": "Styxosaurus",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 10.7,
+      "forward": [
+        -1,
+        0
+      ],
+      "axis": [
+        -1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.59992587,
+          -0.294391577,
+          -0.753906986
+        ],
+        "max": [
+          1.59985154,
+          0.294389909,
+          0.753906991
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60041916,
+          -0.462811141,
+          -0.812901595
+        ],
+        "max": [
+          1.60240325,
+          0.301582183,
+          0.8149804
+        ]
+      },
+      "dimensions": [
+        3.19977742,
+        0.588781486,
+        1.50781398
+      ],
+      "scale": 3.3439825963,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 33,
+          "bounds": {
+            "min": [
+              -1.60015087,
+              -0.412862699,
+              -0.804954863
+            ],
+            "max": [
+              1.60118884,
+              0.294649197,
+              0.8149804
+            ]
+          }
+        },
+        {
+          "name": "Swim",
+          "duration": 8,
+          "channels": 33,
+          "bounds": {
+            "min": [
+              -1.60041916,
+              -0.462811141,
+              -0.812901595
+            ],
+            "max": [
+              1.60240325,
+              0.301582183,
+              0.813075369
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 2134492,
+        "triangles": 66522,
+        "vertices": 36124,
+        "paletteRows": 11
+      },
+      "textureBytes": 9786700,
+      "gpuBytes": 11921192,
+      "bytes": 1744689,
+      "unpackedBytes": 2775176,
+      "path": "museum/assets/island/styxosaurus.glb.gz",
+      "sha256": "9cf099bae012bb08f5038083696b7b46fc52c2c50a679a0cbd2155f2f2f790f6",
+      "source": "src/content/animals/styxosaurus/model/model.glb",
+      "sourceSha256": "04afc983026c3a72ba72715276301d29c8a522bb7117cec98558463981270251",
+      "sourceBytes": 12549080,
+      "attribution": {
+        "author": "Julian Johnson-Mortimer",
+        "title": "Styxosaurus snowii",
+        "url": "https://sketchfab.com/models/c0ee838a9345458b91ef2cca3ba94542",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "0a789bcce10bc38a87fb36401e8ecbba89e6f6d4f6fbb85ca46a0fa000e446f6",
+        "sourceRecordSha256": "43baa12b3e04b21161f1fc121e7fbac107eb46d0f94374393bbdbd00971a7098"
+      }
+    },
+    "anomalocaris": {
+      "id": "anomalocaris",
+      "name": "奇虾",
+      "englishName": "Anomalocaris",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 0.6,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -0.132091236,
+          -0.209900874,
+          -0.359979846
+        ],
+        "max": [
+          1.13597341,
+          0.210367587,
+          0.385956554
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -0.133606038,
+          -0.215418684,
+          -0.362440493
+        ],
+        "max": [
+          1.15439295,
+          0.215877573,
+          0.389332086
+        ]
+      },
+      "dimensions": [
+        1.26806465,
+        0.42026846,
+        0.7459364
+      ],
+      "scale": 0.47316199698,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 183,
+          "bounds": {
+            "min": [
+              -0.133606038,
+              -0.215418684,
+              -0.362440493
+            ],
+            "max": [
+              1.15439295,
+              0.215877573,
+              0.389332086
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 5643464,
+        "triangles": 134666,
+        "vertices": 83743,
+        "paletteRows": 61
+      },
+      "textureBytes": 4194300,
+      "gpuBytes": 9837764,
+      "bytes": 2271787,
+      "unpackedBytes": 6404200,
+      "path": "museum/assets/island/anomalocaris.glb.gz",
+      "sha256": "181a5b38115f89197936b367e41de6c6f4aec9fc2d633b22315442de8de46b2a",
+      "source": "src/content/animals/anomalocaris/model/model.glb",
+      "sourceSha256": "147de95a18c771739f918e8ce0319c00fba560d6f415305f57fddc97b96f661a",
+      "sourceBytes": 1811652,
+      "attribution": {
+        "author": "Skache",
+        "title": "Anomalocaris 3D Model",
+        "url": "https://sketchfab.com/3d-models/anomalocaris-3d-model-dad76e60589a41e18a42db1e979f81f8",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "abbe805214a1de1ff36135d9695c388e1841aa442aab63a9b59243b6b512c162",
+        "sourceRecordSha256": "0499eb713378efbebde195107b962209270a149e9412aa3dd60b14993ba71a2e"
+      }
+    },
+    "dakosaurus": {
+      "id": "dakosaurus",
+      "name": "达科龙",
+      "englishName": "Dakosaurus",
+      "habitat": "water",
+      "metric": "body-length",
+      "metres": 4.8,
+      "forward": [
+        1,
+        0
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds": {
+        "min": [
+          -1.60000018,
+          -0.44584295,
+          -0.489709285
+        ],
+        "max": [
+          1.59999992,
+          0.445842896,
+          0.489709309
+        ]
+      },
+      "animatedBounds": {
+        "min": [
+          -1.60118846,
+          -0.476964119,
+          -0.501291137
+        ],
+        "max": [
+          1.60232845,
+          0.577244308,
+          0.504352484
+        ]
+      },
+      "dimensions": [
+        3.2000001,
+        0.891685846,
+        0.979418593
+      ],
+      "scale": 1.49999995403,
+      "clips": [
+        {
+          "name": "Idle",
+          "duration": 8,
+          "channels": 24,
+          "bounds": {
+            "min": [
+              -1.60118846,
+              -0.476964119,
+              -0.501291137
+            ],
+            "max": [
+              1.60232845,
+              0.577244308,
+              0.504352484
+            ]
+          }
+        }
+      ],
+      "geometry": {
+        "bytes": 4389700,
+        "triangles": 119990,
+        "vertices": 76786,
+        "paletteRows": 8
+      },
+      "textureBytes": 11184800,
+      "gpuBytes": 15574500,
+      "bytes": 3437327,
+      "unpackedBytes": 5254716,
+      "path": "museum/assets/island/dakosaurus.glb.gz",
+      "sha256": "fe9e89bdc79a857a700cbca16b84ada993c7a1648b79859a2fc62cab6e1a665c",
+      "source": "src/content/animals/dakosaurus/model/model.glb",
+      "sourceSha256": "20de5bdd4423fb6cf46bd7fd2756ccb44aa879b3557b4daa8a6da26e611b06b0",
+      "sourceBytes": 16936480,
+      "attribution": {
+        "author": "Julian Johnson-Mortimer (FreddyFoxFreddy)",
+        "title": "Dakosaurus",
+        "url": "https://sketchfab.com/3d-models/dakosaurus-a531d5bca7f3477d97b50212300c8271",
+        "license": "CC-BY-4.0",
+        "licenseSha256": "b42c27da999b8c2b018b97096f50aa03ff921ac95eab0c0cc961c0df6512b624",
+        "sourceRecordSha256": "d338fc79db0cc137d00ee823e5d25d9407f20a2538dfc610339d98ee7ba3e293"
+      }
+    }
+  },
+  "credits": {
+    "path": "notices/island-museum-models.md",
+    "bytes": 59778,
+    "sha256": "fc9c7955d640fb58f198b1a15e5f8e941cd8e0040e8d4239e91e19081abecdb8"
+  }
+}

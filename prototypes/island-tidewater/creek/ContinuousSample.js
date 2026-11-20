@@ -55,17 +55,25 @@ export function createContinuousSample() {
   const last=controls.at(-1),end={x:last[0],z:last[1],level:last[2],width:last[3],depth:last[4]};
   length+=Math.hypot(end.x-points.at(-1).x,end.z-points.at(-1).z);points.push({...end,distance:length,travel:travel+1/.18});
   for(let i=1;i<points.length;i++){
-    const a=points[i-1],b=points[i],pad=120;
+    const a=points[i-1],b=points[i],dx=b.x-a.x,dz=b.z-a.z,lengthSquared=dx*dx+dz*dz,pad=120;
+    const segment={i,a,b,dx,dz,lengthSquared,inv:1/Math.sqrt(lengthSquared)};
     for(let j=Math.floor((Math.min(a.z,b.z)-pad)/cell);j<=Math.floor((Math.max(a.z,b.z)+pad)/cell);j++)for(let k=Math.floor((Math.min(a.x,b.x)-pad)/cell);k<=Math.floor((Math.max(a.x,b.x)+pad)/cell);k++){
-      const key=k+','+j;if(!bins.has(key))bins.set(key,[]);bins.get(key).push(i);
+      const key=k+','+j;if(!bins.has(key))bins.set(key,[]);bins.get(key).push(segment);
     }
   }
   const nearest=(x,z)=>{
-    const ids=bins.get(Math.floor(x/cell)+','+Math.floor(z/cell));if(!ids)return null;
-    let best=null,bestD=Infinity;
-    for(const i of ids){const a=points[i-1],b=points[i],dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),qx=a.x+dx*t,qz=a.z+dz*t,dist=Math.hypot(x-qx,z-qz);if(dist>=bestD)continue;bestD=dist;const inv=1/Math.sqrt(L2);
-      best={i,x:qx,z:qz,level:mix(a.level,b.level,t),width:mix(a.width,b.width,t),depth:mix(a.depth,b.depth,t),distance:mix(a.distance,b.distance,t),travel:mix(a.travel,b.travel,t),dist,across:((x-qx)*dz-(z-qz)*dx)*inv,dir:[dx*inv,dz*inv],grade:Math.max(0,(a.level-b.level)*inv)};
-    }return best;
+    const candidates=bins.get(Math.floor(x/cell)+','+Math.floor(z/cell));if(!candidates)return null;
+    let best=null,dist=Infinity,qx,qz,t;
+    for(const segment of candidates){
+      const {a,dx,dz,lengthSquared}=segment;
+      const fraction=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/lengthSquared));
+      const px=a.x+dx*fraction,pz=a.z+dz*fraction,d=Math.hypot(x-px,z-pz);
+      if(d>=dist)continue;
+      best=segment;dist=d;qx=px;qz=pz;t=fraction;
+    }
+    if(!best)return null;
+    const {i,a,b,dx,dz,inv}=best;
+    return {i,x:qx,z:qz,level:mix(a.level,b.level,t),width:mix(a.width,b.width,t),depth:mix(a.depth,b.depth,t),distance:mix(a.distance,b.distance,t),travel:mix(a.travel,b.travel,t),dist,across:((x-qx)*dz-(z-qz)*dx)*inv,dir:[dx*inv,dz*inv],grade:Math.max(0,(a.level-b.level)*inv)};
   };
   // Exact sub-metre spring support; its first 56m is monotone in Z. The
   // same linear coefficients are emitted below, avoiding an undersampled
@@ -95,9 +103,9 @@ export function createContinuousSample() {
     const i=Math.floor(fx),j=Math.floor(fz),u=fx-i,v=fz-j,k=(j*512+i)*4;
     for(let c=0;c<4;c++)out[c]=mix(mix(bytes[k+c],bytes[k+4+c],u),mix(bytes[k+2048+c],bytes[k+2052+c],u),v);if(fine){const w=fine[4]*(1-smooth(-456,-448,z));for(let c=0;c<4;c++)out[c]=mix(out[c],fine[c],w);}return out;
   };
-  const weight=(x,z)=>{const r=nearest(x,z);if(!r)return 0;return (1-smooth(r.width+38,r.width+108,r.dist))*(1-smooth(480,504,Math.max(Math.abs(x+1024),Math.abs(z+160))));};
-  const sculpt=(x,z,old)=>{
-    const r=nearest(x,z);if(!r)return old;const w=weight(x,z);if(w<=0)return old;
+  const weight=(x,z,r=nearest(x,z))=>{if(!r)return 0;return (1-smooth(r.width+38,r.width+108,r.dist))*(1-smooth(480,504,Math.max(Math.abs(x+1024),Math.abs(z+160))));};
+  const sculpt=(x,z,old,r=nearest(x,z),w=weight(x,z,r))=>{
+    if(!r||w<=0)return old;
     const water=sample(x,z),lateral=Math.max(0,r.dist-r.width);
     // The valley shoulders can rise far from the upper stream. Once its
     // gradient eases into the strand, that broad influence must contract or

@@ -290,7 +290,7 @@ fn waterSurfaceFragment(lagXZ:vec2f,footprint:f32,depth:f32,vertexFoam:f32,shore
 // Native medium/meniscus/composite, with a bounded integral through the actual
 // sloping inland volume; the sea keeps the native analytic integral.
 export class CreekUnderwater extends Underwater {
-  _shaftCode(){return super._shaftCode().replace('let steps = 20;', 'if(!creekContains(underwaterParams.camPos.xz)){\n let steps = 20;').replace('shafts = shafts * sunE * sigS * phase * underwaterParams.shafts * 2.5;', 'shafts = shafts * sunE * sigS * phase * underwaterParams.shafts * 2.5;\n }');}
+  _shaftCode(){return super._shaftCode().replace('let steps = 20;', 'if(!museumCameraInland(underwaterParams.camPos.xz)){\n let steps = 20;').replace('shafts = shafts * sunE * sigS * phase * underwaterParams.shafts * 2.5;', 'shafts = shafts * sunE * sigS * phase * underwaterParams.shafts * 2.5;\n }');}
 
   _compositeCode(){
     let code=super._compositeCode();
@@ -298,19 +298,20 @@ export class CreekUnderwater extends Underwater {
     if(end<0)throw Error('Pinned native underwater integration seam changed');
     code=code.slice(0,end)+`fn creekVolumeLit(m:f32,sigT:vec3f,dir:vec3f,dist:f32)->vec3f {
  var total=vec3f(0.0);var sa=0.0;
+ var da=max(creekMeanAt(underwaterParams.camPos.xz)-underwaterParams.camPos.y,0.0);
  for(var i=0;i<12;i++){
   if(sa>=dist){break;}let sb=min(dist,.25*(pow(2.0,f32(i+1))-1.0));
   let ds=sb-sa;if(ds<=0.0){break;}
-  let A=underwaterParams.camPos+dir*sa;let B=underwaterParams.camPos+dir*sb;
-  let da=max(creekMeanAt(A.xz)-A.y,0.0);let db=max(creekMeanAt(B.xz)-B.y,0.0);
+  let B=underwaterParams.camPos+dir*sb;
+  let db=max(creekMeanAt(B.xz)-B.y,0.0);
   let a=sigT*(sa+da/m);let b=sigT*(sb+db/m);let k=(b-a)/ds;let small=abs(k)<vec3f(1e-4);
   let safe=select(k,vec3f(1.0),small);
-  total+=select((exp(-a)-exp(-b))/safe,exp(-a)*ds,small);sa=sb;
+  total+=select((exp(-a)-exp(-b))/safe,exp(-a)*ds,small);sa=sb;da=db;
  }
  return total;
 }
 fn museumVolumeLit(m:f32,sigT:vec3f,zc:f32,dir:vec3f,dist:f32)->vec3f {
- if(creekContains(underwaterParams.camPos.xz)){
+ if(museumCameraInland(underwaterParams.camPos.xz)){
   // A horizontal lake has the exact native closed form. Uniform 8-step
   // quadrature lost all near-eye scattering on long rays and drew dark bands.
   let state=waterQueryCameraState();if(dot(state.yz,state.yz)<1e-6){return _uwLit(m,sigT,zc,dir.y,dist);}

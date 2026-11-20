@@ -2,13 +2,14 @@
 // ShoreWaves timing, spatial surf and underwater filtering, without village,
 // fishing or boats; birds are explicitly environmental examples. No microphone and no autoplay.
 import {SoundScape} from '../vendor/tidewater/src/audio/SoundScape.js';
+import {IslandFreshwaterSound, regionalSoundAt} from './IslandAmbience.js';
 import {Vector3} from '../vendor/tidewater/src/engine/index.js';
-const allowed=new Set(['surf_far','surf_crash','surf_wash','surf_backwash','under_reef','bird_forest','bird_dove','birds_dawn','gull','tern']);
+const allowed=new Set(['surf_far','surf_crash','surf_wash','surf_backwash','under_reef','bird_forest','bird_dove','birds_dawn','gull','tern','wind','crickets','pier_lap']);
 export class MuseumSeaSound extends SoundScape {
  constructor({shore,field,terrain,trees=[],seaLevel=-.7,sample=null}){
   super({shore:{shore,field,terrain:{size:terrain.size,origin:terrain.origin,heightAt:(x,z)=>terrain.heightAt(x,z)-seaLevel}}});
   this.sample=sample;this.streamState={available:!!sample,loaded:false,position:[-651,53.1,-489],source:"NPS / Muir Woods, public domain; modern analogue"};this.treeCells=new Map();for(const r of trees){const k=Math.floor(r.x/80)+','+Math.floor(r.z/80);let c=this.treeCells.get(k);if(!c)this.treeCells.set(k,c=[]);c.push(r);}
-  this.terrain=terrain;this.seaLevel=seaLevel;this.choice=false;this.paused=true;this.failures=[];this.contour=[];this._distanceAt=0;this._distance=1e4;this.peakRMS=0;
+  this.terrain=terrain;this.seaLevel=seaLevel;this.choice=false;this.paused=true;this.failures=[];this.contour=[];this._distanceAt=0;this._distance=1e4;this._distanceOrigin=new Vector3();this.peakRMS=0;
   this._swell={x:1,z:0};this.forward=new Vector3();this.up=new Vector3();this.birdEvents=[];this.birdPeakRMS=0;this.flock=[];
   try{this.savedChoice=localStorage.getItem('museum-natural-sound')??'off';}catch{this.savedChoice='off';}
   const R=terrain.res,S=terrain.size,step=2;
@@ -18,6 +19,18 @@ export class MuseumSeaSound extends SoundScape {
  }
  _field(x,z,out){return this._shore.field.sampleAt?this._shore.field.sampleAt(x,z,out):super._field(x,z,out);}
  _want(name){return allowed.has(name)?super._want(name):null;}
+ setIslandAmbience(plan){this.ambiencePlan=plan;this.freshwaterSound=new IslandFreshwaterSound(plan,this.seaLevel);}
+ _bed(name,gain,now,tau,rate){
+  const room=this.regionalSound;
+  if(name==='wind'||name==='crickets'){
+   if(!room||room.sample)gain=0;
+   else if(name==='crickets')gain*=room.insects;
+  }else if(name==='birds_dawn'&&room&&!room.sample)gain*=room.chorus;
+  else if(name==='surf_far'&&room&&!room.sample)gain*=room.surfGain;
+  else if(name==='under_reef'&&room&&!room.sample&&!room.ocean)gain=0;
+  return super._bed(name,gain,now,tau,rate);
+ }
+ _surf(dt){if(!this.regionalSound||this.regionalSound.sample||this.regionalSound.surfGain>.04)super._surf(dt);}
  _life(dt){super._life(dt);} _whale(){} _reel(){}
  _flock(){this.flock.length=0;for(const b of this.life?.birds??[]){if(!b.active)continue;const p=b.flyer.P.pos;this.flock.push({id:b.id,kind:b.kind,visible:true,f:{P:{pos:[p[0],p[1]-this.seaLevel,p[2]]}}});}return this.flock;}
  _perch(){const e=this.env,ix=Math.floor(e.lx/80),iz=Math.floor(e.lz/80),found=[];for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const cell=this.treeCells.get((ix+i)+','+(iz+j));if(cell)for(const t of cell){const d=Math.hypot(t.x-e.lx,t.z-e.lz);if(d>8&&d<50)found.push({t,d});}}if(!found.length)return null;found.sort((a,b)=>a.d-b.d);const t=found[Math.floor(Math.random()*Math.min(6,found.length))].t;return {x:t.x,y:t.y-this.seaLevel+Math.min(t.H*.35,8),z:t.z};}
@@ -66,13 +79,22 @@ export class MuseumSeaSound extends SoundScape {
    // envelope fades the authored stream out without moving its HRTF emitter.
    if(envelope!==this.streamEnvelope){this.streamGain.gain.setTargetAtTime(this.streamLevel*envelope,this.ctx.currentTime,.12);this.streamEnvelope=envelope;}
   }
-  if(this._distanceAt<=0){let d2=Infinity,nearest=null;for(const c of this.contour){const q=(p.x-c[0])**2+(p.z-c[1])**2;if(q<d2){d2=q;nearest=c;}}this._distance=Math.hypot(Math.sqrt(d2),Math.max(0,p.y-this.seaLevel-3));this._nearest=nearest;this._distanceAt=.4;}
+  const room=regionalSoundAt(this.ambiencePlan,p,h,this.seaLevel);
+  if(this._distanceAt<=0||this._usingCoreCoast!==room.sample||p.distanceToSquared(this._distanceOrigin)>14400){
+   const contour=room.sample||!this.ambiencePlan?this.contour:this.ambiencePlan.coastline;
+   let d2=Infinity,nearest=null;
+   for(const site of contour){const c=site.point??site,q=(p.x-c[0])**2+(p.z-c[1])**2;if(q<d2){d2=q;nearest=c;}}
+   this._distance=Math.hypot(Math.sqrt(d2),Math.max(0,p.y-this.seaLevel-3));this._nearest=nearest;
+   this._distanceAt=.4;this._usingCoreCoast=room.sample;this._distanceOrigin.copy(p);
+  }
   camera.getWorldDirection(this.forward);this.up.set(0,1,0).applyQuaternion(camera.quaternion);
   const depth=Math.max(0,h-p.y),u=Math.min(1,depth/.12);
-  super.update(dt,{listener:{position:{x:p.x,y:p.y-this.seaLevel,z:p.z},forward:this.forward,up:this.up},underwater:u,depthBelowSurface:depth,distanceToShore:this._distance,coastDistance:(this.terrain.heightAt(p.x,p.z)>this.seaLevel?-1:1)*this._distance,windSpeed:3.2,surfIntensity:.65,timeOfDay});
+  this.regionalSound=regionalSoundAt(this.ambiencePlan,p,h,this.seaLevel,this._distance);
+  if(this.ctx?.state==='running')this.freshwaterSound?.update(p,this.ctx,this.above,()=>this._want('pier_lap'),u);
+  super.update(dt,{listener:{position:{x:p.x,y:p.y-this.seaLevel,z:p.z},forward:this.forward,up:this.up},underwater:u,depthBelowSurface:depth,distanceToShore:this._distance,coastDistance:(this.regionalSound.sample?this.terrain.heightAt(p.x,p.z)>this.seaLevel:!this.regionalSound.ocean)?-this._distance:this._distance,windSpeed:this.regionalSound.wind,surfIntensity:.65,timeOfDay});
   if(this._nearest){const x=this._nearest[0]-p.x,z=this._nearest[1]-p.z,l=Math.hypot(x,z)||1;this.env.shoreX=x/l;this.env.shoreZ=z/l;}
  }
- stats(){let rms=0,birdRMS=0;if(this.analyser&&this.enabled){this.analyser.getFloatTimeDomainData(this.waveform);rms=Math.sqrt(this.waveform.reduce((a,x)=>a+x*x,0)/this.waveform.length);this.peakRMS=Math.max(this.peakRMS,rms);this.birdAnalyser.getFloatTimeDomainData(this.birdWaveform);birdRMS=Math.sqrt(this.birdWaveform.reduce((a,x)=>a+x*x,0)/this.birdWaveform.length);this.birdPeakRMS=Math.max(this.birdPeakRMS,birdRMS);}return {stream:{...this.streamState,distance:this.streamDistance??null,envelope:this.streamEnvelope??0,currentGain:this.streamGain?.gain.value??0},requested:this.choice,context:this.ctx?.state??'not-created',paused:this.paused,savedChoice:this.savedChoice,unlock:'explicit sound-button gesture; cold load is silent, never restores sound without a gesture',volume:this.volume,decoded:[...this._buffers.keys()],shoreDistance:this._distance,stations:this._stations?.length??0,underwater:this.env.u,lowpassHz:this.muffle?.[0].frequency.value??null,outputRMS:rms,peakRMS:this.peakRMS,birdChannelRMS:birdRMS,birdChannelPeakRMS:this.birdPeakRMS,birdMeter:'post-HRTF/distance, before water filtering and master; total output measured post-limiter',birdEvents:this.birdEvents.slice(-24),voices:Object.fromEntries(Object.entries(this._voices).map(([k,v])=>[k,v.length])),failures:this.failures,source:'Tidewater CC0 audio/CREDITS.md',birdPerches:'actual nearest museum tree positions; sea calls use active, world-fixed rendered bird poses',singers:this._singers.map(s=>({x:s.x,y:s.y+this.seaLevel,z:s.z,bank:s.bank})),phase:'native ShoreWaves timing; positioned forest phrases and time-aware chorus'};}
+ stats(){let rms=0,birdRMS=0;if(this.analyser&&this.enabled){this.analyser.getFloatTimeDomainData(this.waveform);rms=Math.sqrt(this.waveform.reduce((a,x)=>a+x*x,0)/this.waveform.length);this.peakRMS=Math.max(this.peakRMS,rms);this.birdAnalyser.getFloatTimeDomainData(this.birdWaveform);birdRMS=Math.sqrt(this.birdWaveform.reduce((a,x)=>a+x*x,0)/this.birdWaveform.length);this.birdPeakRMS=Math.max(this.birdPeakRMS,birdRMS);}return {regional:{...this.regionalSound,freshwater:this.freshwaterSound?.stats()??[]},stream:{...this.streamState,distance:this.streamDistance??null,envelope:this.streamEnvelope??0,currentGain:this.streamGain?.gain.value??0},requested:this.choice,context:this.ctx?.state??'not-created',paused:this.paused,savedChoice:this.savedChoice,unlock:'explicit sound-button gesture; cold load is silent, never restores sound without a gesture',volume:this.volume,decoded:[...this._buffers.keys()],shoreDistance:this._distance,stations:this._stations?.length??0,underwater:this.env.u,lowpassHz:this.muffle?.[0].frequency.value??null,outputRMS:rms,peakRMS:this.peakRMS,birdChannelRMS:birdRMS,birdChannelPeakRMS:this.birdPeakRMS,birdMeter:'post-HRTF/distance, before water filtering and master; total output measured post-limiter',birdEvents:this.birdEvents.slice(-24),voices:Object.fromEntries(Object.entries(this._voices).map(([k,v])=>[k,v.length])),failures:this.failures,source:'Tidewater CC0 audio/CREDITS.md',birdPerches:'actual nearest museum tree positions; sea calls use active, world-fixed rendered bird poses',singers:this._singers.map(s=>({x:s.x,y:s.y+this.seaLevel,z:s.z,bank:s.bank})),phase:'native ShoreWaves timing; positioned forest phrases and time-aware chorus'};}
  async record(seconds=20,scope='mix'){
   if(!this.enabled||!this.choice||this.paused)throw Error('请先开启自然声并继续观察');
   const mimeType=['audio/webm;codecs=opus','audio/webm'].find(t=>MediaRecorder.isTypeSupported(t));if(!mimeType)throw Error('浏览器不支持本地声音记录');

@@ -2,6 +2,7 @@ import {ComputeKernel, Readback, StorageBuffer} from '../vendor/tidewater/src/en
 
 const minimumScale = .75;
 const standardWaterFloor = .8;
+const foliageFloor = .85;
 
 // Sample the visible water mask, after depth testing, on a 16 × 8 grid.
 // This also catches inland water, and costs one workgroup and four bytes
@@ -19,7 +20,7 @@ export class WaterFrameBudget {
     this.coverage = 0;
     this.lastProbe = -Infinity;
     this.lastChange = -Infinity;
-    this.drySince = null;
+    this.waterInView = false;
     this.windowStart = null;
     this.blocked = 0;
     this.frames = 0;
@@ -70,7 +71,7 @@ fn main(@builtin(local_invocation_index) i:u32) {
 
   setQuality(value) {
     this.automatic = value === 'auto';
-    this.drySince = null;
+    this.waterInView = false;
     this.viewMinimumScale = standardWaterFloor;
     this.coverage = 0;
     this.windowStart = null;
@@ -93,7 +94,7 @@ fn main(@builtin(local_invocation_index) i:u32) {
       }
       // Keep the displayed wave normals and foam at the chosen scene density.
       // The separately guarded view supplies the submerged colour behind them.
-      this.app.refraction.scale = this.refractionDensity(scale);
+      this.app.refraction.scale = this.waterInView ? this.refractionDensity(scale) : this.fullDetail.refraction;
     } else if (this.fullDetail) {
       taau.jitterPhaseOverride = this.fullDetail.phases;
       taau.jitterMoving = this.fullDetail.jitter;
@@ -130,6 +131,9 @@ fn main(@builtin(local_invocation_index) i:u32) {
   waterFloor() {
     const {x, y, z} = this.app.camera.position;
     const height = y - this.seaLevel;
+    // Below the waterline, scattering already attenuates the smallest bed detail.
+    // Let a GPU-bound underwater view take one more temporal resolution step.
+    if (this.app.cameraWaterHeight - y > .65) return minimumScale;
     if (!this.app.coastalActive || height < -.4 || height > 18) return standardWaterFloor;
     for (const site of this.shoreStations) {
       if ((x - site.x) ** 2 + (z - site.z) ** 2 > 96 ** 2) continue;
@@ -157,23 +161,19 @@ fn main(@builtin(local_invocation_index) i:u32) {
     this.frames = 0;
     this.blocked = 0;
     const wet = this.coverage >= .13 || this.app.camera.position.y < this.app.cameraWaterHeight - .08;
-    if (!wet) {
-      this.drySince ??= now;
-      this.deficitWindows = 0;
-      if (this.coverage < .055 && this.scale < 1 && now - this.drySince > 650) this.apply(1,now);
-      return;
-    }
-    this.drySince = null;
-    this.viewMinimumScale = this.waterFloor();
-    if (this.fullDetail) this.app.refraction.scale = this.refractionDensity(this.scale);
+    this.waterInView = wet;
+    this.viewMinimumScale = wet ? this.waterFloor() : foliageFloor;
+    if (this.fullDetail) this.app.refraction.scale = wet ? this.refractionDensity(this.scale) : this.fullDetail.refraction;
     if (this.scale < this.viewMinimumScale) {
       this.apply(this.viewMinimumScale, now);
       return;
     }
     if (now - this.lastChange < 850) return;
+    // On land, change the temporal input resolution only under sustained GPU
+    // backpressure. A single model upload or tab transition is temporary.
     const deficit = fps < 59.5 && blocked > 0;
     this.deficitWindows = deficit ? this.deficitWindows + 1 : 0;
-    if (this.scale > this.viewMinimumScale && deficit && (blocked >= 2 || this.deficitWindows >= 2 || this.completionMs > 23)) {
+    if (this.scale > this.viewMinimumScale && deficit && (wet || this.deficitWindows >= 2) && (blocked >= 2 || this.deficitWindows >= 2 || this.completionMs > 23)) {
       const next = this.scale === 1 ? (fps < 53 ? .85 : .9) : this.scale - .05;
       this.apply(Math.max(this.viewMinimumScale, Math.round(next * 20) / 20), now);
       this.raiseAfter = now + 14000;

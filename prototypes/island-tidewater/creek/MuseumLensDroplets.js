@@ -124,6 +124,13 @@ function sparseLensCode(source) {
 }
 
 export class MuseumLensDroplets extends LensDroplets {
+ resetForArrival() {
+  // An atlas jump never carries the previous camera through a water surface.
+  this._wasUnder=false;
+  this.wet.value=0;
+  this.age.value=this.duration;
+ }
+
   constructor(existing){
     super();
     if(existing){

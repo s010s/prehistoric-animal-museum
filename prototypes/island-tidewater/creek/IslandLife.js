@@ -8,7 +8,8 @@ import {createSwimMaterial} from '../vendor/tidewater/src/world/fish/FishMateria
 import {BirdBatch} from '../vendor/tidewater/src/world/wildlife/BirdBatch.js';
 import {Flyer} from '../vendor/tidewater/src/world/wildlife/Flight.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
-import {loadVaultCoastLife,vaultFishGeometry,vaultFishSurface,createVaultPterosaurs,createVaultInsect,createVaultBenthos} from './VaultCoastLife.js';
+import {VAULT_AERIAL,VAULT_BENTHIC,loadVaultCoastLife,vaultFishGeometry,vaultFishSurface,createVaultPterosaurs,createVaultInsect,createVaultBenthos} from './VaultCoastLife.js';
+import {clipCreekRefraction} from './CreekWater.js';
 import {SampleBenthicDetails} from './SampleBenthicDetails.js';
 import {prepareVaultSwimGeometry,installVaultSwimAttributes} from './VaultSwimRigData.js';
 import {createVaultSwimMotion,articulateVaultSwimMaterial} from './VaultSwimMotion.js';
@@ -18,15 +19,8 @@ const VAULT_PATTERN={aspidorhynchus:98,aeger:99,diplomystus:100,eusthenopteron:1
 
 export class IslandLife{
  static async create(options){
-  const vault=await loadVaultCoastLife(),life=new IslandLife({...options,vault});
-  if(options.data.field.continuousSample){
-   const {app,data}=options;
-   life.pterosaurs=await createVaultPterosaurs(vault.rhamphorhynchus,vault.pterodaustro,app.scene,life.terrain);
-   life.insect=await createVaultInsect(vault.meganeura,app.scene,life.terrain,life.query);
-   life.benthos=await createVaultBenthos(vault,app.scene,life.terrain,{aeger:data.sampleLife.aeger,coralSites:life.benthicDetails?.coralSites??[],shellSites:life.benthicDetails?.shellSites??[],spongeSites:life.benthicDetails?.spongeSites??[],obstacles:[...(app.coveRocks?.instances??[]),...(life.benthicDetails?.hardSites??[])]});
-   life.update(0,app.camera);
-  }
-  return life;
+  const keys=options.data.field.continuousSample?Object.keys(VAULT_LOD):[];
+  return new IslandLife({...options,vault:await loadVaultCoastLife(keys)});
  }
  constructor({app,data,visits,vault}){
   this.app=app;this.data=data;this.terrain=data.terrain;this.query=app.query;this.time=0;this.groups=[];this.fish=[];this.birds=[];this.audit={fleeFrames:0,fleeAwayFrames:0,obstacleDeflections:0,maxPanic:0,violations:0,minBedClearance:Infinity,minSurfaceClearance:Infinity,birdCorrections:0,minBirdGroundClearance:Infinity};this.group=new Group();this.group.name='Museum environmental life';const rng=mulberry32(440213);
@@ -67,15 +61,15 @@ export class IslandLife{
   data.sampleLife=Object.fromEntries(Object.entries({aeger:'sample-aeger',pool:'sample-pool',midCreek:'sample-mid-creek',logPool:'sample-log-creek',bend:'sample-bend',siltPool:'sample-silt-pool',lowerCreek:'sample-lower-creek',transition:'sample-transition',sea:'sample-sea',radiodont:'sample-radiodont'}).map(([key,id])=>[key,this.groups.find(g=>g.id===id)]));
   for(const g of this.groups)g.obstacles=[...(app.coveRocks?.instances??[]),...(app.shelfReef?.obstacles??[])].filter(r=>Math.hypot(r.x-g.x,r.z-g.z)<g.radius+12);
   const kinds=[SPECIES.silverside,SPECIES.mullet].flatMap(species=>[0,1,2,3].map(lod=>({geometry:fishGeometry(species,{lod,pose:'swim'}),shadow:false})));
-  for(const kind of Object.keys(VAULT_LOD))kinds.push({geometry:prepareVaultSwimGeometry(vaultFishGeometry(vault[kind],kind),kind,vault[kind]),shadow:kind==='aeger'});
-  const shrimpRig=kinds[VAULT_LOD.aeger].geometry.vaultRigStats;
+  for(const kind of Object.keys(vault))kinds.push({geometry:prepareVaultSwimGeometry(vaultFishGeometry(vault[kind],kind),kind,vault[kind]),shadow:kind==='aeger'});
+  const shrimpRig=kinds[VAULT_LOD.aeger]?.geometry.vaultRigStats;
   for(const f of this.fish)if(f.shrimp)f.bedOffset=-shrimpRig.minY*f.L+.003;
   this.batch=new ReefBatch('Museum life',kinds,{maxInstances:Math.max(1,this.fish.length),dynamic:true,fade:true});
   installVaultSwimAttributes(this.batch);this.swimMotion=createVaultSwimMotion(this.batch);
   this.material=createSwimMaterial(this.batch);this.fadeMaterial=createSwimMaterial(this.batch,{fade:true});
   for(const m of [this.material,this.fadeMaterial])articulateVaultSwimMaterial(m,this.swimMotion);
   for(const m of [this.material,this.fadeMaterial])m.surface+=`\nif(in.vs.vFishInfo.x<90.0&&fishPartOf(in.vs.vFishData)<7.5){s.albedo*=vec3f(.72,.82,.78);s.metalness*=.55;s.roughness=max(s.roughness,.46);s.specularIntensity=.10;}\n`+
-   Object.entries(VAULT_PATTERN).map(([kind,pattern])=>vaultFishSurface(vault[kind],pattern,kind==='anomalocaris'?[.55,.73,.60]:[1,1,1])).join('');
+   Object.keys(vault).map(kind=>vaultFishSurface(vault[kind],VAULT_PATTERN[kind],kind==='anomalocaris'?[.55,.73,.60]:[1,1,1])).join('');
   this.group.add(this.batch.createMesh(this.material,{castShadow:true}),this.batch.createFadeMesh(this.fadeMaterial));
   this.birdBatch=new BirdBatch({csm:app.csm,capacity:48});this.birdBatch.mesh.castShadow=false;this.group.add(this.birdBatch.mesh);
   const anchors=[{id:'west-sea',p:[data.coast.coast.x-26,data.coast.coast.z+7],height:7.5,radius:22,count:4},{id:'east-sea',p:[visits['east-bay'].p[0]-28,visits['east-bay'].p[1]-20],height:12,radius:32,count:4}];
@@ -83,11 +77,63 @@ export class IslandLife{
   this.pterosaurs=null;this.insect=null;
   this.benthicDetails=data.field.continuousSample?new SampleBenthicDetails(app,data,data.sampleLife):null;
   this.benthos=null;
+  this.vaultLoads=data.field.continuousSample?{
+   aerial:{ready:false,pending:null,attempts:0,retryAt:0,error:null},
+   benthic:{ready:false,pending:null,attempts:0,retryAt:0,error:null},
+  }:null;
+  this.vaultLocationReady=false;
   // Modern seabird shapes stay beyond the sample; its pterosaurs and insect
   // are separate counts, with the dragonfly mostly settled near a wet bank.
   app.scene.add(this.group);this.q=new Quaternion();this.euler=new Euler(0,0,0,'YXZ');this.frustum=new Frustum();this.viewProjection=new Matrix4();this.sphere=new Sphere();this.screen=new Vector3();this.frameSight={fish:[],shrimp:[],birds:[]};this.enabled=true;this.update(0,app.camera);
  }
+ async createVaultGroupDetails(name,group){
+  if(name==='aerial'){
+   const vault=await loadVaultCoastLife(VAULT_AERIAL);
+   return {
+    pterosaurs:await createVaultPterosaurs(vault.rhamphorhynchus,vault.pterodaustro,group,this.terrain),
+    insect:await createVaultInsect(vault.meganeura,group,this.terrain,this.query),
+   };
+  }
+  const vault=await loadVaultCoastLife(VAULT_BENTHIC);
+  return {benthos:await createVaultBenthos(vault,group,this.terrain,{
+   aeger:this.data.sampleLife.aeger,coralSites:this.benthicDetails.coralSites,shellSites:this.benthicDetails.shellSites,spongeSites:this.benthicDetails.spongeSites,
+   obstacles:[...(this.app.coveRocks?.instances??[]),...this.benthicDetails.hardSites],
+  })};
+ }
+
+ requestVaultGroup(name){
+  const state=this.vaultLoads[name];
+  if(state.ready||state.pending||state.attempts>=2||performance.now()<state.retryAt)return;
+  state.attempts++;
+  state.pending=(async()=>{
+   const group=new Group();group.name='Museum Vault '+name;
+   const details=await this.createVaultGroupDetails(name,group);
+   group.traverse(node=>{if(node.isMesh&&node.material)clipCreekRefraction(node.material,this.data.field);});
+   const camera=this.app.camera;
+   for(const detail of Object.values(details))detail?.update(this.time,camera);
+   Object.assign(this,details);
+   this.group.add(group);
+   state.ready=true;state.error=null;
+  })().catch(error=>{
+   state.error=String(error);state.retryAt=performance.now()+5000;
+   console.warn(`Museum Vault ${name} unavailable`,error);
+  }).finally(()=>{state.pending=null;});
+ }
+ queueNearbyVault(camera){
+  if(!this.vaultLoads||!this.enabled)return;
+  const {x,y,z}=camera.position,{aerial,benthic}=this.vaultLoads;
+  if(!aerial.ready&&!aerial.pending&&aerial.attempts<2&&Math.hypot(x+898,z-143)<320)this.requestVaultGroup('aerial');
+  if(!benthic.ready&&!benthic.pending&&benthic.attempts<2&&y<40&&Math.hypot(x+980,z-150)<180)this.requestVaultGroup('benthic');
+ }
+
+ async prepareNearby(camera){
+  this.vaultLocationReady=true;
+  this.queueNearbyVault(camera);
+  if(this.vaultLoads)await Promise.all([this.vaultLoads.aerial.pending,this.vaultLoads.benthic.pending]);
+ }
+
  update(dt,camera){
+  if(this.vaultLocationReady)this.queueNearbyVault(camera);
   this.time+=dt;const cp=camera.position,D=this.batch.data;camera.updateMatrixWorld();this.viewProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.viewProjection,camera.coordinateSystem,camera.reversedDepth);this.pxScale=camera.projectionMatrix.elements[5]*this.app.engine.height*.5;this.frameSight={fish:[],shrimp:[],birds:[]};this.batch.begin();let live=0,shrimp=0;this.audit.minBedClearance=Infinity;this.audit.minSurfaceClearance=Infinity;
   for(let i=0;i<this.fish.length;i++){
    const f=this.fish[i],g=f.group,dist=Math.hypot(cp.x-g.x,cp.z-g.z);if(!this.enabled||dist>65||cp.y>g.h+8){f.fresh=true;f.sleeping=true;continue;}
@@ -158,7 +204,8 @@ export class IslandLife{
  stats(){
   const species=Object.fromEntries(Object.keys(VAULT_LOD).map(kind=>[kind,this.fish.filter(f=>f.vault===kind).length]));
   return {
-   time:this.time,articulation:{fish:this.batch.kinds.filter(k=>k.geometry.vaultRigStats).map(k=>k.geometry.vaultRigStats),pterosaurs:this.pterosaurs?.stats()??null,insect:this.insect?.stats()??null,benthos:this.benthos?.stats()??null},
+   time:this.time,vaultAssets:this.vaultLoads?Object.fromEntries(Object.entries(this.vaultLoads).map(([name,state])=>[name,{ready:state.ready,pending:!!state.pending,attempts:state.attempts,error:state.error}])):null,
+   articulation:{fish:this.batch.kinds.filter(k=>k.geometry.vaultRigStats).map(k=>k.geometry.vaultRigStats),pterosaurs:this.pterosaurs?.stats()??null,insect:this.insect?.stats()??null,benthos:this.benthos?.stats()??null},
    enabled:this.enabled,fish:this.fish.filter(f=>!f.shrimp).length,shrimp:this.fish.filter(f=>f.shrimp).length,
    birds:this.birds.length,pterosaurs:this.pterosaurs?.flyers.length??0,insects:this.insect?1:0,
    benthicCrawlers:this.benthos?.crawlers.length??0,corals:this.benthos?.corals.reduce((n,c)=>n+c.sites.length,0)??0,coralKinds:this.benthos?.corals.length??0,shellForms:this.benthos?.shells.reduce((n,s)=>n+s.sites.length,0)??0,shellKinds:this.benthos?.shells.length??0,sponges:this.benthos?.sponges.reduce((n,s)=>n+s.sites.length,0)??0,visibleCorals:this.benthos?.corals.reduce((n,c)=>n+c.mesh.count,0)??0,visibleShells:this.benthos?.shells.reduce((n,s)=>n+s.mesh.count,0)??0,benthicDetails:this.benthicDetails?.stats()??null,species,

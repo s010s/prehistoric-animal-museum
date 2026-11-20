@@ -4,11 +4,11 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { writeBuildInfo } from './tools/write-build-info.mjs';
 import { submergedShadingContract } from './tools/submerged-shading-contract.mjs';
 import { cloudViewContract } from './tools/cloud-view-contract.mjs';
+import { prepareTerrainTransport } from './tools/prepare-terrain-transport.mjs';
 await writeBuildInfo();
+await prepareTerrainTransport();
 const path = name => fileURLToPath(new URL(name, import.meta.url));
-export default defineConfig({
-  root: path('./'), base: './', publicDir: path('vendor/tidewater/public'),
-  plugins: [submergedShadingContract(),cloudViewContract(),{ name: 'private-native-review', configureServer(server) {
+function serveLocalReview(server){
     server.middlewares.use('/__native-review', (request, response) => {
       if (request.method !== 'POST' || request.headers.origin !== `http://${request.headers.host}` || !/^127\.0\.0\.1:\d+$/.test(request.headers.host ?? '')) { response.statusCode = 403; response.end(); return; }
       const chunks = []; let bytes = 0;
@@ -41,7 +41,10 @@ export default defineConfig({
         response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ saved: true, artifact }));
       } catch (error) { response.statusCode = 400; response.end(String(error.message)); } });
     });
-  } }],
+}
+export default defineConfig({
+  root: path('./'), base: './', publicDir: path('vendor/tidewater/public'),
+  plugins: [submergedShadingContract(),cloudViewContract(),{name:'private-native-review',configureServer:serveLocalReview,configurePreviewServer:serveLocalReview}],
   build: { target: 'esnext', outDir: '.review-dist', chunkSizeWarningLimit: 4000, assetsInlineLimit: 0, rollupOptions: { input: { home: path('index.html'), island: path('island/index.html'), reference: path('reference/index.html'), museum: path('museum/index.html'), creek: path('creek/index.html') } } },
   server: { host: '127.0.0.1', port: 4402, strictPort: true, hmr: false },
 });

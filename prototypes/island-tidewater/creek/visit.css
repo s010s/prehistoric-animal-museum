@@ -5,7 +5,7 @@
 
 .island-map-link{display:inline-flex;align-items:center;padding:6px 9px;border:1px solid #a7bda87a;border-radius:4px;color:#e5edd9;font-size:12px;text-decoration:none}.island-map-link:focus-visible{outline:2px solid #e5d3a1;outline-offset:3px}
 
-#hud-toggle{float:right;margin:0 0 4px 12px;font-size:10px!important;padding:3px 6px!important;background:#253d35}body.hud-collapsed #hud>*:not(.eyebrow):not(h1):not(#hud-toggle){display:none}body.hud-collapsed #hud{min-width:260px;max-width:380px;padding:11px 15px}body.hud-collapsed #hud h1{font-size:19px;margin-bottom:0}body.hud-collapsed #visit-help .help{display:none}
+#hud-toggle{float:right;margin:0 0 4px 12px;font-size:10px!important;padding:3px 6px!important;background:#253d35}body.hud-collapsed #hud>:where(:not(.eyebrow,h1,#hud-toggle,#face-animal,#fauna-status,#guide-waypoint,#sea-sound)){display:none}body.hud-collapsed #hud{min-width:260px;max-width:380px;padding:11px 15px}body.hud-collapsed #hud h1{font-size:19px;margin-bottom:0}body.hud-collapsed #visit-help .help{display:none}
 
 #region-map{position:fixed;z-index:20;right:16px;top:53px;width:224px;color:#e4eadc;background:#0d1915e8;border:1px solid #ffffff32;border-radius:7px;box-shadow:0 5px 20px #0003;font:11px/1.4 system-ui,sans-serif;overflow:hidden}#region-map header{display:flex;align-items:center;justify-content:space-between;padding:7px 9px}#map-toggle{font-size:10px;padding:3px 6px;background:#253d35}#region-map.collapsed #region-map-content{display:none}.map-surface{position:relative;margin:0 9px;width:206px;height:206px;overflow:hidden;background:#426a7a;border:1px solid #ffffff25}.map-surface canvas{width:100%;height:100%;display:block}.map-north{position:absolute;top:4px;right:5px;color:#fff;text-shadow:0 1px 2px #000}.map-camera{position:absolute;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:13px solid #fff1b2;filter:drop-shadow(0 1px 1px #000);pointer-events:none;z-index:3}.map-destination{position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;padding:0!important;border-radius:50%;font-size:11px;background:#183a35e8;border:1px solid #c9d9c1;color:white;z-index:2;cursor:pointer}.map-destination[aria-current=true],.map-key-item[aria-current=true]{background:#b7bf99;color:#172b23}.map-destination:focus-visible,.map-key-item:focus-visible{outline:2px solid #ffe4a3;outline-offset:2px}#map-place{display:block;padding:6px 9px;min-height:14px}.map-key{display:grid;grid-template-columns:repeat(3,1fr);padding:0 7px 8px;gap:3px}.map-key-item{font-size:10px;text-align:left;padding:3px 4px;background:#253b32;border-color:#ffffff30;white-space:nowrap;cursor:pointer}@media(max-width:760px){#region-map{width:176px;right:10px;top:48px}.map-surface{width:158px;height:158px}.map-key{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){#region-map{top:10px;right:10px;width:140px}#region-map-content{max-height:60vh;overflow:auto}.map-surface{width:122px;height:122px}#hud{max-width:calc(100vw - 180px)}body.hud-collapsed #hud{min-width:0;width:calc(100vw - 185px)}.map-key{grid-template-columns:1fr 1fr}.map-key-item{font-size:9px}#region-map header{padding:5px;font-size:10px}#map-toggle{font-size:9px}}
 
@@ -16,3 +16,42 @@
 body:has(#inspection[open]) #scene-entry{top:130px}#raw-diagnostics{margin-top:10px}#raw-diagnostics summary{font-size:11px;opacity:.75}
 
 .scene-feedback{display:flex;align-items:center;gap:9px;font-size:10px}.scene-feedback button{white-space:nowrap;padding:5px 9px;font-size:11px}#scene-copy-status{color:#c9d6bd;overflow-wrap:anywhere}#scene-report-details{margin-top:5px;font-size:10px}#scene-report-details summary{cursor:pointer;opacity:.8}#scene-report-details label{display:block;margin-top:5px}#scene-report-text{box-sizing:border-box;width:100%;height:135px;padding:7px;margin:5px 0;background:#0b1512;color:#dde7d7;border:1px solid #b5c9b455;border-radius:3px;font:10px/1.4 ui-monospace,monospace;resize:vertical}#scene-report-details button{font-size:11px;padding:4px 8px}
+
+#hud {max-height:calc(100dvh - 80px);overflow-y:auto;scrollbar-width:thin}
+#field-guide,#local-walks {margin-top:9px;border-top:1px solid #adbc9e40;padding-top:7px}
+#field-guide summary,#local-walks summary {cursor:pointer;font-size:13px}
+#field-guide label {display:block;margin:8px 0 3px;color:#c3cfbb;font-size:12px}
+#field-guide select {width:100%}
+#guide-destination,#guide-waypoint {font-size:12px}
+#guide-destination:empty,#fauna-status:empty {display:none}
+#fauna-status {color:#e2d4ae;font-size:12px}
+#guide-waypoint:not([hidden]) {display:flex;align-items:center;justify-content:space-between;margin-top:6px;color:#ebd8a1}
+#guide-cancel {font-size:16px;padding:0 6px}
+body.hud-collapsed #hud #guide-waypoint:not([hidden]) {display:flex}
+#hud select {max-width:100%}
+
+#arrival {position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:#f2f0e6;color:#273d34;padding:20px}
+body[data-visit-phase="ready"] #arrival {display:none}
+body[data-visit-phase="loading"] :is(#hud,#fps,#inspection,#visit-help),
+body[data-visit-phase="error"] :is(#hud,#fps,#inspection,#visit-help,#scene-entry) {visibility:hidden}
+.arrival-card {width:min(690px,100%);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:clamp(20px,5vw,60px)}
+.arrival-map {position:relative}
+.arrival-map img {display:block;width:100%;height:auto;border:1px solid #75847860}
+#arrival-pin {position:absolute;width:12px;height:12px;border:2px solid #fbf4da;background:#8f462d;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 3px #843b2538}
+.arrival-copy h1 {font:550 clamp(25px,3.8vw,46px)/1.2 ui-serif,serif;margin:10px 0}
+.arrival-copy p {color:#46594c}.arrival-copy #arrival-region {font-size:13px;letter-spacing:.08em}
+.arrival-copy a,.arrival-copy button {color:#395f4b}.arrival-copy button {margin-left:12px;background:transparent}
+#arrival-progress {display:block;width:100%;height:4px;accent-color:#496c52;margin:26px 0 9px}
+#arrival-progress[hidden] {display:none}
+#arrival-status {font-size:13px;margin:10px 0 20px}
+@media(max-width:560px){.arrival-card{grid-template-columns:1fr;max-width:300px}.arrival-map{width:72%;margin:auto}.arrival-copy{text-align:center}}
+
+#visit-tools summary {cursor:pointer;font-size:11px;color:#e4eadc}
+#visit-tools[open] summary {margin-bottom:6px}
+body.hud-collapsed #hud #sea-sound {display:inline-block;margin-top:7px;padding:2px 7px;font-size:11px;color:#d2e3c3;background:transparent}
+body.hud-collapsed #hud #fauna-status:not(:empty) {display:inline;margin-left:9px}
+#hud #sea-sound {margin-top:5px}
+@media(max-width:600px){#visit-help{max-width:calc(100vw - 20px);bottom:8px;left:auto}#inspection{bottom:40px}}
+
+body.hud-collapsed #hud #face-animal:not([hidden]) {display:inline-block;margin:7px 0 0 5px;padding:2px 7px;font-size:11px}
+#face-animal[hidden] {display:none}

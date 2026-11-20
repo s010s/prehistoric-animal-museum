@@ -53,8 +53,18 @@ function apply(runtime,route,seconds){const a=runtime.app,p=revisionPose(route,s
 export function revisionTrees(app,route){
  const center=route.tree??[-727,-325];return app.vegetation.records.filter(r=>r.sample).sort((a,b)=>Math.hypot(a.x-center[0],a.z-center[1])-Math.hypot(b.x-center[0],b.z-center[1])).slice(0,5).map(r=>({id:`tree@${r.x.toFixed(4)},${r.z.toFixed(4)}`,root:[r.x,r.y,r.z],height:r.H,scale:[r.s,r.s*r.sy,r.s],yaw:r.yaw,variant:r.variant,seed:r.seed}));
 }
-export function prepareRevisionRoute(runtime,name){
+const reviewAnimals={
+ 'review-sample-herbivore':'parasaurolophus','review-sample-flight':'pteranodon',
+ 'review-wing-membrane':'pteranodon','review-wing-macro':'pteranodon','review-sample-marine':'ichthyosaur',
+};
+export async function prepareRevisionRoute(runtime,name,isCurrent=()=>true){
  if(!routes[name])return null;const a=runtime.app;if(!a.creekData.field.continuousSample)throw Error('验收路线需要当前连续样板');
+ const id=reviewAnimals[name];
+ if(id){
+  const model=await a.sampleMuseumLife.ready(id);
+  if(!isCurrent()||runtime.phase!=='ready'||a.currentLandmark!=='sample-'+id)return null;
+  if(!model)throw Error('观察动物尚未载入，请返回该观察点重试。');
+ }
  const route=routes[name].make(a);if(route.wingFollow){a.sampleMuseumLife.hold();runtime.resetHistory();}runtime.clearInput();if(!a.freeCam)a.setFreeCam(true);apply(runtime,route,0);
  return {schema:'museum-revision-route-v1',id:name,label:routes[name].label,durationMs:24000,tickHz:30,fov:62,...route,trees:revisionTrees(a,route)};
 }
@@ -62,5 +72,16 @@ export function applyRevisionTick(runtime,route,elapsedMs){const tick=Math.max(0
 export function bindRevisionRoutes(runtime){
  const select=document.querySelector('#motion-route');if(!select)return;
  for(const [value,route]of Object.entries(routes)){const option=document.createElement('option');option.value=value;option.textContent=route.label;select.append(option);}
- select.onchange=()=>{if(runtime.phase!=='ready'||runtime.recordingVideo)return;const route=prepareRevisionRoute(runtime,select.value);document.querySelector('#record-video').textContent=route?`动态录像 ${route.durationMs/1000} 秒`:'动态录像 12 秒';if(route){runtime.app.camera.fov=62;runtime.app.camera.updateProjectionMatrix();runtime.resetHistory();runtime.resume();runtime.event('revision-route-selected',route);runtime.publish();}};
+ select.onchange=async()=>{
+  if(runtime.phase!=='ready'||runtime.recordingVideo||runtime.preparingVideo)return;
+  const value=select.value;
+  try{
+   const route=await prepareRevisionRoute(runtime,value,()=>select.value===value);
+   if(select.value!==value)return;
+   document.querySelector('#record-video').textContent=route?`动态录像 ${route.durationMs/1000} 秒`:'动态录像 12 秒';
+   if(route){runtime.app.camera.fov=62;runtime.app.camera.updateProjectionMatrix();runtime.resetHistory();runtime.resume();runtime.event('revision-route-selected',route);runtime.publish();}
+  }catch(error){
+   if(select.value===value)document.querySelector('#status').textContent=error.message;
+  }
+ };
 }

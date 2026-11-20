@@ -5,6 +5,14 @@ const SEA=-.7;
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const mix=(a,b,t)=>a+(b-a)*t;
 
+// Deliberate coverage around the inherited northern plateau ribbon and its
+// eastern cusp. The recently authored west coast lies outside both supports.
+function apronRegion(x,z){
+ const northern=smooth(650,1700,x)*(1-smooth(-5300,-4180,z));
+ const northeast=smooth(6050,7450,x)*(1-smooth(-1350,-510,z));
+ return Math.max(northern,northeast);
+}
+
 // Squared Euclidean distance transform, in grid units. Finite infinity keeps
 // entirely wet rows defined until the orthogonal pass reaches the island.
 function distanceTransform(ocean,n){
@@ -32,19 +40,38 @@ export function extendCoastalShelf(grids,readHeight,waterField){
  const enqueue=k=>{if(!ocean[k]&&heights[k]<SEA){ocean[k]=1;queue[tail++]=k;}};
  for(let i=0;i<n;i++){enqueue(i);enqueue((n-1)*n+i);enqueue(i*n);enqueue(i*n+n-1);}
  while(head<tail){const k=queue[head++],i=k%n,j=Math.floor(k/n);if(i>0)enqueue(k-1);if(i<n-1)enqueue(k+1);if(j>0)enqueue(k-n);if(j<n-1)enqueue(k+n);}
- const sq=distanceTransform(ocean,n),distance=new Float32Array(n*n);
- for(let k=0;k<distance.length;k++)distance[k]=ocean[k]?(Math.sqrt(sq[k])-.5)*texel:-texel*.5;
+ const sq=distanceTransform(ocean,n),landSq=distanceTransform(ocean.map(wet=>1-wet),n),distance=new Float32Array(n*n);
+ for(let k=0;k<distance.length;k++){
+  distance[k]=ocean[k]?(Math.sqrt(sq[k])-.5)*texel:-texel*.5;
+  landSq[k]=ocean[k]?-texel*.5:(Math.sqrt(landSq[k])-.5)*texel;
+ }
  const at=(a,x,z)=>{
   const fx=Math.max(0,Math.min(n-1.001,(x-origin)/texel-.5)),fz=Math.max(0,Math.min(n-1.001,(z-origin)/texel-.5)),i=Math.floor(fx),j=Math.floor(fz),u=fx-i,v=fz-j,k=j*n+i;
   return mix(mix(a[k],a[k+1],u),mix(a[k+n],a[k+n+1],u),v);
  };
  const noise=new Noise2D(71321),small=new Noise2D(2917);
  const distanceAt=(x,z)=>at(distance,x,z);
+ const inlandAt=(x,z)=>at(landSq,x,z);
  const oceanAt=(x,z)=>at(ocean,x,z)>.5;
+ // Build a graded apron out of the steep legacy coast clamp. Open runs cut
+ // further into it; intervening flanks retain rock and their original fall
+ // line. Relief dies out above the apron and close to the current shoreline.
+ const apronWeight=(region,d)=>region>0&&d<1100?region*smooth(16,105,d)*(1-smooth(810,1100,d)):0;
+ const apronHeight=(x,z,d,h,w)=>{
+  const ax=x+noise.noise(x/1040,z/1130)*170;
+  const az=z+noise.noise(x/1160+31,z/970)*160;
+  const drainage=1-smooth(.04,.28,Math.abs(noise.noise(ax/231,az/336)+.09));
+  const ledges=small.noise(ax/91,az/114)*8+noise.noise(ax/350+17,az/480)*22;
+  const erosion=drainage*37*smooth(70,240,d)*(1-smooth(780,1060,d));
+  const reach=d*(.12+.035*noise.noise(x/863,z/713))+398*smooth(96,875,d);
+  const cap=SEA+reach+ledges*smooth(30,160,d)-erosion;
+  const feather=Math.max(0,1-Math.abs(h-cap)/12);
+  return mix(h,Math.max(.5,Math.min(h,cap)-3*feather*feather),w);
+ };
  const widthAt=(x,z)=>880+noise.noise(x/1700,z/1900)*230+noise.noise(x/630+9,z/710-7)*90;
+ const curve=[[0,.12],[.05,.85],[.18,1.95],[.35,3.3],[.55,5.5],[.72,9.2],[.86,18],[1,37]];
  const shape=(x,z,d)=>{
   const width=widthAt(x,z),q=d/width;
-  const curve=[[0,.12],[.05,.85],[.18,1.95],[.35,3.3],[.55,5.5],[.72,9.2],[.86,18],[1,37]];
   let depth=37;for(let i=1;i<curve.length;i++)if(q<curve[i][0]){const a=curve[i-1],b=curve[i];depth=mix(a[1],b[1],smooth(a[0],b[0],q));break;}
   const wx=x+noise.noise(x/310,z/270)*45,wz=z+noise.noise(x/370+81,z/330)*45;
   // Resolve at least six samples even on the16m outer field. Sub-grid relief
@@ -59,8 +86,9 @@ export function extendCoastalShelf(grids,readHeight,waterField){
  // Length weights come from sub-cell crossings, not compass-point counts.
  const segments=[];
  for(let j=0;j<n-1;j++)for(let i=0;i<n-1;i++){
-  const ids=[j*n+i,j*n+i+1,(j+1)*n+i+1,(j+1)*n+i],wet=ids.map(k=>ocean[k]);
-  if(wet.every(v=>v===wet[0]))continue;
+  const k=j*n+i,first=ocean[k];
+  if(first===ocean[k+1]&&first===ocean[k+n+1]&&first===ocean[k+n])continue;
+  const ids=[k,k+1,k+n+1,k+n],wet=ids.map(k=>ocean[k]);
   const corners=[[i,j],[i+1,j],[i+1,j+1],[i,j+1]],cross=[];
   for(let e=0;e<4;e++){
    const next=(e+1)%4;if(wet[e]===wet[next])continue;
@@ -101,13 +129,29 @@ export function extendCoastalShelf(grids,readHeight,waterField){
   return {coastLength,shallowLength,coverage:shallowLength/coastLength,sectors:sectors.map(s=>({...s,coverage:s.shallowLength/s.coastLength})),transects:stations.map(s=>({id:s.id,label:s.label,point:s.point,normal:s.normal,width:s.width,samples:probeDistances.map(offshore=>{const point=s.at(offshore);return {offshore,point,ocean:oceanAt(...point),depth:SEA-height(...point)};})})),rows};
  };
  const before=measure(readHeight),changes=[];
+ const landProbes=[[3300,-7330],[3300,-7250],[5220,-7190],[7760,-2420],[7600,-2390],[7400,-2370],[7810,-2230]];
+ const oldLand=landProbes.map(p=>readHeight(...p));
  for(const grid of grids){
   // All terrain channels start aliased on global grids. Split before writing.
-  grid.sand=new Uint8Array(grid.sand);let changed=0,maxShift=0,dryChanged=0,protectedWater=0;
+  grid.sand=new Uint8Array(grid.sand);let changed=0,maxShift=0,dryChanged=0,protectedWater=0,apronChanged=0,apronMaxShift=0;
   const c=grid.center??[0,0],ox=c[0]-grid.size/2,oz=c[1]-grid.size/2,f=[0,0,0,0];
   for(let j=0;j<grid.res;j++)for(let i=0;i<grid.res;i++){
-   const k=j*grid.res+i,old=grid.heights[k];if(old>=SEA-.12)continue;
-   const x=ox+(i+.5)*grid.texel,z=oz+(j+.5)*grid.texel,d=distanceAt(x,z);if(d<=0||d>1550||!oceanAt(x,z))continue;
+   const k=j*grid.res+i,old=grid.heights[k];
+   const x=ox+(i+.5)*grid.texel,z=oz+(j+.5)*grid.texel;
+   if(old>=SEA-.12){
+    if(old<5||z>-510||x<650)continue;
+    const region=apronRegion(x,z);if(region<=0)continue;
+    const d=inlandAt(x,z),w=apronWeight(region,d);
+    if(w<=0)continue;
+    const height=apronHeight(x,z,d,old,w),change=old-height;
+    if(change<=0)continue;
+    grid.heights[k]=height;apronChanged++;apronMaxShift=Math.max(apronMaxShift,change);
+    // The new gullies grade into existing rock exposure. Their underlying
+    // slope still supplies the native terrain material's physical normals.
+    grid.rock[k]*=1-.48*smooth(.5,24,change);
+    continue;
+   }
+   const d=distanceAt(x,z);if(d<=0||d>1550||!oceanAt(x,z))continue;
    waterField.sample(x,z,f);
    // An estuary is continuous with the shelf. A hard level cutoff raised the
    // first unprotected row by metres and baked its diagonal into the bed/AO.
@@ -124,10 +168,11 @@ export function extendCoastalShelf(grids,readHeight,waterField){
    if(y===old)continue;grid.heights[k]=y;changed++;maxShift=Math.max(maxShift,Math.abs(y-old));if(old>=SEA)dryChanged++;
    const sand=1-smooth(.18,.7,form.reef/2.1);grid.sand[k]=Math.round(sand*255);grid.rock[k]=mix(grid.rock[k],.06+(1-sand)*.5,weight);
   }
-  grid.buildMinMax();changes.push({grid:grid.id??'regional',changed,maxShift,dryChanged,protectedWater});
+  grid.buildMinMax();changes.push({grid:grid.id??'regional',changed,maxShift,dryChanged,protectedWater,apronChanged,apronMaxShift});
  }
+ const apronProbes=landProbes.map((point,i)=>({point,before:oldLand[i],after:readHeight(...point)}));
  const after=measure(readHeight),strip=r=>{const {rows,...summary}=r;return summary;};
  const audit={schema:'museum-continuous-shelf-v1',seaLevel:SEA,gridMetres:texel,definition:'Length-weighted ocean-connected sea-level contour; all normal probes at75/150/300m must have0.1–12m depth. Land-blocked transects count as failures.',before,after,changes};
- const summary={...strip(after),baseline:strip(before),gridMetres:texel,definition:audit.definition,coastSegments:segments.length,changes,buildMs:performance.now()-started,extraFramePasses:0,extraGPUTextureBindings:0,chartBytes:distance.byteLength+ocean.byteLength};
- return {summary,audit,stations,segments,distanceAt,oceanAt,marineAt:(x,z)=>at(ocean,x,z),widthAt};
+ const summary={...strip(after),baseline:strip(before),gridMetres:texel,definition:audit.definition,coastSegments:segments.length,changes,apronProbes,buildMs:performance.now()-started,extraFramePasses:0,extraGPUTextureBindings:0,chartBytes:distance.byteLength+landSq.byteLength+ocean.byteLength};
+ return {summary,audit,stations,segments,distanceAt,oceanAt,apronAt:(x,z)=>z< -510&&x>650?apronWeight(apronRegion(x,z),inlandAt(x,z)):0,marineAt:(x,z)=>at(ocean,x,z),widthAt};
 }

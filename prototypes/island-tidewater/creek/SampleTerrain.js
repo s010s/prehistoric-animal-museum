@@ -31,7 +31,7 @@ function gradeMouthShore(x,z,bed,shoreline){
   const berm=.065*smooth(-.12,.25,shoreNoise.noise(z/51,2.6))*Math.exp(-(((land-bermAxis)/7)**2));
   return bed*(1-support)+(profile+broad+cusp+berm)*support;
 }
-function softenOffshorePit(x,z,bed,design,shoreline){
+function softenOffshorePit(x,z,bed,r,shoreline){
   const offshore=shoreline-x;if(offshore<0||bed>=SEA)return bed;
   // A fan-shaped deposit joins the local sand shelf at every azimuth. The
   // earlier narrow cap ended before the 300 m offshore hollow, leaving the
@@ -46,7 +46,7 @@ function softenOffshorePit(x,z,bed,design,shoreline){
   // run-up slope and the stream's carved edge remain continuous.
   const support=(1-smooth(.84,1.22,fan))*smooth(8,48,offshore)*smooth(.03,.65,SEA-bed);
   if(support<=0)return bed;
-  const r=design.nearest(x,z),ebb=r?(1-smooth(r.width*.65,r.width+20,r.dist))*(1-smooth(810,920,r.distance)):0;
+  const ebb=r?(1-smooth(r.width*.65,r.width+20,r.dist))*(1-smooth(810,920,r.distance)):0;
   // River sand fills the inherited hollow and blankets the old repetitive
   // shelf ribs. Both high and low parts converge toward one depth envelope;
   // raising only the pit left three permanent dark bars in shallow water.
@@ -76,15 +76,16 @@ export function applySampleTerrain(data){
       const z=center[1]-size/2+(j+.5)*t.texel,shoreline=shoreX(z);
       for(let i=0;i<res;i++){
         const x=center[0]-size/2+(i+.5)*t.texel,k=j*res+i,old=base(x,z),r=design.nearest(x,z);
+        const weight=design.weight(x,z,r);
         const authored=mouthFieldAt(x,z,old);
         const coast=gradeMouthShore(x,z,authored,shoreline);
         // Carve the varying cross-section last. The former z<172 ownership
         // switch was visible as a transverse shelf and square mouth corners.
-        const sculpted=design.sculpt(x,z,coast);
-        t.heights[k]=softenOffshorePit(x,z,sculpted,design,shoreline);t.rock[k]=rockAt(x,z);
-        if(r&&design.weight(x,z)>0){
+        const sculpted=design.sculpt(x,z,coast,r,weight);
+        t.heights[k]=softenOffshorePit(x,z,sculpted,r,shoreline);t.rock[k]=rockAt(x,z);
+        if(r&&weight>0){
           const exposure=(1-smooth(.2,1.6,r.dist-r.width))*(1-smooth(350,620,r.distance));
-          t.rock[k]=t.rock[k]*(1-design.weight(x,z)*.82)+exposure*.28;
+          t.rock[k]=t.rock[k]*(1-weight*.82)+exposure*.28;
           t.sand[k]=Math.round((1-smooth(4,15,r.dist-r.width))*smooth(540,800,r.distance)*255);
         }
       }

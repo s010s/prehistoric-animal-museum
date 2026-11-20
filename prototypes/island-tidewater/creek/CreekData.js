@@ -5,12 +5,11 @@ import { Texture } from '../vendor/tidewater/src/engine/gpu/Texture.js';
 import { ShaderModule } from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import { commonModule } from '../vendor/tidewater/src/engine/render/wgsl/common.js';
 import { GPU, StorageBuffer, ComputeKernel, readBuffer } from '../vendor/tidewater/src/engine/webgpu.js';
-import geographyURL from './assets/geography.json?url';
+import {readTerrainAsset} from './TerrainTransport.js';
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 const smooth = (a,b,v) => { const t=clamp((v-a)/(b-a),0,1);return t*t*(3-2*t); };
-async function get(url,type) { const r=await fetch(url); if(!r.ok)throw Error(`Creek asset ${r.status}: ${url}`); return type==='json'?r.json():r.arrayBuffer(); }
 export async function loadCreekData() {
-  const [g,h,w,m]=await Promise.all([get(geographyURL,'json'),get(new URL('./assets/heights.bin',import.meta.url)),get(new URL('./assets/water.bin',import.meta.url)),get(new URL('./assets/masks.bin',import.meta.url))]);
+  const [g,h,w,m]=await Promise.all(['geography.json','heights.bin','water.bin','masks.bin'].map(readTerrainAsset));
   const terrain=Object.create(TerrainData.prototype);
   Object.assign(terrain,{size:g.size,res:g.res,texel:g.texel,origin:g.origin,heights:new Float32Array(h),pads:[],rockSites:[],paths:[],timings:{source:'museum-export'}});
   const masks=new Uint8Array(m),n=g.res*g.res;
@@ -104,7 +103,7 @@ fn creekFieldAt(p:vec2f)->vec4f{
     // Startup-only readback of the exact terrain and raw creek-field modules. The hybrid
     // ocean/swim path is exercised independently through headed interaction. No diagnostic dispatch/readback in timed frames.
     const points=[...this.g.reference.map(p=>p.local),...Array.from({length:35},(_,i)=>[-30+i,0]),[-51.53,-70],[-220,220],[255.8,255.8],...[-496,-480,-460,-448,448,460,480,496].map(x=>[x,0]),[-864.4847,-32],[-889.4847,-32],[-1500,300],[2023.7,0]];
-    points.push(...(this.continuousSample?.auditPoints??[]));
+    points.push(...(this.continuousSample?.auditPoints??[]),...(this.regionalAuditPoints??[]));
     if(this.terrain.museumCove)for(const section of this.terrain.museumCove.sections)for(const transect of section.transects)for(const q of transect.samples)points.push(q.point);
     if(this.terrain.museumCove?.continuous)for(const transect of this.terrain.museumCove.continuous.summary.transects)for(const q of transect.samples)points.push(q.point);
     if(this.sourceExtentRepair)for(const z of [-3300,-3290,-3280.1,-3280,-3279.9,-3270,-3260])for(const x of [235,245,255,265,300])points.push([x,z]);

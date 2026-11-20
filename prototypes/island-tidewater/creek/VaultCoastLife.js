@@ -25,9 +25,16 @@ const urls={
  dipterus:new URL('./assets/dipterus-lowpoly-vault.glb',import.meta.url).href,
  ...REEF_URLS,
 };
-export async function loadVaultCoastLife(){
- const models=await Promise.all(Object.values(urls).map(loadGLB));
- return Object.fromEntries(Object.keys(urls).map((key,i)=>[key,models[i]]));
+export const VAULT_AERIAL=['rhamphorhynchus','pterodaustro','meganeura'];
+export const VAULT_BENTHIC=['eryon',...Object.keys(REEF_URLS)];
+
+export async function loadVaultCoastLife(kinds){
+ const entries=[];
+ for(let i=0;i<kinds.length;i+=6){
+  const batch=await Promise.all(kinds.slice(i,i+6).map(async kind=>[kind,await loadGLB(urls[kind])]));
+  entries.push(...batch);
+ }
+ return Object.fromEntries(entries);
 }
 
 function collect(gltf,accept,convert=(x,y,z)=>[x,y,z],{side=0,swimPart=()=>0}={}){

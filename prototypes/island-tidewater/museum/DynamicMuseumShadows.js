@@ -68,7 +68,7 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
   let enabledReview = !!enabled, disposed = false;
   let finalTexture = shadows.texture, staticBase = null, restorePasses = [], layers = [];
   let resourceSize = 0, resourceCount = 0, previousPeriods = null, previousSun = null;
-  let dynamic = new Map(), legacyMeshes = [], legacyScene = null, sceneChildren = [];
+  let dynamic = new Map();
   let staticRefreshes = 0, dynamicDraws = 0, restoredPixels = 0, fullRestores = 0;
   let frameRestoredPixels = 0, frameDynamicDraws = 0, activeCasters = 0;
 
@@ -102,25 +102,23 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
     invalidate(false);
   }
   function discover(scene) {
-    // Old museum animals are closed over by app.animals. Cache their scene-graph
-    // lookup, while noticing additions/replacements of the scene's root groups.
-    const children = scene.children ?? [];
-    if (legacyScene !== scene || children.length !== sceneChildren.length || children.some((child, i) => child !== sceneChildren[i])) {
-      legacyScene = scene; sceneChildren = [...children]; legacyMeshes = [];
-      descendants(scene, object => {
-        if (LEGACY_NAMES.has(object.name)) descendants(object, child => { if (child.isMesh) legacyMeshes.push(child); });
-      });
-    }
     const next = new Map();
-    const addModel = model => { for (const mesh of model?.meshes ?? []) next.set(mesh, { unbounded: false, batch: null }); };
+    const addModel = model => { for (const mesh of model?.meshes ?? []) next.set(mesh, { unbounded: !mesh.frustumCulled, batch: null }); };
     for (const actor of app.sampleMuseumLife?.actors ?? []) addModel(actor.model);
+    for (const model of app.islandFauna?.models() ?? []) addModel(model);
     for (const flyer of app.life?.pterosaurs?.flyers ?? []) addModel(flyer.model);
     addModel(app.life?.insect?.model);
     for (const crawler of app.life?.benthos?.crawlers ?? []) addModel(crawler.model);
     // These two older animals intentionally have no native frustum culling:
     // their rest bounds do not enclose all morph/skin motion. Full depth restore
     // is conservative and still does not redraw static forest geometry.
-    for (const mesh of legacyMeshes) next.set(mesh, { unbounded: true, batch: null });
+    if (app.animals?.models) {
+      for (const model of app.animals.models()) addModel(model);
+    } else {
+      for (const root of scene.children ?? []) if (LEGACY_NAMES.has(root.name)) {
+        descendants(root, child => { if (child.isMesh) next.set(child, { unbounded: true, batch: null }); });
+      }
+    }
     const batch = app.life?.batch;
     if (batch?.geometry) descendants(app.life.group, mesh => {
       if (mesh.isMesh && mesh.geometry === batch.geometry) next.set(mesh, { unbounded: true, batch });
@@ -233,7 +231,7 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
       unboundedCasters: [...dynamic].filter(([, entry]) => entry.unbounded).map(([mesh]) => mesh.name),
       staticBaseBytes: resourceSize * resourceSize * resourceCount * 4,
       finalTexturePreserved: shadows.texture === finalTexture,
-      coverage: 'sample museum skins, legacy museum animals, Vault pterosaurs/Meganeura/Eryon, active Aeger shadow offsets; static coral/shell batches excluded' };
+      coverage: 'regional museum animals, sample museum skins, legacy museum animals, Vault pterosaurs/Meganeura/Eryon, active Aeger shadow offsets; static coral/shell batches excluded' };
   }
   const controller = {
     setEnabled(value) {
@@ -241,11 +239,16 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
       return stats();
     },
     stats,
+    removeModel(model) {
+      let changed = false;
+      for (const mesh of model.meshes) if (dynamic.delete(mesh)) changed = true;
+      if (changed) invalidate();
+    },
     dispose() {
       if (disposed) return;
       disposed = true; invalidate();
       if (shadows.render === render) shadows.render = nativeRender;
-      controllers.delete(app); retire(staticBase); staticBase = null; restorePasses = [];
+      controllers.delete(app); retire(staticBase); staticBase = null; restorePasses = []; dynamic.clear();
     },
   };
   shadows.render = render; controllers.set(app, controller); invalidate();

@@ -191,9 +191,9 @@ export function habitatGeometry(gltf,id){
  const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(pos,3));g.setAttribute('normal',new Float32BufferAttribute(normal,3));g.setAttribute('aData',new Float32BufferAttribute(data,4));g.setIndex(new BufferAttribute(new Uint32Array(indices),1));g.computeBoundingSphere();return g;
 }
 
-function plantMaterial(batch,terrainGPU,view){
+export function createHabitatPlantMaterial(batch,terrainGPU,view,{name='Sample Vault leaves, wind and current',namespace='sampleHabitat'}={}){
  const P=batch.prefix,records=batch.record('index');
- const motion=new ShaderModule({name:'sampleHabitatMotion',deps:[commonModule],uniforms:view,code:`
+ const motion=new ShaderModule({name:namespace+'Motion',deps:[commonModule],uniforms:view,code:`
 fn habitatColor(f:f32)->vec3f{let u=u32(f+.5);return vec3f(f32((u>>16u)&255u),f32((u>>8u)&255u),f32(u&255u))/255.0;}
 fn habitatRotate(q:vec4f,p:vec3f)->vec3f{return p+cross(q.xyz,cross(q.xyz,p)+p*q.w)*2.0;}
 fn habitatBend(xz:vec2f,t:f32,seed:f32,part:f32,weight:f32,mode:f32,flow:vec2f)->vec3f{
@@ -212,15 +212,16 @@ fn habitatBend(xz:vec2f,t:f32,seed:f32,part:f32,weight:f32,mode:f32,flow:vec2f)-
  let d=(current+vec2f(surge,surge*.22)+flutter)*weight;
  return vec3f(d.x,-dot(d,d)*.35,d.y);
 }`});
- return new Material({name:'Sample Vault leaves, wind and current',side:'double',modules:[batch.module,terrainGPU.module,motion],attributes:{aKind:'f32',aData:'vec4f'},varyings:{vHabitatColor:'vec3f',vHabitatAO:'f32',vHabitatMode:'f32'},vertex:`
+ return new Material({name,side:'double',modules:[batch.module,terrainGPU.module,motion],attributes:{aKind:'f32',aData:'vec4f'},varyings:{vHabitatColor:'vec3f',vHabitatAO:'f32',vHabitatMode:'f32'},vertex:`
  let index=${P}RecordIndex(u32(v.aKind),v.instance);
  let r0=${records[0]};let q=${records[1]};let r2=${records[2]};let r3=${records[3]};
- let distance=length(sampleHabitatView.position-r0.xyz);let grow=1.0-smoothstep(r2.y*.80,r2.y,distance);
+ let distance=length(${namespace}View.position-r0.xyz);let grow=1.0-smoothstep(r2.y*.80,r2.y,distance);
  var local=v.position*r0.w*grow;
  if(r2.z>.5&&r2.z<1.5){local.y+=r3.w*smoothstep(.008,.036,v.position.y)*grow;}
  var world=habitatRotate(q,local)+r0.xyz;
  let contact=1.0-smoothstep(0.0,.13,local.y);
- world.y+=(terrainHeightAt(world.xz)-.018-r0.y)*contact;
+ let habitatGround=terrainHeightAt(world.xz);
+ world.y+=(habitatGround-.018-r0.y)*contact;
  let weight=v.aData.x*v.aData.x*r3.z*r0.w*grow;
  let now=habitatBend(r0.xz,frame.time,r2.x,v.aData.w,weight,r2.z,r3.xy);
  let old=habitatBend(r0.xz,frame.time-frame.dt,r2.x,v.aData.w,weight,r2.z,r3.xy);
@@ -316,7 +317,7 @@ export class SampleHabitatEnrichment{
   for(let i=0;i<sp.count;i++){sd.setY(i,0x354b2b);sd.setZ(i,.73+.27*smooth(.01,.12,sp.getY(i)));}
   this.batch=new ReefBatch('Sample Habitat Vault Plants',kinds,{maxInstances:Math.max(1,this.plan.plants.length)});
   this.view=new UniformBlock('SampleHabitatView',{position:['vec3f',new Vector3()]});
-  this.material=plantMaterial(this.batch,app.terrainGPU,this.view);
+  this.material=createHabitatPlantMaterial(this.batch,app.terrainGPU,this.view);
   this.group.add(this.batch.createMesh(this.material,{castShadow:true}));
   for(const [i,p]of this.plan.plants.entries()){
    const half=p.yaw*.5;

@@ -1,9 +1,53 @@
 // Museum visitor routes in one continuous world. Arrival points are checked
 // against the same physical terrain and inland water used for navigation.
 import {sampleVisits} from './SampleVisits.js';
+import {regionalLandformVisits} from './RegionalLandforms.js';
+// Terrain and water are already final when the first guide is built. Later
+// passes add animal, reef and grove sightings on the same shores.
+const checkedBanks = new WeakMap();
+
+function findDryBank(data, x, z, level, radius) {
+  let banks = checkedBanks.get(data);
+  if (!banks) {
+    banks = new Map();
+    checkedBanks.set(data, banks);
+  }
+  const key = [x, z, level, radius].join(',');
+  if (banks.has(key)) return banks.get(key);
+  const {terrain, field} = data;
+  let best = null;
+  const consider = (i, j) => {
+    const distance = Math.hypot(i, j);
+    if (best && distance > best.score) return;
+    const px = x + i, pz = z + j, h = terrain.heightAt(px, pz);
+    if (h < level + .7 || h > level + 7) return;
+    const cost = distance + Math.abs(h - level - 2) * 9;
+    if (best && cost > best.score) return;
+    const water = field.sample(px, pz);
+    if (water[1] < 0 && h < water[0] + .35) return;
+    const slope = Math.hypot(terrain.heightAt(px+2,pz)-terrain.heightAt(px-2,pz),
+      terrain.heightAt(px,pz+2)-terrain.heightAt(px,pz-2)) / 4;
+    if (slope > .6) return;
+    const score = cost + slope * 30;
+    if (!best || score < best.score || (score === best.score && (j < best.j || (j === best.j && i < best.i)))) {
+      best = {i, j, score};
+    }
+  };
+  // The score includes horizontal distance and only nonnegative penalties.
+  // Once the next ring is more distant than the best score it cannot win.
+  consider(0, 0);
+  for (let r = 4; r <= radius && (!best || r <= best.score); r += 4) {
+    for (let i = -r; i <= r; i += 4) { consider(i, -r); consider(i, r); }
+    for (let j = 4 - r; j < r; j += 4) { consider(-r, j); consider(r, j); }
+  }
+  const point = best ? [x + best.i, z + best.j] : [x, z];
+  banks.set(key, point);
+  return point;
+}
+
 export function createIslandVisits(data){
  const t=data.terrain,field=data.field;
- const dryNear=(x,z,level,radius=100)=>{let best=null;for(let j=-radius;j<=radius;j+=4)for(let i=-radius;i<=radius;i+=4){const px=x+i,pz=z+j,h=t.heightAt(px,pz),f=field.sample(px,pz),s=Math.hypot(t.heightAt(px+2,pz)-t.heightAt(px-2,pz),t.heightAt(px,pz+2)-t.heightAt(px,pz-2))/4;if(h<level+.7||h>level+7||(f[1]<0&&h<f[0]+.35)||s>.6)continue;const score=Math.hypot(i,j)+Math.abs(h-level-2)*9+s*30;if(!best||score<best.score)best={p:[px,pz],score,h};}return best?.p??[x,z];};
+ const dryNear=(x,z,level,radius=100)=>findDryBank(data,x,z,level,radius);
  const visits={};
  visits['review-cove-safe']={id:'review-cove-safe',title:'浅湾与海底石脊',note:'从海上俯视浅湾与岸肩，沿岸平移检查水色、床面和落石的连续性。',p:[-980,65,100],gaze:[-890,-2,-20],fly:true,time:10.7};
  visits['review-cove-boundary']={id:'review-cove-boundary',title:'浅湾波场接续',note:'沿岸平移检查局部精细传播场与整岛波场的连续接续。',p:[-1000,100,330],gaze:[-830,-1,330],fly:true,time:10.7};
@@ -46,7 +90,7 @@ export function createIslandVisits(data){
  for(const reef of data.reefObservations??[]){visits[reef.id]={...reef,title:({'reef-east':'东岸珊瑚浅礁','reef-south':'南岸砂槽与暗礁','reef-northeast':'东北岸珊瑚与碎礁'})[reef.id],note:'低饱和珊瑚团块、盘状群落与碎礁依附浅海床生长，砂槽留出游览空间。目前采用环境形态代理。',diveLevel:-.7,time:reef.id==='reef-northeast'?14.2:9.5};}
  const life=data.lifeObservations;if(life?.creek){const g=life.creek;let footing=null;for(let dz=-4;dz<=4;dz+=.25)for(let dx=-4;dx<=4;dx+=.25){const x=g.x+dx,z=g.z+dz,d=Math.hypot(dx,dz),h=t.heightAt(x,z),depth=g.h-h;if(d<1.0||d>3.2||depth<-.1||depth>.6)continue;const score=Math.abs(d-1.8)+Math.abs(depth-.2);if(!footing||score<footing.score)footing={p:[x,z],score};}visits['creek-life']={id:'creek-life',title:'溪边浅水小鱼',note:'站在浅水石边低头观察环境鱼形。',p:footing?.p??[g.x,g.z],gaze:[g.x,g.floor+.2,g.z],time:12.6};}
  if(life?.west){const g=life.west,c=data.coast.coast;visits['coast-birds']={id:'coast-birds',title:'浅湾海鸟掠岸',note:'留在岸边观察低空掠过岩湾的海鸟。开启自然声，可以听见来自实际鸟位的叫声。',p:[c.x+5,c.z],gaze:[c.x-45,7,c.z+7],time:10.7};visits['shore-life']={id:'shore-life',title:'浅湾潜水看鱼',note:'潜入砂槽，在清水中观察小鱼。WASD 游动，空格上浮，C 下潜；岸上的海鸟仍在飞行。',diveLevel:g.h,p:[g.x+4,g.z+1],gaze:[g.x,g.h-1,g.z],time:10.7};}
- Object.assign(visits,sampleVisits(data));
+ Object.assign(visits,regionalLandformVisits(t),sampleVisits(data));
  for(const v of Object.values(visits)){v.ground=t.heightAt(v.p[0],v.p.at(-1));v.waterAtArrival=field.sample(v.p[0],v.p.at(-1))[0];}
  return visits;
 }

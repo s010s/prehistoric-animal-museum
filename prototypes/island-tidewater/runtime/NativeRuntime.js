@@ -2,6 +2,7 @@ import { GPU } from '../vendor/tidewater/src/engine/gpu/GPU.js';
 import { G } from '../vendor/tidewater/src/core/Globals.js';
 import { FrameTimer } from './FrameTimer.js';
 import {installRouteInput, takeRouteInput} from './RouteInput.js';
+import {VisitorGuide} from '../creek/VisitorGuide.js';
 import {RegionMap} from '../creek/RegionMap.js';
 import buildInfo from './build-info.json';
 import {bindSceneReport} from './SceneReport.js';
@@ -31,7 +32,7 @@ export class NativeRuntime {
     document.querySelector('#capture').onclick = () => this.saveObservation();
     document.querySelector('#measure').onclick = () => this.measure().catch(e => { if (!e.timingSaveFailed) this.fail(e); });
     const video=document.querySelector('#record-video');if(video)video.onclick=()=>this.recordVideo().catch(error=>{this.videoResult={status:'failed',message:String(error)};this.event('video-unavailable',{message:String(error)});this.publish();document.querySelector('#status').textContent='本次录像未保存 · '+error.message;});
-    document.querySelector('#cancel').onclick = () => { this.cancelled = true; this.stop('loading cancelled'); GPU.device?.destroy(); };
+    document.querySelector('#cancel').onclick = () => { this.cancelled = true; this.stop('loading cancelled'); this.app.disposeFauna?.(); GPU.device?.destroy(); };
     document.querySelector('#scale').onchange = event => {
       if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample || this.recordingVideo) return;
       if (this.app.waterBudget) this.app.waterBudget.setQuality(event.target.value);
@@ -98,7 +99,7 @@ export class NativeRuntime {
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.stop('hidden'); });
     window.addEventListener('blur', () => { if (this.phase === 'ready') this.stop('blur'); });
     window.addEventListener('keydown', event => { if (event.code === 'Escape' && this.phase === 'ready' && this.running) this.stop('escape'); });
-    window.addEventListener('pagehide', () => this.stop('pagehide'));
+    window.addEventListener('pagehide', event => { this.stop('pagehide'); if (!event.persisted) this.app.disposeFauna?.(); });
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === this.app.engine?.domElement;
       const released = this.wasLocked && !locked;
@@ -129,9 +130,15 @@ export class NativeRuntime {
     this.lastFrame={t:start,frame:GPU.frame,interval:0,dt:0,worldTime:G.time.value,camera:this.app.camera.position.toArray(),quaternion:this.app.camera.quaternion.toArray(),cpuFrameMs:performance.now()-start,captureOnly:true};
   }
   progress(p, text) {
+    this.event('load-stage',{progress:p, label:text});
     if (this.cancelled || this.lost || this.errors.length) throw Error('Native scene loading cancelled or failed');
     if (performance.now() - this.loaderStarted > 180000) throw Error('Native scene loading exceeded 180 seconds');
     document.querySelector('#status').textContent = `${Math.round(p * 100)}% · ${text}`;
+    const progress = document.querySelector('#arrival-progress');
+    if (progress) {
+      progress.value = Math.round(p * 100);
+      document.querySelector('#arrival-status').textContent = text;
+    }
     this.attachDevice();
   }
   attachDevice() {
@@ -151,6 +158,7 @@ export class NativeRuntime {
   }
   ready() {
     if (this.errors.length || this.cancelled) throw Error('Native initialization failed; inspect saved errors');
+    if(this.kind==='museum-creek')document.body.dataset.visitPhase='ready';
     this.phase = 'ready'; this.loadedAt = performance.now(); this.attachDevice();
     this.restoreSampleComparison?.();
     this.app.engine.domElement.addEventListener('click', () => {
@@ -165,7 +173,7 @@ export class NativeRuntime {
     for (const [key, method, label] of [
       ['animals', 'update', 'animals'], ['player', 'update', 'navigation'], ['fly', 'update', 'flyCamera'],
       ['terrain', 'update', 'terrain'], ['vegetation', 'update', 'vegetation'], ['debris', 'update', 'debris'],
-      ['sampleMuseumLife','update','museumLife'],['life','update','smallLife'],['habitatEnrichment','update','habitatPlants'],['landscapeDetails','update','benthicDetails'],['airMotes','update','airMotes'],
+      ['islandFauna','update','islandFauna'],['sampleMuseumLife','update','museumLife'],['life','update','smallLife'],['habitatEnrichment','update','habitatPlants'],['landscapeDetails','update','benthicDetails'],['airMotes','update','airMotes'],
       ['clouds', 'update', 'clouds'], ['environment', 'update', 'environment'], ['fft', 'update', 'oceanFFT'],
       ['shoreSim', 'update', 'shoreSimulation'], ['sceneRenderer', 'render', 'sceneRenderInclusive'],
       ['shadows', 'render', 'shadows'], ['post', 'render', 'post'],
@@ -176,7 +184,29 @@ export class NativeRuntime {
     renderer.render = (scene, pass) => { const before = this.currentPass; this.currentPass = pass.kind; try { return render(scene, pass); } finally { this.currentPass = before; } };
     this.app.animals?.instrumentPassVisits(id => { const pass = this.currentPass ?? 'unknown'; const counts = this.animalPassVisits[id]; counts[pass] = (counts[pass] ?? 0) + 1; });
     if(this.app.audio)this.app.audio.onStateChange=()=>this.publish();
-    if(this.kind==='museum-creek')this.app.regionMap=new RegionMap(this.app,place=>{if(this.phase!=='ready'||this.recording||this.measuring||this.walkingSample||this.recordingVideo||this.recordingAudio)return false;this.clearInput();this.app.showLandmark(place);this.resetHistory();this.event('map-travel',{place});this.resume();return true;});
+    if (this.kind==='museum-creek') {
+      const travel = place => {
+        if (this.phase!=='ready' || this.recording || this.measuring || this.walkingSample || this.recordingVideo || this.recordingAudio) return false;
+        this.clearInput();
+        this.app.showLandmark(place);
+        this.event('map-travel', {place});
+        this.resume();
+        return true;
+      };
+      this.app.regionMap = new RegionMap(this.app, travel);
+      this.visitorGuide = new VisitorGuide(this.app, travel, point => {
+        if (this.measuring || this.routeOwnsInput || this.recording || this.recordingVideo || this.recordingAudio) return;
+        const {camera, player, fly, freeCam} = this.app;
+        const dx = point[0] - camera.position.x, dy = point[1] - camera.position.y, dz = point[2] - camera.position.z;
+        if (Math.hypot(dx, dy, dz) < .05) return;
+        const controller = freeCam ? fly : player;
+        controller.yaw = Math.atan2(-dx, -dz);
+        controller.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+        this.clearInput();
+        this.resume();
+      });
+      if (!document.body.classList.contains('hud-collapsed')) document.querySelector('#hud-toggle')?.click();
+    }
     this.event('ready', { loadMs: this.loadedAt - this.loaderStarted });
     document.querySelector('#cancel').hidden = true;
     for (const button of document.querySelectorAll('[data-ready]')) button.disabled = false;
@@ -185,6 +215,7 @@ export class NativeRuntime {
   resetHistory() {
     this.app.animals?.hold();
     this.app.sampleMuseumLife?.hold();
+    this.app.islandFauna?.hold();
     this.app.life?.hold();
     if(this.app.haze)this.app.haze._histValid=false;
     this.app.clouds?.resetHistory?.();
@@ -203,7 +234,7 @@ export class NativeRuntime {
   stop(reason) {
     if (this.recording) this.interruptedDuringTiming = true;
     this.running = false; this.app.audio?.setPaused?.(true).catch(e=>this.event('audio-state-error',{message:String(e)})); if (!this.lost && this.phase !== 'error') this.app.animals?.hold();
-    this.app.sampleMuseumLife?.hold();this.app.life?.hold();
+    if (!this.lost && this.phase !== 'error') { this.app.sampleMuseumLife?.hold(); this.app.islandFauna?.hold(); this.app.life?.hold(); }
     this.clearInput();
     if (document.pointerLockElement) document.exitPointerLock();
     this.event('pause', { reason, gpuFrame: GPU.frame, worldTime: G.time.value });
@@ -222,7 +253,14 @@ export class NativeRuntime {
     const message = String(error?.message ?? error);
     if (this.cancelled && message.includes('destroy')) return;
     if (this.errors.at(-1)?.message === message) return;
+    if (this.kind==='museum-creek' && !this.errors.length) {
+      document.body.dataset.visitPhase='error';
+      document.querySelector('#arrival-status').textContent = !navigator.gpu ? '当前浏览器无法使用 WebGPU。请用支持 WebGPU 的桌面浏览器进入。' : '三维场景未能启动。可以重新进入，或返回地图选择观察点。';
+      document.querySelector('#arrival-progress').hidden = true;
+      document.querySelector('#arrival-retry').hidden = false;
+    }
     this.errors.push({ at: performance.now(), message }); this.running = false; this.phase = 'error';
+    this.app.disposeFauna?.();
     this.event('error', { message }); document.querySelector('#status').textContent = message;
     this.publish();
   }
@@ -306,6 +344,7 @@ export class NativeRuntime {
     };
   }
   publish() {
+    this.visitorGuide?.update();
     const a=this.app,inspection=document.querySelector('#inspection'),raw=document.querySelector('#raw-diagnostics');
     // Full evidence stays available through state(). Build the large JSON only
     // while it is visible; disclosure events refresh it immediately on opening.
@@ -314,7 +353,7 @@ export class NativeRuntime {
     const output=a.engine?.canvas?[a.engine.width,a.engine.height]:null,internal=a.sceneRenderer?.sceneRT?[a.sceneRenderer.sceneRT.width,a.sceneRenderer.sceneRT.height]:null;
     document.querySelector('#dimensions').textContent = output ? `输出 ${output.join('×')} · 内部 ${internal?.join('×') ?? '准备中'} · 目标 60 FPS` : '完整原生场景准备中';
     const fly=document.querySelector('#fly');if(fly){fly.textContent=a.freeCam?'退出升空 · F':'自由升空 · F';fly.setAttribute('aria-pressed',String(!!a.freeCam));}
-    const sound=document.querySelector('#sea-sound');if(sound&&this.app.audio){const a=this.app.audio;sound.textContent=!a.choice?'自然声：已关闭 · 点击开启':a.paused?'自然声：已暂停':a.enabled?'自然声：已开启':'自然声：点击恢复';sound.setAttribute('aria-pressed',String(a.choice));}
+    const sound=document.querySelector('#sea-sound');if(sound&&this.app.audio){const a=this.app.audio;sound.textContent=!a.choice?'开启自然声':a.paused?'自然声已暂停':a.enabled?'关闭自然声':'恢复自然声';sound.setAttribute('aria-pressed',String(a.choice));}
     const entry=document.querySelector('#scene-entry');if(entry)entry.hidden=this.phase!=='ready'||this.running||this.measuring||this.walkingSample||this.recording;
     const remaining=Number.isFinite(this.deadline)?Math.max(0,(this.deadline-performance.now())/1000):null;
     if (this.phase === 'ready' && this.running) document.querySelector('#status').textContent = this.recordingVideo?'正在保存动态画面':remaining===null?'持续观察中 · 可随时暂停':`观察中 · ${Math.ceil(remaining)} 秒后暂停`;
@@ -407,13 +446,17 @@ export class NativeRuntime {
     } finally { releaseInput(); this.walkingSample = false; this.publish(); }
   }
   async recordVideo() {
-    if(this.phase!=='ready'||this.recordingVideo||this.recordingAudio||this.recording||this.measuring||this.walkingSample)return;
+    if(this.phase!=='ready'||this.recordingVideo||this.preparingVideo||this.recordingAudio||this.recording||this.measuring||this.walkingSample)return;
     const canvas=this.app.engine.canvas;
     if(!canvas.captureStream||typeof MediaRecorder==='undefined')throw Error('浏览器不支持画布录像');
     const mimeType=['video/webm;codecs=vp9','video/webm;codecs=vp8'].find(t=>MediaRecorder.isTypeSupported(t));
     if(!mimeType)throw Error('浏览器没有可用的 WebM 编码器');
     const motion=document.querySelector('#motion-route')?.value??'none',motionPoints=[];
-    const revisionRoute=prepareRevisionRoute(this,motion),durationMs=revisionRoute?.durationMs??12000;
+    this.preparingVideo=true;
+    let revisionRoute;
+    try { revisionRoute=await prepareRevisionRoute(this,motion); } finally { this.preparingVideo=false; }
+    if(this.phase!=='ready')return;
+    const durationMs=revisionRoute?.durationMs??12000;
     if(motion==='dive'&&(this.app.freeCam||this.app.player.mode!=='swim'))throw Error('请先进入水下观察，再记录上浮下潜');
     if(motion==='catchment'&&!this.app.creekData.field.continuousSample)throw Error('原版无样板水系航拍路线');
     const captureFps=revisionRoute?.wingFollow?60:30;

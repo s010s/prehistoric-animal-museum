@@ -109,7 +109,7 @@ function fishMotion(g,summary){
  // This envelope includes 1.0–1.4 cm of world-space margin around those extrema.
  // Reusing a padded pre-repair envelope would retain a deep fin excursion that
  // the corrected sockets remove and unnecessarily eliminate the swim corridor.
- summary.revisedEnvelope={min:[-4.02,-.995,-1.57],max:[4.03,.91,1.58],sampleHz:120,minimumMarginMetres:.01};
+ summary.revisedEnvelope=sampleIchthyosaurEnvelope;
  summary.padding=[0,0,0];
 }
 
@@ -146,6 +146,8 @@ export function prepareMuseumMotion(source,id){
  if(id==='ichthyosaur')fishMotion(g,summary);else if(id==='lystrosaurus')lystroMotion(g,summary);else if(id==='parasaurolophus')parasMotion(g,summary);else if(id==='pteranodon')pteraMotion(g,summary);
  g.museumMotion=summary;return g;
 }
+
+export const sampleIchthyosaurEnvelope={min:[-4.02,-.995,-1.57],max:[4.03,.91,1.58],sampleHz:120,minimumMarginMetres:.01};
 
 export function museumMotionEnvelope(metadata,gltf){
  if(gltf.museumMotion?.revisedEnvelope){const e=gltf.museumMotion.revisedEnvelope;return{min:[...e.min],max:[...e.max]};}

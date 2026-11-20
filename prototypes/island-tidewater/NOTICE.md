@@ -44,6 +44,12 @@
 
 新增转换由 `tools/prepare-sample-animals.mjs` 解码 Meshopt、取消量化并无损转存PNG；源网格、材质、骨骼和动作轨道保留。原生今／昨骨骼调色板合并源模型多个蒙皮部件，保留鱼龙三个部件各自的逆绑定矩阵。运行时加入米制、实际地面支撑、有限觅食路径、访客让行与海岸飞行/海槽游动。源字节与转换文件、动画元数据、署名文件的哈希在 `creek/sample-animals.lock.json`，构建逐项核验。跨年代共处属于展区设定，无齿翼龙不归入鸟类。
 
+## 全岛馆藏动物
+
+岛屿馆藏读取博物馆主馆藏提交 `d2ea7a7` 的 45 个公开展品模型。逐项作者、原始出处、CC BY 4.0 许可及既有修改见 [岛屿馆藏模型署名](notices/island-museum-models.md)。`museum/island-museum-models.lock.json` 记录输入、转换版与署名文件的 SHA-256。
+
+岛屿转换保留材质槽、原骨骼、变形目标及动作轨道，按需解包至 Tidewater 原生 WebGPU。贴图按长边最多 512 像素重编码为 WebP，风神翼龙网格做了减面。尺寸及朝向按馆藏资料和可见的 Idle 姿势校准，翼展取采样中的最大横向跨度。菊石类尺寸使用 0.45 米的展示个体，未将其视为整个类群的尺寸。
+
 ## 连续样板自制几何与自然声
 
 `creek/SampleHabitatEnrichment.js` 使用 **Leon Made This / s010s** 创作的 [Lowpoly Vault](https://github.com/s010s/lowpoly-vault/tree/38ecb2c632dd4d6c23473a51f1d12bff5ea9f7af) 植物与足迹几何，许可为 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。源项目为 cycad、fern-cluster、horsetail-cluster、marsilea、montsechia、halimeda 与 three-toed-track，7个GLB总计947,076字节。逐项固定来源、SHA-256、尺寸与修改记录见 `creek/sample-habitat.lock.json`。原始GLB未改；运行时合并材质、校准尺寸与配色，加入根部固定的风/水流形变，按真实水位延伸水蕨叶柄，从泥板源几何提取凹印并贴合现有地形。足迹作为副栉龙形三趾后足的旧步迹示意，不认定具体足迹属，也不宣称是当前短步动画的实时落足印。海草额外复用 Tidewater 同固定提交的 MIT `ReefGeometry.js`，来源归 DRG Software Solutions LLC。
@@ -116,3 +122,9 @@
 ## 本项目原始针叶与树皮素材
 
 `creek/assets/needle-spray-v1.png` 为原博物馆 2026-09-28 的 AI 生成视觉代理贴图，保留原始字节；不把它作为植物学扫描或古植物复原证据。`creek/assets/fir-bark-albedo.webp` 来自原项目提取的 [Poly Haven fir_tree_01](https://polyhaven.com/a/fir_tree_01)，CC0，未重采样。二者的输入路径、字节数和 SHA-256 保存在 `creek/materials.lock.json`；构建会验证。
+
+### 整岛植物与地貌观察点
+
+整岛新增的九个 Vault GLB 来自 Leon Made This / s010s，许可为 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。本地保留原始字节。运行时调整位置、尺度和地面接触，移除漂砾与交错层理砂岩的展示底座，将干裂泥面嵌入真实地面，保留源材质及贴图。每项源文件、修订号、审查范围和哈希见 [island-ecology.lock.json](creek/island-ecology.lock.json)。干裂泥面使用 2026-11-20 的底面材质修订。植物形态、地貌与混合生境用于展示生态过程。
+
+湖岸、湿地与东部支流的水声使用原生 pier_lap.ogg 的独立空间声源。高地风声、林边鸟声及夜间虫声沿用原生 CC0 录音。这些现代录音的作者和来源见 [Tidewater audio credits](vendor/tidewater/public/audio/CREDITS.md)。

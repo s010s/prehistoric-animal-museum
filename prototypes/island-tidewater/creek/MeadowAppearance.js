@@ -9,6 +9,7 @@ import {terrainShadingModule,srgb} from '../vendor/tidewater/src/world/terrain/T
 import {createGrassDistance} from './GrassDistance.js';
 import {sampleForestWeight,sampleForestWGSL} from './SampleForest.js';
 import {buildSampleGroundCover} from './SampleGroundCover.js';
+import {LYSTROSAURUS_CLEARING} from './IslandFaunaPlan.js';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 
 export function createMeadowAppearance(data,terrainGPU){
@@ -25,7 +26,8 @@ export function createMeadowAppearance(data,terrainGPU){
   const inside=Math.max(Math.abs(x),Math.abs(z))<496;
   const wood=(inside?data.masks[(cz*g.maskRes+cx)*4+3]:data.islandMasks[k+3])/255;
   const damp=(1-smooth(2,15,Math.abs(f[1])))*smooth(.12,1.2,terrain.heightAt(x,z)-f[0]);
-  mask.data[k+2]=Math.round(v*damp*.8*255);
+  const marshUprights=1-data.landforms.climate.wetland.weight(x,z);
+  mask.data[k+2]=Math.round(v*damp*.8*marshUprights*255);
   // Sparse woodland groundcover; the native bright beach creeper must not be
   // distributed across every inland meadow simply because it has woodland.
   mask.data[k+3]=Math.round(v*(.018+wood*.13)*255);
@@ -91,7 +93,10 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
  let support=1.0-smoothstep(0.0,2.5,f.y);
  let dry=mix(1.0,smoothstep(.08,.6,h-f.x),mix(support,1.0,museumHabitatReview.legacyWater));m.g*=dry;
  let damp=(1.0-smoothstep(1.0,12.0,abs(f.y)))*dry;
- m.b=max(m.b,m.g*damp*.85);
+ // Give the southern marsh's curved, jointed clumps their own vertical
+ // layer. The coastal seed-head cards recede across the marsh footprint.
+ let coastalUprights=1.0-museumWetlandSoil(p);
+ m.b=max(m.b,m.g*damp*.85)*coastalUprights;
  let grove=museumGroveFloor(p);let gk=1.0-grove.x*(.92-grove.y*.30-smoothstep(.6,.9,grove.z)*.30);
  // Fine reconstruction also observes the same world-fixed litter/opening field.
  m.g=mix(m.g,m.g*gk,terrainFineWeight(p));m.a*=1.0-grove.x*.75;
@@ -103,6 +108,11 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
  }
  m.gba*=museumMouthGrassFactor(p,h);`:''}
  m.gba*=1.0-museumSpringOutcrop(p);
+ // A dry opening in the terrace leaves room to see the low animal through
+ // the sward without changing its real size. The coarse cover stays intact.
+ let clearing=p-vec2f(${LYSTROSAURUS_CLEARING.map(v=>v.toFixed(1)).join(',')});
+ let margin=length(clearing)+.65*sin(p.x*.93)*sin(p.y*.81);
+ m.gba*=mix(.025,1.0,smoothstep(8.0,16.0,margin));
  ${data.field.continuousSample?`if(museumHabitatReview.patchCover>0.0){
   // The beach mask already protects open sand. Let a world-fixed pattern
   // interrupt the over-broad 32 m grass channel on the vegetated backshore.

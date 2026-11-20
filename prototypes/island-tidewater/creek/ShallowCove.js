@@ -8,9 +8,9 @@ export const SHELF_DESIGNS=[
  {id:'south-shelf',center:[6200,7750],normal:[0,1],along:1250,width:640,kind:'broad sediment shelf and scattered boulders'},
 ];
 export function sculptShallowCove(regional,global,site,otherGrids=[]){
- const sea=-.7,grids=[global,regional,...otherGrids],step=8;
+ const sea=-.7,patches=[regional,...otherGrids],grids=[global,...patches],step=8;
  // Query untouched grids with the same regional blends as the final surface.
- const base=(x,z)=>{let h=global.heightAt(x,z);for(const p of [regional,...otherGrids]){const c=p.center??[0,0],w=1-smooth(3800,4080,Math.max(Math.abs(x-c[0]),Math.abs(z-c[1])));if(w>0)h=lerp(h,p.heightAt(x,z),w);}return h;};
+ const base=(x,z)=>{let h=global.heightAt(x,z);for(const p of patches){const c=p.center??[0,0],w=1-smooth(3800,4080,Math.max(Math.abs(x-c[0]),Math.abs(z-c[1])));if(w>0)h=lerp(h,p.heightAt(x,z),w);}return h;};
  const shelves=SHELF_DESIGNS.map(design=>{
   const center=design.id==='west-shelf'?[site.x,site.z]:design.center,n=design.normal,t=[-n[1],n[0]],edges=[],span=design.along+80;
   for(let a=-span;a<=span+step;a+=step){
@@ -42,7 +42,7 @@ export function sculptShallowCove(regional,global,site,otherGrids=[]){
     grid.heights[k]=y;shelf.changedSamples++;shelf.maxShiftMetres=Math.max(shelf.maxShiftMetres,Math.abs(y-old));
     if(sea-y<14){grid.sand[k]=Math.round(w*255);grid.rock[k]*=1-w*.8;}
    }
-  }grid.buildMinMax();
+  }
  }
  const west=shelves[0],edgeAt=z=>west.at((z-west.center[1])/west.tangent[1])[0];
  const sections=shelves.map(s=>({id:s.id,center:s.center,normal:s.normal,length:s.along*2,width:s.width,kind:s.kind,changedSamples:s.changedSamples,maxShiftMetres:s.maxShiftMetres,transects:[-s.along*.4,0,s.along*.4].map(a=>({along:a,samples:[0,20,60,120,210,320,450].map(d=>{const p=s.at(a,d);return{offshore:d,point:p,depth:sea-base(...p)};})}))}));

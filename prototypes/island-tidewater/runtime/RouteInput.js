@@ -23,7 +23,7 @@ export function takeRouteInput(runtime) {
   const capture = {capture:true, passive:false, signal:listeners.signal};
   const stop = event => { event.preventDefault(); event.stopImmediatePropagation(); };
   for (const type of ['mousedown','click','wheel']) canvas.addEventListener(type, stop, capture);
-  const controls = [...document.querySelectorAll('[data-place], [data-animal], [data-water-view], [data-map-place], .map-key-item, #walk, #fly, #enter-scene, #flight-speed, #motion-route, #region-place, #coast-place, #sample-place, #sample-compare, #restore-scene-report')].filter(control => !control.disabled);
+  const controls = [...document.querySelectorAll('[data-place], [data-animal], [data-water-view], [data-map-place], .map-key-item, #walk, #fly, #enter-scene, #flight-speed, #motion-route, #region-place, #coast-place, #sample-place, #sample-compare, #fauna-place, #fauna-travel, #face-animal, #fauna-pin, #guide-cancel, #restore-scene-report')].filter(control => !control.disabled);
   for (const control of controls) control.disabled = true;
   runtime.routeOwnsInput = true;
   runtime.wasLocked = false;

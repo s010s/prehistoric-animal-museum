@@ -2,10 +2,10 @@
 // original river's sea-level outlet, while the accepted 1m creek core stays.
 import {TerrainData} from '../vendor/tidewater/src/world/TerrainData.js';
 import {bedRelief} from './BedRelief.js';
+import {readTerrainAsset} from './TerrainTransport.js';
 
 export async function expandWatershed(data){
- const get=async(url,json=false)=>{const r=await fetch(url);if(!r.ok)throw Error('Watershed asset '+r.status);return json?r.json():r.arrayBuffer();};
- const [layout,h,m,p]=await Promise.all([get(new URL('./assets/watershed-layout.json',import.meta.url),true),get(new URL('./assets/watershed-heights.bin',import.meta.url)),get(new URL('./assets/watershed-masks.bin',import.meta.url)),get(new URL('./assets/river-profile.bin',import.meta.url))]);
+ const [layout,h,m,p]=await Promise.all(['watershed-layout.json','watershed-heights.bin','watershed-masks.bin','river-profile.bin'].map(readTerrainAsset));
  data.field.extendRiver(layout,new Float32Array(p));
  const cover=data.terrain,core=data.coreTerrain,outer=Object.create(TerrainData.prototype),masks=new Uint8Array(m),n=layout.res**2;
  Object.assign(outer,{size:layout.size,res:layout.res,texel:layout.texel,origin:layout.origin,heights:new Float32Array(h),pads:[],rockSites:[],paths:[],timings:{source:'museum original main watershed'}});

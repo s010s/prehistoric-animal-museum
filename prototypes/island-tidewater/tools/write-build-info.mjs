@@ -29,8 +29,20 @@ export async function writeBuildInfo() {
       if (sha(bytes) !== animal.morph.sha256) throw Error(`Morph data changed: ${animal.id}`);
     }
   }
-  const island=JSON.parse(await readFile(new URL('island/export.lock.json',root),'utf8'));
-  for(const item of island.outputs){if(sha(await readFile(new URL('island/'+item.path,root)))!==item.sha256)throw Error('Island cartography changed: '+item.path);}
+  const island = JSON.parse(await readFile(new URL('island/export.lock.json', root), 'utf8'));
+  if (island.schema !== 'museum-island-plan-export-v2') throw Error('Invalid island cartography lock');
+  for (const layer of ['terrain', 'habitat']) {
+    if (!island.outputs.some(({ path }) => path === `island/assets/${layer}.webp`)) {
+      throw Error('Missing locked visitor map: ' + layer);
+    }
+  }
+  for (const item of island.inputs) {
+    if (sha(await readFile(new URL(item.path, root))) !== item.sha256) throw Error('Regenerate island cartography after ' + item.path);
+  }
+  for (const item of island.outputs) {
+    const bytes = await readFile(new URL(item.path, root));
+    if (bytes.length !== item.bytes || sha(bytes) !== item.sha256) throw Error('Island cartography changed: ' + item.path);
+  }
   const lock = await readFile(new URL('../../../package-lock.json', import.meta.url));
   const creek = JSON.parse(await readFile(new URL('creek/geography.lock.json', root), 'utf8'));
   for (const item of creek.outputs) {
@@ -53,6 +65,11 @@ export async function writeBuildInfo() {
     const path=item.path.replace(/^prototypes\/island-tidewater\//,''),bytes=await readFile(new URL(path,root));
     if(bytes.length!==item.bytes||sha(bytes)!==item.sha256)throw Error('Vault habitat asset changed: '+item.id);
   }
+  const ecology=JSON.parse(await readFile(new URL('creek/island-ecology.lock.json',root),'utf8'));
+  for(const item of ecology.assets){
+    const bytes=await readFile(new URL('creek/'+item.path,root));
+    if(bytes.length!==item.bytes||sha(bytes)!==item.sha256)throw Error('Reviewed island environment asset changed: '+item.id);
+  }
   const sampleAnimals=JSON.parse(await readFile(new URL('creek/sample-animals.lock.json',root),'utf8'));
   for(const animal of sampleAnimals.animals){
     const bytes=await readFile(new URL(animal.derived,root));
@@ -61,7 +78,25 @@ export async function writeBuildInfo() {
     if(metadata.length!==animal.metadataBytes||sha(metadata)!==animal.metadataSha256)throw Error('Sample museum animation metadata changed: '+animal.id);
     if(license.length!==animal.licenseBytes||sha(license)!==animal.licenseSha256)throw Error('Sample museum attribution changed: '+animal.id);
   }
-  const info = { wholeIslandSha256:sha(Buffer.from(JSON.stringify(wholeIsland))),watershedSha256:sha(Buffer.from(JSON.stringify(watershed))),coastGeographySha256:sha(Buffer.from(JSON.stringify(coast))), originalMaterialsSha256:sha(Buffer.from(JSON.stringify(materials))), schema: 'museum-native-build-v1', sourceHash: source.digest('hex'), upstreamCommit: upstream.commit, upstreamFiles: upstream.files.length, upstreamUnmodified: true, dependencyLockSha256: sha(lock), animalConversionSha256: sha(Buffer.from(JSON.stringify(converted))), creekGeographySha256: sha(Buffer.from(JSON.stringify(creek))), sourceFiles: names };
+  const museumModels = JSON.parse(await readFile(new URL('museum/island-museum-models.lock.json', root), 'utf8'));
+  const modelDir = 'museum/assets/island/';
+  const expected = museumModels.ids.map(id => id + '.glb.gz').sort();
+  const actual = (await readdir(new URL(modelDir, root))).filter(name => name !== '.DS_Store').sort();
+  if (museumModels.schema !== 'museum-island-models-v1' ||
+      new Set(museumModels.ids).size !== museumModels.ids.length ||
+      museumModels.ids.length !== Object.keys(museumModels.animals).length ||
+      JSON.stringify(actual) !== JSON.stringify(expected)) throw Error('Island museum collection files do not match the canonical inventory');
+  for (const id of museumModels.ids) {
+    const asset = museumModels.animals[id];
+    if (asset?.id !== id || asset.path !== modelDir + id + '.glb.gz' || !(asset.scale > 0) || !asset.clips.length) {
+      throw Error('Invalid island museum model metadata: ' + id);
+    }
+    const bytes = await readFile(new URL(asset.path, root));
+    if (bytes.length !== asset.bytes || sha(bytes) !== asset.sha256) throw Error('Island museum model changed: ' + id);
+  }
+  const credits = await readFile(new URL(museumModels.credits.path, root));
+  if (credits.length !== museumModels.credits.bytes || sha(credits) !== museumModels.credits.sha256) throw Error('Island museum model credits changed');
+  const info = { museumModelsSha256: sha(Buffer.from(JSON.stringify(museumModels))), wholeIslandSha256:sha(Buffer.from(JSON.stringify(wholeIsland))),watershedSha256:sha(Buffer.from(JSON.stringify(watershed))),coastGeographySha256:sha(Buffer.from(JSON.stringify(coast))), originalMaterialsSha256:sha(Buffer.from(JSON.stringify(materials))), schema: 'museum-native-build-v1', sourceHash: source.digest('hex'), upstreamCommit: upstream.commit, upstreamFiles: upstream.files.length, upstreamUnmodified: true, dependencyLockSha256: sha(lock), animalConversionSha256: sha(Buffer.from(JSON.stringify(converted))), creekGeographySha256: sha(Buffer.from(JSON.stringify(creek))), sourceFiles: names };
   const text = JSON.stringify(info, null, 2) + '\n';
   const target = new URL('runtime/build-info.json', root);
   let previous = ''; try { previous = await readFile(target, 'utf8'); } catch {}

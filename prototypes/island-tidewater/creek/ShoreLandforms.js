@@ -93,7 +93,7 @@ export function createShoreLandforms(data) {
     ...data.regionTerrains.map(grid => ({grid, inner: 3800, outer: 4080})),
     {grid: data.coreTerrain, inner: 448, outer: 496},
     ...[data.sourceTerrain, data.eastSourceTerrain].map(grid => ({grid, inner: 112, outer: 124})),
-    ...data.sampleTerrains.map(grid => ({grid, inner: grid.inner, outer: grid.outer})),
+    ...[...data.sampleTerrains, ...data.regionalTerrains].map(grid => ({grid, inner: grid.inner, outer: grid.outer})),
   ];
   function substrateAt(x, z) {
     const base = groundChannels(data.terrain, x, z);
@@ -158,5 +158,5 @@ export function createShoreLandforms(data) {
     return {height, level, relativeHeight, depth, slope, marine, channel, swash, strand, backshore, rock, sand, gravel, soil};
   }
 
-  return {profileFor, sample, materialWGSL: materialFor(lakes)};
+  return {profileFor, sample, substrateAt, materialWGSL: materialFor(lakes)};
 }

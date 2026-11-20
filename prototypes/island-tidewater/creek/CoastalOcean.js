@@ -3,7 +3,7 @@
 import {Mesh,Vector2} from '../vendor/tidewater/src/engine/index.js';
 import {UniformBlock} from '../vendor/tidewater/src/engine/webgpu.js';
 import {ShaderModule} from '../vendor/tidewater/src/engine/gpu/Shader.js';
-import {CDLOD} from '../vendor/tidewater/src/core/CDLOD.js';
+import {IslandOceanLOD} from './IslandOceanLOD.js';
 import {G} from '../vendor/tidewater/src/core/Globals.js';
 import {LAYERS} from '../vendor/tidewater/src/core/SceneRenderer.js';
 import {OceanFFT} from '../vendor/tidewater/src/ocean/OceanFFT.js';
@@ -50,7 +50,15 @@ fn museumHasCreek(p:vec2f)->bool{return creekContains(p)&&creekMeanAt(p)>terrain
   // The post medium only probes the lens (~0.1m from the camera). Use the
   // same-frame native height/normal there; full FFT Eulerian queries remain in
   // simulation and spray. This keeps the beauty pass within 32 texture bindings.
-  this.mediumModule=new ShaderModule({name:'museum-lens-water',deps:[this.resultsModule,domain],code:`
+  this.lensField=[0,0,0,0];
+  this.lensRegion=new UniformBlock('MuseumCameraRegion',{inland:['f32',-1]});
+  this.mediumModule=new ShaderModule({name:'museum-lens-water',deps:[this.resultsModule,domain],uniforms:this.lensRegion,uniformName:'museumCameraRegion',code:`
+fn museumCameraInland(p:vec2f)->bool{
+ // Re-evaluate the exact GPU predicate at the freshwater edge. Away from it
+ // every pixel shares the same region for the camera's scattering integral.
+ if(museumCameraRegion.inland<0.0){return creekContains(p);}
+ return museumCameraRegion.inland>.5;
+}
 fn waterQueryHeightAtXZ(p:vec2f)->f32{
  if(museumHasCreek(p)){return creekMeanAt(p);}
  if(terrainHeightAt(p)>=frame.seaLevel+0.6){return -90.0;}
@@ -70,19 +78,30 @@ fn waterQueryResult(slot:u32)->vec4f{return oceanQueryResult(slot);}
 `});
  }
  allocate(name,n=1){return this.ocean.allocate(name,n);}
- sample(x,z){
-  const f=this.field.sample(x,z),ground=this.terrain.heightAt(x,z);
-  if(f[1]<.05&&f[0]>G.seaLevel.value+.5&&f[0]>ground-.01)return f;
+ sample(x,z,ground=this.terrain.heightAt(x,z),levels){
+  const f=this.field.sample(x,z);
+  if(f[1]<.05&&f[0]>G.seaLevel.value+.5&&f[0]>ground-.01){
+   if(levels)levels.mean=f[0];
+   return f;
+  }
   if(ground<G.seaLevel.value+.6){
    let h=G.seaLevel.value;const weight=f[1]<-1?Math.max(0,Math.min(1,(f[0]-G.seaLevel.value)/.2)):0;h=h*(1-weight)+f[0]*weight;
+   if(levels)levels.mean=h;
    if(this.ocean.cpuValid)for(const [i]of this.points){const k=i*4,q=this.ocean.resultInputs;if(Math.hypot(q[k]-x,q[k+1]-z)<2){h=this.ocean.cpu[k];break;}}
    return [h,ground-h,0,0];
   }
+  if(levels)levels.mean=ground-.2;
   return [ground-.2,10000,0,0];
  }
  height(x,z){const f=this.sample(x,z);return f[1]<.05?f[0]:-90;}
  setPoint(i,x,z){this.points.set(i,[x,z]);this.ocean.setPoint(i,x,z);this.cpu[i*4]=this.sample(x,z)[0];}
- setCamera(x,z){this.points.set(0,[x,z]);this.ocean.setCamera(x,z);this.cpu[0]=this.height(x,z);}
+ setCamera(x,z){
+  this.points.set(0,[x,z]);this.ocean.setCamera(x,z);this.cpu[0]=this.height(x,z);
+  const [level,edge]=this.field.sample(x,z,this.lensField),datum=G.seaLevel.value+.5;
+  const inland=edge<-.05&&level>datum+.05;
+  const outside=edge>.15||level<datum-.05;
+  this.lensRegion.fields.inland.value=inland?1:outside?0:-1;
+ }
  update(){this.ocean.update();for(const [i,p]of this.points)this.cpu[i*4]=i===0?this.height(...p):this.sample(...p)[0];}
  cameraState(){const mk=e=>Object.assign(new String(e),{module:this.resultsModule});const r=mk('waterQueryCameraState()');for(const c of 'xyzw')r[c]=mk('waterQueryCameraState().'+c);return r;}
 }
@@ -92,7 +111,7 @@ export function createCoastalOcean(app,data){
  const fft=new OceanFFT(engine),foamTexture=createFoamTexture(engine);
  // Aerial exploration must not expose a finite ocean edge inside the 60km
  // camera frustum. Outer rings add coarse patches, not extra fine waves.
- const oceanLOD=new CDLOD({gridSize:32,leafSize:8,levels:17,minY:-25,maxY:25});
+ const oceanLOD=new IslandOceanLOD(data.terrain);
  const surface=new WaterSurface({fft,cdlod:oceanLOD,foamTexture});surface.terrain=terrainGPU;
  const seaDetail=new SeaDetail();surface.detail=seaDetail;
  const shore=new ShoreWaves(terrainGPU);useHybridShoreDirection(shore,app.shoreField);surface.shore=shore;

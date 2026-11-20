@@ -1,0 +1,123 @@
+{
+  "sourceBranch": "repair/live-models-review",
+  "sourceCommit": "8a9df831e193d347671f46708addd5a19c486536",
+  "assets": [
+    {
+      "id": "desiccation-crack-surface",
+      "path": "assets/island-desiccation-crack-surface-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/additions/desiccation-crack-surface/display-reviewed-v1/model-716a4eb672bc.glb",
+      "author": "Leon Made This / s010s",
+      "license": "CC-BY-4.0",
+      "revision": "material-repair-bottom-strength2-20261120",
+      "qualityStatus": "independent_scoped_review_passed",
+      "scope": "Single-model underside material and paired delivery scope; historical scientific and target-device limitations retained. Not a whole-model scientific approval.",
+      "bytes": 4482812,
+      "triangles": 33840,
+      "sha256": "716a4eb672bcbea99dbd5ca04e34181645a9e4741c3e23c5a64f80776066cd0c"
+    },
+    {
+      "id": "cross-bedded-sandstone",
+      "path": "assets/island-cross-bedded-sandstone-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/additions/cross-bedded-sandstone/reviewed-release-20261114-07/model.glb",
+      "author": "Leon Made This / s010s",
+      "license": "CC-BY-4.0",
+      "revision": "reviewed-release-20261114-07",
+      "qualityStatus": "independent_scoped_review_passed",
+      "scope": "Existing exact-version whole-artistic acceptance and separately checked display evidence retained.",
+      "bytes": 1781864,
+      "triangles": 32999,
+      "sha256": "6c39b2efaca1657b00d62a43bca4c7895dea35d7d0c614a11c78e4c957a71ea1"
+    },
+    {
+      "id": "glacial-erratic",
+      "path": "assets/island-glacial-erratic-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/additions/glacial-erratic/reviewed-batch100-20261114/model-92e827cf4c06.glb",
+      "author": "Leon Made This / s010s",
+      "license": "CC-BY-4.0",
+      "revision": "reviewed-batch100-20261114",
+      "qualityStatus": "independent_scoped_review_passed",
+      "scope": "Existing exact-version whole-artistic acceptance and separately checked display evidence retained.",
+      "bytes": 1786900,
+      "triangles": 33000,
+      "sha256": "92e827cf4c061d5ce30240c3ecfc1598d81a856880e8c591be34182180a8cb24"
+    },
+    {
+      "id": "cycad",
+      "path": "assets/island-cycad-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/additions/cycad/reviewed-release-20261114-07/model.glb",
+      "author": "Leon Made This / s010s",
+      "license": "CC-BY-4.0",
+      "revision": "reviewed-release-20261114-07",
+      "qualityStatus": "independent_scoped_review_passed",
+      "scope": "Existing exact-version whole-artistic acceptance and separately checked display evidence retained.",
+      "bytes": 2605700,
+      "triangles": 33000,
+      "sha256": "542700d8ed8bd26defd9d129796f1614ecde155fd48bd024f9f3ee1f3a0fbad6"
+    },
+    {
+      "id": "marsilea",
+      "path": "assets/island-marsilea-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/additions/marsilea/reviewed-release-20261114-13/model.glb",
+      "author": "Leon Made This / s010s",
+      "license": "CC-BY-4.0",
+      "revision": "reviewed-release-20261114-13",
+      "qualityStatus": "independent_scoped_review_passed",
+      "scope": "Existing exact-version whole-artistic acceptance and separately checked display evidence retained.",
+      "bytes": 2184204,
+      "triangles": 33864,
+      "sha256": "413be3d3b43ddd6d993fc2f3cd594c310881c964bbf3a4061a1383227e07d2ee"
+    },
+    {
+      "id": "wave-cut-platform",
+      "path": "assets/island-wave-cut-platform-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/additions/wave-cut-platform/small-life-round11-20261018/wave-cut-platform.glb",
+      "author": "Leon Made This / s010s",
+      "license": "CC-BY-4.0",
+      "qualityStatus": "independent_qa_accepted_stylized_prop",
+      "scope": "Independently reviewed original stylized-inspired static teaching art. Palette, pose, nominal dimensions and simplified anatomy are artistic choices; not a strict scientific reconstruction or coexistence claim.",
+      "bytes": 124244,
+      "triangles": 6816,
+      "sha256": "fbeffd65ef58a40e7276d5c474d0956b2e02203fe8c122f7bf0f48bacda8ecc3"
+    },
+    {
+      "id": "azolla",
+      "path": "assets/island-azolla-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/successors/world-revisions-20261025/azolla/model.glb",
+      "author": "Leon Made This / s010s",
+      "license": "CC-BY-4.0",
+      "revision": "world-r002",
+      "qualityStatus": "independent_qa_accepted_stylized_prop",
+      "scope": "Independently reviewed original stylized-inspired static teaching art. Palette, pose, nominal dimensions and simplified anatomy are artistic choices; not a strict scientific reconstruction or coexistence claim.",
+      "bytes": 176540,
+      "triangles": 2422,
+      "sha256": "652e72849b0a03cc99c087cf69d4ffccd066a28ddf149dad778baa07f0861f24"
+    },
+    {
+      "id": "isastraea",
+      "path": "assets/island-isastraea-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/candidates/isastraea/material-20261119/model.glb",
+      "author": "Leon Made This / s010s",
+      "license": "CC-BY-4.0",
+      "revision": "material-20261119",
+      "qualityStatus": "independent_scoped_review_passed",
+      "scope": "Material-only candidate independently reviewed in a scoped desktop and touch-emulated gallery; local visibility of lower neighboring cup edges and radial septa improved. Branch CI, production build and physical-device matrix are pending. Not a release.",
+      "bytes": 2304212,
+      "triangles": 33000,
+      "sha256": "c91bcd6dbf1b1b367b1d8f08630c5b06e0c717bf862856551095ae579be1cd2a"
+    },
+    {
+      "id": "conglomerate-outcrop",
+      "path": "assets/island-conglomerate-outcrop-vault.glb",
+      "source": "https://github.com/s010s/lowpoly-vault/blob/8a9df831e193d347671f46708addd5a19c486536/assets/additions/conglomerate-outcrop/reviewed-release-20261114-07/model.glb",
+      "author": "Leon Made This / s010s",
+      "license": "CC-BY-4.0",
+      "revision": "reviewed-release-20261114-07",
+      "qualityStatus": "independent_scoped_review_passed",
+      "scope": "Existing exact-version whole-artistic acceptance and separately checked display evidence retained.",
+      "bytes": 1771624,
+      "triangles": 32999,
+      "sha256": "eee4b1664dc72a58126cbc18da03e9e94e0a7b299caa91d3194fc7ef94be77ca"
+    }
+  ],
+  "changes": "Exact GLB source bytes. Runtime grounding, placement and native material interpretation. Removes the display bases of the glacial erratic and cross-bedded sandstone. The drying mud relief is conformed and embedded into the bank. Regional decorative botanical forms are ecological analogues."
+}
