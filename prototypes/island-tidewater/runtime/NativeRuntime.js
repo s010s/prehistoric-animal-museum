@@ -40,7 +40,7 @@ export class NativeRuntime {
       this.resetHistory();
       this.event('scale', { value: this.app.settings.renderScale }); this.publish();
     };
-    const density=document.querySelector('#output-density');if(density)density.onchange=()=>{if(this.phase!=='ready'||this.measuring||this.recordingVideo||this.recordingAudio)return;this.app.engine.setRenderScale(Number(density.value));this.resetHistory();this.event('output-density',{value:Number(density.value)});this.resume();this.publish();};
+    const density=document.querySelector('#output-density');if(density)density.onchange=()=>{if(this.phase!=='ready'||this.measuring||this.recordingVideo||this.recordingAudio)return;const value=Number(density.value);if(this.app.waterBudget)this.app.waterBudget.setOutputDensity(value);else this.app.engine.setRenderScale(value);this.resetHistory();this.event('output-density',{value});this.resume();this.publish();};
     for (const button of document.querySelectorAll('[data-animal]')) button.onclick = () => { if (this.recording || this.measuring || this.walkingSample) return; app.animals?.lookAt(button.dataset.animal); this.resetHistory(); if (this.phase === 'ready') this.resume(); };
     document.querySelector('#walk').onclick = () => { if (this.phase !== 'ready' || this.recording || this.measuring || this.walkingSample) return; app.freeCam = false; app.dropPlayerAtCamera(); this.resetHistory(); this.event('native-ground-walk'); this.resume(); };
     const fly=document.querySelector('#fly');if(fly)fly.onclick=()=>{if(this.phase!=='ready'||this.recording||this.measuring||this.walkingSample)return;app.setFreeCam(!app.freeCam);this.event('free-flight',{enabled:app.freeCam});this.resume();};
@@ -298,7 +298,9 @@ export class NativeRuntime {
       if (!previous || previous.output[0]!==engine.width || previous.output[1]!==engine.height ||
           previous.internal[0]!==rt.width || previous.internal[1]!==rt.height || previous.scale!==post.scale ||
           previous.minimumScale!==waterBudget?.viewMinimumScale) {
+        const budget = waterBudget?.state();
         this.bufferChanges.push({frame:row.frame,t,output:[engine.width,engine.height],internal:[rt.width,rt.height],
+          viewport:budget?.viewport,density:budget?.density,minimumDensity:budget?.minimumDensity,sceneFloor:budget?.minimumScale,
           scale:post.scale,automatic:waterBudget?.automatic===true,minimumScale:waterBudget?.viewMinimumScale});
       }
     }
@@ -387,8 +389,12 @@ export class NativeRuntime {
       const after = this.state();
       const fixedBuffers = this.bufferChanges.length===1 && JSON.stringify(conditions.output) === JSON.stringify(after.output) && JSON.stringify(conditions.internal) === JSON.stringify(after.internal) && conditions.renderScale === after.renderScale;
       const validWaterScaling=conditions.waterQuality?.automatic===true && after.waterQuality?.automatic===true &&
-        this.bufferChanges.length>0 && this.bufferChanges.every(b=>b.automatic && b.scale>=b.minimumScale && b.minimumScale>=conditions.waterQuality.minimumScale && b.scale<=1 &&
-          b.output.every((n,i)=>n===conditions.output[i] && n===after.output[i] && b.internal[i]===Math.max(1,Math.round(n*b.scale))));
+        this.bufferChanges.length>0 && conditions.waterQuality.requestedDensity===after.waterQuality.requestedDensity &&
+        this.bufferChanges.every(b=>b.automatic && b.scale>=b.minimumScale && b.minimumScale>=b.sceneFloor && b.sceneFloor>=.5 && b.scale<=1 &&
+          b.density>=b.minimumDensity && b.density<=conditions.waterQuality.requestedDensity &&
+          (conditions.waterQuality.requestedDensity===1 || b.density===conditions.waterQuality.requestedDensity) &&
+          b.output.every((n,i)=>b.viewport[i]===conditions.waterQuality.viewport[i] && b.viewport[i]===after.waterQuality.viewport[i] &&
+            n===Math.max(1,Math.floor(b.viewport[i]*b.density)) && b.internal[i]===Math.max(1,Math.round(n*b.scale))));
       const intervals = this.frames.map(f => f.interval).filter(v => v !== null);
       const gpuMs = gpu.rows.filter(r => r.status === 'valid').map(r => r.ms);
       const result = {

@@ -3,6 +3,7 @@ import {ComputeKernel, Readback, StorageBuffer} from '../vendor/tidewater/src/en
 const minimumScale = .75;
 const standardWaterFloor = .8;
 const foliageFloor = .85;
+const referencePixels = 1600 * 900;
 
 // Sample the visible water mask, after depth testing, on a 16 × 8 grid.
 // This also catches inland water, and costs one workgroup and four bytes
@@ -13,6 +14,10 @@ export class WaterFrameBudget {
     this.app = app;
     this.automatic = true;
     this.scale = 1;
+    this.requestedDensity = app.engine.renderScale;
+    this.outputDebt = 0;
+    this.outputHeadroomSince = null;
+    this.outputCooldown = 0;
     this.viewMinimumScale = standardWaterFloor;
     this.seaLevel = app.creekData.island.seaLevel;
     this.shoreStations = app.creekData.hydrology.coasts.filter(site =>
@@ -70,6 +75,7 @@ fn main(@builtin(local_invocation_index) i:u32) {
   }
 
   setQuality(value) {
+    this.setOutputDensity(this.requestedDensity);
     this.automatic = value === 'auto';
     this.waterInView = false;
     this.viewMinimumScale = standardWaterFloor;
@@ -77,6 +83,14 @@ fn main(@builtin(local_invocation_index) i:u32) {
     this.windowStart = null;
     this.deficitWindows = 0;
     this.apply(this.automatic ? 1 : Number(value), performance.now());
+  }
+
+  setOutputDensity(value) {
+    this.requestedDensity = value;
+    this.outputDebt = 0;
+    this.outputHeadroomSince = null;
+    this.outputCooldown = 0;
+    if (this.app.engine.renderScale !== value) this.app.engine.setRenderScale(value);
   }
 
   // Under-sampled wave edges need a wider spread of temporal samples. Store
@@ -143,6 +157,55 @@ fn main(@builtin(local_invocation_index) i:u32) {
     return standardWaterFloor;
   }
 
+  // Preserve the close-detail pixel budget measured on the reference window.
+  // A larger desktop can use the same scene detail under sustained pressure
+  // while the temporal reconstruction and the final canvas stay full size.
+  viewportFloor(nominal) {
+    const {width, height, renderScale} = this.app.engine;
+    if (renderScale > 1 || width * height <= referencePixels) return nominal;
+    const equivalent = nominal * Math.sqrt(referencePixels / (width * height));
+    return Math.min(nominal, Math.max(.5, Math.ceil(equivalent * 20) / 20));
+  }
+
+  outputWindow() {
+    const {canvas} = this.app.engine;
+    return [parseFloat(canvas.style.width), parseFloat(canvas.style.height)];
+  }
+
+  minimumDensity(viewport) {
+    return Math.min(1, Math.max(.5, Math.ceil(20 * Math.sqrt(referencePixels / (viewport[0] * viewport[1]))) / 20));
+  }
+
+  // TAA, bloom and presentation still process the whole output after the
+  // scene itself reaches its pixel budget. Resize those targets only if the
+  // GPU queue keeps missing refreshes at that scene floor. UI stays native.
+  balanceOutput(now, fps, blocked, nominal) {
+    const engine = this.app.engine;
+    if (this.requestedDensity !== 1) return false;
+    const density = engine.renderScale;
+    const minimum = this.minimumDensity(this.outputWindow());
+    if (minimum === 1 && density === 1) return false;
+    const misses = this.scale <= this.viewMinimumScale && fps < 57 && blocked >= 2;
+    this.outputDebt = misses ? this.outputDebt + 1 : 0;
+    const headroom = density < 1 && !blocked && fps >= 59 && this.completionMs > 0 && this.completionMs < 14;
+    this.outputHeadroomSince = headroom ? (this.outputHeadroomSince ?? now) : null;
+    let next = density;
+    if (density < minimum) next = minimum;
+    else if (now >= this.outputCooldown && this.outputDebt >= 2) next = minimum;
+    else if (now >= this.outputCooldown && this.outputHeadroomSince !== null && now - this.outputHeadroomSince > 6000)
+      next = Math.min(1, Math.round((density + .05) * 20) / 20);
+    if (next === density) return false;
+    engine.setRenderScale(next);
+    this.viewMinimumScale = this.viewportFloor(nominal);
+    // Preserve approximately the same geometric detail across the change.
+    const sameDetail = Math.round(this.scale * density / next * 20) / 20;
+    this.apply(Math.max(this.viewMinimumScale, Math.min(1, sameDetail)), now);
+    this.outputDebt = 0;
+    this.outputHeadroomSince = null;
+    this.outputCooldown = now + (next < density ? 10000 : 3000);
+    return true;
+  }
+
   // A late browser callback alone does not establish GPU pressure. Count
   // opportunities lost to the actual two-submission queue, at any refresh rate.
   observe(now, queueFull) {
@@ -162,8 +225,10 @@ fn main(@builtin(local_invocation_index) i:u32) {
     this.blocked = 0;
     const wet = this.coverage >= .13 || this.app.camera.position.y < this.app.cameraWaterHeight - .08;
     this.waterInView = wet;
-    this.viewMinimumScale = wet ? this.waterFloor() : foliageFloor;
+    const nominal = wet ? this.waterFloor() : foliageFloor;
+    this.viewMinimumScale = this.viewportFloor(nominal);
     if (this.fullDetail) this.app.refraction.scale = wet ? this.refractionDensity(this.scale) : this.fullDetail.refraction;
+    if (this.balanceOutput(now, fps, blocked, nominal)) return;
     if (this.scale < this.viewMinimumScale) {
       this.apply(this.viewMinimumScale, now);
       return;
@@ -171,10 +236,12 @@ fn main(@builtin(local_invocation_index) i:u32) {
     if (now - this.lastChange < 850) return;
     // On land, change the temporal input resolution only under sustained GPU
     // backpressure. A single model upload or tab transition is temporary.
-    const deficit = fps < 59.5 && blocked > 0;
+    const deeper = this.scale <= nominal && this.viewMinimumScale < nominal;
+    const deficit = fps < (deeper ? 57.5 : 59.5) && blocked > 0;
     this.deficitWindows = deficit ? this.deficitWindows + 1 : 0;
-    if (this.scale > this.viewMinimumScale && deficit && (wet || this.deficitWindows >= 2) && (blocked >= 2 || this.deficitWindows >= 2 || this.completionMs > 23)) {
-      const next = this.scale === 1 ? (fps < 53 ? .85 : .9) : this.scale - .05;
+    if (this.scale > this.viewMinimumScale && deficit && ((wet && !deeper) || this.deficitWindows >= 2) && (blocked >= 2 || this.deficitWindows >= 2 || this.completionMs > 23)) {
+      const step = deeper && fps < 50 ? .1 : .05;
+      const next = this.scale === 1 ? (fps < 53 ? .85 : .9) : this.scale - step;
       this.apply(Math.max(this.viewMinimumScale, Math.round(next * 20) / 20), now);
       this.raiseAfter = now + 14000;
       this.deficitWindows = 0;
@@ -185,6 +252,9 @@ fn main(@builtin(local_invocation_index) i:u32) {
   }
 
   state() {
-    return {automatic:this.automatic, scale:this.scale, minimumScale, viewMinimumScale:this.viewMinimumScale, refractionScale:this.app.refraction.scale, visibleWater:this.coverage, completionMs:this.completionMs};
+    const viewport = this.outputWindow();
+    return {automatic:this.automatic, scale:this.scale, minimumScale:this.viewportFloor(minimumScale), viewMinimumScale:this.viewMinimumScale,
+      viewport, density:this.app.engine.renderScale, requestedDensity:this.requestedDensity, minimumDensity:this.minimumDensity(viewport),
+      refractionScale:this.app.refraction.scale, visibleWater:this.coverage, completionMs:this.completionMs};
   }
 }
