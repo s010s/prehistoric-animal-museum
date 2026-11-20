@@ -1,7 +1,6 @@
 import {ISLAND_FAUNA_PLAN, ISLAND_FAUNA_REGIONS} from './IslandFaunaPlan.js';
 import {NearbyFaunaGuide} from './NearbyFaunaGuide.js';
-
-const directions = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+import {WildlifeDirectory} from './WildlifeDirectory.js';
 
 export class VisitorGuide {
   constructor(app, travel, lookAt) {
@@ -11,7 +10,6 @@ export class VisitorGuide {
     this.details = document.querySelector('#field-guide');
     this.destination = document.querySelector('#guide-destination');
     this.status = document.querySelector('#fauna-status');
-    this.bearing = document.querySelector('#guide-bearing');
     this.face = document.querySelector('#face-animal');
     this.credit = document.querySelector('#model-credit');
     this.face.onclick = () => {
@@ -19,7 +17,6 @@ export class VisitorGuide {
       const point = visit?.animalId && app.islandFauna.state(visit.animalId)?.position;
       if (point) lookAt(point);
     };
-    this.cancel = document.querySelector('#guide-cancel');
     this.travelButton = document.querySelector('#fauna-travel');
     this.pinButton = document.querySelector('#fauna-pin');
     for (const region of ISLAND_FAUNA_REGIONS) {
@@ -34,16 +31,33 @@ export class VisitorGuide {
     this.travelButton.onclick = () => {
       const id = this.select.value;
       if (id && travel(id)) {
-        this.pin(null);
+        this.cancelTracking();
         this.details.open = false;
         this.update();
       }
     };
     this.pinButton.onclick = () => {
-      this.pin(this.select.value);
+      const visit = app.islandVisits[this.select.value];
+      if (visit?.animalId) this.startTracking(visit.animalId);
       this.details.open = false;
     };
-    this.cancel.onclick = () => this.pin(null);
+    this.directory = new WildlifeDirectory({
+      getEntries: () => this.nearby.tracking.directory(app.camera.position),
+      track: speciesId => this.startTracking(speciesId),
+      travel: entry => {
+        const id = entry.visitId ?? entry.fallbackVisitId;
+        if (!id || !travel(id)) return false;
+        const visit = app.islandVisits[id];
+        if (visit?.focusAnimal) this.trackIndividual(visit.focusAnimal);
+        else if (id === entry.visitId) this.trackIndividual(entry.id);
+        else if (visit?.animalId) this.trackIndividual(visit.animalId);
+        return true;
+      },
+    });
+    document.querySelector('#wildlife-cancel').onclick = () => {
+      this.cancelTracking();
+      this.directory.opener.focus({preventScroll:true});
+    };
     this.choose(app.islandVisits[app.currentLandmark]?.animalId ? app.currentLandmark : '');
   }
 
@@ -54,15 +68,34 @@ export class VisitorGuide {
     this.pinButton.disabled = this.travelButton.disabled = !visit;
   }
 
-  pin(id) {
-    this.target = this.app.islandVisits[id] || null;
-    document.querySelector('#guide-waypoint').hidden = !this.target;
-    this.update();
+  get trackId() {
+    return this.nearby.snapshot?.lock?.id ?? null;
+  }
+
+  startTracking(speciesId) {
+    this.nearby.tracking.lockSpecies(speciesId, this.app.camera.position);
+    this.nearby.refresh();
+    return this.nearby.snapshot.lock?.speciesId === speciesId;
+  }
+
+  trackIndividual(id) {
+    this.nearby.tracking.lockIndividual(id);
+    this.nearby.refresh();
+    return this.trackId === id;
+  }
+
+  cancelTracking() {
+    this.nearby.tracking.clearLock();
+    this.nearby.refresh();
   }
 
   update() {
-    const {app, target} = this;
+    const {app} = this;
     const visit = app.islandVisits[app.currentLandmark];
+    if (this.arrivalId !== app.currentLandmark) {
+      this.arrivalId = app.currentLandmark;
+      if (visit?.focusAnimal) this.trackIndividual(visit.focusAnimal);
+    }
     if (this.creditId !== (visit?.animalId ?? null)) {
       this.creditId = visit?.animalId ?? null;
       if (this.creditId) {
@@ -94,14 +127,5 @@ export class VisitorGuide {
       this.face.hidden = true;
       if (this.status.textContent) this.status.textContent = '';
     }
-    if (!target) return;
-    const p = app.camera.position;
-    const dx = target.p[0] - p.x, dz = target.p.at(-1) - p.z;
-    const distance = Math.hypot(dx, dz);
-    const dir = directions[(Math.round(Math.atan2(dx, -dz) / (Math.PI / 4)) + 8) % 8];
-    const metres = distance < 1000 ? Math.round(distance) + ' 米' : (distance / 1000).toFixed(1) + ' 公里';
-    const depth = target.diveLevel !== undefined ? ' · 水下' : '';
-    const label = distance < 4 ? target.title + ' · 已到观察点附近' + depth : target.title + ' · ' + dir + ' ' + metres + depth;
-    if (this.bearing.textContent !== label) this.bearing.textContent = label;
   }
 }

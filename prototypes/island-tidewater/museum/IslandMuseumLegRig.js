@@ -280,20 +280,29 @@ export function augmentIslandLegRig(id, gltf, pieces, skin) {
   }
   skin.inverseBindMatrices = Float32Array.from(inverseBind);
 
-  const chains = legs.map(({ side, fore, attachment, centers, bones, ankle, candidates }) => {
+  const chains = legs.map(({ side, fore, attachment, centers, bones, ankle, candidates }, limbIndex) => {
     const [upper, lower, foot] = bones.map(bone => bone.index);
     const [hipPoint, kneePoint, anklePoint] = centers;
     const axis = anklePoint.clone().sub(hipPoint).normalize();
     const pole = kneePoint.clone().sub(hipPoint);
     pole.addScaledVector(axis, -pole.dot(axis)).normalize();
-    const { contact, samples } = solePatch(candidates, ankle, id, side, fore);
+    const pitch = calibration.solePitch?.[limbIndex] ?? 0;
+    let supportCandidates = candidates;
+    const rotation = new Quaternion().setFromAxisAngle(new Vector3(fz, 0, -fx), pitch);
+    if (pitch) {
+      supportCandidates = candidates.map(sample => ({
+        ...sample, point: new Vector3(...sample.point).sub(anklePoint).applyQuaternion(rotation).add(anklePoint).toArray(),
+      }));
+    }
+    const { contact: flat, samples } = solePatch(supportCandidates, ankle, id, side, fore);
+    const contact = pitch ? new Vector3(...flat).sub(anklePoint).applyQuaternion(rotation.invert()).add(anklePoint).toArray() : flat;
     const outset = laneOutset * side;
-    const neutral = [contact[0] + fz * outset, contact[1], contact[2] - fx * outset];
+    const neutral = [flat[0] + fz * outset, flat[1], flat[2] - fx * outset];
     const sole = new Vector3().fromArray(contact).applyMatrix4(bones[2].world.clone().invert()).toArray();
     const palette = bones.map(({ index, inverseOffset, rows }) => ({
       index: index * 16, inverseOffset, rows: [...rows].map(([source, derived]) => [source * 16, derived * 16]),
     }));
-    return { upper, lower, foot, side, fore, sole, contact, neutral, pole: pole.toArray(), samples, attachment: attachment * 16, palette };
+    return { upper, lower, foot, side, fore, sole, contact, neutral, pitch, pole: pole.toArray(), samples, attachment: attachment * 16, palette };
   });
   return {
     root, chains, head: calibration.head && nodeByName(calibration.head), tail: calibration.tail && nodeByName(calibration.tail),

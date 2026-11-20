@@ -98,7 +98,14 @@ export class NativeRuntime {
     const audioRecord=document.querySelector('#record-audio');if(audioRecord)audioRecord.onclick=async()=>{if(this.recordingAudio||this.recording||this.measuring||this.recordingVideo||this.walkingSample)return;this.recordingAudio=true;audioRecord.disabled=true;document.querySelector('#inspection')?.removeAttribute('open');try{const data=await app.audio.record(Number(document.querySelector('#audio-length')?.value??20),document.querySelector('#audio-scope')?.value??'mix');await this.save('audio',{...data,build:buildInfo,scene:this.state()});}catch(error){document.querySelector('#status').textContent=error.message;}finally{this.recordingAudio=false;audioRecord.disabled=false;}};
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.stop('hidden'); });
     window.addEventListener('blur', () => { if (this.phase === 'ready') this.stop('blur'); });
-    window.addEventListener('keydown', event => { if (event.code === 'Escape' && this.phase === 'ready' && this.running) this.stop('escape'); });
+    window.addEventListener('keydown', event => {
+      if (this.phase !== 'ready' || document.querySelector('#wildlife-directory[open]')) return;
+      if (event.code === 'Escape' && this.running) this.stop('escape');
+      if (event.code !== 'KeyG' || event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey
+          || event.target?.closest?.('input, select, textarea, [contenteditable="true"]') || this.routeOwnsInput) return;
+      const open = document.querySelector('#wildlife-open');
+      if (open && !open.disabled) { event.preventDefault(); open.click(); }
+    });
     window.addEventListener('pagehide', event => { this.stop('pagehide'); if (!event.persisted) this.app.disposeFauna?.(); });
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === this.app.engine?.domElement;
@@ -108,7 +115,7 @@ export class NativeRuntime {
       this.event('pointer-lock', { locked });
       // A lock requested by the visitor before a timed route may arrive during its warmup.
       if (locked && this.routeOwnsInput) document.exitPointerLock();
-      else if (released && this.running && !this.routeOwnsInput) this.stop('pointer-unlocked');
+      else if (released && this.running && !this.routeOwnsInput && !document.querySelector('#wildlife-directory[open]')) this.stop('pointer-unlocked');
       else this.publish();
     });
     document.addEventListener('pointerlockerror', () => {
@@ -116,7 +123,12 @@ export class NativeRuntime {
       // rendering and allow another explicit click or the native drag gesture.
       this.event('pointer-lock-rejected');
       const hint = document.querySelector('#pointer-note');
-      if (hint) {hint.hidden=false;hint.textContent = '鼠标尚未锁定，可按住鼠标拖动环顾，或稍后再点击画面。';}
+      if (hint) {
+        hint.textContent = '按住画面拖动即可环顾，稍后也可再点击锁定鼠标。';
+        hint.hidden = false;
+        clearTimeout(this.pointerHintTimeout);
+        this.pointerHintTimeout = setTimeout(() => { hint.hidden = true; }, 6500);
+      }
     });
     window.addEventListener('error', event => this.fail(event.error ?? event.message));
     window.addEventListener('unhandledrejection', event => this.fail(event.reason));
@@ -193,7 +205,6 @@ export class NativeRuntime {
         this.resume();
         return true;
       };
-      this.app.regionMap = new RegionMap(this.app, travel);
       this.visitorGuide = new VisitorGuide(this.app, travel, point => {
         if (this.measuring || this.routeOwnsInput || this.recording || this.recordingVideo || this.recordingAudio) return;
         const {camera, player, fly, freeCam} = this.app;
@@ -204,6 +215,16 @@ export class NativeRuntime {
         controller.pitch = Math.atan2(dy, Math.hypot(dx, dz));
         this.clearInput();
         this.resume();
+      });
+      this.app.regionMap = new RegionMap(this.app, travel, this.visitorGuide);
+      document.querySelector('#wildlife-open').addEventListener('click', () => this.clearInput(), true);
+      // Native gameplay input consumes Tab and Space on window. Keep the
+      // browser's focus traversal and button activation while using the HUD.
+      document.addEventListener('keydown', event => {
+        if (document.pointerLockElement || this.routeOwnsInput) return;
+        if (event.code === 'Tab' || (event.code === 'Space' && event.target?.closest?.('button, summary'))) {
+          event.stopPropagation();
+        }
       });
       if (!document.body.classList.contains('hud-collapsed')) document.querySelector('#hud-toggle')?.click();
     }
@@ -283,7 +304,7 @@ export class NativeRuntime {
     try {
       this.videoMotion?.(callbackStart);
       this.app.frame(dt);
-      this.visitorGuide?.nearby.update(t, !!this.visitorGuide.target);
+      this.visitorGuide?.nearby.update(t);
     }
     catch (error) { this.fail(error); return; }
     this.inFlight++;

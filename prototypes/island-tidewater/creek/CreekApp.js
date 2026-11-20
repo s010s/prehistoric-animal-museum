@@ -24,6 +24,7 @@ import {expandWholeIsland,installIslandTerrainGPU} from './WholeIslandData.js';
 import { createCoastalOcean } from './CoastalOcean.js';
 import { TerrainGPU } from '../vendor/tidewater/src/world/TerrainGPU.js';
 import {IslandLife} from './IslandLife.js';
+import {schoolObservation} from './IslandAquaticObservation.js';
 import {LandscapeDetails} from './LandscapeDetails.js';
 import {IslandEcology} from './IslandEcology.js';
 import {IslandLandmarkProps} from './IslandLandmarkProps.js';
@@ -31,7 +32,7 @@ import {prepareIslandAmbience} from './IslandAmbience.js';
 import {SampleDetails} from './SampleDetails.js';
 import {SampleMuseumLife} from './SampleMuseumLife.js';
 import {IslandFauna} from './IslandFauna.js';
-import {createIslandFaunaHabitats} from './IslandFaunaHabitats.js';
+import {createIslandFaunaHabitats, frameFaunaVisit} from './IslandFaunaHabitats.js';
 import {islandMuseumModels} from '../museum/IslandMuseumModels.js';
 import {SampleHabitatEnrichment} from './SampleHabitatEnrichment.js';
 import {MuseumColliders} from './MuseumColliders.js';
@@ -194,11 +195,19 @@ export class CreekApp extends MuseumApp {
   }
   showLandmark(id){
     this.post?.lens?.resetForArrival();
+    const original = this.islandFaunaHabitats?.visits[id];
+    if (original?.animalId) {
+      const actor = this.islandFauna?.actors.get(original.animalId);
+      this.islandVisits[id] = frameFaunaVisit({ terrain: this.terrainData, field: this.creekData.field, colliders: this.colliders }, actor, original, this.camera);
+    }
     this._showLandmark(id);
     if(this.currentLandmark===id)this.setVisitURL('place',id);
     const animal=this.islandVisits?.[id]?.animalId;
     if(animal)this.islandFauna?.observe(animal);
     else this.islandFauna?.scan(this.camera.position,id.startsWith('sample-')?'sample:'+id.slice(7):null);
+    const flyer = this.islandFauna?.actors.get(animal);
+    this.arrivalFlyer = flyer?.site.medium === 'air' && !matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? { actor: flyer, place: id, seconds: 5 } : null;
   }
   _showLandmark(id){
     const region=document.querySelector('#region-place'),regionId=id.startsWith('giant-')?'giant-forest':id;
@@ -280,6 +289,19 @@ export class CreekApp extends MuseumApp {
     }
     if(['lake-under','highland-under','east-under'].includes(view)){
       const b=view==='lake-under'?this.creekData.island.lakes[0]:view==='highland-under'?this.creekData.island.lakes[1]:null;
+      if(b){
+        const candidates=view==='lake-under'?['lake-spiny','lake']:['tarn'];
+        for(const id of candidates){
+          const group=this.life?.groups.find(g=>g.id===id);
+          const observation=schoolObservation(this.terrainData,this.query,group);
+          if(!observation)continue;
+          this.freeCam=false;this.player.placeInWater(...observation.eye);
+          this.lookFromPlayer(observation.gaze);this.cameraWaterHeight=this.query.cpu[0];this.currentLandmark=view;
+          document.querySelector('#place-title').textContent=b.name+' · 水下';
+          document.querySelector('#place-note').textContent='从鱼群的巡游水域近看鳍和尾部。空格上浮、C 下潜。';
+          return;
+        }
+      }
       const center=b?{x:b.center[0]+b.rx*.68,z:b.center[1]+b.rz*.1,h:b.level}:(()=>{const p=this.creekData.cove.shelves[1].at(0,175);return{x:p[0],z:p[1],h:-.7};})();
       let best=null;for(let dz=-40;dz<=40;dz+=4)for(let dx=-40;dx<=40;dx+=4){const x=center.x+dx,z=center.z+dz,h=this.terrainData.heightAt(x,z),water=this.query.height(x,z),depth=water-h;if(depth>2&&depth<14&&(!best||Math.hypot(dx,dz)<best.score))best={x,z,h:water,score:Math.hypot(dx,dz)};}
       if(!best)throw Error('No valid underwater arrival for '+view);const q=best;this.freeCam=false;this.player.position.set(q.x,q.h-1.5,q.z);this.player.mode='swim';this.player.floating=false;this.player.wet=true;this.player.waterMean=this.player.waterH=q.h;this.player.velocity.set(0,0,0);this.player.yaw=.65;this.player.pitch=-.07;this.player._camY=null;this.player.update(0);this.query.setCamera(q.x,q.z);this.currentLandmark=view;document.querySelector('#place-title').textContent=b?b.name+' · 水下':'东湾 · 水下';document.querySelector('#place-note').textContent='抬头看水面、转头观察床面与鱼群；空格上浮、C 下潜。';return;
@@ -311,9 +333,30 @@ export class CreekApp extends MuseumApp {
     try{this.frame(1/60);}finally{mr.precompiling=false;}
     await GPU.pipelinesReady();await GPU.queue.onSubmittedWorkDone();
   }
+  followArrivalFlyer(dt) {
+    const watch = this.arrivalFlyer;
+    if (!watch) return;
+    const { input, camera, player } = this;
+    // Give the visitor a moment to identify the moving animal. Their first
+    // input takes the camera back, including before its model finishes loading.
+    if (watch.place !== this.currentLandmark || this.freeCam || input.keys.size || input.look.x || input.look.y
+        || input.mouseDown || input.rightDown || input.wheel || watch.seconds <= 0) {
+      this.arrivalFlyer = null;
+      return;
+    }
+    if (!watch.actor.active) return;
+    watch.seconds -= dt;
+    const dx = watch.actor.x - camera.position.x, dy = watch.actor.y - camera.position.y, dz = watch.actor.z - camera.position.z;
+    const yaw = Math.atan2(-dx, -dz) - player.yaw;
+    const pitch = Math.atan2(dy, Math.hypot(dx, dz)) - player.pitch;
+    const maxTurn = 1.25 * dt, damping = 1 - Math.exp(-12 * dt);
+    player.yaw += Math.max(-maxTurn, Math.min(maxTurn, damping * Math.atan2(Math.sin(yaw), Math.cos(yaw))));
+    player.pitch += Math.max(-maxTurn, Math.min(maxTurn, damping * pitch));
+  }
   _frame(dt){
     GPU.beginFrame();FrameUniforms.fields.frameIndex.value=GPU.frame;G.dt.value=dt;G.time.value+=dt;this.updateFPS(dt);
     if(this.input.hit('KeyF'))this.setFreeCam(!this.freeCam);
+    this.followArrivalFlyer(dt);
     if(this.freeCam)this.fly.update(dt);else this.player.update(dt);
     this.regionMap?.update(performance.now());
     this.islandFauna.update(dt,this.camera);this.animals.update(dt);this.sampleMuseumLife?.update(dt,this.camera);this.updateSun();this.atmosphere.update(dt,this.camera.position.y);this.applyAtmosphereReadback();

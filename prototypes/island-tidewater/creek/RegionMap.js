@@ -6,7 +6,8 @@ const locationInterval = 160;
 const arrivalRadius = {enter: 30, exit: 42};
 
 export class RegionMap {
- constructor(app,onTravel){
+ constructor(app,onTravel,guide){
+  this.guide=guide;
   this.app=app;this.onTravel=onTravel;this.bounds=ISLAND_PLAN.bounds.map((v,i)=>v-ISLAND_PLAN.sourceOrigin[i%2]+(i<2?-500:500));this.res=256;this.bakedRows=0;this.travels=[];this.lastUpdate=-Infinity;
   this.title=document.querySelector('#place-title');
   this.note=document.querySelector('#place-note');
@@ -14,6 +15,24 @@ export class RegionMap {
   host.innerHTML='<header><span>岛屿导览</span><button id="map-toggle" aria-expanded="true" aria-controls="region-map-content">收起地图</button></header><div id="region-map-content"><div class="map-surface"><canvas width="256" height="256" aria-label="当前岛屿地形，北方朝上"></canvas><span class="map-north" aria-hidden="true">N ↑</span><span class="map-camera" aria-label="当前位置"></span></div><output id="map-place" aria-live="polite">点击区域，快速到达</output><div class="map-key"></div></div>';
   document.body.append(host);this.canvas=host.querySelector('canvas');this.ctx=this.canvas.getContext('2d',{alpha:false});this.ctx.fillStyle='#416879';this.ctx.fillRect(0,0,256,256);this.marker=host.querySelector('.map-camera');this.output=host.querySelector('output');
   const surface=host.querySelector('.map-surface');
+  this.bearingLine=document.createElement('span');
+  this.bearingLine.className='map-wildlife-bearing';
+  this.bearingLine.hidden=true;
+  this.wildlifePin=document.createElement('button');
+  this.wildlifePin.type='button';
+  this.wildlifePin.className='map-fauna-pin';
+  this.wildlifePin.hidden=true;
+  this.wildlifePin.onclick=()=>{
+   if(this.shownAnimal?.museum && this.guide.trackId!==this.shownAnimal.id){
+    this.guide.trackIndividual(this.shownAnimal.id);
+    this.update(performance.now(),true);
+   }else document.querySelector('#wildlife-open')?.click();
+  };
+  surface.append(this.bearingLine,this.wildlifePin);
+  this.wildlifeKey=document.createElement('div');
+  this.wildlifeKey.className='map-wildlife-key';
+  this.wildlifeKey.hidden=true;
+  this.output.before(this.wildlifeKey);
   host.querySelector('#map-toggle').onclick=()=>{const collapsed=host.classList.toggle('collapsed');host.querySelector('#map-toggle').setAttribute('aria-expanded',String(!collapsed));host.querySelector('#map-toggle').textContent=collapsed?'展开地图':'收起地图';if(!collapsed){this.update(performance.now(),true);this.queueBake();}};
   const names=['溪谷','西岸浅湾','巨木林','长湖','高草甸','湿地','寒凉高地','旱谷','东湾浅海'];
   const places={creek:'entrance','west-coast':'sample-mouth','east-bay':'east-shelf',lake:'lake-shingle',grassland:'alluvial-bend',wetland:'wetland-runnels',highland:'tarn-moraine','dry-upland':'dry-escarpment'};
@@ -89,6 +108,28 @@ export class RegionMap {
   this.marker.style.top=`${Math.max(0,Math.min(1,v))*100}%`;
   const e=this.app.camera.matrixWorld.elements;
   this.marker.style.transform=`translate(-50%,-50%) rotate(${Math.atan2(-e[8],e[10])}rad)`;
+  this.updateWildlife(u,v);
+ }
+ updateWildlife(u,v){
+  const animal=this.guide?.nearby.snapshot?.target;
+  this.shownAnimal=animal;
+  const visible=animal && Number.isFinite(animal.x) && Number.isFinite(animal.z);
+  this.wildlifePin.hidden=this.bearingLine.hidden=this.wildlifeKey.hidden=!visible;
+  if(!visible)return;
+  const [a,b]=this.uv(animal.x,animal.z);
+  const dx=a-u,dz=b-v;
+  this.bearingLine.style.left=u*100+'%';
+  this.bearingLine.style.top=v*100+'%';
+  this.bearingLine.style.width=Math.hypot(dx,dz)*100+'%';
+  this.bearingLine.style.transform='rotate('+Math.atan2(dz,dx)+'rad)';
+  this.wildlifePin.style.left=a*100+'%';
+  this.wildlifePin.style.top=b*100+'%';
+  const locked=this.guide.trackId===animal.id;
+  this.wildlifePin.dataset.locked=String(locked);
+  const name=(locked?'追踪中 · ':'附近 · ')+animal.name+(animal.live?'':'（栖息地）');
+  this.wildlifePin.title=name;
+  this.wildlifePin.setAttribute('aria-label',locked||!animal.museum?'打开动物寻踪':'追踪'+animal.name);
+  if(this.wildlifeKey.textContent!==name)this.wildlifeKey.textContent=name;
  }
  locate(x,y,z){
   const ground=this.app.terrainData.heightAt(x,z);

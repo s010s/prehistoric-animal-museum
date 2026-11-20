@@ -33,8 +33,8 @@
             </div>
           </div>
           <div class="map-surface">
-            <img id="terrain" src="./assets/terrain.webp" width="512" height="512" fetchpriority="high" alt="鸟瞰全岛地形，北方朝上。数字对应展区，菱形标记动物展位。">
-            <img id="habitat" width="512" height="512" alt="鸟瞰全岛生态，北方朝上。数字对应展区，菱形标记动物展位。" hidden>
+            <img id="terrain" src="./assets/terrain.webp" width="512" height="512" fetchpriority="high" alt="鸟瞰全岛地形，北方朝上。数字对应展区，菱形标记动物展位，圆点标记河口。">
+            <img id="habitat" width="512" height="512" alt="鸟瞰全岛生态，北方朝上。数字对应展区，菱形标记动物展位，圆点标记河口。" hidden>
             <svg id="map-overlay" viewBox="0 0 512 512" aria-hidden="true"></svg>
             <div id="markers" role="group" aria-label="地图上的展区"></div>
             <span class="compass" aria-hidden="true">↑<small>北</small></span>
@@ -47,6 +47,11 @@
             <a class="map-overview-link" href="../creek/?place=island-overview">从空中看全岛 <span aria-hidden="true">↗</span></a>
           </figcaption>
         </figure>
+        <nav class="mouth-visits" aria-label="河口观察点">
+          <a href="../creek/?place=sample-mouth" data-mouth="sample-mouth">西岸样板河口 <span aria-hidden="true">↗</span></a>
+          <a href="../creek/?place=estuary" data-mouth="estuary">南部主河口岸边 <span aria-hidden="true">↗</span></a>
+          <a href="../creek/?place=main-estuary-overlook" data-mouth="estuary">南部主河口俯瞰 <span aria-hidden="true">↗</span></a>
+        </nav>
         <p id="map-status" class="map-status" role="status"></p>
         <noscript><p class="map-status">启用 JavaScript 可切换图层和查看观察点。</p></noscript>
       </div>

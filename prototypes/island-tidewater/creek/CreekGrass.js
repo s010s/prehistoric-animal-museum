@@ -185,16 +185,30 @@ fn museumGrassGust(p:vec2f)->f32{
  // Each row carries the maximum across coordinate. Its interpolation gives
  // the narrowing tip's half-width in the same units as across. Convert that
  // width to pixels using the cross-blade gradient, including oblique views.
- let acrossStep=length(vec2f(dpdx(across),dpdy(across)));
- let bladePixels=2.0*in.vs.vVegGrass2.y/max(acrossStep,1e-4);
+ let acrossStep=max(length(vec2f(dpdx(across),dpdy(across))),1e-4);
+ let halfSpan=in.vs.vVegGrass2.y;
+ let bladePixels=2.0*halfSpan/acrossStep;
  if(kind<.5){
   let resolved=smoothstep(.65,2.2,bladePixels);
-  let meadowTone=in.vs.vVegGrassTone.xyz;
-  let sward=mix(museumMeadowSoil(meadowTone),meadowTone,smoothstep(.008,.36,in.vs.vVegGrass2.x));
-  let windTint=1.0+vec3f(.14,.12,.04)*in.vs.vVegGust*.5;
-  s.albedo=mix(sward*windTint,albedo,mix(.40,1.0,resolved));
-  s.specularIntensity*=mix(.65,1.0,resolved);
-  s.translucency*=mix(.70,1.0,resolved);
+  // Approximate the fraction of a pixel covered by the opaque rasterized
+  // blade. Its uncovered area takes the local sward colour and lighting.
+  let lo=max(-halfSpan,across-acrossStep*.5);
+  let hi=min(halfSpan,across+acrossStep*.5);
+  let coverage=sat((hi-lo)/acrossStep);
+  let bladeWeight=coverage*mix(.40,1.0,resolved);
+  if(bladeWeight<.999){
+   let meadowTone=in.vs.vVegGrassTone.xyz;
+   let sward=mix(museumMeadowSoil(meadowTone),meadowTone,smoothstep(.008,.36,in.vs.vVegGrass2.x));
+   let windTint=1.0+vec3f(.14,.12,.04)*in.vs.vVegGust*.5;
+   let ground=terrainNormalRockLevel(in.P.xz,0.0);
+   let n=normalize(vec3f(ground.x,sqrt(max(1.0-dot(ground.xy,ground.xy),.0025)),ground.y));
+   s.albedo=mix(sward*windTint,albedo,bladeWeight);
+   s.normal=normalize(mix(n,s.normal,bladeWeight));
+   s.ao=mix(mix(.72,1.0,ground.w),s.ao,bladeWeight);
+   s.roughness=mix(.94,s.roughness,bladeWeight);
+   s.specularIntensity=mix(.22,s.specularIntensity,bladeWeight);
+   s.translucency*=bladeWeight;
+  }
  }
  if(kind>.5&&kind<2.5){
   let height=smoothstep(.06,.94,hf);

@@ -1,3 +1,4 @@
+import './IslandMuseumMaterialLighting.js';
 import { BufferAttribute, BufferGeometry, Color, Mesh } from '../vendor/tidewater/src/engine/index.js';
 import { GPU } from '../vendor/tidewater/src/engine/gpu/GPU.js';
 import { StorageBuffer, Texture } from '../vendor/tidewater/src/engine/gpu/Texture.js';
@@ -9,17 +10,22 @@ import { applyIslandHeadTurn, makeIslandHeadTurn } from './IslandMuseumHeadTurn.
 import { createIslandModelPose, floatAttribute, islandModelPieces, islandMorphWeights, museumSrgbTextures, museumTextureUsages, parseIslandMuseumModel } from './IslandMuseumModelData.js';
 import { applyIslandAquaticMotion, loadIslandAquaticClips } from './IslandAquaticMotion.js';
 import { applyIslandFlightMotion, loadIslandFlightClip } from './IslandFlightMotion.js';
-import { augmentIslandLegRig, islandLegRigExtraGpuBytes, syncIslandLegRigPalette } from './IslandMuseumLegRig.js';
+import { islandLegRigExtraGpuBytes, syncIslandLegRigPalette } from './IslandMuseumLegRig.js';
 import { createMuseumGroundMotion } from './MuseumGroundMotion.js';
-import { prepareMuseumGroundPose } from './MuseumGroundPose.js';
+import { prepareGroundSpecimen } from './PrepareGroundSpecimen.js';
+import { quadrupedExtraGpuBytes } from './QuadrupedStrideRig.js';
 import { augmentIslandMediumRig, islandMediumRigExtraGpuBytes } from './IslandMuseumMediumRig.js';
 import lock from './island-museum-models.lock.json';
 
 export const islandMuseumModels = Object.freeze(lock.animals);
+// Extra interleaved joint/weight attributes are shared across instances.
+// Each animated individual needs its own current and previous skin palettes.
+const addedBipedWeights = { carnotaurus: [9195, 41], dilophosaurus: [2052, 15] };
 export function islandMuseumResidencyBudget(metadata) {
   const extra = islandLegRigExtraGpuBytes(metadata.id, metadata.geometry) + islandMediumRigExtraGpuBytes(metadata.id, metadata.geometry);
-  const instanceBytes = 8192 + 128 * (metadata.geometry.paletteRows + (extra ? 32 : 0));
-  return { assetId: metadata.id, instanceBytes, bytes: metadata.gpuBytes + extra + instanceBytes };
+  const [weightedVertices, rows] = addedBipedWeights[metadata.id] ?? [0, 0];
+  const instanceBytes = 8192 + 128 * (metadata.geometry.paletteRows + (extra ? 32 : 0) + rows) + quadrupedExtraGpuBytes(metadata.id);
+  return { assetId: metadata.id, instanceBytes, bytes: metadata.gpuBytes + extra + weightedVertices * 16 + instanceBytes };
 }
 
 const urls = import.meta.glob('./assets/island/*.glb.gz', { eager: true, query: '?url', import: 'default' });
@@ -32,7 +38,7 @@ function makeGeometry(piece) {
   const { primitive, influences } = piece;
   const geometry = new BufferGeometry();
   for (const [key, a] of Object.entries(primitive.attributes)) {
-    const name = { POSITION: 'position', NORMAL: 'normal', COLOR_0: 'color', TEXCOORD_0: 'uv' }[key]
+    const name = { POSITION: 'position', NORMAL: 'normal', TANGENT: 'museumTangent', COLOR_0: 'color', TEXCOORD_0: 'uv' }[key]
       ?? (key.startsWith('TEXCOORD_') ? 'islandUv' + key.slice(9) : null);
     if (name) geometry.setAttribute(name, new BufferAttribute(floatAttribute(a), a.itemSize));
   }
@@ -97,7 +103,9 @@ function makeVertex(pose, piece, morph, uvChannels) {
     attributes[name] = varyings[name] = 'vec2f';
     vertex.push('o.' + name + ' = v.' + name + ';');
   }
-  if (!morph && !piece.influences.length) return { attributes, varyings, storage, vertex: vertex.join('\n') };
+  const hasTangent = !!piece.primitive.attributes.TANGENT;
+  if (hasTangent) attributes.museumTangent = varyings.museumTangent = 'vec4f';
+  if (!morph && !piece.influences.length && !hasTangent) return { attributes, varyings, storage, vertex: vertex.join('\n') };
   vertex.push('var point = v.position;', 'var previousPoint = v.position;', 'var normal = v.normal;');
   if (morph) {
     storage.museumMorph = morph.buffer;
@@ -125,7 +133,34 @@ function makeVertex(pose, piece, morph, uvChannels) {
     'v.worldNormal = cofactor3(localToWorld) * normal;',
     'v.prevWorldPos = (' + previousMatrix + ' * vec4f(previousPoint, 1.0)).xyz;',
   );
+  if (hasTangent) vertex.push(
+    'o.museumTangent = vec4f((localToWorld * vec4f(v.museumTangent.xyz, 0.0)).xyz, v.museumTangent.w);',
+  );
   return { attributes, varyings, storage, vertex: vertex.join('\n') };
+}
+
+// On a mirrored UV island the bitangent can point opposite cross(N, T).
+// Solve the UV Jacobian when the artist did not provide a tangent frame.
+function museumMappedNormal(uv, scale, tangent) {
+  const frame = tangent ? [
+    'let tangent = normalize(in.vs.museumTangent.xyz - in.N * dot(in.N, in.vs.museumTangent.xyz));',
+    'let face = select(-1.0, 1.0, in.front);',
+    'let T = tangent * face;',
+    'let B = cross(in.N, tangent) * in.vs.museumTangent.w;',
+  ] : [
+    'let qx = dpdx(in.P); let qy = dpdy(in.P);',
+    'let ux = dpdx(' + uv + '); let uy = dpdy(' + uv + ');',
+    'let det = ux.x * uy.y - ux.y * uy.x;',
+    'let dU = (qx * uy.y - qy * ux.y) * sign(det);',
+    'let dV = (qy * ux.x - qx * uy.x) * sign(det);',
+    'let tAxis = dU - in.N * dot(in.N, dU);',
+    'let tangent = tAxis * inverseSqrt(max(dot(tAxis,tAxis),1e-30));',
+    'let face = select(-1.0, 1.0, in.front);',
+    'let T = tangent * face;',
+    'let B = cross(in.N, tangent) * sign(dot(cross(in.N * face, tangent), dV));',
+  ];
+  return [...frame, 'let mapped = vec3f(detailNormal.xy * ' + wgsl(scale) + ', detailNormal.z);',
+    's.normal = normalize(T * mapped.x + B * mapped.y + in.N * mapped.z);'];
 }
 
 function modelMaterial(id, source, piece, pose, textures, morph) {
@@ -150,13 +185,13 @@ function modelMaterial(id, source, piece, pose, textures, morph) {
       case 'albedo': fragment.push('s.albedo *= ' + value + '.rgb;', 's.alpha *= ' + value + '.a;'); break;
       case 'normal': fragment.push(
         'let detailNormal = ' + value + '.xyz * 2.0 - 1.0;',
-        's.normal = perturbNormalByMap(in.P, in.N, ' + uv + ', vec3f(detailNormal.xy * ' + wgsl(info.scale ?? 1) + ', detailNormal.z));',
+        ...museumMappedNormal(uv, info.scale ?? 1, piece.primitive.attributes.TANGENT),
       ); break;
       case 'orm': fragment.push('s.roughness *= ' + value + '.g;', 's.metalness *= ' + value + '.b;'); break;
       case 'occlusion': fragment.push('s.ao *= mix(1.0, ' + value + '.r, ' + wgsl(info.strength ?? 1) + ');'); break;
       case 'emissive': fragment.push('s.emissive *= ' + value + '.rgb;'); break;
       case 'specular': fragment.push('s.specularIntensity *= ' + value + '.a;'); break;
-      case 'specularColor': fragment.push('s.specularIntensity *= dot(' + value + '.rgb, vec3f(.2126, .7152, .0722));'); break;
+      case 'specularColor': fragment.push('s.museumDielectricF0 *= ' + value + '.rgb;'); break;
       default: break;
     }
   }
@@ -172,11 +207,10 @@ function modelMaterial(id, source, piece, pose, textures, morph) {
       's.translucency = vec3f(0.065, 0.058, 0.048) * (1.0 - vein);',
     );
   }
-  // Tidewater's dielectric Fresnel coefficient is conventionally 0.04 at IOR 1.5.
   const rgbSpecular = specular?.specularColorFactor ?? [1, 1, 1];
-  const brightness = rgbSpecular[0] * .2126 + rgbSpecular[1] * .7152 + rgbSpecular[2] * .0722;
-  const specularIntensity = (specular?.specularFactor ?? 1) * brightness * ((ior - 1) / (ior + 1)) ** 2 / .04;
-  fragment.push('s.specularIntensity *= ' + wgsl(specularIntensity) + ';');
+  const reflectance = ((ior - 1) / (ior + 1)) ** 2;
+  fragment.unshift('s.museumDielectricF0 = vec3f(' + rgbSpecular.map(channel => wgsl(channel * reflectance)).join(', ') + ');');
+  fragment.push('s.specularIntensity *= ' + wgsl(specular?.specularFactor ?? 1) + ';');
   if (clearcoat?.clearcoatFactor) fragment.push(
     's.clearcoat = ' + wgsl(clearcoat.clearcoatFactor) + ';',
     's.clearcoatRoughness = ' + wgsl(clearcoat.clearcoatRoughnessFactor ?? 0) + ';',
@@ -196,7 +230,7 @@ function modelMaterial(id, source, piece, pose, textures, morph) {
     color: new Color(...base.slice(0, 3)),
     emissive: new Color(...emissive),
     opacity: base[3],
-    defines: { CLEARCOAT: clearcoat?.clearcoatFactor > 0 ? 1 : 0 },
+    defines: { MUSEUM_GLTF_MATERIAL: 1, MUSEUM_LAND_RECEIVER: islandMuseumModels[id].habitat === 'land' ? 1 : 0, CLEARCOAT: clearcoat?.clearcoatFactor > 0 ? 1 : 0 },
     roughness: pbr.roughnessFactor ?? 1,
     metalness: pbr.metallicFactor ?? 1,
     alphaTest: source.alphaMode === 'MASK' ? source.alphaCutoff ?? .5 : 0,
@@ -239,11 +273,10 @@ async function buildSpecies(id, signal) {
   ]);
   signal.throwIfAborted();
   const gltf = parseIslandMuseumModel(bytes);
-  prepareMuseumGroundPose(gltf, id);
   if (aquatic) applyIslandAquaticMotion(gltf, aquatic.default);
   if (flight) applyIslandFlightMotion(gltf, id, flight.default);
   const { pieces, skin } = islandModelPieces(gltf);
-  const legRig = augmentIslandLegRig(id, gltf, pieces, skin);
+  const legRig = prepareGroundSpecimen(id, gltf, pieces, skin, metadata);
   augmentIslandMediumRig(id, gltf, pieces, skin, metadata);
   const headTurn = makeIslandHeadTurn(id, gltf.nodes, skin);
   const rig = { nodes: gltf.nodes, roots: gltf.roots, animations: gltf.animations };
@@ -282,9 +315,9 @@ async function buildSpecies(id, signal) {
       if (morph) immutable.add(morph.buffer);
       // Shaders need only the joint-set count and the presence of vertex color.
       const materialPiece = { influences: { length: influences.length },
-        primitive: { attributes: { COLOR_0: !!primitive.attributes.COLOR_0 } } };
+        primitive: { attributes: { COLOR_0: !!primitive.attributes.COLOR_0, TANGENT: !!primitive.attributes.TANGENT } } };
       draws.push({ geometry, morph, nodeIndex, defaultWeights, source, textures, materialPiece,
-        materialKey: primitive.material + ':' + influences.length + ':' + !!primitive.attributes.COLOR_0 });
+        materialKey: primitive.material + ':' + influences.length + ':' + !!primitive.attributes.COLOR_0 + ':' + !!primitive.attributes.TANGENT });
     }
     signal.throwIfAborted();
     GPU.queue.submit([encoder.finish()]);

@@ -148,8 +148,8 @@ export function prepareVaultSwimGeometry(geometry,kind,gltf){
    const name=c.node.toLowerCase(),side=Math.sign(c.center[0]);let paired=false,phase=side>0?Math.PI:0;
    if(kind==='anomalocaris'){
     paired=name.includes('flaps')||name.includes('tail-fan');
-    if(name.includes('flaps'))phase=Math.round((.088974-c.rawCenter[2])/.0244854)*.55;
-    else if(name.includes('tail-fan'))phase=2;
+    if(name.includes('flaps'))phase=-Math.round((.088974-c.rawCenter[2])/.0244854)*.55;
+    else if(name.includes('tail-fan'))phase=-2;
    }
    else if(kind==='diplomystus'||kind==='aspidorhynchus'){
     if(name.includes('fins')){

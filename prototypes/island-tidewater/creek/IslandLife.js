@@ -10,7 +10,7 @@ import {VAULT_AERIAL,VAULT_BENTHIC,loadVaultCoastLife,vaultFishGeometry,vaultFis
 import {clipCreekRefraction} from './CreekWater.js';
 import {SampleBenthicDetails} from './SampleBenthicDetails.js';
 import {prepareVaultSwimGeometry,installVaultSwimAttributes} from './VaultSwimRigData.js';
-import {createVaultSwimMotion,articulateVaultSwimMaterial} from './VaultSwimMotion.js';
+import {createVaultSwimMotion,articulateVaultSwimMaterial,vaultSwimEffort} from './VaultSwimMotion.js';
 
 import {VaultEnvironmentFlight} from './VaultEnvironmentFlight.js';
 import {FaunaResidency} from './FaunaResidency.js';
@@ -253,7 +253,9 @@ export class IslandLife{
    const step=Math.min(dt,.1);
    f.previous.copy(f.p);this.advance(f,step,cp);
    const swim=g.reviewed?advanceReviewedSwimPose(f,step):null;
-   const {x,y,z}=f.p,h=g.sea?g.h:this.query.height(x,z),floor=this.terrain.heightAt(x,z),panic=f.panic;
+   const vaultEffort=swim?null:vaultSwimEffort(f,step);
+   if(vaultEffort)f.phase=(f.phase+vaultEffort.deltaPhase)%(200*Math.PI);
+   const {x,y,z}=f.p,h=g.sea?g.h:this.query.height(x,z),floor=this.terrain.heightAt(x,z);
 
    const clear=y-floor,top=h-y;this.audit.minBedClearance=Math.min(this.audit.minBedClearance,clear);this.audit.minSurfaceClearance=Math.min(this.audit.minSurfaceClearance,top);if(clear<0||top<0)this.audit.violations++;
    const distance=cp.distanceTo(f.p),range=f.shrimp?6:42;if(distance>range){f.fresh=true;continue;}
@@ -276,16 +278,15 @@ export class IslandLife{
     continue;
    }
    const level=pixels>=320?0:pixels>=80?1:pixels>=22?2:3,lod=f.vault?VAULT_LOD[f.vault]:f.morph*4+level;
-   const speed=f.velocity.length(),yaw=Math.atan2(f.velocity.x,f.velocity.z);let turn=Math.atan2(Math.sin(yaw-f.yaw),Math.cos(yaw-f.yaw));f.yaw+=turn*Math.min(1,dt*7);let pitch=Math.max(-.28,Math.min(.28,-Math.atan2(f.velocity.y,Math.max(.02,Math.hypot(f.velocity.x,f.velocity.z))))),roll=Math.max(-.18,Math.min(.18,turn*.3));
+   const {deltaPhase,amplitude,bend}=vaultEffort;
+   let {pitch,roll}=vaultEffort;
    if(f.shrimp){const d=.08,gx=(this.terrain.heightAt(x+d,z)-this.terrain.heightAt(x-d,z))/(2*d),gz=(this.terrain.heightAt(x,z+d)-this.terrain.heightAt(x,z-d))/(2*d);pitch=-Math.atan(gx*Math.sin(f.yaw)+gz*Math.cos(f.yaw));roll=Math.atan(gx*Math.cos(f.yaw)-gz*Math.sin(f.yaw));}
    this.euler.set(pitch,f.yaw,roll,'YXZ');this.q.setFromEuler(this.euler);
    // Crawl cadence follows actual horizontal travel. A shrimp does not run
    // an idle gait beneath a root moving several strides per cycle.
-   const crawlSpeed=Math.hypot(f.velocity.x,f.velocity.z);
-   const deltaPhase=dt*(f.shrimp?crawlSpeed/(f.L*.12)*Math.PI*2:(7+speed/f.L*3)*(1+panic*.4));f.phase+=deltaPhase;const k=renderIndex*16;
-   const amplitude=f.shrimp?Math.min(1,crawlSpeed/.003):.018+Math.min(.025,speed*.035),bend=Math.max(-.12,Math.min(.12,turn*.15));
+   const k=renderIndex*16;
    if(!f.poseQ)f.poseQ=this.q.clone();
-   motion.previous.set([...(f.fresh?this.q:f.poseQ).toArray(),f.fresh?amplitude:f.poseAmplitude,f.fresh?bend:f.poseBend,0,0],renderIndex*8);
+   motion.previous.set([...(f.fresh?this.q:f.poseQ).toArray(),f.fresh?amplitude:f.poseAmplitude,f.fresh?bend:f.poseBend,f.fresh?0:1,0],renderIndex*8);
    D.set([x,y,z,L,this.q.x,this.q.y,this.q.z,this.q.w,f.phase,amplitude,bend,(f.vault?VAULT_PATTERN[f.vault]:f.morph?14:0)+f.seed*.9,f.fresh?0:x-f.previous.x,f.fresh?0:y-f.previous.y,f.fresh?0:z-f.previous.z,f.fresh?0:deltaPhase],k);f.fresh=false;f.poseQ.copy(this.q);f.poseAmplitude=amplitude;f.poseBend=bend;
    const threshold=[320,80,22][level];
    if(distance>range*.85)batch.addFade(lod,renderIndex,Math.max(0,(range-distance)/(range*.15)),false);
@@ -314,7 +315,7 @@ export class IslandLife{
    const ceiling=water-topMargin;
    const y=f.shrimp?bed+clear:g.lowerDwell?bed+clear+.14:water-f.depth*(water-bed);
    p.y=Math.max(bed+clear,Math.min(ceiling,y));v.set(Math.sin(f.slot)*.12,0,Math.cos(f.slot)*.12);
-   if(g.reviewed){f.yaw=f.slot;f.swimPose=null;f.panic=0;}
+   f.yaw=f.slot;f.swimPose=null;f.swimBend=0;f.panic=0;
    f.sleeping=false;f.previous.copy(p);
   }
   const steps=Math.max(1,Math.ceil(dt/.035)),hdt=dt/steps;
@@ -325,9 +326,12 @@ export class IslandLife{
    const tz=g.z+Math.sin(schoolTime)*common*.63+Math.sin(time*.73+f.seed)*r*.68;
    const forage=f.shrimp?Math.pow(Math.max(0,Math.sin(this.time*.9+f.slot)),3):1;
    const dx=tx-p.x,dz=tz-p.z,dl=Math.max(Math.hypot(dx,dz),1e-6);
-   const speed=g.reviewed?reviewedCruiseSpeed(f,this.time,dl):f.shrimp?.003+forage*.009:f.L*(1.2+f.seed*.9)*(g.cruise??1);
+   const approach=Math.min(1,dl/f.L);
+   const speed=g.reviewed?reviewedCruiseSpeed(f,this.time,dl):f.shrimp?forage*.012
+    :f.L*(1.2+f.seed*.9)*(g.cruise??1)*(.36+.64*approach);
    let ax=(dx/dl*speed-v.x)*1.5,az=(dz/dl*speed-v.z)*1.5;
-   const awayX=p.x-cp.x,awayZ=p.z-cp.z,awayY=p.y-cp.y,away=Math.hypot(awayX,awayY,awayZ),reach=f.shrimp?.65:2.7;
+   const awayX=p.x-cp.x,awayZ=p.z-cp.z,awayY=p.y-cp.y,away=Math.hypot(awayX,awayY,awayZ),
+    reach=f.shrimp?.5:Math.max(.72,Math.min(2.7,3.4*f.L));
    f.panic=Math.max(0,f.panic-hdt*.6);
    if(away<reach){const a=1-away/reach,force=(a*a*8+a*2)*(f.shrimp?.3:1);ax+=awayX/(away+.01)*force;az+=awayZ/(away+.01)*force;f.panic=Math.max(f.panic,a);this.audit.fleeFrames++;if(v.x*awayX+v.z*awayZ>0)this.audit.fleeAwayFrames++;}
    // Short-range body separation within the active school, scaled by length.
@@ -335,7 +339,7 @@ export class IslandLife{
    for(const rock of g.obstacles??[]){const rx=p.x-rock.x,rz=p.z-rock.z,d=Math.hypot(rx,rz),safe=(rock.footRadius??rock.size*.9)+f.L*1.5;if(d<safe+1.1&&p.y<(rock.top??rock.y+rock.size*rock.sy*1.1)){const force=(safe+1.1-d)*3;ax+=rx/(d+.01)*force;az+=rz/(d+.01)*force;this.audit.obstacleDeflections++;}}
    const lookX=p.x+v.x*.8,lookZ=p.z+v.z*.8,water=g.sea?g.h:this.query.height(lookX,lookZ),bed=this.terrain.heightAt(lookX,lookZ),minimum=g.sampleMarine?1.12:g.sea?Math.max(1.5,this.breakDepth(lookX,lookZ)+.35):.35;
    if(water-bed<minimum){const gx=this.terrain.heightAt(lookX+.5,lookZ)-this.terrain.heightAt(lookX-.5,lookZ),gz=this.terrain.heightAt(lookX,lookZ+.5)-this.terrain.heightAt(lookX,lookZ-.5),l=Math.hypot(gx,gz)||1;ax-=gx/l*2+v.x*2;az-=gz/l*2+v.z*2;}
-   v.x+=ax*hdt;v.z+=az*hdt;const max=speed*(1+f.panic*3),length=Math.hypot(v.x,v.z);if(length>max){v.x*=max/length;v.z*=max/length;}
+   v.x+=ax*hdt;v.z+=az*hdt;const max=Math.max(speed,f.shrimp?f.panic*.012:0)*(1+f.panic*(f.shrimp?1:3)),length=Math.hypot(v.x,v.z);if(length>max){v.x*=max/length;v.z*=max/length;}
    const bodyClearance=f.shrimp?f.bedOffset:Math.max(.14,f.L*.24);
    let nx=p.x+v.x*hdt,nz=p.z+v.z*hdt,h=g.sea?g.h:this.query.height(nx,nz),floor=this.terrain.heightAt(nx,nz),ceiling=h-(g.sea?.85:bodyClearance);
    if(h-floor<minimum||ceiling<floor+bodyClearance+.08){nx=p.x;nz=p.z;v.x*=-.3;v.z*=-.3;h=g.sea?g.h:this.query.height(nx,nz);floor=this.terrain.heightAt(nx,nz);ceiling=h-(g.sea?.85:bodyClearance);}

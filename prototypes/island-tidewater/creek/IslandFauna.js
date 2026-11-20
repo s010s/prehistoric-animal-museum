@@ -1,9 +1,11 @@
 import { Quaternion, Sphere, Vector3 } from '../vendor/tidewater/src/engine/index.js';
 import { islandAssetStats, islandMuseumModels, islandMuseumResidencyBudget, loadIslandMuseumModel } from '../museum/IslandMuseumModels.js';
 import { FaunaResidency } from './FaunaResidency.js';
-import { makeRoute, routePoint } from './IslandFaunaRoute.js';
+import { landTurnRate, makeRoute, routePoint } from './IslandFaunaRoute.js';
+import { aquaticTravel, aquaticYawAmount } from './IslandAquaticLocomotion.js';
 import { faunaBodyPlacement, faunaMediumLimits } from './IslandFaunaHabitats.js';
 import { faunaTorso, placeFaunaTorso } from './FaunaLandInteraction.js';
+import { groundLookAngle, groundVisitorAttention } from '../museum/GroundVisitorAttention.js';
 import { attachStreamedFaunaPipelines, markStreamedFaunaMaterials } from '../museum/StreamedFaunaPipelines.js';
 import { clipCreekRefraction } from './CreekWater.js';
 
@@ -37,14 +39,14 @@ function bodyBounds(metadata) {
     sphere: new Sphere(new Vector3(...center), Math.hypot(...placement.half) * 1.12 / metadata.scale) };
 }
 
-function place(app, actor, point, dt, groundGait = 0, visitor = null) {
+function place(app, actor, point, dt, groundGait = 0) {
   const { model, body, site } = actor;
   const [x, defaultY, z, heading] = point;
   const onGround = site.medium === 'ground', benthic = site.medium === 'benthic';
   const currentYaw = actor.yaw ?? heading;
-  const targetYaw = visitor && benthic
-    ? Math.atan2(visitor.x - x, visitor.z - z) - body.forward : heading;
-  const yaw = turn(currentYaw, targetYaw, dt * (onGround ? .6 * groundGait : 1.65));
+  const yawAmount = waterborne(site.medium)
+    ? aquaticYawAmount(dt, actor.aquaticSpeed, site.speed, benthic) : dt * (onGround ? landTurnRate * groundGait : 1.65);
+  const yaw = turn(currentYaw, heading, yawAmount);
   const fit = faunaMediumLimits(app.terrainData, app.creekData.field, site, body, x, z, yaw);
   if (!fit) return false;
   const air = site.medium === 'air';
@@ -106,6 +108,9 @@ function resetActor(app, actor) {
   actor.distance = 0;
   actor.time = 0;
   actor.alert = 0;
+  actor.visitorNoticed = false;
+  actor.watchSeconds = 0;
+  actor.aquaticSpeed = 0;
   actor.yaw = undefined;
   actor.bank = actor.pitch = actor.headYaw = 0;
   actor.model.groundMotion?.reset(actor.phase);
@@ -115,6 +120,11 @@ function resetActor(app, actor) {
   let fits = place(app, actor, routePoint(actor.route, 0), 0);
   if (!fits) fits = place(app, actor, [...actor.route.origin, actor.route.yaw], 0);
   if (!fits) return false;
+  // Residency can attach between ticks. Seat the rendered toes before this
+  // group joins the scene, including the first frame after a guided jump.
+  if (actor.site.medium === 'ground') actor.model.update(0, {
+    terrain: app.terrainData, behavior: actor.site.behavior, travelled: 0,
+  });
   for (const mesh of actor.model.meshes) mesh.resetVelocity = true;
   return true;
 }
@@ -146,9 +156,12 @@ function moveActor(app, actor, dt, camera) {
   const arrival = actor.arrival;
   const stayedAtArrival = arrival && arrival.distanceToSquared(camera) < Math.min(.55, Math.max(.15, Math.hypot(...body.half) * .3)) ** 2;
   if (!stayedAtArrival) actor.arrival = null;
-  const near = !stayedAtArrival && (!wet || wetVisitor) && Math.hypot(visitor.x - actor.x, visitor.y - actor.y, visitor.z - actor.z)
-    < Math.max(m === 'air' ? 7 : 1.3, Math.hypot(...body.half) * 1.45 + 1.1);
-  actor.alert = near ? 2.2 : Math.max(0, actor.alert - dt);
+  const visitorRange = Math.hypot(visitor.x - actor.x, visitor.y - actor.y, visitor.z - actor.z);
+  const noticeRadius = Math.max(m === 'air' ? 7 : 1.3, Math.hypot(...body.half) * 1.45 + 1.1);
+  const near = !stayedAtArrival && (!wet || wetVisitor) && visitorRange < noticeRadius;
+  actor.alert = m === 'ground'
+    ? groundVisitorAttention(actor, dt, stayedAtArrival ? Infinity : visitorRange, noticeRadius, 1.6 + actor.phase * .045)
+    : near ? 2.2 : Math.max(0, actor.alert - dt);
   const alert = actor.alert > 0;
   const ground = m === 'ground', benthic = m === 'benthic';
   const clock = actor.time + actor.phase;
@@ -162,12 +175,15 @@ function moveActor(app, actor, dt, camera) {
   const pause = arrivalHold || (ground && (alert || cycle < quietWindow)) || (benthic && alert)
     || (!ground && quiet && !alert && cycle < quietWindow);
   const moving = route.length > 0 && !pause && (!ground || !!model.groundMotion || !!clips.movement);
+  const speed = site.speed ?? 0;
+  const propulsion = wet ? aquaticTravel(actor.aquaticSpeed, speed, moving, alert, benthic, dt) : null;
+  if (propulsion) actor.aquaticSpeed = propulsion.velocity;
   const canWatch = ground && (clips.alert || model.headYawLimit);
   actor.response = alert ? ground ? canWatch ? 'watching-visitor' : 'holding-footing' : benthic ? 'holding-bed'
     : m === 'air' ? 'passing-overhead' : 'giving-swimmer-space' : moving ? behavior : 'resting';
   let clip = clips.idle;
   if (m === 'air') clip = clips.movement || clips.idle;
-  else if (moving) clip = ground && model.groundMotion ? clips.strideBase || clips.idle : clips.movement || clips.idle;
+  else if (propulsion?.propelling ?? moving) clip = ground && model.groundMotion ? clips.strideBase || clips.idle : clips.movement || clips.idle;
   else if (!ground && !benthic) clip = clips.hover || clips.movement || clips.idle;
   else clip = (alert && clips.alert) || clips.activity || clips.idle;
   if (clip && clip !== actor.clip) {
@@ -184,24 +200,29 @@ function moveActor(app, actor, dt, camera) {
     const direction = Math.atan2(visitor.x - actor.x, visitor.z - actor.z);
     const heading = actor.yaw + body.forward;
     const limit = model.headYawLimit;
-    const target = alert && !clips.alert ? clamp(signedAngle(direction - heading), -limit, limit) : 0;
+    const target = alert && !clips.alert ? groundLookAngle(direction, heading, limit) : 0;
     actor.headYaw = mix(actor.headYaw, target, 1 - Math.exp(-dt * 4.5));
     if (Math.abs(actor.headYaw) < .0001) actor.headYaw = 0;
     model.setHeadYaw(actor.headYaw);
   }
-  const speed = site.speed ?? 0;
   const metresPerSecond = ground && model.groundMotion ? model.groundMotion.advance(dt, moving, speed)
-    : moving ? speed * (alert && wet ? 1.32 : 1) : 0;
-  const travelled = metresPerSecond * dt;
+    : moving ? speed : 0;
+  const travelled = propulsion?.travelled ?? metresPerSecond * dt;
   const next = actor.distance + travelled;
   let accepted = 0;
   if (travelled || !ground || !actor.collider?.solid) {
-    if (place(app, actor, routePoint(route, next), dt, ground && metresPerSecond > .001 ? 1 : 0, alert ? visitor : null)) {
+    if (place(app, actor, routePoint(route, next), dt, ground && metresPerSecond > .001 ? 1 : 0)) {
       accepted = travelled;
       actor.distance = next;
-    } else if (travelled) actor.response = 'holding-habitat-edge';
+    } else if (travelled) {
+      if (propulsion) actor.aquaticSpeed = 0;
+      actor.response = 'holding-habitat-edge';
+    }
   }
-  model.update(dt * (alert && wet && moving ? 1.32 : 1),
+  if (propulsion) for (const layer of model.layers) {
+    layer.speed = layer.clip.name === clips.movement ? propulsion.cadence : 1;
+  }
+  model.update(dt,
     ground ? { terrain: app.terrainData, behavior, alert, travelled: accepted } : undefined);
   for (const mesh of model.meshes) mesh.castShadow = !mesh.material.transparent && observerDistance < Math.min(120, range * .67);
 }

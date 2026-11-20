@@ -116,6 +116,15 @@ function solveIndividual(context, patch, spec, body, actorId, groupId, rng, clai
   // Ambush and hover exhibits may wait in a small pocket of suitable water.
   if (spec.behavior === 'ambush' || spec.behavior === 'hover') options.push(0);
   for (const radius of options) {
+    const contour = { ...form };
+    if (spec.medium === 'ground' && radius) {
+      // Broad hips and planted outer feet need space in a turn. Near the
+      // minimum radius use a rounded arc and let wider circuits meander.
+      const turnRadius = spec.length * .37;
+      if (radius < turnRadius) continue;
+      contour.aspect = Math.max(form.aspect, Math.sqrt(turnRadius / radius));
+      contour.wander = .11 * Math.max(0, 1 - turnRadius / (radius * contour.aspect ** 2));
+    }
     for (let attempt = 0; attempt < (patch.spread ? 38 : 1); attempt++) {
       const a = phase + attempt * 2.399963229728653;
       const r = Math.sqrt(attempt / 37) * patch.spread;
@@ -127,7 +136,7 @@ function solveIndividual(context, patch, spec, body, actorId, groupId, rng, clai
       if (wet && spec.medium !== 'freshwater' && ((edge <= .05 && level > SEA_LEVEL + .15) || h >= SEA_LEVEL)) continue;
       if (wet && spec.medium !== 'freshwater' && data.cove.continuous.marineAt(x, z) < .62) continue;
       if (spec.medium === 'ground' && h < (edge <= .05 ? Math.max(SEA_LEVEL, level) : SEA_LEVEL) - .42) continue;
-      const route = context.routeAt(context, spec, body, x, z, radius, axis, form);
+      const route = context.routeAt(context, spec, body, x, z, radius, axis, contour);
       if (!route || !obstacleFree(context.colliders, spec, body, route, axis + .9)) continue;
       const [startX, startY, startZ] = route.path[0];
       const [nextX, , nextZ] = route.path[1] ?? route.path[0];

@@ -1,5 +1,7 @@
 import { ISLAND_FAUNA_PLAN, ISLAND_FAUNA_REGIONS } from './IslandFaunaPlan.js';
+import { routePoint } from './IslandFaunaRoute.js';
 import { createIslandFaunaPopulation } from './IslandFaunaPopulation.js';
+import { megalodonPortrait } from './IslandAquaticPortrait.js';
 import { sunDirectionFromTime } from '../vendor/tidewater/src/sky/Sky.js';
 import { islandFlightBounds } from '../museum/IslandFlightBounds.js';
 import aquaticBounds from '../museum/aquatic-motion/animated-bounds.json' with { type: 'json' };
@@ -14,7 +16,7 @@ const submerged = medium => ['marine', 'freshwater', 'benthic'].includes(medium)
 const nearbyAngles = Array.from({ length: 16 }, (_, i) => i * TAU / 16);
 const flightViews = {
   meganeura: { distance: 1.95, maxDistance: 3.1, sky: true, altitude: 3.05, incline: .92, sunSide: .12 },
-  anurognathus: { distance: 1.7, sky: true, altitude: 2.55, incline: .92 },
+  anurognathus: { distance: 2.55, sky: true, altitude: 3.1, incline: .85, sunSide: .12, clearSeconds: 4.5 },
   sordes: { distance: 1.9, sky: true, altitude: 2.75, incline: .92 },
   archaeopteryx: { distance: 1.95, sky: true, altitude: 3, incline: 1.08 },
   rhamphorhynchus: { distance: 3.8, maxDistance: 5.6, sky: true, altitude: 3.35, incline: .62 },
@@ -117,7 +119,7 @@ function routeAt(context, site, body, x, z, radius, axis, population = null) {
   const points = Array.from({ length: steps }, (_, i) => {
     const a = i * TAU / steps + (population?.phase ?? 0);
     const u = radius * Math.cos(a);
-    const v = population ? radius * (population.aspect * Math.sin(a) + .11 * Math.sin(a * 2 + population.phase))
+    const v = population ? radius * (population.aspect * Math.sin(a) + (population.wander ?? .11) * Math.sin(a * 2 + population.phase))
       : radius * .77 * Math.sin(a);
     return [x + u * c - v * s, z + v * c + u * s];
   });
@@ -165,7 +167,7 @@ function routeAt(context, site, body, x, z, radius, axis, population = null) {
   return { path, minY, maxY };
 }
 
-function clearSight(terrain, colliders, p, gaze) {
+function clearSight(terrain, colliders, p, gaze, crowns = false) {
   const last = Math.hypot(gaze[0] - p[0], gaze[2] - p[2]);
   const segments = clamp(Math.ceil(last * 2), 6, 96);
   for (let i = 1; i < segments; i++) {
@@ -173,9 +175,19 @@ function clearSight(terrain, colliders, p, gaze) {
     const x = p[0] + (gaze[0] - p[0]) * t;
     const y = p[1] + (gaze[1] - p[1]) * t;
     const z = p[2] + (gaze[2] - p[2]) * t;
-    if (Math.max(terrain.heightAt(x, z), treeHeightAt(colliders, x, z, .1)) >= y) return false;
+    if (Math.max(terrain.heightAt(x, z), treeHeightAt(colliders, x, z, .1, crowns)) >= y) return false;
   }
   return true;
+}
+
+function unobstructedView(colliders, eye, gaze, ownCollider) {
+  if (!colliders?.sightDistance) return true;
+  const x = gaze[0] - eye[0], y = gaze[1] - eye[1], z = gaze[2] - eye[2];
+  const distance = Math.hypot(x, y, z);
+  if (distance < .01) return true;
+  const origin = { x: eye[0], y: eye[1], z: eye[2] };
+  const direction = { x: x/distance, y: y/distance, z: z/distance };
+  return colliders.sightDistance(origin, direction, distance, ownCollider) >= distance - .01;
 }
 
 function openFlightBackdrop(terrain, colliders, gaze, dx, dz, incline) {
@@ -195,7 +207,22 @@ function openFlightBackdrop(terrain, colliders, gaze, dx, dz, incline) {
   return true;
 }
 
-function observationFor(context, site, body, path) {
+// Small dark wings vanish against needles. Inspect the actual arc ahead
+// from the standing eye so there is time to recognise the animal in motion.
+function openFlightArc({ terrain, colliders }, site, path, start, eye, seconds) {
+  let metres = 0;
+  for (let n = 1; n <= path.length && metres < site.speed * seconds; n++) {
+    const from = path[(start + n - 1) % path.length], next = path[(start + n) % path.length];
+    metres += Math.hypot(next[0] - from[0], next[2] - from[2]);
+    const dx = eye[0] - next[0], dz = eye[2] - next[2], flat = Math.hypot(dx, dz);
+    const incline = (next[1] - eye[1]) / flat;
+    if (!clearSight(terrain, colliders, eye, next, true)
+        || !openFlightBackdrop(terrain, colliders, next, dx/flat, dz/flat, incline)) return false;
+  }
+  return true;
+}
+
+function observationFor(context, site, body, path, frame = null) {
   const { terrain, field, colliders } = context;
   const wet = submerged(site.medium);
   const air = site.medium === 'air';
@@ -206,21 +233,22 @@ function observationFor(context, site, body, path) {
   const mammoth = site.id === 'mammoth';
   const sunSideMin = mammoth ? .42 : flight?.sunSide;
   const daylight = sunSideMin === undefined ? null : sunDirectionFromTime(site.time);
-  const view = flight?.distance ?? (wet
+  const authoredDistance = flight?.distance ?? (wet
     ? clamp(length * 1.12, .37, 19)
     : air ? clamp(length * 2.1, 2.25, 37) : clamp(length * 1.13, 2.4, 29));
-  const range = air ? [1, 1.7, .75, 2.6, 3.8] : [1, 1.2, .82, 1.55, .68];
+  const view = frame ? frame.distance : authoredDistance;
+  const range = frame ? [.55, .68, .8, .94, 1.1, 1.3, 1.6] : air ? [1, 1.7, .75, 2.6, 3.8] : [1, 1.2, .82, 1.55, .68];
   if (site.medium === 'freshwater') range.push(.48, .32);
   const lookHeight = ground ? Math.max(.16, -body.floor * 1.15) : benthic ? Math.max(.02, body.half[1] + .015) : 0;
   let best = null;
-  for (let i = 0; i < path.length; i += Math.max(1, path.length / 8)) {
+  for (let i = 0; i < (frame ? 1 : path.length); i += Math.max(1, path.length / 8)) {
     const [x, y, z] = path[i];
     const [qx, , qz] = path[(i + 1) % path.length];
     const heading = path.length === 1 ? 0 : Math.atan2(qx - x, qz - z);
     const gaze = [x, y + lookHeight, z];
     for (const factor of range) for (const angle of nearbyAngles) {
       const distance = factor * view;
-      if (distance > (flight?.maxDistance ?? Infinity)) continue;
+      if (!frame && distance > (flight?.maxDistance ?? Infinity)) continue;
       const dx = Math.cos(angle);
       const dz = Math.sin(angle);
       const px = x + dx * distance;
@@ -236,7 +264,7 @@ function observationFor(context, site, body, path) {
 
       if (treeHeightAt(colliders, px, pz, .66) > floor) continue;
       const viewIncline = (gaze[1] - py) / distance;
-      if (flight?.sky && viewIncline < flight.incline * .62) continue;
+      if (flight?.sky && viewIncline < flight.incline * (frame ? .28 : .62)) continue;
       const sunSide = daylight ? (daylight.x * dx + daylight.z * dz) / Math.hypot(daylight.x, daylight.z) : 1;
       if (daylight && sunSide < sunSideMin) continue;
       const lightPenalty = mammoth ? (1 - sunSide) * 1.25 : daylight ? Math.abs(sunSide - .52) * .85 : 0;
@@ -244,17 +272,85 @@ function observationFor(context, site, body, path) {
       if (!wet && !air && viewIncline < -.57) continue;
       const oblique = Math.abs(dx * Math.sin(heading) + dz * Math.cos(heading));
       if (flight?.sky && (oblique < .20 || oblique > .72)) continue;
-      const score = Math.abs(factor - 1) * 4 + Math.abs(oblique - (flight?.sky ? .39 : .35)) * (flight?.sky ? 3 : .95)
+      let framingCost = Math.abs(factor - 1) * 4;
+      if (frame) {
+        const coverage = projectedCoverage(frame, [px, py, pz], gaze);
+        if (coverage > .86) continue;
+        framingCost = Math.abs(coverage - .74) * 7 + Math.abs(viewIncline - frame.incline);
+        // In deep water a shorter three-quarter view retains colour and detail.
+        if (wet) framingCost += Math.max(0, distance - 9) * .22;
+      }
+      const score = framingCost + Math.abs(oblique - (flight?.sky ? .39 : .35)) * (flight?.sky ? 3 : .95)
         + (air ? Math.abs(viewIncline - (flight?.incline ?? .14)) * 1.25 : 0)
         + lightPenalty + i * .005;
       if (best && score >= best.score) continue;
       if (flight?.sky && !openFlightBackdrop(terrain, colliders, gaze, dx, dz, viewIncline)) continue;
-      if (!clearSight(terrain, colliders, [px, py, pz], gaze)) continue;
+      if (!clearSight(terrain, colliders, [px, py, pz], gaze, !!flight?.sky)) continue;
+      if (flight?.clearSeconds && !openFlightArc(context, site, path, i, [px, py, pz], flight.clearSeconds)) continue;
+      if (frame && !unobstructedView(colliders, [px, py, pz], gaze, frame.ownCollider)) continue;
       best = { score, p: [px, pz], eye: [px, py, pz], gaze, i, heading,
         ...(wet ? { diveLevel: level, eyeBelowSurface: level - py } : {}) };
     }
   }
   return best;
+}
+
+// Project all eight corners of the oriented animation envelope. A three-quarter
+// view can keep a long animal readable at shorter, clearer underwater distances.
+function projectedCoverage(frame, eye, gaze) {
+  const vx = eye[0] - gaze[0], vy = eye[1] - gaze[1], vz = eye[2] - gaze[2];
+  const flat = Math.hypot(vx, vz), depth = Math.hypot(flat, vy);
+  const dx = vx / flat, dz = vz / flat, up = vy / depth, horizontal = flat / depth;
+  let coverage = 0;
+  for (const [x, y, z] of frame.corners) {
+    const along = x * dx + z * dz;
+    const distance = depth - along * horizontal - y * up;
+    if (distance <= .06) return Infinity;
+    const px = Math.abs(x * dz - z * dx) / (distance * frame.tanX);
+    const py = Math.abs(y * horizontal - along * up) / (distance * frame.tanY);
+    coverage = Math.max(coverage, px, py);
+  }
+  return coverage;
+}
+
+export function frameFaunaVisit(context, actor, visit, camera) {
+  if (!actor || camera.aspect >= 1 || !(camera.aspect > 0)) return visit;
+  const { site, body } = actor;
+  const [cx, cy, cz] = site.path[0];
+  const tanY = Math.tan(camera.fov * Math.PI / 360) / (camera.zoom || 1);
+  const tanX = tanY * camera.aspect;
+  const [hx, hy, hz] = body.half;
+  const yaw = actor.route ? routePoint(actor.route, 0)[3] : site.yaw - body.forward;
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  const centerY = site.medium === 'ground' ? cy - body.floor :
+    site.medium === 'benthic' ? cy + hy + .015 : cy;
+  const corners = [];
+  for (const x of [-hx, hx]) for (const y of [-hy, hy]) for (const z of [-hz, hz]) {
+    corners.push([x*c + z*s, centerY - visit.gaze[1] + y, z*c - x*s]);
+  }
+  const distance = Math.hypot(hx, hz) / Math.sin(Math.atan(tanX)) / .81;
+  const originalRange = Math.hypot(cx - visit.p[0], cz - visit.p[1]);
+  const frame = { tanX, tanY, distance, corners, ownCollider: actor.collider,
+    incline: (visit.gaze[1] - visit.eye[1]) / originalRange };
+  if (site.id === 'megalodon') {
+    const { terrain, field, colliders } = context;
+    const portrait = megalodonPortrait([cx, cy, cz], yaw, site.length, tanX, tanY, site.level, (eye, gaze) => {
+      const [x, y, z] = eye;
+      const water = waterAt(field, x, z);
+      return !water.inland && water.level - y >= .6 && y - terrain.heightAt(x, z) >= SWIM_CLEARANCE
+        && clearSight(terrain, colliders, eye, gaze) && unobstructedView(colliders, eye, gaze, actor.collider);
+    });
+    if (portrait) {
+      const { eye, gaze } = portrait;
+      return { ...visit, p: [eye[0], eye[2]], eye, gaze, diveLevel: site.level, eyeBelowSurface: site.level - eye[1] };
+    }
+  }
+  if (projectedCoverage(frame, visit.eye, visit.gaze) <= .86
+      && unobstructedView(context.colliders, visit.eye, visit.gaze, actor.collider)) return visit;
+  const view = observationFor(context, site, body, site.path, frame);
+  if (!view) return visit;
+  return { ...visit, p: view.p, eye: view.eye, gaze: view.gaze,
+    ...(view.diveLevel === undefined ? {} : { diveLevel: view.diveLevel, eyeBelowSurface: view.eyeBelowSurface }) };
 }
 
 function solveHabitat(context, spec, metadata, time) {
@@ -298,6 +394,30 @@ function solveHabitat(context, spec, metadata, time) {
   return null;
 }
 
+// The terrain may put an entire exhibit in the ridge's shadow at the
+// district's preferred hour. Pick daylight from the actual viewing side.
+function landObservationTime(terrain, site, visit) {
+  const preferred = site.time;
+  if (site.medium !== 'ground') return preferred;
+  const [x, y, z] = visit.gaze;
+  const dx = visit.p[0] - x, dz = visit.p[1] - z;
+  const distance = Math.hypot(dx, dz);
+  let bestTime = preferred, bestScore = Infinity;
+  for (const time of [preferred, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5]) {
+    const sun = sunDirectionFromTime(time);
+    let inShadow = false;
+    for (let t = 3; t < 2500; t += Math.max(4, t * .055)) {
+      if (terrain.heightAt(x + sun.x*t, z + sun.z*t) > y + sun.y*t) { inShadow = true; break; }
+    }
+    if (inShadow) continue;
+    if (time === preferred) return preferred;
+    const side = (sun.x * dx + sun.z * dz) / distance;
+    const score = Math.abs(side - .4) + Math.abs(time - preferred) * .035;
+    if (score < bestScore) { bestTime = time; bestScore = score; }
+  }
+  return bestTime;
+}
+
 export function createIslandFaunaHabitats(data, catalog, { colliders = null } = {}) {
   const started = performance.now();
   const context = { terrain: data.terrain, field: data.field, colliders };
@@ -315,7 +435,7 @@ export function createIslandFaunaHabitats(data, catalog, { colliders = null } = 
       continue;
     }
     sites[spec.id] = match.site;
-    visits[spec.visitId] = { ...match.visit, time: times.get(spec.regionId) };
+    visits[spec.visitId] = { ...match.visit, time: landObservationTime(data.terrain, match.site, match.visit) };
   }
   if (unavailable.length) throw Error('No suitable habitat for: ' + unavailable.join(', '));
   const population = createIslandFaunaPopulation({

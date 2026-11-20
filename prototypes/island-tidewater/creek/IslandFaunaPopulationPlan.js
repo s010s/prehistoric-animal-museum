@@ -105,8 +105,8 @@ export const ISLAND_FAUNA_POPULATION_PLAN = [
   // in the opening while the other can move along the contour farther back.
   patch('entrance-graze-bench', 'creek', [-54, -90], 0, [['stegosaurus', 1]], null,
     { radius: 0, axis: Math.PI / 3 }),
-  patch('entrance-graze-shoulder', 'creek', [-52, -104], 0, [['stegosaurus', 1]], null,
-    { radius: 3.5, axis: Math.PI / 4, form: { aspect: .48, phase: .7 } }),
+  patch('entrance-graze-shoulder', 'creek', [-52, -104], 24, [['stegosaurus', 1]], null,
+    { radius: 7.5, axis: Math.PI / 4, form: { aspect: .86, phase: .7 } }),
 
   // Small groups along connected terrain between the busier habitat patches.
   patch('west-north-headland', 'west-coast', [-902, -282], 70, [['rhamphorhynchus', 3]], 'sea-edge'),

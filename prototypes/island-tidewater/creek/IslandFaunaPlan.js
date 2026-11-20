@@ -45,8 +45,8 @@ export const ISLAND_FAUNA_PLAN = [
     ['dilophosaurus', '双冠龙', 'Dilophosaurus', '早侏罗世（约 1.93 亿年前）', 'ground', 'patrol', [3253, -1934], 13, 1.2, 6.5, '从侧前方看头顶并列的双冠。'],
   ]),
   ...stops('jurassic-grove', [
-    ['apatosaurus', '迷惑龙', 'Apatosaurus', '晚侏罗世（约 1.52亿–1.45亿年前）', 'ground', 'browse', [-556, 308], 15, .37, 22, '沿林缘绕到侧面，看颈部、长尾和四根柱状的腿。'],
-    ['stegosaurus', '剑龙', 'Stegosaurus', '晚侏罗世', 'ground', 'graze', [-659, -118], 11, .49, 7.75, '从侧面观察两排骨板，再找尾巴末端的尖刺。'],
+    ['apatosaurus', '迷惑龙', 'Apatosaurus', '晚侏罗世（约 1.52亿–1.45亿年前）', 'ground', 'browse', [-556, 308], 15, .78, 22, '沿林缘绕到侧面，看颈部、长尾和四根柱状的腿。'],
+    ['stegosaurus', '剑龙', 'Stegosaurus', '晚侏罗世', 'ground', 'graze', [-659, -118], 11, .66, 7.75, '从侧面观察两排骨板，再找尾巴末端的尖刺。'],
     ['allosaurus-pandras', '异特龙', 'Allosaurus', '晚侏罗世', 'ground', 'patrol', [-573, -305], 18, 1.12, 9.7, '看眼睛上方突起，留意前肢三根带爪的手指。'],
     ['anurognathus', '蛙嘴翼龙', 'Anurognathus', '晚侏罗世（约 1.5 亿年前）', 'air', 'flutter', [-737, -221], 3.4, .72, .35, '从近处看小翼龙掠过林隙时宽圆的脸。'],
     ['sordes', '索德斯翼龙', 'Sordes', '晚侏罗世', 'air', 'glide', [-695, -138], 3.25, .75, .6, '看它飞过谷坡时，留意薄翼膜和末端延伸的尾巴。'],

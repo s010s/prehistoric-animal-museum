@@ -44,13 +44,21 @@ function insectLegs() {
   // The three pairs attach at different points along the ventral thorax.
   const pairs = [
     ['rear', [.137, -.473, 0], [.060, .102, .179, .227], -.21],
-    ['middle', [.273, -.525, 0], [.209, .250, .414, .448], .02],
-    ['front', [.459, -.494, 0], [.410, .452, .563, .653], .21],
+    ['middle', [.273, -.525, 0], [.209, .250, .443, .473], .02],
+    ['front', [.459, -.494, 0], [.410, .441, .580, .653], .21],
   ];
   return pairs.map(([name, pivot, [a, b, c, d], lag]) => ({
     name: name + ' leg pair', pivot,
-    weight: (f, y, l, material) => ['claws', 'hair', 'skin', 'material'].includes(material)
-      ? ramp(-.487, -.759, y) * ramp(a, b, f) * ramp(d, c, f) : 0,
+    weight: (f, y, l, material) => {
+      if (!['claws', 'hair', 'skin'].includes(material)) return 0;
+      // The middle tarsi reach forward, beside the front pair. Their distal
+      // lateral separation keeps each claw and shank with its own joint.
+      const distal = ramp(-.59, -.79, y);
+      const lateral = ramp(.050, .073, Math.abs(l));
+      const legRegion = name === 'front' ? 1 - distal * lateral
+        : name === 'middle' ? 1 - distal * (1 - lateral) : 1;
+      return ramp(-.487, -.759, y) * ramp(a, b, f) * ramp(d, c, f) * legRegion;
+    },
     motion: t => [[pitch, .131 + .105 * cos(t - .52 + lag)]],
   }));
 }

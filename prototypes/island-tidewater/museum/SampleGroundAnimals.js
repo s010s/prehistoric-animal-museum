@@ -1,8 +1,8 @@
 import { museumGroundSupport, museumTrunkClear, museumXZ, seatMuseumModel } from './MuseumGrounding.js';
 import { faunaTorso, placeFaunaTorso } from '../creek/FaunaLandInteraction.js';
 import { Vector3 } from '../vendor/tidewater/src/engine/index.js';
+import { groundLookAngle, groundVisitorAttention } from './GroundVisitorAttention.js';
 
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const routines = {
   apatosaurus: { behavior: 'browse', speed: .62, distance: 5.6, observe: 42, alert: 8 },
   triceratops: { behavior: 'graze', speed: .65, distance: 4.2, observe: 25, alert: 5.4 },
@@ -42,13 +42,13 @@ export function updateSampleGroundAnimal(app, actor, dt) {
   const distance = Math.hypot(dx, dz, visitor.y - actor.ground);
   const nearby = distance < trail.observe;
   state.nearTime = nearby ? state.nearTime + dt : 0;
-  state.attention = distance < trail.alert ? 1.8 : Math.max(0, state.attention - dt);
+  state.attention = groundVisitorAttention(state, dt, distance, trail.alert, 1.8);
   const alert = state.attention > 0;
   const remaining = Math.max(0, trail.length - state.distance);
   const walking = state.nearTime > 2.4 && remaining > .008 && !alert;
   const desiredSpeed = Math.min(trail.speed, Math.sqrt(1.05 * remaining));
   const speed = model.groundMotion?.advance(dt, walking, desiredSpeed) ?? 0;
-  const travelled = !alert && nearby ? Math.min(remaining, speed * dt) : 0;
+  const travelled = Math.min(remaining, speed * dt);
   const before = state.distance;
   const proposed = before + travelled;
   if (travelled || dt === 0) {
@@ -66,11 +66,11 @@ export function updateSampleGroundAnimal(app, actor, dt) {
       actor.mount.group.quaternion.copy(model.group.quaternion);
     }
   } else if (actor.collider) actor.collider.solid = true;
-  const angle = Math.atan2(dx, dz) - trail.heading;
-  const target = alert ? clamp(Math.atan2(Math.sin(angle), Math.cos(angle)), -model.headYawLimit, model.headYawLimit) : 0;
+  const target = alert ? groundLookAngle(Math.atan2(dx, dz), trail.heading, model.headYawLimit) : 0;
   state.headYaw += (target - state.headYaw) * -Math.expm1(-dt * 3.8);
   model.setHeadYaw(state.headYaw);
   const waiting = model.headYawLimit ? 'watching-visitor' : 'holding-footing';
   state.disposition = alert ? waiting : state.distance > before ? 'walking' : trail.behavior;
+  model.play(walking ? 'StrideBase' : 'Idle', { fade: .35 });
   model.update(dt, { terrain: app.terrainData, behavior: trail.behavior, alert, travelled: state.distance - before });
 }

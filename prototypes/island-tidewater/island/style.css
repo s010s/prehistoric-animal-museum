@@ -222,6 +222,8 @@ h1, .region-detail h2 {
 .map-river { fill: none; stroke: #427d76; stroke-width: 0.9; opacity: 0.65; }
 .map-fauna { fill: #a7442f; stroke: #fff1d8; stroke-width: 1.15; }
 .map-fauna-focus { fill: #862d1b; stroke-width: 2; }
+.map-mouth { fill: #14556d; stroke: #fff7df; stroke-width: 1.6; }
+.map-mouth[data-mouth="sample-mouth"] { fill: #435e50; }
 
 .marker,
 .region-index {
@@ -317,6 +319,19 @@ h1, .region-detail h2 {
 .map-key-fauna { background: var(--copper); transform: rotate(45deg); }
 .map-status { color: var(--muted); margin-top: 6px; font-size: 0.84rem; }
 .map-status:empty { display: none; }
+
+.mouth-visits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin-block-start: 8px;
+  font-size: 0.84rem;
+}
+
+.mouth-visits a { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; color: #14556d; }
+.mouth-visits a[data-mouth="sample-mouth"] { color: var(--forest); }
+.mouth-visits a::before { width: 8px; height: 8px; border-radius: 50%; background: currentColor; content: ""; }
+.mouth-visits a:hover { color: var(--copper); }
 
 .region-list {
   display: grid;

@@ -64,6 +64,9 @@ export const islandMuseumLegCalibration = {
   },
   carnotaurus: {
     forward: [0, 1], materials: ['BODY', 'CLAW'], upperBlend: .86, upperHalo: .23, addedVertexBytes: 16,
+    // In the museum pose the trailing foot points down onto three claw tips.
+    // Unroll it onto its fleshy toe pads before measuring its support patch.
+    solePitch: [0, -.46],
     legs: [
       leg(-1, false, 'Object_2', [0, 1, 3], [
         [-.58, 2.68, -.79, .52, .42], [-.246, 1.53, -.906, .36, .24],

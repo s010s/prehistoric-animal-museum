@@ -4,6 +4,7 @@ import { Group, Vector3, Sphere } from '../vendor/tidewater/src/engine/index.js'
 import { mergeMuseumSkins } from '../museum/NativeMuseumSkin.js';
 import { prepareMuseumMotion, museumMotionEnvelope, sampleIchthyosaurEnvelope } from '../museum/AnimalMotionPolish.js';
 import { createMuseumGroundMotion } from '../museum/MuseumGroundMotion.js';
+import { prepareGroundSpecimen } from '../museum/PrepareGroundSpecimen.js';
 import { prepareIslandAquaticMotion } from '../museum/IslandAquaticMotion.js';
 import { museumMaterialOptions } from '../museum/animals.js';
 import { findMuseumGround, museumGroundSupport, museumTrunkClear, seatMuseumModel, museumGroundVisit, museumXZ } from '../museum/MuseumGrounding.js';
@@ -174,7 +175,12 @@ export class SampleMuseumLife {
         actor.mode = 'flapping-coastal-circuit';
         sites[id] = { id, metres: 7, metric: 'wingspan', habitat: 'coastal air over beach and sea', bird: false, path: actor.route, action: 'source 125-bone wing animation with continuous-tangent rotations and banked coastal circuit' };
         const entry = dryEntry(app, app.islandVisits?.['sample-mouth']?.p ?? [-823, 119]);
-        this.visits['sample-' + id] = { id: 'sample-' + id, title: '海风中的无齿翼龙', p: entry.p, gaze: [-946, altitude, 160], time: 12.6, note: '', footing: entry };
+        const sample = this;
+        this.visits['sample-' + id] = {
+          id: 'sample-' + id, title: '海风中的无齿翼龙', p: entry.p, focusAnimal: 'sample:' + id,
+          get gaze() { return sample.centerOf(actor); },
+          time: 12.6, note: '抬头看无齿翼龙沿浅湾盘旋。', footing: entry,
+        };
       } else {
         actor.route = { ...findMarineRoute(app, data), phase: 0, speed: 1.25 };
         actor.mode = 'swimming';
@@ -193,6 +199,7 @@ export class SampleMuseumLife {
         bytes: definition.costMiB * 1024 ** 2, priority: 8,
         load: async signal => {
           const gltf = prepareMuseumMotion(mergeMuseumSkins(await loadSampleGLB(definition.url, signal)), id);
+          if (definition.habitat === 'land') prepareGroundSpecimen(id, gltf, null, null, data, { sample: true });
           if (id === 'ichthyosaur') await prepareIslandAquaticMotion(gltf, id);
           signal.throwIfAborted();
           const probes = { lystrosaurus: ['head_065_62', 'Tail_3_033_29'], parasaurolophus: ['骨骼.018_end', '骨骼.030_end'], pteranodon: ['Lwing03.37_37', 'Rwing03.67_67'], ichthyosaur: ['front_fin_L', 'rear_fin_R', 'tail_05', 'tail_06'] };
@@ -267,6 +274,10 @@ export class SampleMuseumLife {
       actor.nearTime = distance < (paras ? 28 : 7) ? actor.nearTime + dt : 0;
       const remaining = Math.max(0, route.length - actor.distance);
       const walking = actor.nearTime >= (paras ? 4 : 3.5) && remaining > .005 && !front;
+      if (actor.model) {
+        model.play(walking ? 'StrideBase' : 'Idle', { fade: .35 });
+        model.update(dt);
+      }
       const previous = actor.distance;
       // The ground action already animates these limbs from Blender swing
       // curves. The source Walk would pose the same joints again.
@@ -313,7 +324,8 @@ export class SampleMuseumLife {
       }
       if (!actor.active) { actor.model.update(0); actor.model.hold(); for (const mesh of actor.model.meshes) mesh.resetVelocity = true; }
       actor.active = true; actor.model.group.visible = true; actor.time += step;
-      actor.model.update(step); this.place(actor, step);
+      if (actor.definition.habitat !== 'land') actor.model.update(step);
+      this.place(actor, step);
       for (const mesh of actor.model.meshes) mesh.castShadow = d < (actor.definition.habitat === 'marine' ? 48 : actor.definition.range * .65);
     }
   }

@@ -1,6 +1,6 @@
 import { ISLAND_PLAN as plan } from './plan.js';
 import { ISLAND_FAUNA_PLAN, ISLAND_FAUNA_REGIONS } from '../creek/IslandFaunaPlan.js';
-import { rivers } from './assets/map.json';
+import { mouthStops, rivers } from './assets/map.json';
 
 const find = selector => document.querySelector(selector);
 const terrainImage = find('#terrain');
@@ -40,7 +40,10 @@ const tourAdditions = {
     { name: '岩隙里的细泉', place: 'sample-source' },
     { name: '溪谷巨木与幼树', place: 'sample-forest' },
   ],
-  'west-coast': [{ name: '溪水入海', place: 'sample-mouth' }],
+  'west-coast': [
+    { name: '西岸样板河口', place: 'sample-mouth' },
+    { name: '在浅湾岸边看无齿翼龙', place: 'sample-pteranodon' },
+  ],
   lake: [{ name: '山间长湖砾岸', place: 'lake-shingle' }],
   grassland: [{ name: '东部支流曲流滩', place: 'alluvial-bend' }],
   wetland: [{ name: '南部湿地汊道', place: 'wetland-runnels' }],
@@ -54,6 +57,7 @@ const options = [];
 let layer = 'terrain';
 let activeRegion;
 let focusedFauna;
+let focusedMouth;
 
 function route(params) {
   return '../creek/?' + new URLSearchParams(params);
@@ -203,7 +207,12 @@ function drawOverlay() {
     const radius = focusedFauna === animal.id ? 5 : 3;
     return `<rect class="map-fauna ${focusedFauna === animal.id ? 'map-fauna-focus' : ''}" x="${px - radius}" y="${pz - radius}" width="${2 * radius}" height="${2 * radius}" transform="rotate(45 ${px} ${pz})"/>`;
   });
-  overlay.innerHTML = [footprint, riverLines, ...leaders, ...animals].join('');
+  const mouths = Object.entries(mouthStops).map(([id, point]) => {
+    const [px, pz] = project(point);
+    const radius = focusedMouth === id ? 6 : 4;
+    return `<circle class="map-mouth" data-mouth="${id}" cx="${px}" cy="${pz}" r="${radius}"/>`;
+  });
+  overlay.innerHTML = [footprint, riverLines, ...leaders, ...animals, ...mouths].join('');
 }
 
 function selectFragment() {
@@ -216,6 +225,17 @@ plan.regions.forEach((region, index) => {
 });
 window.addEventListener('hashchange', selectFragment);
 selectFragment();
+
+for (const link of document.querySelectorAll('.mouth-visits a')) {
+  const highlight = id => {
+    focusedMouth = id;
+    drawOverlay();
+  };
+  link.addEventListener('focus', () => highlight(link.dataset.mouth));
+  link.addEventListener('blur', () => highlight(undefined));
+  link.addEventListener('pointerenter', () => highlight(link.dataset.mouth));
+  link.addEventListener('pointerleave', () => highlight(document.activeElement === link ? link.dataset.mouth : undefined));
+}
 
 function displayLayer(nextLayer) {
   const showHabitat = nextLayer === 'habitat';

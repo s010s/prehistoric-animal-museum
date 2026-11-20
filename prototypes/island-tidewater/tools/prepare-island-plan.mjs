@@ -2,13 +2,15 @@
 // terrain and water queries as the visitor scene, sampled every 40 m.
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
+import { sampleVisits } from '../creek/SampleVisits.js';
 import { ISLAND_PLAN } from '../island/plan.js';
 import { bakeAtlasImages } from './island-atlas-images.mjs';
 import { loadRuntimeTerrain } from './load-runtime-terrain.mjs';
 
 const root = new URL('../', import.meta.url);
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
-const { terrain, field, island: world, islandMasks } = await loadRuntimeTerrain();
+const data = await loadRuntimeTerrain();
+const { terrain, field, island: world, islandMasks } = data;
 const bounds = ISLAND_PLAN.bounds;
 const [west, north, east, south] = bounds;
 const [originX, originZ] = world.sourceOrigin;
@@ -75,6 +77,12 @@ const rivers = [
   ...riverRuns(world.tributary.filter((_, index) => index % 3 === 0).map(([x, , , z]) => [x, z])),
   ...riverRuns(field.continuousSample.points.filter((_, index) => index % 16 === 0).map(({ x, z }) => [x, z])),
 ];
+const westMouth = sampleVisits(data)['sample-mouth'];
+const mainMouth = data.hydrology.coasts.find(site => site.id === 'estuary');
+const mouthStops = Object.fromEntries([
+  [westMouth.id, westMouth.p],
+  [mainMouth.id, mainMouth.visit],
+].map(([id, [x, z]]) => [id, [x + originX, z + originZ]]));
 const meta = {
   schema: 'museum-island-cartography-v2',
   plan: ISLAND_PLAN.id,
@@ -84,6 +92,7 @@ const meta = {
   seaLevel,
   landAreaKm2: land * texelMetres ** 2 / 1e6,
   rivers,
+  mouthStops,
 };
 
 const preview = { size: 460, webpQuality: 76 };
@@ -106,6 +115,17 @@ const inputs = await Promise.all([
   'creek/watershed.lock.json',
   'creek/island.lock.json',
   'creek/sample.lock.json',
+  // Runtime adapters can change the final cartography without changing the raw data.
+  'creek/CoastTerrain.js',
+  'creek/CoastalShelf.js',
+  'creek/ContinuousSample.js',
+  'creek/IslandWaterField.js',
+  'creek/MainEstuary.js',
+  'creek/RegionalLandforms.js',
+  'creek/SampleTerrain.js',
+  'creek/SampleVisits.js',
+  'creek/WatershedData.js',
+  'creek/WholeIslandData.js',
 ].map(async path => ({ path, sha256: sha(await readFile(new URL(path, root))) })));
 const lock = {
   schema: 'museum-island-plan-export-v2',

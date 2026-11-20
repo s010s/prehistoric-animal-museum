@@ -109,10 +109,6 @@ export const ISLAND_PLAN={
           "place": "rock-cove"
         },
         {
-          "name": "河海交汇",
-          "place": "estuary"
-        },
-        {
           "name": "浅湾鱼群",
           "place": "shore-life"
         },

@@ -1,0 +1,38 @@
+.map-wildlife-bearing {
+  position: absolute;
+  z-index: 2;
+  height: 0;
+  border-top: 2px dashed #ffe0a0;
+  transform-origin: left center;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px #2c331f);
+}
+.map-fauna-pin {
+  position: absolute;
+  z-index: 4;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+.map-fauna-pin::after, .map-wildlife-key::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border: 2px solid #ffe4a2;
+  background: #263d33;
+  box-shadow: 0 1px 3px #253025;
+}
+.map-fauna-pin[data-locked="true"]::after { background: #b18132; }
+.map-wildlife-key {
+  padding: 6px 10px 0;
+  color: #ffe4a2;
+  overflow-wrap: anywhere;
+}
+.map-wildlife-key::before { margin-right: 7px; width: 6px; height: 6px; }
+.map-fauna-pin:focus-visible { outline: 2px solid white; border-radius: 4px; }

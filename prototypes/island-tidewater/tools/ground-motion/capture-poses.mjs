@@ -3,19 +3,21 @@ import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { ISLAND_FAUNA_PLAN } from '../../creek/IslandFaunaPlan.js';
 import { prepareMuseumMotion } from '../../museum/AnimalMotionPolish.js';
-import { augmentIslandLegRig, syncIslandLegRigPalette } from '../../museum/IslandMuseumLegRig.js';
+import { syncIslandLegRigPalette } from '../../museum/IslandMuseumLegRig.js';
 import { createIslandModelPose, floatAttribute, islandModelPieces, islandMorphWeights, parseIslandMuseumModel } from '../../museum/IslandMuseumModelData.js';
 import { mergeMuseumSkins } from '../../museum/NativeMuseumSkin.js';
 import { createMuseumGroundMotion } from '../../museum/MuseumGroundMotion.js';
-import { prepareMuseumGroundPose } from '../../museum/MuseumGroundPose.js';
+import { prepareGroundSpecimen } from '../../museum/PrepareGroundSpecimen.js';
 import { Matrix4, Vector3 } from '../../vendor/tidewater/src/engine/index.js';
 import { StorageBuffer } from '../../vendor/tidewater/src/engine/gpu/Texture.js';
 
 StorageBuffer.prototype.write = () => {};
 const read = path => readFileSync(new URL('../../museum/' + path, import.meta.url));
 const metadata = JSON.parse(read('island-museum-models.lock.json')).animals;
-const [directory, ...requested] = process.argv.slice(2);
-if (!directory) throw Error('Usage: node tools/ground-motion/capture-poses.mjs <output-directory> [specimen ...]');
+const [directory, ...options] = process.argv.slice(2);
+const sequence = options.includes('--sequence');
+const requested = options.filter(option => option !== '--sequence');
+if (!directory) throw Error('Usage: node tools/ground-motion/capture-poses.mjs <output-directory> [--sequence] [specimen ...]');
 mkdirSync(directory, { recursive: true });
 
 function openSpecimen(id) {
@@ -24,10 +26,9 @@ function openSpecimen(id) {
   const bytes = sample ? read('assets/' + id + '.glb') : gunzipSync(read('assets/island/' + id + '.glb.gz'));
   const parsed = parseIslandMuseumModel(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
   const model = sample ? prepareMuseumMotion(mergeMuseumSkins(parsed), key) : parsed;
-  prepareMuseumGroundPose(model, key);
   const meta = sample ? JSON.parse(read('assets/' + id + '.json')) : metadata[key];
   const { pieces, skin } = islandModelPieces(model);
-  const rig = sample ? null : augmentIslandLegRig(key, model, pieces, skin);
+  const rig = prepareGroundSpecimen(key, model, pieces, skin, meta, { sample });
   const pose = createIslandModelPose(model, skin);
   pose.play('Idle', { fade: 0 });
   pose.update(0);
@@ -92,7 +93,7 @@ function capture(id) {
     }
     write(name, coords);
     const contacts = motion.diagnostics().contacts;
-    frames.push({ name, planted: contacts.map(contact => contact.planted) });
+    frames.push({ name, phase: motion.diagnostics().phase, planted: contacts.map(contact => contact.planted) });
   }
 
   const { group } = pose;
@@ -122,11 +123,14 @@ function capture(id) {
     motion.apply(pose, { dt, terrain: ground, travelled: step, behavior: site.behavior });
     syncIslandLegRigPalette(pose, rig, false, true);
     const { contacts } = motion.diagnostics();
+    // Six seconds at 20 fps include the continuous stride, turn, and stop.
+    if (sequence && frame >= 75 && frame <= 435 && (frame - 75) % 3 === 0) snapshot('Step ' + String(frame).padStart(3, '0'), true);
     const active = contacts.findIndex(contact => !contact.planted);
     if (frame > 55 && frame < 218 && active >= 0) {
-      const tag = contacts.length === 2 ? ['A', 'B'][active] : ['Fore A', 'Fore B', 'Hind A', 'Hind B'][active];
-      const { swing } = contacts[active];
-      const checkpoints = active % 2 === 0 ? [[.20, 'lift'], [.50, 'pass'], [.83, 'land']] : [[.50, 'pass']];
+      const { swing, side, lane } = contacts[active];
+      const name = contacts.length === 2 ? '' : (lane === 0 ? 'Fore ' : 'Hind ');
+      const tag = name + (side < 0 ? 'L' : 'R');
+      const checkpoints = side < 0 ? [[.20, 'lift'], [.50, 'pass'], [.83, 'land']] : [[.50, 'pass']];
       for (const [at, phase] of checkpoints) {
         const label = `${tag} ${phase}`;
         if (swing < at || seen.has(label)) continue;

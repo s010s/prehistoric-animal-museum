@@ -40,43 +40,83 @@
     {
       "path": "creek/sample.lock.json",
       "sha256": "fab50595288a5be280ac949f121a321d049357d3b7131dce871372935a2623d2"
+    },
+    {
+      "path": "creek/CoastTerrain.js",
+      "sha256": "dd8782413154627090d2cc1ba85fe4b732dad0f2aa85da461fbac1b05102c1ae"
+    },
+    {
+      "path": "creek/CoastalShelf.js",
+      "sha256": "fd87c3f1dccd207bdd2ee7a2ce11a4ac31ec24a52b9d4402e228a64ad1eb85ab"
+    },
+    {
+      "path": "creek/ContinuousSample.js",
+      "sha256": "c29954f85e69cc08a59d8d8ff5c934879e5f34afe86b2b21cfe6e64204fa8e82"
+    },
+    {
+      "path": "creek/IslandWaterField.js",
+      "sha256": "c7a6627eb2ec913b2ffdcfce61843aa7c090f637d18cc5e0286e0a28c910f514"
+    },
+    {
+      "path": "creek/MainEstuary.js",
+      "sha256": "ec4c8a542327466249ba697709c617d57a40710f45a525eff83a078d5bb92384"
+    },
+    {
+      "path": "creek/RegionalLandforms.js",
+      "sha256": "27ede615dfb297fd426d83f4c381e2c4398b5bc62d18fcfe25cb3ac695b58f8c"
+    },
+    {
+      "path": "creek/SampleTerrain.js",
+      "sha256": "1f8bd69812f7f352a270676f7ca4b0f691adc4eca0a0745054bebb7243ea63d1"
+    },
+    {
+      "path": "creek/SampleVisits.js",
+      "sha256": "8b7fc1f210a3aace09952a286ed0018395ec143c112dd3e384eeffc8f4ba4489"
+    },
+    {
+      "path": "creek/WatershedData.js",
+      "sha256": "b965a7a30e34f1cf0165ce52bd2cfc9b546bee7d0197af46640e43a387e6dfbe"
+    },
+    {
+      "path": "creek/WholeIslandData.js",
+      "sha256": "a9f732d52be8966f3c75f69f1d170feea0a01f7be4c914b475995df3bf67a68a"
     }
   ],
   "outputs": [
     {
       "path": "island/assets/heights.bin",
       "bytes": 1048576,
-      "sha256": "1d40caac7adc6a9094d7ad960529435ea3e1e5a9d16c392a2d95efeda9ff8662"
+      "sha256": "34b46b11db03019c4d4dcaaec19980b18c34d47a4d4419309b8a81a70e8edfb8"
     },
     {
       "path": "island/assets/water.bin",
       "bytes": 1048576,
-      "sha256": "8705898cfd16e77fecd659f3587ab4fd2d9157d833c06e60b127c484022ee5b6"
+      "sha256": "fd8ccf4d4f8e58993de37b699a38a22630363e9f54bf9ea10e283dca52a1f5a2"
     },
     {
       "path": "island/assets/habitat.bin",
       "bytes": 1048576,
-      "sha256": "6666ce81bee8b9344cc735c534e2bbc65f9b7050d231345675caed5d183058b7"
+      "sha256": "6dc31bffc3660f505d4ea1e609bdb3afc5250cfbd38404997d27ede144ad1904"
     },
     {
       "path": "island/assets/map.json",
-      "bytes": 8578,
-      "sha256": "8c3d6bfabc330dc0dccb8868860c52d93a15d5dd96c49a30662c1fa9b1d47c31"
+      "bytes": 8658,
+      "sha256": "2b55c5319cbcc578ada92a377dcefd399770e24f3fe98596591bc5d722a02157"
     },
     {
       "path": "creek/assets/arrival-map.webp",
-      "bytes": 11550,
-      "sha256": "74d994123051d5b464213c6a81c3ca10da6cf8e27a50631f74bd454512a2c546"
+      "bytes": 11582,
+      "sha256": "32b7bb001043168f99a745805551a9cfe0a5cfb5b2d66adf260900c4503727c3"
     },
     {
       "path": "island/assets/terrain.webp",
-      "bytes": 126154,
-      "sha256": "9caaad23cbbbae7f658b90612d24f0daca76e9a79548ac094b1940f9d5d709c4"
+      "bytes": 126124,
+      "sha256": "acc758fcdd671142679b1419256bc5b8fdad6aa9bcbea7098db234ad01bf6f24"
     },
     {
       "path": "island/assets/habitat.webp",
-      "bytes": 150844,
-      "sha256": "7fa922e16b7a1ac5aaecd5628dbd63e74f5cc24fee2b3daff302a52bed081a40"
+      "bytes": 150780,
+      "sha256": "6aa541b5af50fb6616493525eb8da1a84cc1c957e0dc593aea9e447770ef95ce"
     }
   ]
 }

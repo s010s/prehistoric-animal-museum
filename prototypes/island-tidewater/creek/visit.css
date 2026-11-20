@@ -1,3 +1,4 @@
+@import './map-wildlife.css';
 #hud{max-width:440px;background:rgba(13,25,21,.87)}.eyebrow{font-size:11px;letter-spacing:.13em;color:#b6c7ad}#hud h1{font-size:23px;margin:4px 0 8px}.help{font-size:12px;line-height:1.7;margin-top:12px}.credits{font-size:10px;opacity:.75;margin-top:10px}#inspection{max-width:min(720px,calc(100vw - 32px))}#native-state{max-height:30vh}#inspection[open]{max-height:60vh;overflow:auto}#hud button{padding:6px 9px;font-size:12px}#hud #status{font-size:12px}@media(max-width:600px){#hud{left:10px;top:10px;max-width:calc(100vw - 20px);padding:11px 13px}#hud h1{font-size:19px}.credits{margin-bottom:0}#fps{top:auto;bottom:12px;right:12px}#inspection{left:10px;bottom:12px;max-width:calc(100vw - 110px)}}
 
 #visit-help{position:fixed;right:16px;bottom:14px;max-width:390px;padding:8px 12px;background:rgba(13,25,21,.8);border:1px solid #ffffff20;border-radius:5px}#visit-help .help{margin:0;font-size:11px}#visit-help .credits{margin:5px 0 0}@media(max-width:600px){#visit-help{right:10px;bottom:50px;max-width:245px;padding:5px 8px}#visit-help .help{display:none}#visit-help .credits{margin:0;font-size:9px}}
@@ -5,7 +6,7 @@
 
 .island-map-link{display:inline-flex;align-items:center;padding:6px 9px;border:1px solid #a7bda87a;border-radius:4px;color:#e5edd9;font-size:12px;text-decoration:none}.island-map-link:focus-visible{outline:2px solid #e5d3a1;outline-offset:3px}
 
-#hud-toggle{float:right;margin:0 0 4px 12px;font-size:10px!important;padding:3px 6px!important;background:#253d35}body.hud-collapsed #hud>:where(:not(.eyebrow,h1,#hud-toggle,#face-animal,#fauna-status,#guide-waypoint,#sea-sound)){display:none}body.hud-collapsed #hud{min-width:260px;max-width:380px;padding:11px 15px}body.hud-collapsed #hud h1{font-size:19px;margin-bottom:0}body.hud-collapsed #visit-help .help{display:none}
+#hud-toggle{float:right;margin:0 0 4px 12px;font-size:10px!important;padding:3px 6px!important;background:#253d35}body.hud-collapsed #hud>:where(:not(.eyebrow,h1,#hud-toggle,#face-animal,#fauna-status,#wildlife-open,#sea-sound)){display:none}body.hud-collapsed #hud{min-width:260px;max-width:380px;padding:11px 15px}body.hud-collapsed #hud h1{font-size:19px;margin-bottom:0}body.hud-collapsed #visit-help .help{display:none}
 
 #region-map{position:fixed;z-index:20;right:16px;top:53px;width:224px;color:#e4eadc;background:#0d1915e8;border:1px solid #ffffff32;border-radius:7px;box-shadow:0 5px 20px #0003;font:11px/1.4 system-ui,sans-serif;overflow:hidden}#region-map header{display:flex;align-items:center;justify-content:space-between;padding:7px 9px}#map-toggle{font-size:10px;padding:3px 6px;background:#253d35}#region-map.collapsed #region-map-content{display:none}.map-surface{position:relative;margin:0 9px;width:206px;height:206px;overflow:hidden;background:#426a7a;border:1px solid #ffffff25}.map-surface canvas{width:100%;height:100%;display:block}.map-north{position:absolute;top:4px;right:5px;color:#fff;text-shadow:0 1px 2px #000}.map-camera{position:absolute;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:13px solid #fff1b2;filter:drop-shadow(0 1px 1px #000);pointer-events:none;z-index:3}.map-destination{position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;padding:0!important;border-radius:50%;font-size:11px;background:#183a35e8;border:1px solid #c9d9c1;color:white;z-index:2;cursor:pointer}.map-destination[aria-current=true],.map-key-item[aria-current=true]{background:#b7bf99;color:#172b23}.map-destination:focus-visible,.map-key-item:focus-visible{outline:2px solid #ffe4a3;outline-offset:2px}#map-place{display:block;padding:6px 9px;min-height:14px}.map-key{display:grid;grid-template-columns:repeat(3,1fr);padding:0 7px 8px;gap:3px}.map-key-item{font-size:10px;text-align:left;padding:3px 4px;background:#253b32;border-color:#ffffff30;white-space:nowrap;cursor:pointer}@media(max-width:760px){#region-map{width:176px;right:10px;top:48px}.map-surface{width:158px;height:158px}.map-key{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){#region-map{top:10px;right:10px;width:140px}#region-map-content{max-height:60vh;overflow:auto}.map-surface{width:122px;height:122px}#hud{max-width:calc(100vw - 180px)}body.hud-collapsed #hud{min-width:0;width:calc(100vw - 185px)}.map-key{grid-template-columns:1fr 1fr}.map-key-item{font-size:9px}#region-map header{padding:5px;font-size:10px}#map-toggle{font-size:9px}}
 
@@ -22,12 +23,9 @@ body:has(#inspection[open]) #scene-entry{top:130px}#raw-diagnostics{margin-top:1
 #field-guide summary,#local-walks summary {cursor:pointer;font-size:13px}
 #field-guide label {display:block;margin:8px 0 3px;color:#c3cfbb;font-size:12px}
 #field-guide select {width:100%}
-#guide-destination,#guide-waypoint {font-size:12px}
+#guide-destination {font-size:12px}
 #guide-destination:empty,#fauna-status:empty {display:none}
 #fauna-status {color:#e2d4ae;font-size:12px}
-#guide-waypoint:not([hidden]) {display:flex;align-items:center;justify-content:space-between;margin-top:6px;color:#ebd8a1}
-#guide-cancel {font-size:16px;padding:0 6px}
-body.hud-collapsed #hud #guide-waypoint:not([hidden]) {display:flex}
 #hud select {max-width:100%}
 
 #arrival {position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:#f2f0e6;color:#273d34;padding:20px}
@@ -56,15 +54,77 @@ body.hud-collapsed #hud #fauna-status:not(:empty) {display:inline;margin-left:9p
 body.hud-collapsed #hud #face-animal:not([hidden]) {display:inline-block;margin:7px 0 0 5px;padding:2px 7px;font-size:11px}
 #face-animal[hidden] {display:none}
 
-#wildlife-compass {position:fixed;z-index:19;top:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:7px 13px 8px 9px;border:1px solid #c1cfb047;border-radius:6px;background:#12231ef0;color:#fff9df;pointer-events:none;max-width:min(46vw,330px)}
+#wildlife-compass {position:fixed;z-index:21;top:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:7px 12px 8px 9px;border:1px solid #c1cfb047;border-radius:6px;background:#12231ef0;color:#fff9df;pointer-events:none;max-width:min(46vw,360px)}
 #wildlife-compass[hidden],#wildlife-label[hidden]{display:none}
+#wildlife-compass.is-tracking {border-color:#f0d48a82;background:#19271eef}
 .bearing-disc{width:31px;height:31px;flex:0 0 auto;position:relative;border:1px solid #c6caaa91;border-radius:50%;background:linear-gradient(0deg,transparent 48%,#c6caaa30 49% 51%,transparent 52%),linear-gradient(90deg,transparent 49%,#c6caaa30 50% 51%,transparent 52%)}
 #wildlife-arrow{position:absolute;inset:3px 8px;background:linear-gradient(#f8df98 57%,#b7aa80 58%);clip-path:polygon(50% 0,93% 83%,50% 66%,7% 83%);transform-origin:50% 50%}
-.bearing-readout{display:grid;grid-template-columns:auto 1fr;gap:1px 7px;align-items:baseline;line-height:1.35}
-#wildlife-scope{font-size:10px;color:#c5cfbc}#wildlife-name{font-size:14px;overflow-wrap:anywhere}#wildlife-range{grid-column:1/-1;color:#eadfbc;font-size:11px;font-variant-numeric:tabular-nums}
+.bearing-readout {display:flex;flex-wrap:wrap;gap:1px 8px;align-items:baseline;line-height:1.35;min-width:0}
+#wildlife-heading {display:flex;flex-basis:100%;flex-wrap:wrap;gap:0 7px;align-items:baseline}
+#wildlife-scope {font-size:10px;color:#c5cfbc}
+#wildlife-name {font-size:14px;overflow-wrap:anywhere}
+#wildlife-range,#wildlife-height,#wildlife-context {color:#eadfbc;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
+#wildlife-height {color:#f5d895}
+#wildlife-context {flex-basis:100%;color:#ccdabf}
+#wildlife-range:empty,#wildlife-height:empty,#wildlife-context:empty {display:none}
+#wildlife-cancel {pointer-events:auto;min-width:34px;min-height:34px;padding:0;background:#26362c;border-color:#a9af8d75;font-size:20px;line-height:1}
 #wildlife-label{position:fixed;top:0;left:0;z-index:17;text-align:center;color:#fff9e5;pointer-events:none;line-height:1.3;will-change:transform}
 #wildlife-label span{display:inline-block;padding:3px 8px;font-size:12px;border-radius:3px;background:#172820e8;border:1px solid #e8e6c776;white-space:nowrap}
 #wildlife-label i{display:block;margin:auto;width:1px;height:9px;background:#ede7c9;box-shadow:0 0 2px #18261c}
+#wildlife-label[data-marker] {width:14px;height:14px;border:1px solid #ffe8a9;border-radius:50%;box-shadow:0 0 0 1px #14261f}
+#wildlife-label[data-marker="habitat"] {border-style:dashed}
+#wildlife-label[data-marker] span,#wildlife-label[data-marker] i {display:none}
 #wildlife-setting{display:block;margin:7px 0;font-size:12px;color:#dbe5d4}#wildlife-setting select{font-size:12px;padding:2px 4px}
 body.hud-collapsed #hud #wildlife-setting{display:none}
-@media(max-width:820px){#wildlife-compass{top:auto;bottom:64px;max-width:80vw}}
+#hud #wildlife-open {display:inline-flex;align-items:center;gap:6px;min-height:30px;margin-top:7px;padding:4px 8px;background:#e1d7a6;color:#263729;border-color:#fff0bd;font-weight:650}
+#wildlife-open kbd {padding:0 4px;border:1px solid #687b5b70;border-radius:3px;font:inherit;font-size:10px}
+#wildlife-directory {
+  width:min(100% - 24px, 540px);max-width:none;
+  max-height:min(calc(100dvh - 24px), 710px);
+  padding:0;color:#f0efde;background:#17261e;border:1px solid #a7b99285;border-radius:9px;
+  box-shadow:0 18px 75px #020d08a0;overflow:hidden;
+}
+#wildlife-directory:not([open]) {display:none}
+#wildlife-directory[open] {display:flex;flex-direction:column}
+#wildlife-directory::backdrop {background:#06120ca6}
+#wildlife-directory header {display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px 10px}
+#wildlife-directory h2 {margin:0;color:#fff5d5;font-size:21px;line-height:1.2}
+#wildlife-close {min-width:42px;min-height:42px;padding:0;background:#22362a;font-size:23px;line-height:1}
+.wildlife-filters {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;padding:0 18px 10px}
+.wildlife-scopes {display:flex;grid-column:1/-1;gap:6px}
+.wildlife-scopes button {min-height:38px;padding:5px 12px;font-size:13px;background:#203529}
+.wildlife-scopes button[aria-pressed="true"] {background:#e1d7a6;color:#263729;border-color:#fff0bd;font-weight:650}
+#wildlife-search {min-width:0;width:100%;height:42px;padding:7px 10px;border:1px solid #859b7da6;border-radius:4px;background:#0d1c15;color:#f0efde;font:inherit;font-size:16px}
+#wildlife-search::placeholder {color:#c2cfbb}
+#wildlife-medium {min-height:42px;padding:6px 10px;background:#203529;color:#ecf0e4}
+#wildlife-count {margin:0;padding:0 18px 8px;color:#c9d3c1;font-size:12px}
+#wildlife-results {min-height:0;margin:0;padding:0 18px 13px;overflow:auto;overscroll-behavior:contain;list-style:none;scrollbar-color:#758773 #17261e}
+#wildlife-results li {display:flex;gap:8px;align-items:center;padding:4px 1px;border-top:1px solid #a7b99238}
+.wildlife-follow {
+  flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;
+  min-width:0;text-align:left;border-color:transparent;background:transparent;padding:7px 5px;
+}
+.wildlife-follow strong {font-weight:650;font-size:15px;color:#fff2d1}
+.wildlife-follow span {grid-row:2;color:#bfceb9;font-size:12px;line-height:1.35}
+.wildlife-follow small {grid-area:1/2/3/3;align-self:center;color:#f1d792;font-size:12px;white-space:nowrap}
+.wildlife-follow:hover {background:#233a2d}
+.wildlife-travel {flex:none;min-height:42px;padding:5px 8px;background:#263a2e;font-size:12px;white-space:nowrap}
+#wildlife-directory :is(button,input,select):focus-visible,#wildlife-cancel:focus-visible,#wildlife-open:focus-visible {outline:2px solid #f9dea0;outline-offset:1px}
+@media(max-width:820px){#wildlife-compass{top:auto;bottom:64px;max-width:calc(100vw - 20px)}}
+@media(max-width:600px) {
+  #hud #wildlife-open {min-height:34px}
+  #wildlife-open kbd {display:none}
+  #wildlife-cancel {min-width:42px;min-height:42px}
+  #wildlife-directory header {padding:12px 12px 8px}
+  .wildlife-filters {padding:0 12px 8px}
+  #wildlife-count {padding:0 12px 8px}
+  #wildlife-results {padding:0 12px 10px}
+}
+
+#pointer-note:not([hidden]) {
+  position:fixed;z-index:9;left:50%;bottom:22px;transform:translateX(-50%);
+  width:max-content;max-width:calc(100vw - 40px);margin:0;padding:7px 12px;
+  border-radius:5px;background:#14221ef0;color:#f0efde;font-size:13px;
+  text-align:center;pointer-events:none;
+}
+@media(max-width:820px){#pointer-note:not([hidden]){bottom:130px}}

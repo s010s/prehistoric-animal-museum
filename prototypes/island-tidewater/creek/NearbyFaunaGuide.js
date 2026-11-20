@@ -1,16 +1,12 @@
 import {Vector3} from '../vendor/tidewater/src/engine/index.js';
-import {visitNearbyFauna} from './NearbyFaunaSources.js';
+import {FaunaTracking, describeFaunaTarget} from './FaunaTracking.js';
+import {wildlifeDistance} from './WildlifeDirectory.js';
 
 const compassPoints = ['前方', '右前方', '右侧', '右后方', '身后', '左后方', '左侧', '左前方'];
+const lockLabels = {live:'寻踪中', habitat:'寻踪 · 栖地', loading:'寻踪 · 载入中', unavailable:'寻踪 · 暂不可用'};
 const TAU = Math.PI * 2;
 const view = new Vector3(), ray = new Vector3();
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
-
-function distanceText(m) {
-  if (m >= 1000) return (m / 1000).toFixed(1) + ' 公里';
-  if (m < 1) return Math.round(m * 100) + ' 厘米';
-  return Math.round(m) + ' 米';
-}
 
 function setText(el, value) {
   if (el.textContent !== value) el.textContent = value;
@@ -58,85 +54,108 @@ export class NearbyFaunaGuide {
     this.scope = document.querySelector('#wildlife-scope');
     this.name = document.querySelector('#wildlife-name');
     this.range = document.querySelector('#wildlife-range');
+    this.height = document.querySelector('#wildlife-height');
+    this.context = document.querySelector('#wildlife-context');
+    this.disc = this.arrow.parentElement;
+    this.cancel = document.querySelector('#wildlife-cancel');
     this.label = document.querySelector('#wildlife-label');
     this.labelName = this.label.querySelector('span');
     this.mode = document.querySelector('#wildlife-mode');
-    this.candidates = [];
-    this.near = [];
+    this.tracking = new FaunaTracking(app);
+    this.snapshot = {target:null, near:[], lock:null};
     this.lastScan = -Infinity;
     this.lastPosition = new Vector3(Infinity, Infinity, Infinity);
-    this.lastFarPosition = new Vector3(Infinity, Infinity, Infinity);
-    this.mode.onchange = () => {
-      this.targetId = null;
-      this.farTarget = null;
-      this.lastScan = -Infinity;
-      this.update(performance.now());
-    };
+    this.mode.onchange = () => this.refresh();
   }
 
-  scan(p) {
-    const {app, candidates, near} = this;
-    candidates.length = near.length = 0;
-    const add = (animal, limit = Infinity) => {
-      const distance = Math.hypot(animal.x - p.x, animal.y - p.y, animal.z - p.z);
-      if (distance > limit) return;
-      if (animal.live && animal.visible && distance < clamp(2.2 + animal.size * 3.5, 2.5, 34)) near.push(animal);
-      if (animal.museum || this.mode.value === 'all') candidates.push({animal, distance});
-    };
-    visitNearbyFauna(app, p, 320, animal => add(animal, 320));
-    if (!candidates.length) {
-      if (this.lastFarPosition.distanceToSquared(p) > 48**2 || !this.farTarget) {
-        visitNearbyFauna(app, p, Infinity, add, {museumOnly:this.mode.value === 'museum'});
-        this.lastFarPosition.copy(p);
-        this.farTarget = candidates.reduce((a,b) => !a || b.distance < a.distance ? b : a, null)?.animal;
-      } else add(this.farTarget);
-    }
-    let best = null, previous = null;
-    for (const item of candidates) {
-      if (!best || item.distance < best.distance) best = item;
-      if (item.animal.id === this.targetId) previous = item;
-    }
-    // Individuals in a moving herd cross in distance repeatedly. Retain a
-    // marginal tie, but switch promptly to a substantially closer animal.
-    if (previous && previous.distance < best.distance + Math.min(1.5, best.distance * .035)) best = previous;
-    this.target = best?.animal;
-    this.targetId = this.target?.id;
-    this.lastPosition.copy(p);
-    this.sight = new Map();
+  refresh() {
+    const now = performance.now();
+    this.update(now, true);
+    this.app.regionMap?.update(now, true);
   }
 
-  update(now, pinned = false) {
-    if (this.mode.value === 'off') {
+  update(now, refresh = false) {
+    const {app} = this, {camera} = app, p = camera.position;
+    const mode = this.mode.value;
+    if (refresh || (mode !== 'off' || this.snapshot.lock) &&
+        (now - this.lastScan >= 125 || this.lastPosition.distanceToSquared(p) > 36)) {
+      const scanMode = mode === 'off' && this.tracking.locked ? 'museum' : mode;
+      this.snapshot = this.tracking.scan(p, scanMode);
+      this.observation = this.snapshot.lock ? describeFaunaTarget(app, p, this.snapshot.target) : null;
+      this.sight = new Map();
+      this.lastPosition.copy(p);
+      this.lastScan = now;
+    }
+    const {target, lock, near} = this.snapshot;
+    if (mode === 'off' && !lock) {
       this.label.hidden = this.panel.hidden = true;
       return;
     }
-    const {app} = this, {camera} = app, p = camera.position;
-    if (now - this.lastScan >= 125 || this.lastPosition.distanceToSquared(p) > 36) {
-      this.scan(p);
-      this.lastScan = now;
+    this.panel.hidden = !target && !lock;
+    this.cancel.hidden = !lock;
+    this.disc.hidden = !target;
+    this.panel.classList.toggle('is-tracking', !!lock);
+    let seen = false;
+    if (lock) {
+      const nameRange = target && clamp(12 + target.size * 32, 16, 220);
+      seen = this.placeLabel(camera, target?.live && target.visible &&
+        Math.hypot(target.x-p.x, target.y-p.y, target.z-p.z) < nameRange ? [target] : []);
+      if (!seen && target?.medium === 'air') this.placeFlightMarker(camera, target);
+    } else {
+      this.placeLabel(camera, near);
     }
-    const animal = this.target;
-    this.panel.hidden = !animal || pinned;
-    if (animal && !pinned) {
-      const dx = animal.x-p.x, dy = animal.y-p.y, dz = animal.z-p.z;
-      const flat = Math.hypot(dx, dz), metres = Math.hypot(flat, dy);
-      const axes = camera.matrixWorld.elements;
-      const heading = Math.atan2(-axes[8], axes[10]);
-      const angle = Math.atan2(dx, -dz) - heading;
-      const direction = compassPoints[(Math.round(angle / TAU * 8) % 8 + 8) % 8];
-      const vertical = dy > Math.max(.8,flat*.36) ? '上方' : dy < -Math.max(.8,flat*.36) ? '下方' : '';
-      const where = flat < 1 && vertical ? vertical : direction + (vertical ? '偏' + vertical[0] : '');
-      this.arrow.style.transform = 'rotate(' + angle.toFixed(3) + 'rad)';
-      setText(this.scope, animal.live ? (this.mode.value === 'museum' ? '附近馆藏' : '附近动物') : '栖息地');
-      setText(this.name, animal.name);
-      setText(this.range, where + ' · ' + (animal.live ? '' : '约 ') + distanceText(metres));
-    }
-    this.placeLabel(camera);
+    if (target || lock) this.renderBearing(camera, target, lock, mode, seen);
   }
 
-  placeLabel(camera) {
+  renderBearing(camera, animal, lock, mode, seen) {
+    setText(this.name, lock?.name ?? animal.name);
+    setText(this.scope, lock ? (seen ? '已进入视野' : lockLabels[lock.state]) : animal.live ?
+      (mode === 'museum' ? '附近馆藏' : '附近动物') : '栖地');
+    if (!animal) {
+      setText(this.range, '暂未取得位置');
+      setText(this.height, '');
+      setText(this.context, '');
+      return;
+    }
+    const p = camera.position;
+    const dx = animal.x-p.x, dy = animal.y-p.y, dz = animal.z-p.z;
+    const flat = Math.hypot(dx, dz);
+    const axes = camera.matrixWorld.elements;
+    const heading = Math.atan2(-axes[8], axes[10]);
+    const angle = Math.atan2(dx, -dz) - heading;
+    const direction = compassPoints[(Math.round(angle / TAU * 8) % 8 + 8) % 8];
+    const vertical = Math.abs(dy) >= (lock ? 1 : Math.max(.8, flat*.36));
+    const distance = (animal.live ? '' : '约 ') + wildlifeDistance(flat);
+    const height = vertical ? (dy > 0 ? '↑ 上方 ' : '↓ 下方 ') + wildlifeDistance(Math.abs(dy)) : '';
+    this.arrow.style.transform = 'rotate(' + angle.toFixed(3) + 'rad)';
+    setText(this.range, flat < 1 && vertical ? '' : direction + ' · ' + distance);
+    setText(this.height, height);
+    const observation = this.observation;
+    const elevation = observation?.height;
+    let medium = '';
+    if (elevation?.type === 'depth') {
+      medium = elevation.metres > .15 ? '水下 ' + wildlifeDistance(elevation.metres) : '近水面';
+    } else if (elevation?.type === 'altitude') {
+      medium = (elevation.reference === 'water' ? '距水面 ' : '离地 ') + wildlifeDistance(elevation.metres);
+    }
+    setText(this.context, observation?.atObservation ?
+      ('已到观察点' + (medium ? ' · ' + medium : '')) : medium);
+  }
+
+  placeFlightMarker(camera, animal) {
+    view.set(animal.x, animal.y, animal.z).applyMatrix4(camera.matrixWorldInverse);
+    if (view.z >= -camera.near) return;
+    view.applyMatrix4(camera.projectionMatrix);
+    if (Math.abs(view.x) > .91 || Math.abs(view.y) > .91) return;
+    this.label.dataset.marker = animal.live ? 'live' : 'habitat';
+    this.label.hidden = false;
+    const x = (view.x*.5+.5)*innerWidth, y = (.5-view.y*.5)*innerHeight;
+    this.label.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) translate(-50%,-50%)';
+  }
+
+  placeLabel(camera, candidates) {
     let best = null, bestScore = Infinity, cx = 0, cy = 0;
-    for (const animal of this.near) {
+    for (const animal of candidates) {
       view.set(animal.x, animal.y, animal.z).applyMatrix4(camera.matrixWorldInverse);
       if (view.z >= -camera.near) continue;
       const depth = -view.z;
@@ -152,11 +171,13 @@ export class NearbyFaunaGuide {
     }
     this.label.hidden = !best;
     this.labelId = best?.id;
-    if (!best) return;
+    if (!best) return false;
+    delete this.label.dataset.marker;
     view.set(best.x, best.y + best.halfHeight, best.z).project(camera);
     const x = clamp((cx*.5+.5)*innerWidth, 75, innerWidth-75);
     const y = clamp((.5-Math.max(cy, view.y)*.5)*innerHeight-4, 32, innerHeight-25);
     this.label.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) translate(-50%,-100%)';
     setText(this.labelName, best.name);
+    return true;
   }
 }

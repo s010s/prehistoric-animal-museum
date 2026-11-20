@@ -11,9 +11,9 @@ import { Matrix4, Vector3 } from '../vendor/tidewater/src/engine/index.js';
 import { StorageBuffer } from '../vendor/tidewater/src/engine/gpu/Texture.js';
 import { prepareMuseumMotion } from '../museum/AnimalMotionPolish.js';
 import { createIslandModelPose, floatAttribute, islandMorphWeights, islandModelPieces, parseIslandMuseumModel } from '../museum/IslandMuseumModelData.js';
-import { augmentIslandLegRig, syncIslandLegRigPalette } from '../museum/IslandMuseumLegRig.js';
+import { syncIslandLegRigPalette } from '../museum/IslandMuseumLegRig.js';
 import { createMuseumGroundMotion } from '../museum/MuseumGroundMotion.js';
-import { prepareMuseumGroundPose } from '../museum/MuseumGroundPose.js';
+import { prepareGroundSpecimen } from '../museum/PrepareGroundSpecimen.js';
 import { mergeMuseumSkins } from '../museum/NativeMuseumSkin.js';
 
 StorageBuffer.prototype.write = () => {};
@@ -21,7 +21,7 @@ const read = relative => readFileSync(new URL(relative, import.meta.url));
 const lock = JSON.parse(read('../museum/island-museum-models.lock.json')).animals;
 const specimens = ISLAND_FAUNA_PLAN.filter(site => site.medium === 'ground').concat([
   { id: 'sample-lystrosaurus', speed: .18, behavior: 'forage' },
-  { id: 'sample-parasaurolophus', speed: .18, behavior: 'browse' },
+  { id: 'sample-parasaurolophus', speed: .50, behavior: 'browse' },
 ]);
 const fullRoute = process.argv.includes('--full-route');
 const selected = process.argv.slice(2).filter(argument => !argument.startsWith('--'));
@@ -47,8 +47,10 @@ function frameVertex(piece, vertex, pose, groupFrame, result) {
   return result.applyMatrix4(groupFrame);
 }
 
-function soleVertices(pose, pieces, contacts, rig, height, groupFrame) {
-  if (rig) return rig.chains.map(limb => limb.samples.map(({ piece, vertex }) => ({ piece, vertex })));
+function soleVertices(pose, pieces, contacts, rig, height, groupFrame, padTerrain = null) {
+  if (rig && !padTerrain) return rig.chains.map(limb => limb.samples.map(({ piece, vertex }) => ({ piece, vertex })));
+  const clawMaterial = piece => /^(claws?|nails?)$/i.test(pose.gltf.materials[piece.primitive.material]?.name ?? '');
+  const separateClaws = padTerrain && pieces.some(piece => !clawMaterial(piece));
   return contacts.map(contact => {
     const center = new Vector3(...contact.sole);
     const descendants = new Set();
@@ -58,21 +60,24 @@ function soleVertices(pose, pieces, contacts, rig, height, groupFrame) {
     const candidates = [], rows = pose.skin.joints.map(i => descendants.has(i));
     for (const [pieceIndex, piece] of pieces.entries()) {
       if (!piece.influences.length) continue;
+      // A protruding talon can touch while the fleshy pad hovers above it.
+      if (separateClaws && clawMaterial(piece)) continue;
       for (let v = 0; v < piece.xyz.length / 3; v++) {
         let distalWeight = 0;
         for (const { weights, joints } of piece.influences) for (let k = v * 4; k < v * 4 + 4; k++) {
           if (rows[joints[k]]) distalWeight += weights[k];
         }
-        if (distalWeight < 65535 * .94) continue;
+        if (distalWeight < 65535 * (padTerrain ? .50 : .94)) continue;
         const p = frameVertex(piece, v, pose, groupFrame, new Vector3());
-        if (Math.hypot(p.x - center.x, p.z - center.z) > height * .21) continue;
-        candidates.push({ piece: pieceIndex, vertex: v, position: p });
+        if (!padTerrain && Math.hypot(p.x - center.x, p.z - center.z) > height * .21) continue;
+        const elevation = padTerrain ? p.y - padTerrain.heightAt(p.x, p.z) : p.y;
+        candidates.push({ piece: pieceIndex, vertex: v, position: p, elevation });
       }
     }
-    assert(candidates.length >= 3, 'Need representative sole vertices');
-    candidates.sort((a, b) => a.position.y - b.position.y);
-    const bottom = candidates[0].position.y;
-    const patch = candidates.filter(({ position }) => position.y <= bottom + height * .018);
+    assert(candidates.length >= 3, 'Need representative sole vertices for ' + pose.gltf.nodes[contact.joint].name);
+    candidates.sort((a, b) => a.elevation - b.elevation);
+    const bottom = candidates[0].elevation;
+    const patch = candidates.filter(({ elevation }) => elevation <= bottom + height * .018);
     const spacing = height * .018;
     const samples = [];
     for (const sample of patch) {
@@ -90,10 +95,9 @@ function openSpecimen(id) {
   const bytes = sample ? read('../museum/assets/' + id + '.glb') : gunzipSync(read('../museum/assets/island/' + id + '.glb.gz'));
   const raw = parseIslandMuseumModel(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
   const gltf = sample ? prepareMuseumMotion(mergeMuseumSkins(raw), key) : raw;
-  prepareMuseumGroundPose(gltf, key);
   const meta = sample ? JSON.parse(read('../museum/assets/' + id + '.json')) : lock[key];
   const { pieces, skin } = islandModelPieces(gltf);
-  const rig = sample ? null : augmentIslandLegRig(key, gltf, pieces, skin);
+  const rig = prepareGroundSpecimen(key, gltf, pieces, skin, meta, { sample });
   for (const piece of pieces) {
     piece.xyz = floatAttribute(piece.primitive.attributes.POSITION);
     piece.morph = new Float32Array(piece.primitive.targets.length);
@@ -146,10 +150,21 @@ function run(site, data, terrain, realSite = null, field = null) {
   syncIslandLegRigPalette(pose, rig, true, true);
   for (const piece of pieces) islandMorphWeights(piece, pose.layers, piece.morph);
   const manifest = soleVertices(pose, pieces, motion.diagnostics().contacts, rig, height, groupFrame);
+  const pads = soleVertices(pose, pieces, motion.diagnostics().contacts, rig, height, groupFrame, terrain);
+  const padPosition = new Vector3();
+  const lowestPad = samples => Math.min(...samples.map(({ piece, vertex }) => {
+    const p = frameVertex(pieces[piece], vertex, pose, groupFrame, padPosition);
+    return p.y - terrain.heightAt(p.x, p.z);
+  }));
+  let highestPad = Math.max(...pads.map(lowestPad));
   const angles = manifest.map(() => [Infinity, -Infinity]);
   const a = new Vector3(), b = new Vector3(), c = new Vector3();
   const plantedAt = manifest.map(samples => samples.map(() => new Vector3()));
+  const beatOrder = motion.diagnostics().contacts.toSorted((a, b) => a.side - b.side || b.lane - a.lane).map(foot => foot.joint);
+  const measuredAt = new Map();
   let maxSkate = 0, maxSoleSkate = 0, maxError = 0, lift = 0, distance = 0, minSupport = Infinity, previous = [];
+  let beat = 0, checkedBeats = 0;
+  let peakSpeed = 0, strideMeasured = 0, strideError = 0, measuredStrides = 0;
   for (let frame = 1; frame <= frames; frame++) {
     const withinCycle = frame % observationFrames;
     const walkingWindow = withinCycle > 180 && withinCycle < 890 || withinCycle > 1080 && withinCycle < 1470;
@@ -162,8 +177,17 @@ function run(site, data, terrain, realSite = null, field = null) {
     motion.apply(pose, { dt, terrain, travelled: step, behavior: site.behavior });
     syncIslandLegRigPalette(pose, rig, false, true);
     for (const piece of pieces) islandMorphWeights(piece, pose.layers, piece.morph);
-    const contacts = motion.diagnostics().contacts;
-    minSupport = Math.min(minSupport, contacts.filter(p => p.planted).length);
+    const { contacts, mode, phase, speedMetresPerSecond, strideMetres } = motion.diagnostics();
+    peakSpeed = Math.max(peakSpeed, speedMetresPerSecond);
+    const steady = withinCycle >= 420 && withinCycle <= 880 && step > .00001;
+    if (!steady) measuredAt.clear();
+    const support = contacts.filter(foot => foot.planted);
+    minSupport = Math.min(minSupport, support.length);
+    if (contacts.length === 4 && support.length === 2) {
+      assert(support[0].side !== support[1].side && support[0].lane !== support[1].lane,
+        site.id + ' should only overlap diagonally supported steps');
+    }
+    if (mode === 'holding' && phase === 0) beat = 0;
     for (const [limb, contact] of contacts.entries()) {
       const lower = pose.parent[contact.joint], upper = pose.parent[lower];
       b.fromArray(pose.world, lower * 16 + 12);
@@ -173,11 +197,28 @@ function run(site, data, terrain, realSite = null, field = null) {
       angles[limb][0] = Math.min(angles[limb][0], angle);
       angles[limb][1] = Math.max(angles[limb][1], angle);
       if (!contact.planted) {
+        if (previous[limb]?.planted && !contact.recovery) {
+          assert(step > .00001, site.id + ' should only start walking after actual travel');
+          assert(contact.joint === beatOrder[beat], site.id + ' changed the order of its walking beat');
+          beat = (beat + 1) % beatOrder.length;
+          checkedBeats++;
+          if (steady) {
+            const lastDistance = measuredAt.get(contact.joint);
+            if (lastDistance !== undefined) {
+              const interval = distance - lastDistance;
+              strideMeasured += interval;
+              strideError = Math.max(strideError, Math.abs(interval - strideMetres));
+              measuredStrides++;
+            }
+            measuredAt.set(contact.joint, distance);
+          }
+        }
         lift = Math.max(lift, contact.terrainClearanceMetres);
         continue;
       }
       maxError = Math.max(maxError, contact.errorMetres);
       const continuous = previous[limb]?.planted;
+      if (!continuous || frame % 15 === 0) highestPad = Math.max(highestPad, lowestPad(pads[limb]));
       if (continuous) maxSkate = Math.max(maxSkate, Math.hypot(...contact.sole.map((v, i) => v - previous[limb].sole[i])));
       for (const [i, { piece, vertex }] of manifest[limb].entries()) {
         const p = frameVertex(pieces[piece], vertex, pose, groupFrame, new Vector3());
@@ -190,7 +231,8 @@ function run(site, data, terrain, realSite = null, field = null) {
   }
   const steps = Math.min(...previous.map(p => p.steps));
   const kneeArc = Math.min(...angles.map(([low, high]) => high - low));
-  return { distance, steps, minSupport, lift, maxSkate, maxError, maxSoleSkate, kneeArc, limbs: manifest.length, routeLength: route?.length ?? null };
+  return { distance, steps, checkedBeats, minSupport, lift, highestPad, maxSkate, maxError, maxSoleSkate, kneeArc,
+    peakSpeed, strideMeasured: strideMeasured / Math.max(1, measuredStrides), strideError, limbs: manifest.length, routeLength: route?.length ?? null };
 }
 
 const results = [];
@@ -206,13 +248,17 @@ for (const site of specimens) {
   const value = (property, fn = Math.max) => fn(...runs.map(run => run[property]));
   const digits = n => +n.toFixed(5);
   const row = { specimen: site.id, route_m: island ? digits(island.routeLength) : null, route_travelled_m: island ? digits(island.distance) : null,
+    speed_m_s: digits((island ?? flat).peakSpeed), stride_measured_m: digits((island ?? flat).strideMeasured),
     cycles_each_foot: (island?.routeLength ? island : flat).steps, knee_arc_deg: digits((island?.routeLength ? island : flat).kneeArc),
-    swing_lift_m: digits(value('lift')), min_support: value('minSupport', Math.min), contact_frame_drift_m: digits(value('maxSkate')),
+    swing_lift_m: digits(value('lift')), min_support: value('minSupport', Math.min), verified_beats: (island ?? flat).checkedBeats,
+    highest_loaded_pad_m: digits(value('highestPad')), contact_frame_drift_m: digits(value('maxSkate')),
     contact_error_m: digits(value('maxError')), rendered_sole_drift_m: digits(value('maxSoleSkate')) };
   assert(flat.distance > site.speed * 6 && flat.steps >= 2 && flat.lift > .015, site.id + ' should take visible steps on level ground');
-  assert(row.min_support >= (flat.limbs === 2 ? 1 : 3), site.id + ' should keep support throughout the walk');
+  assert(row.min_support >= (flat.limbs === 2 ? 1 : 2), site.id + ' should keep support throughout the walk');
+  assert(flat.strideMeasured > 0 && flat.strideError <= flat.peakSpeed / 30,
+    site.id + ' steady cadence should match measured travel to within two sampled frames');
   if (fullRoute && island?.routeLength) assert(island.distance >= island.routeLength, site.id + ' could not complete its checked terrain route');
-  if (row.contact_frame_drift_m > .008 || row.contact_error_m > .025 || row.rendered_sole_drift_m > .035 || row.knee_arc_deg < 2) failure = true;
+  if (row.highest_loaded_pad_m > .018 || row.contact_frame_drift_m > .008 || row.contact_error_m > .025 || row.rendered_sole_drift_m > .035 || row.knee_arc_deg < 2) failure = true;
   results.push(row);
 }
 console.table(results);

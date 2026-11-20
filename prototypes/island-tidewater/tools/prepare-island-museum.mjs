@@ -166,7 +166,7 @@ function modelGeometryBytes(pieces, skin) {
     const indexBytes = primitive.indices ? primitive.indices.length * (primitive.indices instanceof Uint32Array ? 4 : 2) : 0;
     bytes += (a.NORMAL ? 24 : 12) * count + indexBytes;
     for (const [name, attribute] of Object.entries(a)) {
-      if (name.startsWith('TEXCOORD_') || name === 'COLOR_0') bytes += attribute.array.length * 4;
+      if (name.startsWith('TEXCOORD_') || name === 'COLOR_0' || name === 'TANGENT') bytes += attribute.array.length * 4;
     }
     bytes += influences.length * count * 16;
     bytes += primitive.targets.length * count * 6 * 4;
@@ -214,11 +214,14 @@ for (const id of ids) {
   if (id === 'quetzalcoatlus') {
     await doc.transform(simplify({ simplifier: MeshoptSimplifier, ratio: .28, error: .004, lockBorder: true }));
   }
+  const materialFaces = new Map();
   for (const mesh of gltfRoot.listMeshes()) for (const primitive of mesh.listPrimitives()) {
     if (primitive.getMode() !== 4) throw Error(id + ' has non-triangle primitives');
-    primitive.setAttribute('TANGENT', null);
     primitive.setAttribute('COLOR_1', null);
     const material = primitive.getMaterial();
+    if (!material?.getNormalTexture()) primitive.setAttribute('TANGENT', null);
+    const corners = (primitive.getIndices() ?? primitive.getAttribute('POSITION')).getCount();
+    materialFaces.set(material, (materialFaces.get(material) ?? 0) + corners);
     const usedUVs = new Set(material ? [
       material.getBaseColorTextureInfo(), material.getNormalTextureInfo(),
       material.getMetallicRoughnessTextureInfo(), material.getOcclusionTextureInfo(), material.getEmissiveTextureInfo(),
@@ -235,9 +238,18 @@ for (const id of ids) {
   for (const accessor of gltfRoot.listAccessors()) accessor.setSparse(false);
   doc.createExtension(ALL_EXTENSIONS.find(ext => ext.EXTENSION_NAME === 'EXT_texture_webp')).setRequired(true);
   const dimensions = new Map();
+  // Spend at most two 1K maps per species on the dominant textured surface.
+  // An eye, specular mask or incidental material keeps the cheaper 512 cap.
+  const primary = [...materialFaces].filter(([m]) => m?.getBaseColorTexture()).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const closeDetail = new Set([primary?.getBaseColorTexture(), primary?.getNormalTexture()]);
   for (const texture of gltfRoot.listTextures()) {
-    const { data, info } = await sharp(texture.getImage()).resize(512, 512, { fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 88, alphaQuality: 100, smartSubsample: true }).toBuffer({ resolveWithObject: true });
+    const originalImage = texture.getImage();
+    const cap = closeDetail.has(texture) ? 1024 : 512;
+    const metadata = await sharp(originalImage).metadata();
+    const { data, info } = closeDetail.has(texture) && metadata.format === 'webp' && Math.max(metadata.width, metadata.height) <= cap
+      ? { data: originalImage, info: metadata }
+      : await sharp(originalImage).resize(cap, cap, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: closeDetail.has(texture) ? 93 : 88, alphaQuality: 100, smartSubsample: true }).toBuffer({ resolveWithObject: true });
     texture.setImage(data).setMimeType('image/webp').setURI(texture.getName().replace(/[^\w]+/g, '-') + '.webp');
     dimensions.set(hash(data), [info.width, info.height]);
   }

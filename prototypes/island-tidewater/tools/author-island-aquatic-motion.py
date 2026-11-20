@@ -564,24 +564,32 @@ def ichthyosaur(rig, power):
     return rotations, {}, {}
 
 
-def ammonite(rig, _power):
+def ammonite(rig, power):
     rotations = {}
+    stroke = .68 + .50 * power
     for i, name in enumerate(("tentacles1_01", "tentacles2_02", "tentacles3_03")):
         rotations[name] = lambda t, i=i: {
-            "pitch": (.095 + .03 * i) * pulse(t - .57 * i, .28),
-            "yaw": (.042 + .023 * i) * cos(t - .67 * i),
+            "pitch": stroke * (.095 + .03 * i) * pulse(t - .57 * i, .28),
+            "yaw": stroke * (.042 + .023 * i) * cos(t - .67 * i),
         }
-    # The common body joint gives the shell and crown a tiny, coherent recoil.
-    rotations["body3_00"] = lambda t: {"pitch": .034 * pulse(t + .63), "yaw": .022 * cos(t + .7)}
-    return rotations, {}, {}
+    # A short shell recoil accompanies crown compression. The route integrates
+    # sustained travel and the shell itself remains rigid.
+    rotations["body3_00"] = lambda t: {"pitch": .039 * stroke * pulse(t + .63),
+                                       "yaw": .022 * cos(t + .7)}
+    impulse = {"body3_00": lambda t: (
+        rig.forward * (.0036 * power * pulse(t + .39, .31))
+        + rig.up * (.0013 * power * sin(t - .53))
+    )}
+    return rotations, {}, impulse
 
 
 def sarcosuchus(rig, power):
     rotations = {}
     spine(rotations, ("TailBase", "TailMid", "TailTip"), (.11, .221, .319), .88, power, .043)
-    rotations["Body"] = lambda t: {"roll": .026 * power * sin(t - .35)}
+    rotations["Body"] = lambda t: {"roll": .026 * power * sin(t - .35), "pitch": .008 * cos(t - .7)}
     rotations["Neck"] = lambda t: {"yaw": -.030 * power * pulse(t + .37)}
     rotations["Head"] = lambda t: {"pitch": .022 * power * cos(t - .35)}
+    rotations["Jaw"] = lambda t: {"pitch": .012 * (1 - cos(t - .35)) - .032 * (1 - power)}
     return rotations, {}, {}
 
 
@@ -687,10 +695,10 @@ CLIP_BANK = {
     "opabinia": (opabinia, ("Swim", 1.23, 1, 30), ("Hover", 1.90, .62, 30)),
     "hallucigenia": (hallucigenia, ("Crawl", .49, 1, 36)),
     "tullimonstrum": (tullimonstrum, ("Swim", 1.39, 1, 30), ("Hover", 2.06, .58, 30)),
-    "ammonite": (ammonite, ("Hover", 3.77, 1, 30)),
+    "ammonite": (ammonite, ("Swim", 2.16, 1, 36), ("Hover", 3.77, .64, 30)),
     "dakosaurus": (dakosaurus, ("Swim", 1.96, 1, 30), ("Hover", 2.84, .46, 30)),
     "ichthyosaur": (ichthyosaur, ("Swim", 1.57, 1, 30), ("Hover", 2.54, .37, 30)),
-    "sarcosuchus": (sarcosuchus, ("Swim", 2.41, 1, 30)),
+    "sarcosuchus": (sarcosuchus, ("Swim", 2.41, 1, 30), ("Hover", 3.63, .16, 30)),
     "dallasaurus": (dallasaurus, ("Swim", 1.37, 1, 30), ("Hover", 1.93, .40, 30)),
     "styxosaurus": (styxosaurus, ("Swim", 2.33, 1, 30), ("Hover", 3.54, .39, 30)),
     "megalodon": (megalodon, ("Swim", 2.51, 1, 30), ("Hover", 3.62, .46, 30)),

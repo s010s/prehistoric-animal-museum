@@ -11,9 +11,9 @@ import { reviewedGeometryLods, loadReviewedIndices } from './VaultGeometryLods.j
 const SEA = -.7;
 const TYPES = {
  ichthyornis: {kind:'bird',span:.82,sourceSpan:.994,range:136,preload:203,frequency:3.9,stroke:.49,
-  root:[.098,.100,.092,.045],tuck:1.10},
+  root:[.098,.100,.092,.045],tuck:1.10,pitch:.19},
  sapeornis: {kind:'bird',span:.89,sourceSpan:.983,range:126,preload:190,frequency:3.25,stroke:.55,
-  root:[.107,.115,.101,.09],tuck:1.28},
+  root:[.107,.087,.101,.09],tuck:1.28,pitch:.34},
  meganeura: {kind:'insect',span:.57,sourceSpan:.996,range:36,preload:94,frequency:9.1,stroke:.61,
   root:[.052,.025,.131,-.08],hind:[.052,.028,.079,.10],wingLag:1.17,tuck:.52},
  stenodictya: {kind:'insect',span:.145,sourceSpan:.14053,range:20,preload:76,frequency:11.3,stroke:.48,
@@ -44,9 +44,9 @@ fn vaultFlightBend(p:vec3f, curve:vec4f, fore:vec4f, hind:vec4f, w:vec4f, transl
   let elbow=vec3f(.138*side,.035,.024)*translate;
   let wrist=vec3f(.259*side,.020,.013)*translate;
   let feathers=wrist+vaultFlightRy(vaultFlightRz(wing-wrist,curve.w*side),max(0.0,curve.w)*side*.25);
-  wing=mix(wing,feathers,smoothstep(.57,.95,w.w));
+  wing=mix(wing,feathers,smoothstep(.49,.98,w.w));
   let forearm=elbow+vaultFlightRz(wing-elbow,curve.z*side);
-  wing=mix(wing,forearm,smoothstep(.25,.61,w.w));
+  wing=mix(wing,forearm,smoothstep(.20,.72,w.w));
  }else{
   // A slight torsion follows the stroke; each membrane shares its hinge with its veins.
   let wrist=vec3f(.17*side,.02,0.0)*translate;
@@ -80,19 +80,20 @@ function flightWeights(kind, type, [x,y,z], node) {
  const side=x<0?-1:1, ax=Math.abs(x);
  if (type.kind==='bird') {
   // Source feet extend sideways below the pectoral; include only the wing fan here.
-  const aboveFeet=smooth(type.tuck>1.2?-.20:-.12,type.tuck>1.2?-.102:.002,y);
+  const small=kind==='ichthyornis';
+  const aboveFeet=Math.max(smooth(small?-.12:-.20,small?.002:-.102,y),smooth(.17,.22,ax));
   const aheadTail=Math.max(smooth(-.23,-.105,z),smooth(.16,.23,ax));
-  return [smooth(.068,.168,ax)*aboveFeet*aheadTail,side,0,smooth(.09,.47,ax)];
+  return [smooth(small?.068:.062,small?.168:.192,ax)*aboveFeet*aheadTail,side,0,smooth(.09,.47,ax)];
  }
  const start=type.root[0], span=smooth(start,.47,ax);
  if(kind==='meganeura') {
-  const wing=smooth(.053,.131,ax)*smooth(-.015,.021,y)*(1-smooth(.209,.255,z));
+  const wingHeight=Math.max(smooth(-.015,.021,y),smooth(.134,.21,ax));
+  const wing=smooth(.053,.131,ax)*wingHeight*(1-smooth(.209,.255,z));
   return [wing,side,1-smooth(.012,.086,z),span];
  }
  if(kind==='stenodictya') {
-  // The four membranes overlap in plan view. Their heights separate them over
-  // the span, and the anterior lobes at the thorax retain their resting pose.
-  const flying=/wings|venation/i.test(node) && z<.153;
+  // Their heights give a fore/hind vote where the membranes overlap in plan view.
+  const flying=/wings|venation/i.test(node);
   const hind=1-smooth(-.002,.003,y-.069-.052*ax+.04*(z-.028));
   return [flying?smooth(.031,.112,ax):0,side,hind,span];
  }
@@ -118,7 +119,51 @@ function flightBodyWeights(kind, [x,y,z], node) {
  const feelers=smooth(kind==='meganeura'?.255:.22,kind==='meganeura'?.365:.36,z)*(1-smooth(.10,.18,ax));
  const cuticle=kind==='meganeura'||/body|abdomen|tergites|ridges|thoracic/i.test(node);
  const appendages=kind==='meganeura'||/legs|antennae/i.test(node);
- return [cuticle?abdomen*axial:0,appendages?legs:0,appendages?feelers:0,1-smooth(-.38,-.23,z)];
+ // The two long terminal filaments share the abdomen hinge at their base.
+ const terminal=steno&&appendages?1-smooth(-.275,-.249,z):0;
+ return [cuticle?abdomen*axial:terminal,appendages?legs*(1-terminal):0,appendages?feelers:0,1-smooth(-.38,-.23,z)];
+}
+
+// The membrane panels and vein tubes are separate indexed components in these
+// two models. Use the height votes per component so a tube uses one hinge
+// through its whole section, including the thin edges above and below the skin.
+function assignWingPairWeights(geometry, rigidThoracicLobes) {
+ const positions=geometry.attributes.position.array;
+ const weights=geometry.attributes.aWing.array;
+ const indices=geometry.index.array;
+ const count=positions.length/3;
+ const parent=Uint32Array.from({length:count},(_,i)=>i);
+ function root(i) {
+  while (parent[i]!==i) {
+   parent[i]=parent[parent[i]];
+   i=parent[i];
+  }
+  return i;
+ }
+ for (let i=0;i<indices.length;i+=3) {
+  const component=root(indices[i]);
+  parent[root(indices[i+1])]=component;
+  parent[root(indices[i+2])]=component;
+ }
+ const votes=new Map();
+ for (let i=0;i<count;i++) {
+  const vertex=i*4, point=i*3, weight=weights[vertex];
+  if (!weight) continue;
+  const component=root(i);
+  let vote=votes.get(component);
+  if (!vote) votes.set(component,vote={total:0,hind:0,span:0,front:-Infinity});
+  vote.total+=weight;
+  vote.hind+=weight*weights[vertex+2];
+  vote.span=Math.max(vote.span,Math.abs(positions[point]));
+  vote.front=Math.max(vote.front,positions[point+2]);
+ }
+ for (let i=0;i<count;i++) {
+  const vertex=i*4;
+  if (!weights[vertex]) continue;
+  const vote=votes.get(root(i));
+  if (rigidThoracicLobes&&vote.front>.151&&vote.span<.119) weights[vertex]=0;
+  weights[vertex+2]=Number(vote.hind*2>=vote.total);
+ }
 }
 
 export function reviewedFlightAngles(kind, phase, effort, drift) {
@@ -130,17 +175,19 @@ export function reviewedFlightAngles(kind, phase, effort, drift) {
   (bird?.026:.09)+front,
   (bird?.026:.035)+hind,
   (bird?.165:.14)*effort*Math.sin(phase-.72),
-  (bird?.155:.13)*effort*Math.sin(phase-1.29)+(bird?.025:0)*Math.sin(drift),
+  (bird?.115:.13)*effort*Math.sin(phase-1.29)+(bird?.025:0)*Math.sin(drift),
  ];
 }
 
 export function reviewedFlightGeometry(gltf,kind) {
  const type=TYPES[kind];
- return reviewedGeometry(gltf,(x,y,z,normal)=>{
+ const geometry=reviewedGeometry(gltf,(x,y,z,normal)=>{
   const orientation=kind==='meganeura'?-1:1;
   const s=normal?1:1/type.sourceSpan;
   return [x*s*orientation,y*s,z*s*orientation];
  },(p,name)=>flightWeights(kind,type,p,name),(p,name)=>flightBodyWeights(kind,p,name));
+ if (kind==='stenodictya'||kind==='juracimbrophlebia') assignWingPairWeights(geometry,kind==='stenodictya');
+ return geometry;
 }
 
 // At the switch the projected simplification error is below one pixel.
@@ -194,6 +241,65 @@ async function createFlightBatch(kind, type, capacity, field, signal) {
   }
   texture?.destroy();
  }};
+}
+
+function flightOrbit(flier, angle, bird, out) {
+ const {habitat,rx,rz,rate,phase}=flier;
+ const c=Math.cos(habitat.heading), s=Math.sin(habitat.heading);
+ const side=bird?1.4:.42, ahead=bird?2.45:.42;
+ const a=2*angle+phase, b=a-.45;
+ const x=Math.cos(angle)*rx+Math.cos(b)*side;
+ const z=Math.sin(angle)*rz+Math.sin(a)*ahead;
+ const dx=(-Math.sin(angle)*rx-2*side*Math.sin(b))*rate;
+ const dz=(Math.cos(angle)*rz+2*ahead*Math.cos(a))*rate;
+ out[0]=habitat.x+x*c-z*s;
+ out[1]=habitat.z+z*c+x*s;
+ out[2]=dx*c-dz*s;
+ out[3]=dz*c+dx*s;
+}
+
+function flightCover(terrain, field, x, z, bird) {
+ const ground=Math.max(SEA,terrain.heightAt(x,z));
+ if (bird) return ground;
+ const [level, edge]=field.sample(x,z);
+ return Math.max(ground,edge<0?level:SEA);
+}
+
+// Plan the height once over the orbit. A higher patch raises the approach and
+// departure across multiple seconds instead of moving the animal up in one frame.
+function flightFloor(flier, terrain, field, bird) {
+ const stepMetres=bird?.68:.20;
+ const count=Math.ceil(TAU*(Math.max(flier.rx,flier.rz)+(bird?5:1.1))/stepMetres);
+ const step=TAU/count;
+ const clearance=new Float32Array(count*2);
+ const floor=new Float32Array(count);
+ const point=new Float64Array(4);
+ for (let i=0;i<clearance.length;i++) {
+  flightOrbit(flier,i*step*.5,bird,point);
+  clearance[i]=flightCover(terrain,field,point[0],point[1],bird);
+ }
+ for (let i=0;i<count;i++) {
+  floor[i]=Math.max(clearance[(2*i+clearance.length-1)%clearance.length],clearance[2*i],clearance[2*i+1])+.06;
+ }
+ const interval=step/flier.rate;
+ const downward=(bird?4.6:1.05)*interval;
+ const upward=(bird?4.2:1.28)*interval;
+ for (let n=0;n<count*2;n++) {
+  const i=n%count;
+  floor[i]=Math.max(floor[i],floor[(i+count-1)%count]-downward);
+ }
+ for (let n=count*2-1;n>=0;n--) {
+  const i=n%count;
+  floor[i]=Math.max(floor[i],floor[(i+1)%count]-upward);
+ }
+ return floor;
+}
+
+function orbitFloor(floor, angle) {
+ const frame=(angle/TAU-Math.floor(angle/TAU))*floor.length;
+ const i=Math.floor(frame)%floor.length;
+ const fraction=frame-Math.floor(frame);
+ return floor[i]+(floor[(i+1)%floor.length]-floor[i])*fraction;
 }
 
 function nearestDryBank(terrain, field, x, z, level) {
@@ -273,6 +379,7 @@ export class VaultEnvironmentFlight {
   this.types=new Map(Object.keys(TYPES).map(id=>[id,{id,type:TYPES[id],fliers:[],batch:null}]));
   this.fliers=[];
   this.trackingFliers=[];
+  this.flightPoint=new Float64Array(4);
   this.sphere=new Sphere(); this.projection=new Vector3(); this.euler=new Euler(0,0,0,'YXZ'); this.q=new Quaternion();
   const rng=mulberry32(181029);
   for (const habitat of this.habitats) {
@@ -320,22 +427,15 @@ export class VaultEnvironmentFlight {
     const h=f.habitat, range=type.range, anchorDistance=Math.hypot(cp.x-h.x,cp.z-h.z);
     f.active=false;
     if (!enabled||anchorDistance>range+Math.max(h.rx,h.rz)*1.2) {f.fresh=true;continue;}
-    const a=time*f.rate+f.orbit,wobble=f.phase+time*(bird?.62:1.4),c=Math.cos(h.heading),s=Math.sin(h.heading);
-    const tx=Math.cos(a)*f.rx+Math.cos(wobble)*(bird?1.4:.42),tz=Math.sin(a)*f.rz+Math.sin(a*2+f.phase)*(bird?2.45:.42);
-    const vx=-Math.sin(a)*f.rx*f.rate-Math.sin(wobble)*(bird?.87:.59);
-    const vz=Math.cos(a)*f.rz*f.rate+Math.cos(a*2+f.phase)*(bird?4.9:.84)*f.rate;
-    const x=h.x+tx*c-tz*s,z=h.z+tx*s+tz*c, dx=vx*c-vz*s,dz=vx*s+vz*c;
-    const ground=Math.max(SEA,terrain.heightAt(x,z));
-    const water=bird?null:this.data.field.sample(x,z);
-    const cover=Math.max(ground,water?.[1]<0?water[0]:SEA);
-    let activity=1, y;
-    if (bird) {
-     const ahead=Math.max(SEA,terrain.heightAt(x+dx*.52,z+dz*.52));
-     y=Math.max(cover,ahead-.6)+f.altitude+Math.sin(a+f.phase)*.72;
-    } else {
-     activity=.52+.48*smooth(-.3,.85,Math.sin(time*.38+f.phase));
-     y=cover+Math.max(.24,f.altitude*activity+Math.sin(wobble*1.4)*.24);
-    }
+    const a=time*f.rate+f.orbit,wobble=f.phase+time*(bird?.62:1.4);
+    flightOrbit(f,a,bird,this.flightPoint);
+    const [x,z,dx,dz]=this.flightPoint;
+    f.floor??=flightFloor(f,terrain,this.data.field,bird);
+    const base=orbitFloor(f.floor,a);
+    const cover=flightCover(terrain,this.data.field,x,z,bird);
+    const activity=bird?1:.52+.48*smooth(-.3,.85,Math.sin(time*.38+f.phase));
+    const y=base+(bird?f.altitude+Math.sin(a+f.phase)*.72
+     :Math.max(.24,f.altitude*activity+Math.sin(wobble*1.4)*.24));
     f.position.set(x,y,z);
     const distance=cp.distanceTo(f.position), scale=f.span*(1-smooth(range*.82,range,distance));
     const pixels=scale*pxScale/Math.max(.2,distance);
@@ -346,7 +446,12 @@ export class VaultEnvironmentFlight {
     f.trackingSpan=scale;
     this.trackingFliers.push(f);
     if (!f.trackingVisible) {f.fresh=true;continue;}
-    this.q.setFromEuler(this.euler.set((bird?.19:.02)+Math.sin(wobble)*(bird?.061:.13),Math.atan2(dx,dz),bird?.15*Math.sin(a)+.12:Math.sin(wobble)*.22,'YXZ'));
+    const lookAhead=f.rate*.18;
+    const climb=(orbitFloor(f.floor,a+lookAhead)-orbitFloor(f.floor,a-lookAhead))/.36;
+    const pitch=(type.pitch??.02)+Math.sin(wobble)*(bird?.044:.13);
+    const tangent=Math.atan2(climb,Math.hypot(dx,dz));
+    this.q.setFromEuler(this.euler.set(pitch-Math.max(-.24,Math.min(.24,tangent*.65)),
+     Math.atan2(dx,dz),bird?.15*Math.sin(a)+.12:Math.sin(wobble)*.22,'YXZ'));
     if (!f.fresh) f.record.copyWithin(12,0,12);
     const cycle=time*f.frequency*TAU+f.phase;
     const flightGate=bird?.045+.955*smooth(-.52,.32,Math.sin(time*.55+f.phase)):activity;
