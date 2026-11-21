@@ -1,6 +1,7 @@
 // Museum-authored, coast-following bathymetry. One CPU construction before
 // native height/normal/shadow upload; no additional per-frame simulation.
 import {finishMainEstuary,mainEstuaryHeight,mainEstuaryWeight} from './MainEstuary.js';
+import {sculptPocketBeaches} from './PocketBeaches.js';
 import {Noise2D} from '../vendor/tidewater/src/util/Noise.js';
 const SEA=-.7;
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
@@ -35,6 +36,7 @@ function distanceTransform(ocean,n){
 
 export function extendCoastalShelf(grids,readHeight,waterField){
  const started=performance.now(),size=32768,n=1024,texel=size/n,origin=-size/2;
+ const pocketWeight=sculptPocketBeaches(grids,readHeight);
  const heights=new Float32Array(n*n),ocean=new Uint8Array(n*n),queue=new Int32Array(n*n);
  for(let j=0;j<n;j++){
   const z=origin+(j+.5)*texel,river=waterField.riverAt(z);
@@ -171,9 +173,9 @@ export function extendCoastalShelf(grids,readHeight,waterField){
    // Leave the source wet/dry vertices intact. Near shore, the old shallow
    // slope is the upper envelope; no submerged moat around a new sand platform.
    const target=d<50?Math.max(old,form.height):form.height;
-   const weight=form.weight*(1-channel);const y=mix(old,target,weight);
+   const pocket=pocketWeight(x,z),weight=form.weight*(1-channel)*(1-pocket);const y=mix(old,target,weight);
    if(y===old)continue;grid.heights[k]=y;changed++;maxShift=Math.max(maxShift,Math.abs(y-old));if(old>=SEA)dryChanged++;
-   const sand=1-smooth(.18,.7,form.reef/2.1);grid.sand[k]=Math.round(sand*255);grid.rock[k]=mix(grid.rock[k],.06+(1-sand)*.5,weight);
+   const sand=1-smooth(.18,.7,form.reef/2.1);grid.sand[k]=Math.round(mix(sand*255,grid.sand[k],pocket));grid.rock[k]=mix(grid.rock[k],.06+(1-sand)*.5,weight);
   }
   finishMainEstuary(grid,waterField);
   grid.buildMinMax();changes.push({grid:grid.id??'regional',changed,maxShift,dryChanged,protectedWater,apronChanged,apronMaxShift});

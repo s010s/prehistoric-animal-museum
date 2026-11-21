@@ -2,6 +2,7 @@
 import {Rocks} from '../vendor/tidewater/src/world/Rocks.js';
 import {ROCK_STYLES} from '../vendor/tidewater/src/world/terrain/RockGeometry.js';
 import {Vector3,Matrix4,Quaternion,Euler} from '../vendor/tidewater/src/engine/index.js';
+import {placePocketRocks} from './PocketBeaches.js';
 export class CoveRocks extends Rocks{
  constructor(options){super({...options,colliders:null});this.submergedColliders=0;this.exposedColliders=0;
   this.classification={exposed:0,waterline:0,submerged:0};this.examples={};
@@ -30,10 +31,11 @@ export class CoveRocks extends Rocks{
  stats(){return {...super.stats(),submergedColliders:this.submergedColliders,exposedColliders:this.exposedColliders,classification:this.classification,examples:this.examples,bounds:'actual transformed near-LOD vertices; waterline category -1.45 to -0.25m around mean sea -0.7m',placement:'fixed uneven coastal clusters; four native shapes/two shared LODs'};}
  _place(rand){
   const t=this.terrainData,cove=t.museumCove,out=[];if(!cove)return out;
-  const add=(x,z,size,style,flat=1)=>{
+  const add=(x,z,size,style,flat=1,strike)=>{
    const st=ROCK_STYLES[style].scale,sx=size*(.82+rand()*.36),sy=size*(.75+rand()*.32)*flat,sz=size*(.8+rand()*.4);
    let g=t.heightAt(x,z);for(let a=0;a<7;a++)g=Math.min(g,t.heightAt(x+Math.cos(a)*size*.5,z+Math.sin(a)*size*.5));
-   const y=g-sy*st[1]*.22,q=new Quaternion().setFromEuler(new Euler((rand()-.5)*.22,rand()*6.283,(rand()-.5)*.16));
+   const tilt=(rand()-.5)*.22,turn=rand(),roll=(rand()-.5)*.16;
+   const y=g-sy*st[1]*.22,q=new Quaternion().setFromEuler(new Euler(tilt,strike==null?turn*6.283:strike+(turn-.5)*.32,roll));
    const matrix=new Matrix4().compose(new Vector3(x,y,z),q,new Vector3(sx,sy,sz));out.push({x,y,z,size,sy:sy/size,style,matrix,radius:Math.max(sx,sy,sz)*1.6});
   };
   // Asymmetrical groups leave the central wading/sand channel open.
@@ -62,6 +64,7 @@ export class CoveRocks extends Rocks{
     add(px,pz,.6+rand()*2.2,Math.floor(rand()*3),.6+rand()*.35);
    }
   }
+  placePocketRocks(t,add);
   return out;
  }
 }

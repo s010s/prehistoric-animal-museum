@@ -4,6 +4,90 @@ import { ShaderModule } from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {CDLOD} from '../vendor/tidewater/src/core/CDLOD.js';
 import {UniformBlock} from '../vendor/tidewater/src/engine/gpu/Uniforms.js';
 import { terrainShadingModule, srgb } from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
+
+const naturalStrand = new ShaderModule({name:'museumNaturalStrand',code:`
+struct StrandSurface {
+ albedo: vec3f,
+ relief: f32,
+ roughness: f32,
+ specular: f32,
+};
+
+fn museumStrandSurface(
+ p: vec2f, h: f32, n: vec3f, d: vec4f, m: vec4f, micro: vec4f,
+ grad: RockGrad, footprint: f32, history: vec2f,
+) -> StrandSurface {
+ // Windblown fines and denser grains accumulate in patches measured in metres.
+ let drift=perlin2(p/36.0+17.8);
+ let pockets=perlin2(p/7.4+vec2f(22.7,drift*.56));
+ let sorted=smoothstep(.19,.81,.49+drift*.47+pockets*.18+(m.w-.5)*.23);
+ var dry=mix(${srgb(.66,.58,.46)},${srgb(.80,.73,.60)},sorted);
+ dry*=1.0+(d.w-.5)*.11;
+
+ let gritWeight=1.0-smoothstep(.024,.10,footprint);
+ let grainWeight=1.0-smoothstep(.005,.028,footprint);
+ let grain=clamp(micro.z,.31,.59)-.45;
+ let flakeHeight=h+pockets*.46+(m.w-.5)*.38;
+ let wrack=smoothstep(.61,1.17,flakeHeight)*(1.0-smoothstep(1.80,2.78,flakeHeight))
+   *smoothstep(.42,.72,.52+pockets*.42+(d.w-.5)*.35);
+ var fragments=0.0;
+ if(gritWeight>.0){
+  // Use the sparse pebble peaks in the native sand atlas at a second angle.
+  let rotation=mat2x2f(vec2f(.821,.571),vec2f(-.571,.821))*(1.0/2.6);
+  let grit=terrainDetailGrad(rotation*p+vec2f(.37,.68),rotation*grad.dpdx.xz,rotation*grad.dpdy.xz);
+  let exposure=smoothstep(.29,.75,.51+pockets*.53+(d.w-.5)*.24);
+  fragments=smoothstep(.66,.87,grit.z)*gritWeight*(.24+.34*exposure+.29*wrack);
+  let mineral=mix(${srgb(.42,.37,.31)},${srgb(.82,.77,.66)},smoothstep(.41,.62,grit.y+(m.y-.5)*.22));
+  dry=mix(dry,mineral,fragments*.68);
+ }
+ let detritus=wrack*smoothstep(.54,.74,d.y)*.43;
+ dry=mix(dry,${srgb(.34,.28,.21)},detritus);
+ dry*=1.0+grain*.34*grainWeight;
+
+ // Use the remembered reach of the actual swash. Capillary damp persists when
+ // the travelling history window is absent. Pore drainage breaks up its edge.
+ let wick=.36+pockets*.21+(d.w-.5)*.22;
+ let capillary=1.0-smoothstep(.015,max(.18,wick),h);
+ let wetHistory=clamp(history.x,0.0,1.0);
+ let draining=smoothstep(.07,.47,wetHistory)*(1.0-smoothstep(.59,.95,wetHistory));
+ let poreNoise=smoothstep(.24,.79,.52+pockets*.35+(d.y-.5)*.48);
+ let wet=max(capillary*.76,wetHistory*(1.0-draining*poreNoise*.42));
+ let glossy=smoothstep(.52,.95,wetHistory)*(1.0-smoothstep(.15,.81,h));
+
+ // Wind ripples bend and peter out in patches on the upper, drier shore.
+ let wind=frame.windDir;
+ let dx=grad.dpdx.xz;let dy=grad.dpdy.xz;
+ let cycles=max(abs(dot(dx,wind)),abs(dot(dy,wind)))/.16+footprint*.56;
+ let windWeight=(1.0-smoothstep(.12,.36,cycles))*smoothstep(.78,1.78,h)
+   *smoothstep(.30,.69,.48+pockets*.65+(m.w-.5)*.20)*(1.0-wet)*(1.0-wrack);
+ let phase=dot(p,wind)*(6.2831853/.16)+pockets*6.2+drift*11.4;
+ let ripple=(pow(sin(phase)*.5+.5,1.55)-.43)*windWeight;
+ dry*=1.0+ripple*.16;
+
+ // Use two fixed projections for faint downslope drainage. A world position
+ // projected onto a turning normal would shear the texture as the slope bends.
+ let rillWeight=wet*smoothstep(.025,.18,h)*(1.0-smoothstep(.36,.89,h))
+   *smoothstep(.022,.115,length(n.xz))*(1.0-smoothstep(.035,.15,footprint));
+ var rill=0.0;
+ if(rillWeight>.0){
+  let xScale=vec2f(4.8,.83);let zScale=xScale.yx;
+  let rx=terrainDetailGrad(p/xScale,dx/xScale,dy/xScale).w;
+  let rz=terrainDetailGrad(p/zScale,dx/zScale,dy/zScale).w;
+  let w=n.x*n.x/max(dot(n.xz,n.xz),.0001);
+  rill=(mix(rz,rx,w)-.5)*rillWeight;
+ }
+ let dark=vec3f(.50,.55,.59)*(1.0+rill*.24);
+ let wetSand=mix(dry,dry*dark,wet);
+ // Stored native bubbles brighten only their tiny, stationary lace strands.
+ let bubbles=creekStrandBubbles(p,history.y,footprint)
+   *smoothstep(-.05,.045,h)*(1.0-smoothstep(.68,1.15,h));
+ let relief=(grain*.005*grainWeight+fragments*.003+ripple*.0048)*(1.0-wet*.67)+rill*.0029;
+ let rough=mix(.93,mix(.57,.24,glossy),wet);
+ return StrandSurface(mix(wetSand,${srgb(.82,.83,.80)},bubbles*.66),relief,
+   mix(rough,.68,bubbles),.22+.18*wet+.11*glossy);
+}
+`});
+
 export class CreekTerrain extends Terrain {
   constructor({scene,data,terrainGPU}) {
     super({scene,terrainData:data.terrain,terrainGPU,gridSize:64,rangeFactor:3});
@@ -14,8 +98,8 @@ export class CreekTerrain extends Terrain {
     mat.modules=[terrainGPU.module,terrainShadingModule(),this.lod.module,terrainGPU.sunModulationModule,data.field.module,data.appearance.module];
     mat.modules.push(new ShaderModule({name:'museumShoreLandforms',code:data.landforms.materialWGSL}));
     mat.appliesHillShadow=true;mat.defines.MATERIAL_SUN_MODULATION=1;mat.defines.MUSEUM_TERRAIN_RECEIVER=1;
-    this.review=new UniformBlock('MuseumGroundReview',{snow:['f32',1],bump:['f32',1],filtered:['f32',1],seabedLegacy:['f32',0],bedDebug:['f32',0],inlandBedLegacy:['f32',0]});
-    mat.modules.push(new ShaderModule({name:'museumGroundReview',uniforms:this.review}));
+    this.review=new UniformBlock('MuseumGroundReview',{snow:['f32',1],bump:['f32',1],filtered:['f32',1],seabedLegacy:['f32',0],bedDebug:['f32',0],inlandBedLegacy:['f32',0],naturalStrand:['f32',1]});
+    mat.modules.push(new ShaderModule({name:'museumGroundReview',uniforms:this.review}),naturalStrand);
     mat.surface=`
  let P=in.P;let nr=terrainNormalRock(P.xz);let filteredN=normalize(vec3f(nr.x,sqrt(max(1.0-dot(nr.xy,nr.xy),.0025)),nr.y));var N=normalize(filteredN);
  // The level-zero comparison samples every active terrain atlas a second time.
@@ -69,7 +153,8 @@ export class CreekTerrain extends Terrain {
  let coveW=museumShelfWeight(P,footprint);
  // The beach apron and the offshore plume continue past the cove classification.
  // The fan covers the old dark inland-bed patch on the level sea floor.
- let mouthRegion=1.0-smoothstep(170.0,320.0,distance(P.xz,vec2f(-875.0,125.0)));
+ let mouthDistance=distance(P.xz,vec2f(-875.0,125.0));
+ let mouthRegion=1.0-smoothstep(170.0,320.0,mouthDistance);
  let beachH=P.y-frame.seaLevel;
  let strandWarp=(m.w-.5)*3.0+(d.w-.5)*1.4;
  let strand=1.0-smoothstep(11.0+strandWarp,19.0+strandWarp,beachH);
@@ -260,6 +345,7 @@ export class CreekTerrain extends Terrain {
  // inland field sets that local datum through the channel mouth and lakes.
  let bankRise=P.y-wf.x;
  var dampFilm=0.0;
+ var marineProbe=0.0;
  // Both envelopes are identically zero outside their height support. Most
  // upland fragments can bypass the entire shore material, including its map.
  if((beachH>-.85 && beachH<5.9)||(bankRise>-.85 && bankRise<5.9)){
@@ -270,8 +356,8 @@ export class CreekTerrain extends Terrain {
    // The marine channel holds *connected water*. Look just downslope to
    // continue its sediment onto the dry shore without tinting inland hollows.
    let probe=P.xz+N.xz/max(length(N.xz),.025)*56.0;
-   let marine=textureSampleLevel(museumFlora,smpLinearClamp,(probe+16384.0)/32768.0,0.0).r;
-   coastSupply=max(coastSupply,marine);
+   marineProbe=textureSampleLevel(museumFlora,smpLinearClamp,(probe+16384.0)/32768.0,0.0).r;
+   coastSupply=max(coastSupply,marineProbe);
   }
   // Select coverage only after evaluating each bank against its own water
   // level. The lake's signed extent sets its influence along the outer bank.
@@ -324,16 +410,40 @@ export class CreekTerrain extends Terrain {
  }
  let rippleFilter=1.0-smoothstep(.6,2.2,rippleWidth);
  let sandRipples=sin(ripplePhase)*.0025*rippleFilter*underBed*(1.0-stoneShare);
+ var strandWeight=0.0;
+ var naturalSurface:StrandSurface;
+ if(museumGroundReview.naturalStrand>0.0 && beachH>-.20 && beachH<10.0 && beach>.01 && rockW<.48){
+  // Ease in beyond the two hand-authored mouths and their material feathers.
+  let mainMargin=museumMainTidalWeight(mix(vec2f(-653.0,3690.0),P.xz,.82));
+  let openCoast=smoothstep(320.0,425.0,mouthDistance)*(1.0-smoothstep(.0,.14,mainMargin));
+  let freshBank=(1.0-smoothstep(.15,8.0,wf.y))*smoothstep(.25,.75,wf.x-frame.seaLevel);
+  let loose=beach*(1.0-saltGrass)*(1.0-freshBank)*(1.0-smoothstep(.10,.48,rockW))
+    *smoothstep(.937,.989,N.y)*smoothstep(-.20,-.015,beachH);
+  if(loose*openCoast>.001){
+   // The 32 m connectivity map contains only open sea. Use a second reach
+   // downslope for the upper beach where the first probe can still be dry.
+   if(marineProbe<.84){
+    let downhill=filteredN.xz/max(length(filteredN.xz),.018);
+    let reach=clamp(43.0+max(beachH,0.0)*18.0,43.0,156.0);
+    marineProbe=max(marineProbe,textureSampleLevel(museumFlora,smpLinearClamp,
+      (P.xz+downhill*reach+16384.0)/32768.0,0.0).r);
+   }
+   strandWeight=clamp(museumGroundReview.naturalStrand,0.0,1.0)*loose*openCoast
+     *smoothstep(.12,.72,marineProbe);
+   if(strandWeight>.001){naturalSurface=museumStrandSurface(P.xz,beachH,N,d,m,micro,worldGrad,reliefFootprint,shoreWet.yz);}
+   else{strandWeight=0.0;}
+  }
+ }
  wet=max(max(wet,shoreWet.x),sourceWet*.94);
  // Shore darkening belongs on exposed damp sand. The inherited river-field
  // wet mask continues into the bay; applying it to submerged sediment made
  // a rectangular dark patch even after the physical offshore pit was gone.
  let surfaceWet=wet*(1.0-seaBed);
- // The native surface still carries moving foam. Baking its residual bubbles
- // into pale sand albedo made each footprint read as an opaque white disc.
- s.albedo=ground*mix(1.0,.72,surfaceWet)*mix(vec3f(1.0),vec3f(.72,.77,.82),dampFilm);
- s.roughness=mix(mix(mix(mix(.94,rockRough,rockW),.48,surfaceWet),mix(.86,rockRough,stoneShare*.7),underBed),.34,dampFilm);
- s.specularIntensity=.22+.20*dampFilm;
+ let legacyAlbedo=ground*mix(1.0,.72,surfaceWet)*mix(vec3f(1.0),vec3f(.72,.77,.82),dampFilm);
+ let legacyRough=mix(mix(mix(mix(.94,rockRough,rockW),.48,surfaceWet),mix(.86,rockRough,stoneShare*.7),underBed),.34,dampFilm);
+ s.albedo=mix(legacyAlbedo,naturalSurface.albedo,strandWeight);
+ s.roughness=mix(legacyRough,naturalSurface.roughness,strandWeight);
+ s.specularIntensity=mix(.22+.20*dampFilm,naturalSurface.specular,strandWeight);
  // Fade each relief scale before its gradient becomes unresolved. The
  // filtered albedo and broad terrain normal still carry the same substrate.
  let litterWeight=1.0-smoothstep(.030,.135,reliefFootprint);
@@ -341,7 +451,11 @@ export class CreekTerrain extends Terrain {
  let swardWeight=1.0-smoothstep(.055,.27,reliefFootprint);
  let swardRelief=meadowRelief*swardWeight*(1.0-underBed)*(1.0-mouthSand)*(1.0-snow*museumGroundReview.snow);
  let soilRelief=((d.y-.35)*.022*litterWeight+(micro.z-.45)*.003*sandGrainWeight)*(1.0-mouthSand);
- s.normal=terrainPerturbNormal(P,N,(mix(soilRelief+swardRelief,rockRelief,rockW)*(1.0-underBed)+rockRelief*cutFace*underBed*.70+bedRelief+sandRipples+grainRelief)*museumGroundReview.bump,1.0);s.ao=mix(.72,1.0,nr.w);
+ let groundRelief=mix(soilRelief+swardRelief,rockRelief,rockW)*(1.0-underBed);
+ let exposedCut=rockRelief*cutFace*underBed*.70;
+ let legacyRelief=groundRelief+exposedCut+bedRelief+sandRipples+grainRelief;
+ let strandRelief=naturalSurface.relief+exposedCut+bedRelief+sandRipples;
+ s.normal=terrainPerturbNormal(P,N,mix(legacyRelief,strandRelief,strandWeight)*museumGroundReview.bump,1.0);s.ao=mix(.72,1.0,nr.w);
  if(underBed>.5){if(museumGroundReview.bedDebug==1.0){s.albedo=vec3f(.2);}if(museumGroundReview.bedDebug==2.0){s.normal=vec3f(0.0,1.0,0.0);}if(museumGroundReview.bedDebug==3.0){s.albedo=vec3f(.15+(wf.x-P.y)*.025);s.normal=vec3f(0.0,1.0,0.0);}if(museumGroundReview.bedDebug==4.0){s.albedo=vec3f(.2);s.normal=vec3f(0.0,1.0,0.0);s.ao=1.0;}}
 `;
     this.setCoastWetness(null);mat.needsUpdate=true;this.mesh.name='Original museum creek and western coast terrain';
@@ -350,11 +464,25 @@ export class CreekTerrain extends Terrain {
     const m=this.material;
     if(this._coastWet)m.modules=m.modules.filter(x=>x!==this._coastWet);
     this._coastWet=new ShaderModule({name:'museumCoastWetness',deps:sim?[sim.module]:[],code:sim?`
-fn creekCoastWetness(p:vec2f,h:f32)->vec2f{
+fn creekCoastWetness(p:vec2f,h:f32)->vec3f{
  let detail=museumSurfDetailAt(p);let state=shoreSimSample(p)*detail;let inside=shoreSimInside(shoreSimUvOf(p))*detail;
  let damp=(1.0-smoothstep(-0.15,0.20,h))*(1.0-smoothstep(1.0,2.4,-h));
- return vec2f(max(state.y,damp*(1.0-inside)),shoreSimSandFoam(p,state,h+frame.seaLevel));
-}`:'fn creekCoastWetness(p:vec2f,h:f32)->vec2f{return vec2f(0.0);}'});
+ return vec3f(max(state.y,damp*(1.0-inside)),state.yz);
+}
+fn creekStrandBubbles(p:vec2f,amount:f32,footprint:f32)->f32{
+ // Native lace has no mip levels on this four-load binding. Fade the actual
+ // strands as they become unresolved; a uniform fallback reads as a blotch.
+ let resolved=1.0-smoothstep(.010,.031,footprint);
+ if(amount<.035 || resolved<=0.0){return 0.0;}
+ let lace=shoreSimLaceLoad(p+11.3);
+ let pop=smoothstep(lace.w*.49,lace.w*.49+.11,amount);
+ let line=(1.0-smoothstep(.044,.147,lace.x))*smoothstep(.28,.68,lace.z)*.70;
+ let bubbles=smoothstep(.26,.66,lace.y);
+ return max(line,bubbles)*pop*resolved*smoothstep(.04,.28,amount);
+}`:`
+fn creekCoastWetness(p:vec2f,h:f32)->vec3f{return vec3f(0.0);}
+fn creekStrandBubbles(p:vec2f,amount:f32,footprint:f32)->f32{return 0.0;}
+`});
     m.modules.push(this._coastWet);m.needsUpdate=true;
   }
 }

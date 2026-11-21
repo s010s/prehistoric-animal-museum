@@ -6,7 +6,7 @@ import {shell,stone,coralPiece,driftLog,seagrassWrack} from '../vendor/tidewater
 import {createNatureMaterial} from '../vendor/tidewater/src/world/debris/NatureMaterial.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
 import {buildShorePlants,createShorePlantMaterial} from './ShorePlants.js';
-import {buildShoreDeposits} from './ShoreDeposits.js';
+import {buildPocketBeachDeposits,buildShoreDeposits} from './ShoreDeposits.js';
 
 // Keep the six existing layouts bit-for-bit when stations are reordered or
 // extended. Other sites receive a stable seed from their own identifier.
@@ -201,22 +201,28 @@ export class ShoreHabitats {
     this.patches=[];this.strandVisit=null;
     const ground=(x,z)=>data.terrain.heightAt(x,z);
     const originalStations=new Set(sites);
+    const add=(patch,geometry,material,reach,name,animated=false,castShadow=animated)=>{
+      if(!geometry) return;
+      const mesh=new Mesh(geometry,material);
+      mesh.name=patch.site.id+' '+name;mesh.staticVelocity=!animated;
+      mesh.castShadow=castShadow;mesh.receiveShadow=true;
+      this.group.add(mesh);
+      patch.meshes.push({mesh,reach,animated,survey:name==='survey debris'});
+    };
     for(const plan of planShoreDetails(data,sites)) {
       const {site,profile}=plan,counts={shell:0,stone:0,coralFragment:0,driftwood:0,wrack:0};
       const patch={site,counts,meshes:[],plants:pocketSummary(plan.plants),deposits:pocketSummary(plan.shells)};
-      const add=(geometry,material,reach,name,animated=false)=>{
-        if(!geometry) return;
-        const mesh=new Mesh(geometry,material);
-        mesh.name=site.id+' '+name;mesh.staticVelocity=!animated;
-        mesh.castShadow=animated;mesh.receiveShadow=true;
-        this.group.add(mesh);
-        patch.meshes.push({mesh,reach,animated,survey:name==='survey debris'});
-      };
-      if(originalStations.has(site)) add(surveyDebris(site,profile,ground,counts),this.material,330,'survey debris');
-      add(buildShoreDeposits(plan,ground),this.material,profile.detail.shellReach,'strand deposits');
-      add(buildShorePlants(plan,ground),this.foliage,profile.detail.plantReach,'shore plants',true);
+      if(originalStations.has(site)) add(patch,surveyDebris(site,profile,ground,counts),this.material,330,'survey debris');
+      add(patch,buildShoreDeposits(plan,ground),this.material,profile.detail.shellReach,'strand deposits');
+      add(patch,buildShorePlants(plan,ground),this.foliage,profile.detail.plantReach,'shore plants',true);
       this.patches.push(patch);
       if(site.id==='sample-mouth') this.strandVisit=strandVisit(data,plan);
+    }
+    for(const {site,geometry,counts,pockets} of buildPocketBeachDeposits(data,ground)) {
+      const patch={site,counts,meshes:[],plants:pocketSummary([]),wrackPockets:pockets,
+        deposits:{pockets:pockets.length,count:counts.shell+counts.stone,example:pockets[0].center}};
+      add(patch,geometry,this.material,125,'high-water deposits',false,true);
+      this.patches.push(patch);
     }
     scene.add(this.group);
   }
@@ -239,6 +245,7 @@ export class ShoreHabitats {
     return {placement:'grounded survey debris; shore-oriented pocket deposition and rooted backshore/lake clumps',
       patches:this.patches.map(p=>({
         id:p.site.id,kind:p.site.kind,counts:p.counts,plants:p.plants,deposits:p.deposits,
+        ...(p.wrackPockets&&{wrackPockets:p.wrackPockets}),
         triangles:p.meshes.reduce((n,b)=>n+b.mesh.geometry.index.count/3,0),visible:p.meshes.some(b=>b.mesh.visible),
       })),singleSharedMaterial:false,sharedMaterials:2};
   }

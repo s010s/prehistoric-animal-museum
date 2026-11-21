@@ -46,6 +46,13 @@ function findDryBank(data, x, z, level, radius) {
   return point;
 }
 
+export function pocketBeachVisits() {
+ return {
+  'east-pocket-beach':{id:'east-pocket-beach',title:'东岸双岬沙湾',note:'沿沙滩走向前方岩岬，或向左涉水，越过浅槽后潜入沙坝外侧。',p:[10357,92.7],gaze:[10409,0,164],time:11.1},
+  'north-pocket-beach':{id:'north-pocket-beach',title:'北岸岬间潮滩',note:'顺着潮线看石台间的水道，向右沿缓坡可走入浅海。',p:[5158.5,-7368.3],gaze:[5124,.7,-7462],time:15.3},
+ };
+}
+
 export function createIslandVisits(data){
  const t=data.terrain,field=data.field;
  const dryNear=(x,z,level,radius=100)=>findDryBank(data,x,z,level,radius);
@@ -69,6 +76,8 @@ export function createIslandVisits(data){
  visits.grassland={id:'grassland',title:'东部疏林与高草甸',note:'宽缓丘陵上的高低草丛与疏林，支流沿浅谷进入南部湿地。植物目前是群落外形示意。',p:[7940,2850],gaze:[8800,120,1950],time:8.8};
  visits.wetland={id:'wetland',title:'南部低地湿地',note:'浅水、泥岛、节状挺水丛与主槽。沿干地观察，也可游入水道看小鱼。',p:dryNear(5345,5850,2.4,220),gaze:[5449,2.8,5970],time:8.1};
  visits['dry-upland']={id:'dry-upland',title:'背风旱谷与台地',note:'山脊背面的疏林、旱沟、暖灰砾坡与局部露岩，向东逐渐进入高草甸。',p:[4900,650],gaze:[5200,t.heightAt(5200,320)+35,320],time:16.3};
+ Object.assign(visits,pocketBeachVisits());
+ visits['west-surf-point']={id:'west-surf-point',title:'西岸迎浪岬',note:'站在水线上方，朝外海看涌浪在浅滩上立起、翻卷。打开自然声可听见碎浪和近处退水。',p:[-787.75,-2464.84],gaze:[-843.5,.25,-2410.6],time:10.7};
  const ep=dryNear(11160,2980,-.7,800);visits['east-bay']={id:'east-bay',title:'东岸浅海与礁坡',note:'与西岸不同的凹入海湾、缓坡砂底与水下石脊。鱼群只在有足够水深的连通海水中活动。',p:ep,gaze:[ep[0]+180,-.1,ep[1]-20],time:8.5};
  visits['review-source-bed']={id:'review-source-bed',title:'源头溪床对照',note:'从空中沿浅池缓慢平移，检查溪床纹理、缓滩和连续水线。',p:[260,216,-3282],gaze:[255,207,-3310],fly:true,time:12.6};
  const eastSource=field.tributarySource.origin;

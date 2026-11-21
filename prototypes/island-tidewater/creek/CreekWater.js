@@ -290,10 +290,11 @@ fn waterSurfaceFragment(lagXZ:vec2f,footprint:f32,depth:f32,vertexFoam:f32,shore
 // Native medium/meniscus/composite, with a bounded integral through the actual
 // sloping inland volume; the sea keeps the native analytic integral.
 export class CreekUnderwater extends Underwater {
-  _shaftCode(){return super._shaftCode().replace('let steps = 20;', 'if(!museumCameraInland(underwaterParams.camPos.xz)){\n let steps = 20;').replace('shafts = shafts * sunE * sigS * phase * underwaterParams.shafts * 2.5;', 'shafts = shafts * sunE * sigS * phase * underwaterParams.shafts * 2.5;\n }');}
+  _cameraOptics(code){return code.replaceAll('frame.waterAbsorption','museumAbsorption(museumCameraRegion.fresh)').replaceAll('frame.waterScattering','museumScattering(museumCameraRegion.fresh)');}
+  _shaftCode(){return this._cameraOptics(super._shaftCode()).replace('let steps = 20;', 'if(!museumCameraInland(underwaterParams.camPos.xz)){\n let steps = 20;').replace('shafts = shafts * sunE * sigS * phase * underwaterParams.shafts * 2.5;', 'shafts = shafts * sunE * sigS * phase * underwaterParams.shafts * 2.5;\n }');}
 
   _compositeCode(){
-    let code=super._compositeCode();
+    let code=this._cameraOptics(super._compositeCode());
     const end=code.indexOf('// pixel:');
     if(end<0)throw Error('Pinned native underwater integration seam changed');
     code=code.slice(0,end)+`fn creekVolumeLit(m:f32,sigT:vec3f,dir:vec3f,dist:f32)->vec3f {

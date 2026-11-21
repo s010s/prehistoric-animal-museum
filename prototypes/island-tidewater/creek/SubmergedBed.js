@@ -11,6 +11,7 @@ import {createHabitatPlantMaterial} from './HabitatPlantMaterial.js';
 import {islandEcologyGeometry} from './IslandEcology.js';
 import {marineBedExclusions, nearMarineBed, planMarineBedCell} from './MarineBenthicTiles.js';
 import {freshwaterRibbons} from './FreshwaterRibbons.js';
+import {marineOutcropKinds} from './MarineOutcrops.js';
 import {BED_CELL, BED_RADIUS, BED_CELL_CAPACITY, planFreshwaterBedCell} from './FreshwaterBedPlan.js';
 
 const REACH = 26;
@@ -55,9 +56,17 @@ function buildKinds() {
 export class SubmergedBed {
   constructor(app, data) {
     this.data = data;
+    this.colliders = app.colliders;
+    this.rockKinds = marineOutcropKinds(app.life?.marineRockProfiles ?? []);
+    const kinds = buildKinds();
+    this.firstKind = new Map(FORMS.map((kind, index) => [kind, index*2]));
+    for (const [kind, pair] of this.rockKinds) {
+      this.firstKind.set(kind, kinds.length);
+      kinds.push(...pair);
+    }
     this.exclusions = marineBedExclusions(app, data);
     this.view = new UniformBlock('SubmergedBedView', {position: ['vec3f', new Vector3()]});
-    this.batch = new ReefBatch('Submerged floor', buildKinds(), {maxInstances: CAPACITY});
+    this.batch = new ReefBatch('Submerged floor', kinds, {maxInstances: CAPACITY});
     this.material = createHabitatPlantMaterial(this.batch, app.terrainGPU, this.view, {
       name: 'Submerged bed deposits and rooted leaves', namespace: 'submergedBed', rigidSolids: true,
     });
@@ -68,8 +77,13 @@ export class SubmergedBed {
  let uvBed=vec2f(in.P.x*.79+in.P.z*.46,in.P.y+in.P.z*.61-in.P.x*.39);
  let gradX=dpdx(uvBed);let gradY=dpdy(uvBed);
  if(in.vs.vBedMineral>.5){
-   let stone=textureSampleGrad(terrainDetailTex,smpAniso4Repeat,uvBed/.52,gradX/.52,gradY/.52).w;
-   s.albedo*=mix(.74,1.22,stone);
+   let stone=textureSampleGrad(terrainDetailTex,smpAniso4Repeat,uvBed/.52,gradX/.52,gradY/.52);
+   s.albedo*=mix(.74,1.22,stone.w);
+   if(in.vs.vBedMineral>1.5){
+     let fine=textureSampleGrad(terrainDetailTex,smpAniso4Repeat,uvBed/.19,gradX/.19,gradY/.19).z;
+     let crust=smoothstep(.36,.71,stone.x*.61+stone.w*.31+fine*.19)*smoothstep(.05,.78,in.N.y);
+     s.albedo=mix(s.albedo,vec3f(.23,.27,.11),crust*.54)*mix(.83,1.20,fine);
+   }
    s.roughness=.93;
    s.translucency=vec3f(0.0);
  }`;
@@ -77,6 +91,8 @@ export class SubmergedBed {
     this.mesh.visible = false;
     app.scene.add(this.mesh);
     this.cells = new Map();
+    this.rockColliderCenter = new Vector3();
+    this.rockColliderHalf = new Vector3();
     this.sites = [];
     this.frustum = new Frustum();
     this.matrix = new Matrix4();
@@ -99,22 +115,44 @@ export class SubmergedBed {
       let cell = this.cells.get(key);
       if (!cell) {
         cell = planFreshwaterBedCell(this.data, x, z);
-        cell.push(...planMarineBedCell(this.data, x, z, this.exclusions, BED_CELL_CAPACITY - cell.length));
+        cell.push(...planMarineBedCell(this.data, x, z, this.exclusions, BED_CELL_CAPACITY - cell.length, this.rockKinds));
+        for (const s of cell) {
+          if (!s.q || s.top - s.floor < .42) continue;
+          const high = s.top - .12, low = s.floor - .12;
+          const center = this.rockColliderCenter.set(s.x, (high+low)*.5, s.z);
+          const half = this.rockColliderHalf.set(s.scale*.22, (high-low)*.5, s.scale*.14);
+          s.collider = this.colliders?.addBox(center, half, s.yaw, {tag:'subtidal rock'});
+        }
       }
       next.set(key, cell);
       for (const s of cell) {
-        const index = sites.length, plant = s.kind === 'ribbon' || s.kind === 'streamleaf' || s.kind === 'seagrass';
-        const q = this.heading.setFromAxisAngle(this.up, s.yaw);
-        if (!plant) q.premultiply(this.tilt.setFromUnitVectors(this.up, this.floorNormal.set(-s.gx,1,-s.gz).normalize()));
+        const index = sites.length, planted = s.kind === 'ribbon' || s.kind === 'streamleaf' || s.kind === 'seagrass';
+        const q = s.q ?? this.heading.setFromAxisAngle(this.up, s.yaw);
+        if (!s.q && !planted) q.premultiply(this.tilt.setFromUnitVectors(this.up, this.floorNormal.set(-s.gx,1,-s.gz).normalize()));
+        const mineral = s.q || s.kind === 'reef-rubble' ? 2 : s.hostX !== undefined || planted || s.kind === 'limb' ? 0 : 1;
+        const flex = s.kind === 'wrack' ? .52 : s.kind === 'holdfast' ? .29 : planted ? .95 : 0;
+        // The fitted rock and its settlers share fixed world transforms.
+        // Bending is local to the flexible ends of attached fronds.
         this.batch.data.set([s.x, s.y, s.z, s.scale, q.x, q.y, q.z, q.w,
-          s.seed, REACH, s.mode ?? 2, plant || s.kind === 'limb' ? 0 : 1, s.flowX, s.flowZ, plant ? .95 : 0, 0], index * 16);
+          s.seed, s.reach ?? REACH, s.mode ?? 2, mineral, s.flowX, s.flowZ, flex, s.fixed ? -1 : 0], index * 16);
         sites.push(s);
       }
     }
     if (sites.length) this.batch.instanceBuffer.write(this.batch.data.subarray(0, sites.length * 16));
+    for (const [key, cell] of this.cells) if (!next.has(key)) this.removeColliders(cell);
     this.cells = next;
     this.cellX = cellX;
     this.cellZ = cellZ;
+  }
+
+  removeColliders(cell) {
+    for (const s of cell) if (s.collider) this.colliders.removeBox(s.collider);
+  }
+
+  clearWindow() {
+    for (const cell of this.cells.values()) this.removeColliders(cell);
+    this.cells.clear();
+    this.sites.length = 0;
   }
 
   update(camera) {
@@ -132,8 +170,7 @@ export class SubmergedBed {
     const inland = edge <= 40 && p.y <= level + REACH && level > this.data.island.seaLevel + .55;
     if (!inland && !nearMarineBed(this.data, p)) {
       if (this.cells.size) {
-        this.cells.clear();
-        this.sites.length = 0;
+        this.clearWindow();
         this.cellX = this.cellZ = null;
         this.mesh.visible = false;
         this._visible = {};
@@ -149,9 +186,10 @@ export class SubmergedBed {
     this.frustum.setFromProjectionMatrix(this.matrix, camera.coordinateSystem, camera.reversedDepth);
     for (const [index, s] of this.sites.entries()) {
       const dist2 = (s.x - p.x) ** 2 + (s.y - p.y) ** 2 + (s.z - p.z) ** 2;
-      if (dist2 > REACH * REACH) continue;
-      this.sphere.center.set(s.x, s.y + s.scale * .25, s.z);
-      this.sphere.radius = s.scale * 1.25 + .75;
+      const reach = s.reach ?? REACH;
+      if (dist2 > reach*reach) continue;
+      this.sphere.center.set(s.x, s.q ? (s.top+s.bottom)*.5 : s.y+s.scale*.25, s.z);
+      this.sphere.radius = s.q ? Math.hypot(s.radius, (s.top-s.bottom)*.5) : s.radius ?? (s.scale*1.25+.75);
       if (this.frustum.intersectsSphere(this.sphere)) candidates.push({index, dist2});
     }
     candidates.sort((a,b) => a.dist2 - b.dist2);
@@ -159,8 +197,11 @@ export class SubmergedBed {
     let triangles = 0;
     this._visible = {};
     for (const {index, dist2} of candidates) {
-      const s = this.sites[index], near = Math.max(4.5, s.scale * 13);
-      const kind = 2 * FORMS.indexOf(s.kind) + (dist2 > near * near ? 1 : 0);
+      const s = this.sites[index];
+      const near = s.q ? Math.max(13, s.scale*3.6) : s.fixed ? Math.min(10, Math.max(4.5, s.scale*8)) : Math.max(4.5, s.scale*13);
+      const base = this.firstKind.get(s.kind), lod = Number(dist2 > near*near);
+      let kind = base + lod;
+      if (!lod && s.q && triangles + this.batch.kinds[kind].triangles > TRIANGLE_LIMIT) kind++;
       const cost = this.batch.kinds[kind].triangles;
       if (triangles + cost > TRIANGLE_LIMIT) continue;
       this.batch.add(kind, index);
@@ -177,7 +218,7 @@ export class SubmergedBed {
   }
 
   dispose() {
-    this.cells.clear();
+    this.clearWindow();
     this.batch.dispose();
     this.material.uniformBlock.buffer?.destroy();
     this.material.dispose();

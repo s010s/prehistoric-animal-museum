@@ -7,6 +7,7 @@ import {srgb} from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
 import {GPU,StorageBuffer,ComputeKernel,readBuffer,G} from '../vendor/tidewater/src/engine/webgpu.js';
 import {ShaderModule,UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {GrassRootCache} from './GrassRootCache.js';
+import {strandGrowthLimits} from './StrandGrowth.js';
 
 // Occupancy is only a conservative CPU acceleration structure. The real
 // density texture and world-fixed probability remain in museumFloraAt.
@@ -62,7 +63,7 @@ fn museumGrassGust(p:vec2f)->f32{
   const maskStart=mat.vertex.indexOf('let m = textureSampleLevel( grassMask');
   const maskEnd=mat.vertex.indexOf('let isGrass',maskStart);
   if(maskStart<0||maskEnd<0)throw Error('Pinned flora mask seam changed');
-  mat.vertex=mat.vertex.slice(0,maskStart)+'let m = museumFloraAt(xz,0.0);\n\t'+mat.vertex.slice(maskEnd);delete mat.bindings.grassMask;
+  mat.vertex=mat.vertex.slice(0,maskStart)+'let flora=museumFloraSampleAt(xz,0.0);let m=flora.forms;let rootFloor=flora.rootFloor;\n\t'+mat.vertex.slice(maskEnd);delete mat.bindings.grassMask;
   change('let dune = m.r;','let dune=0.0;');
   // Every native template triangle has one slot and one kind. An absent plant
   // can collapse to one finite point before tone, ground, wind and prior pose.
@@ -104,6 +105,12 @@ fn museumGrassGust(p:vec2f)->f32{
  let rootOffset=vec2f(v.aRoot.x*cy-v.aRoot.y*sy,v.aRoot.x*sy+v.aRoot.y*cy)*spread;
  let rootXZ=xz+rootOffset*scale;
  let ground=museumGrassGround(rootXZ);
+ // A blade can lean toward the surf while its own root stays on dry sand.
+ if(ground+.035<rootFloor){
+  let collapsed=vec3f(xz.x,ground,xz.y);
+  v.useWorld=true;v.worldPos=collapsed;v.prevWorldPos=collapsed;v.worldNormal=vec3f(0.0,1.0,0.0);
+  return;
+ }
  let base=vec3f(xz.x,ground,xz.y);
  `+mat.vertex.slice(groundEnd);
   const poseStart=mat.vertex.indexOf('let o0 =');
@@ -287,21 +294,35 @@ fn museumGrassGust(p:vec2f)->f32{
   const beachReach=data.field.continuousSample?1-smooth(170,320,Math.hypot(x+875,z-125)):0;
   const beachWarp=Math.sin(x*.081+z*.023)*.70+Math.sin(z*.12-x*.047)*.35;
   const mouthOpenSand=beachReach*(1-smooth(11+beachWarp,19+beachWarp,h+.7));
-  return {point:[x,h,z],coarseDensity:coarse,fineDensity:fine,fineWeight:weight,coverDensity:density,waterDry,effectiveWaterDensity:density*waterDry,mouthOpenSand,upperBoundAfterMouthSand:density*waterDry*(1-mouthOpenSand),water:{nearestLevel:water[0],signedEdge:water[1],support,contains:water[1]<=0,legacy},cpuOccupied:!!this.cellFlags[k],normalY:1/Math.sqrt(1+rise*rise),heightAboveWater:water[1]<=0?h-water[0]:null,scope:'CPU bilinear mask, signed-water and open-sand upper bound; GPU also applies dune pockets and wet-bank/grove suppression'};
+  const coast=this.appearance.strand.sampleAt(x,z),aboveSea=h-data.island.seaLevel;
+  const strand=coast.presence>0?{...coast,aboveSea,rootRise:[-1,1].map(pocket=>strandGrowthLimits(aboveSea,coast.exposure,pocket).low)}:null;
+  return {point:[x,h,z],strand,coarseDensity:coarse,fineDensity:fine,fineWeight:weight,coverDensity:density,waterDry,effectiveWaterDensity:density*waterDry,mouthOpenSand,upperBoundAfterMouthSand:density*waterDry*(1-mouthOpenSand),water:{nearestLevel:water[0],signedEdge:water[1],support,contains:water[1]<=0,legacy},cpuOccupied:!!this.cellFlags[k],normalY:1/Math.sqrt(1+rise*rise),heightAboveWater:water[1]<=0?h-water[0]:null,scope:'CPU bilinear mask, signed-water and open-sand upper bound; GPU also applies dune pockets and wet-bank/grove suppression'};
  }
  async auditGround(){
   const pts=[[7690.312686253738,-2002.8799280156782],[8319.441878239979,-2633.1065592216073],[7486.592,-1873.309],[3600,-5280],[4170,-5280],[2850,-1950],[3520,-1950],...Array.from({length:25},(_,i)=>[-46+i*4,-60]),...Array.from({length:13},(_,i)=>[-170+i*8,80]),[460,0],[480,0],[496,0],[-460,80],[-480,80],[-496,80],[-849,-32],[-823,119],[-810,170],[-761,50],[-880,145],[-88,18],[-88,16],[-84,74],[-84,78],[-84,82],[-36,-60]];
   for(const p of this.coverData.field.continuousSample?.points.filter((_,i)=>i%37===0)??[]){const r=this.coverData.field.continuousSample.nearest(p.x,p.z);pts.push([p.x+r.dir[1]*(p.width+1),p.z-r.dir[0]*(p.width+1)]);}
+  const strandPoints=[
+   [10385.723,160.230],[5221.478,-7333.813], // reported wash
+   [10347.76,164.47],[5197.27,-7308.60], // patchy lower backshore
+   [10300,187],[5172,-7261], // dry grassland behind the strand
+  ];
+  const strandStart=pts.length;pts.push(...strandPoints);
   const input=new StorageBuffer({label:'Actual grass root audit points',count:pts.length,type:'vec4f',data:new Float32Array(pts.flatMap(p=>[...p,0,0]))});
   const output=new StorageBuffer({label:'Grass vs terrain root heights',count:pts.length,type:'vec4f'});
   const kernel=new ComputeKernel({label:'Museum grass startup integration audit',modules:[this.appearance.module],bindings:{grassAuditPoints:{storage:input,access:'read'},grassAuditHeights:{storage:output,access:'read_write'}},code:`
 @compute @workgroup_size(WG_X,WG_Y,WG_Z)
-fn main(@builtin(global_invocation_id) id:vec3u){let i=id.x;if(i>=${pts.length}u){return;}let p=grassAuditPoints[i].xy;grassAuditHeights[i]=vec4f(museumGrassGround(p),terrainHeightAt(p),terrainHeightAtCoarse(p),museumFloraAt(p,0.0).g);}`});
+fn main(@builtin(global_invocation_id) id:vec3u){let i=id.x;if(i>=${pts.length}u){return;}let p=grassAuditPoints[i].xy;let flora=museumFloraAt(p,0.0);
+ let density=select(flora.g,max(flora.g,max(flora.b,flora.a)),i>=${strandStart}u);
+ grassAuditHeights[i]=vec4f(museumGrassGround(p),terrainHeightAt(p),terrainHeightAtCoarse(p),density);}`});
   await GPU.pipelinesReady();GPU.beginFrame();kernel.dispatch(Math.ceil(pts.length/64));const values=new Float32Array(await readBuffer(output,pts.length*16));
   const rows=pts.map((p,i)=>{const a=Array.from(values.subarray(i*4,i*4+4));return {point:p,root:a[0],surface:a[1],oldCoarse:a[2],density:a[3],cpu:this.terrain.heightAt(...p),gap:a[0]-a[1],oldError:a[2]-a[1]};});input.destroy();output.destroy();
+  const strand=rows.slice(strandStart);
+  const strandPassed=strand.slice(0,2).every(p=>p.density===0)
+   &&strand.slice(2,4).every((p,i)=>p.density>.01&&p.density<strand[i+4].density)
+   &&strand.slice(4).every(p=>p.density>.035);
   const passed=rows.every(r=>Math.abs(r.surface-r.cpu)<.002&&Math.abs(r.gap+.035)<.002);
   if(!passed)throw Error('Shared grass/terrain root integration failed');
-  return this.groundAudit={passed,phase:'startup-only; no timed readback',rows,maxOldError:Math.max(...rows.map(r=>Math.abs(r.oldError))),maxOldErrorInGrass:Math.max(...rows.filter(r=>r.density>.035).map(r=>Math.abs(r.oldError))),maxRootError:Math.max(...rows.map(r=>Math.abs(r.gap+.035)))};
+  return this.groundAudit={passed,strandPassed,phase:'startup-only; no timed readback',rows,maxOldError:Math.max(...rows.map(r=>Math.abs(r.oldError))),maxOldErrorInGrass:Math.max(...rows.filter(r=>r.density>.035).map(r=>Math.abs(r.oldError))),maxRootError:Math.max(...rows.map(r=>Math.abs(r.gap+.035)))};
  }
- stats(){return {visible:this.visible,envelope:this.envelope,cells:this.levels.map(x=>x.count),triangles:this.triangles,patchTriangles:this.patchTris,forms:this.appearance.counts,range:this.appearance.distance.stats(),rangeAudit:this.rangeAudit,reuse:{enabled:this.review.fields.enabled.value>.5,condition:'present==0; zero-area same-position triangle'},handover:'shared 3D tier0/ground fade; native near/mid tiers, projected warped tussocks and surface-gradient relief',placement:'same terrainHeightAt as ground, per-blade roots; cell-dependent torus offsets/quarter turns',wind:'native envelope; world-fixed 0.52–1.25 grass heights and 0.42 low cover; template-derived conservative root/vertex envelope',groundAudit:this.groundAudit};}
+ stats(){return {visible:this.visible,envelope:this.envelope,cells:this.levels.map(x=>x.count),triangles:this.triangles,patchTriangles:this.patchTris,forms:this.appearance.counts,strandGrowth:this.appearance.strand.stats,range:this.appearance.distance.stats(),rangeAudit:this.rangeAudit,reuse:{enabled:this.review.fields.enabled.value>.5,condition:'absent plant or a root below the coastal wash limit collapses to a zero-area triangle'},handover:'shared 3D tier0/ground fade; native near/mid tiers, projected warped tussocks and surface-gradient relief',placement:'same terrainHeightAt as ground, per-blade roots; cell-dependent torus offsets/quarter turns',wind:'native envelope; world-fixed 0.52–1.25 grass heights and 0.42 low cover; template-derived conservative root/vertex envelope',groundAudit:this.groundAudit};}
 }

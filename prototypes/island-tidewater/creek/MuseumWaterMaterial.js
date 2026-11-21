@@ -1,5 +1,6 @@
 // Native Tidewater optics with a bounded shallow-water reflection leg. The
 // native deep-water scattering remains the fallback outside the screen/range.
+import {coastalWaterOptics} from './CoastalWaterOptics.js';
 import {WaterMaterial} from '../vendor/tidewater/src/ocean/WaterMaterial.js';
 import {ShaderModule,UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
 
@@ -47,7 +48,7 @@ fn museumUnderReflection(P:vec3f,R:vec3f,sigT:vec3f,fallback:vec3f)->vec4f{
 
 export class MuseumWaterMaterial extends WaterMaterial{
  constructor(options){super(options);this.depthReview=new UniformBlock('MuseumWaterReview',{pixelDepth:['f32',1],pathLegacy:['f32',0],skyReuse:['f32',1]});this.depthReviewModule=new ShaderModule({name:'museumWaterReview',uniforms:this.depthReview,uniformName:'museumWaterReview'});}
- _build(){super._build();this.modules.push(shallowReflection,this.depthReviewModule);if(this.inlandField)this.modules.push(this.inlandField.module);
+ _build(){super._build();this.modules.push(shallowReflection,this.depthReviewModule,coastalWaterOptics);if(this.inlandField)this.modules.push(this.inlandField.module);
   if(this.isMuseumOcean){this.setDefine('MUSEUM_OCEAN_HYDROLOGY',1);const helper=this.modules.find(m=>m.name==='waterHelpers');if(!helper||!helper.code.includes('frame.seaLevel'))throw Error('Pinned sea SSR seam changed');const local=new ShaderModule({name:'museumSeaWaterHelpers',deps:helper.deps,bindings:helper.bindings,code:helper.code.replaceAll('frame.seaLevel','y0').replace('k < 3','k < 7')});this.modules=this.modules.map(m=>m===helper?local:m);}
  }
  _shadeWGSL(options){
@@ -64,7 +65,7 @@ export class MuseumWaterMaterial extends WaterMaterial{
    // On the shallow tidal spit a pixel can see many metres along a wet
    // film. Use the actual sand receiver for its thickness: the half-size
    // screen depth otherwise stretches foreground texels into glass spikes.
-   change('if ( edgeAA < 1.0 ) {',`let groundFilm=museumMainTidalWeight(pos.xz)*smoothstep(-.35,.02,museumGroundH-frame.seaLevel);
+   change('if ( edgeAA < 1.0 ) {',`let groundFilm=museumFilmWeight;
    let filmCoverage=mix(edgeAA,smoothstep(.002,.10,max(thickness,0.0)),groundFilm);
    if(filmCoverage<1.0){`);
    change('outCol = mix( sandC, shaded, edgeAA );','outCol=mix(sandC,shaded,filmCoverage);');
@@ -77,13 +78,13 @@ export class MuseumWaterMaterial extends WaterMaterial{
    change('let crestT = shoreCrestPath( lagXZ, vDepth, Tv );','let crestT=mix(shoreCrestPath(lagXZ,vDepth,Tv),1e4,museumTransition);');
    change('let pos = in.P;',`let pos=in.P;
 #if MUSEUM_OCEAN_HYDROLOGY
- var museumTransition=0.0;
+ var museumTransition=0.0;var museumFresh=0.0;
  if(museumMayHaveInlandWater(pos.xz)){
   let field=creekFieldAt(pos.xz);if(field.y<.05&&field.x>frame.seaLevel+.5){discard;}
-  museumTransition=museumEstuaryBlendForField(field);
+  museumTransition=museumEstuaryBlendForField(field);museumFresh=museumInlandWeightForField(field);
  }
 #else
- let museumTransition=museumEstuaryBlend(pos.xz);
+ let museumTransition=museumEstuaryBlend(pos.xz);let museumFresh=museumInlandLightWeight(pos.xz);
  if(museumEstuaryOwns(pos.xz)){discard;}
 #endif
 `);
@@ -94,10 +95,17 @@ export class MuseumWaterMaterial extends WaterMaterial{
   change('max( fwidth( thickness ) * 1.5, 0.004 )','max(fwidth(thickness)*1.5,0.025)');
   if(this.isMuseumOcean){
    change('if(receiver.y<pos.y+.04){thickness=min(thickness,max(pos.y-receiver.y,0.0));}',`
+   let thinSheet=1.0-smoothstep(.085,.22,max(thickness,0.0));
+   let ordinary=smoothstep(320.0,425.0,distance(pos.xz,vec2f(-875.0,125.0)));
+   let museumFilmWeight=max(museumMainTidalWeight(pos.xz),thinSheet*ordinary)*
+        smoothstep(-.35,.02,museumGroundH-frame.seaLevel);
    if(receiver.y<pos.y+.04){
-    let sandFilm=museumMainTidalWeight(pos.xz)*smoothstep(-.35,.02,museumGroundH-frame.seaLevel);
-    thickness=mix(min(thickness,max(pos.y-receiver.y,0.0)),thickness,sandFilm);
+    thickness=mix(min(thickness,max(pos.y-receiver.y,0.0)),thickness,museumFilmWeight);
    }`);
+  }
+  if(!this.isMuseumOcean){
+   // This also shades the freshwater mesh at its tidal hand-over.
+   change('let pos = in.P;', 'let pos = in.P; let museumFresh=museumInlandLightWeight(pos.xz);');
   }
   // Screen-depth quantisation must be filtered on both representations.
   // Otherwise the same column changes optical length at the raster handover.
@@ -125,6 +133,7 @@ export class MuseumWaterMaterial extends WaterMaterial{
  if(dbg==16){res=museumReflect.rgb;}
  if(dbg==17){res=vec3f(museumReflect.a);}
  r.color=vec4f(res,1.0);`);
-  return code;
+  return code.replaceAll('frame.waterAbsorption','museumAbsorption(museumFresh)')
+    .replaceAll('frame.waterScattering','museumScattering(museumFresh)');
  }
 }

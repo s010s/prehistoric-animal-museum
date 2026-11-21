@@ -8,6 +8,7 @@ import {coveShadingWGSL} from './ShallowCove.js';
 import {groveModule,groveWeight,groveOpening,grovePathDistance,grovePatch} from './GroveDesign.js';
 import {terrainShadingModule,srgb} from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
 import {createGrassDistance} from './GrassDistance.js';
+import {buildStrandGrowth} from './StrandGrowth.js';
 import {sampleForestWeight,sampleForestWGSL} from './SampleForest.js';
 import {buildSampleGroundCover} from './SampleGroundCover.js';
 import {LYSTROSAURUS_CLEARING} from './IslandFaunaPlan.js';
@@ -49,11 +50,15 @@ export function createMeadowAppearance(data,terrainGPU){
   densityBytes[(j*mask.res+i)*4]=Math.round(marine*255);
  }
  const fine=make('Museum creek habitat',g.maskRes,data.masks),coarse=make('Museum watershed habitat',data.island.maskRes,data.islandMasks),density=make('Museum multi-form ground cover + marine connectivity',mask.res,densityBytes),sampleGround=make('Museum 2m sample ground mosaic',groundCover.res,groundCover.bytes);
+ const strand=buildStrandGrowth(data,terrainGPU.shoreField);
+ const strandExposure=new Texture({label:'Museum connected shore growth exposure',width:strand.res,height:strand.res,format:'rg8unorm',data:strand.bytes,usage:['sample','copyDst'],sampler:'linearClamp'});
+ strandExposure.getGPU();
  const review=new UniformBlock('MuseumHabitatReview',{legacyWater:['f32',0],patchCover:['f32',1]});
- const module=new ShaderModule({name:'museumMeadow',deps:[terrainGPU.module,terrainShadingModule(),data.field.module,groveModule,distance.module,mainTidalShading],uniforms:review,uniformName:'museumHabitatReview',bindings:{museumFineCover:{texture:fine},museumOuterCover:{texture:coarse},museumFlora:{texture:density},museumSampleGroundCover:{texture:sampleGround}},code:`
+ const module=new ShaderModule({name:'museumMeadow',deps:[terrainGPU.module,terrainShadingModule(),data.field.module,groveModule,distance.module,mainTidalShading],uniforms:review,uniformName:'museumHabitatReview',bindings:{museumFineCover:{texture:fine},museumOuterCover:{texture:coarse},museumFlora:{texture:density},museumSampleGroundCover:{texture:sampleGround},museumStrandExposure:{texture:strandExposure}},code:`
 ${data.landforms.climate.wgsl}
 ${coveShadingWGSL}
 ${sampleForestWGSL}
+${strand.wgsl}
 fn museumSampleGroundAt(p:vec2f,footprint:f32)->vec3f{
  if(p.x<${groundCover.origin[0]}.0||p.x>${groundCover.origin[0]+groundCover.size}.0||p.y<${groundCover.origin[1]}.0||p.y>${groundCover.origin[1]+groundCover.size}.0){return vec3f(1.0,1.0,0.0);}
  let uv=(p-vec2f(${groundCover.origin[0]}.0,${groundCover.origin[1]}.0))/${groundCover.size}.0;
@@ -90,9 +95,9 @@ fn museumCover(p:vec2f,footprint:f32)->vec4f{
  let b=textureSampleLevel(museumOuterCover,smpLinearClamp,(p+16384.0)/32768.0,max(0.0,log2(max(footprint,0.001)/32.0)));
  var cover=mix(b,a,terrainFineWeight(p));cover.b=b.b;cover.a=max(cover.a,max(museumGroveWeight(p)*.94,${data.field.continuousSample?'museumSampleForest(p)*.92':'0.0'}));return cover;
 }
-struct MuseumFloraSample { forms:vec4f, coverFactor:f32, glade:f32, litter:f32 };
+struct MuseumFloraSample { forms:vec4f, coverFactor:f32, glade:f32, litter:f32, rootFloor:f32 };
 fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
- var out:MuseumFloraSample;out.forms=vec4f(0.0);out.coverFactor=1.0;
+ var out:MuseumFloraSample;out.forms=vec4f(0.0);out.coverFactor=1.0;out.rootFloor=-1000.0;
  if(max(abs(p.x),abs(p.y))>16368.0){return out;}
  var m=textureSampleLevel(museumFlora,smpLinearClamp,(p+16384.0)/32768.0,max(0.0,log2(max(footprint,0.001)/32.0)));
  let marine=m.r;
@@ -162,6 +167,16 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
   out.glade=cov.b*(1.0-opening);
   out.litter=cov.b*cov.a*(1.0-opening*.40);
   out.coverFactor*=keep;
+ }
+ if(aboveSea<7.0){
+  // The designed mouths have their own bank communities. The signed
+  // freshwater support takes priority where a higher bank meets the sea.
+  let ordinaryCoast=smoothstep(320.0,425.0,length(p-vec2f(-875.0,125.0)))
+    *(1.0-smoothstep(.0,.14,museumMainTidalWeight(mix(vec2f(-653.0,3690.0),p,.82))))
+    *(1.0-freshWater*(1.0-smoothstep(.15,8.0,f.y)));
+  let growth=museumStrandGrowth(p,aboveSea,ordinaryCoast);
+  m.gba*=growth.x;
+  out.rootFloor=growth.y;
  }
  out.forms=m;return out;
 }
@@ -235,5 +250,5 @@ fn museumSward(p:vec3f,footprint:f32,gustOffset:vec2f,visible:bool)->MuseumSward
 fn museumGrassGround(p:vec2f)->f32{return terrainHeightAt(p)-.035;}
 `});
  const setRoamingGround = pixels => {coarse.upload(pixels);generateMipmaps(coarse);};
- return {module,density,counts,distance,review,setRoamingGround,groundCover:groundCover.stats,description:'moisture/613m macro tones with warped detail, region palettes; 2m sample ground mosaic shared by ground and blades; signed water support'};
+ return {module,density,counts,distance,review,strand,setRoamingGround,groundCover:groundCover.stats,description:'moisture/613m macro tones with warped detail, region palettes; 2m sample ground mosaic shared by ground and blades; signed water support'};
 }

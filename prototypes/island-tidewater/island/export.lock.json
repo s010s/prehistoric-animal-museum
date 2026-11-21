@@ -47,7 +47,11 @@
     },
     {
       "path": "creek/CoastalShelf.js",
-      "sha256": "fd87c3f1dccd207bdd2ee7a2ce11a4ac31ec24a52b9d4402e228a64ad1eb85ab"
+      "sha256": "ec6e7e91f047d01c43e19dac63e1d4c50cd20deb6c9b3a5e27ea14cdc5805655"
+    },
+    {
+      "path": "creek/PocketBeaches.js",
+      "sha256": "32f9510fb07bb9286a9561f6d67d927a3b2b56cd5594329bfe75fcee3919ec7f"
     },
     {
       "path": "creek/ContinuousSample.js",
@@ -86,7 +90,7 @@
     {
       "path": "island/assets/heights.bin",
       "bytes": 1048576,
-      "sha256": "34b46b11db03019c4d4dcaaec19980b18c34d47a4d4419309b8a81a70e8edfb8"
+      "sha256": "afd668a833056def031ac0d4eede1194d1eb323afc57b42e9075b892f68f2847"
     },
     {
       "path": "island/assets/water.bin",
@@ -96,27 +100,27 @@
     {
       "path": "island/assets/habitat.bin",
       "bytes": 1048576,
-      "sha256": "6dc31bffc3660f505d4ea1e609bdb3afc5250cfbd38404997d27ede144ad1904"
+      "sha256": "7cccf24134c14ce38d33a5870f13795389ddc53831d41f8b12ca6b9def41a369"
     },
     {
       "path": "island/assets/map.json",
       "bytes": 8658,
-      "sha256": "2b55c5319cbcc578ada92a377dcefd399770e24f3fe98596591bc5d722a02157"
+      "sha256": "c880d68d9dca30fcd6aff51aa152f44dd914484e7660bf5f38e7b30238e916b3"
     },
     {
       "path": "creek/assets/arrival-map.webp",
-      "bytes": 11582,
-      "sha256": "32b7bb001043168f99a745805551a9cfe0a5cfb5b2d66adf260900c4503727c3"
+      "bytes": 11568,
+      "sha256": "f6135751188e88ccd9362add20e699ffde4437f9425ddf5605b42519156b686a"
     },
     {
       "path": "island/assets/terrain.webp",
-      "bytes": 126124,
-      "sha256": "acc758fcdd671142679b1419256bc5b8fdad6aa9bcbea7098db234ad01bf6f24"
+      "bytes": 126290,
+      "sha256": "d8d97ef52ca48338cb8f47d40c63b453191d9cc9a15b6418d5cf11b1157b4db8"
     },
     {
       "path": "island/assets/habitat.webp",
-      "bytes": 150780,
-      "sha256": "6aa541b5af50fb6616493525eb8da1a84cc1c957e0dc593aea9e447770ef95ce"
+      "bytes": 150774,
+      "sha256": "b1c46bbd777042ac5495248db24c2d4a18af62912db9d27690b124c973c527e9"
     }
   ]
 }

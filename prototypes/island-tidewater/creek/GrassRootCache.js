@@ -52,17 +52,18 @@ fn main(@builtin(global_invocation_id) gid:vec3u){
  let index=gid.x;if(index>=museumGrassRootReview.writeCount*${this.slotCount}u){return;}
  let record=museumGrassRootCells[index/${this.slotCount}u];let cell=record.xy;let slot=museumGrassRootSlots[index%${this.slotCount}u];
  ${PLACEMENT}
- let forms=museumFloraAt(xz,0.0);let height=terrainHeightAt(xz);let cover=museumCover(xz,0.0).a;
+ let flora=museumFloraSampleAt(xz,0.0);let height=terrainHeightAt(xz);let cover=museumCover(xz,0.0).a;
  let water=creekFieldAt(xz);let meadow=museumMeadowAt(xz,0.0);let row=(u32(record.z)+index%${this.slotCount}u)*4u;
- museumGrassRootOut[row]=forms;museumGrassRootOut[row+1u]=vec4f(xz,height,cover);
- museumGrassRootOut[row+2u]=vec4f(water.xy,meadow.lush,0.0);museumGrassRootOut[row+3u]=vec4f(meadow.tone,meadow.dry);
+ museumGrassRootOut[row]=flora.forms;museumGrassRootOut[row+1u]=vec4f(xz,height,cover);
+ museumGrassRootOut[row+2u]=vec4f(water.xy,meadow.lush,flora.rootFloor);museumGrassRootOut[row+3u]=vec4f(meadow.tone,meadow.dry);
 }`});
   this._counts=new Uint32Array(levels.length);this._valid=false;this.cells=0;this.dispatches=0;this.lastReason='uninitialized';
   this._patchCover=NaN;this._legacyWater=NaN;this._seaLevel=NaN;
   const change=(from,to)=>{if(!material.vertex.includes(from))throw Error('Pinned grass root cache seam changed: '+from.slice(0,60));material.vertex=material.vertex.replace(from,to);};
   change(PLACEMENT,`let museumRootRow=(u32(v.iCell.z)+u32(slot.z))*4u;
  let xz=museumGrassRootData[museumRootRow+1u].xy;`);
-  change('let m = museumFloraAt(xz,0.0);','let m=museumGrassRootData[museumRootRow];');
+  change('let flora=museumFloraSampleAt(xz,0.0);let m=flora.forms;let rootFloor=flora.rootFloor;',
+   'let m=museumGrassRootData[museumRootRow];let rootFloor=museumGrassRootData[museumRootRow+2u].w;');
   change('let mt = museumMeadowAt(xz,0.0);','let museumToneDry=museumGrassRootData[museumRootRow+3u];var mt:MeadowTone;mt.tone=museumToneDry.xyz;mt.dry=museumToneDry.w;mt.lush=museumGrassRootData[museumRootRow+2u].z;');
   change('let clumpHeight=terrainHeightAt(xz);','let clumpHeight=museumGrassRootData[museumRootRow+1u].z;');
   change('let waterField=creekFieldAt(xz);','let waterField=vec4f(museumGrassRootData[museumRootRow+2u].xy,0.0,0.0);let museumRootCover=museumGrassRootData[museumRootRow+1u].w;');

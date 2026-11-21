@@ -49,6 +49,24 @@ export function placeMarineRock(profile, host, x,y,z, sx,sy,sz, yaw,pitch,roll){
   for(const index of profile.geometry.index.array)host.idx.push(base+index);
 }
 
+// Intersect the visible triangles of the host, so an encrusting colony
+// shares its angled contact plane even when its rock is partly embedded.
+export function rockSurface(batch, x, z) {
+  const {pos, idx} = batch;
+  let highest = null;
+  for (let i = 0; i < idx.length; i += 3) {
+    const a = idx[i] * 3, b = idx[i+1] * 3, c = idx[i+2] * 3;
+    const bx = pos[b]-pos[a], bz = pos[b+2]-pos[a+2], cx = pos[c]-pos[a], cz = pos[c+2]-pos[a+2];
+    const det = bx*cz-bz*cx;
+    if (Math.abs(det) < 1e-9) continue;
+    const dx = x-pos[a], dz = z-pos[a+2], u = (dx*cz-dz*cx)/det, v = (bx*dz-bz*dx)/det;
+    if (u < 0 || v < 0 || u+v > 1) continue;
+    const by = pos[b+1]-pos[a+1], cy = pos[c+1]-pos[a+1], y = pos[a+1]+u*by+v*cy;
+    if (!highest || y > highest.y) highest = {y, slopeX:(by*cz-cy*bz)/det, slopeZ:(bx*cy-cx*by)/det};
+  }
+  return highest;
+}
+
 export function attachMarineRockProfiles(profiles,material,group){
   for(const p of profiles){
     p.mesh=new InstancedMesh(p.geometry,material,Math.max(1,p.instances.length));

@@ -10,6 +10,8 @@ import {OceanFFT} from '../vendor/tidewater/src/ocean/OceanFFT.js';
 import {WaterSurface} from '../vendor/tidewater/src/ocean/WaterSurface.js';
 import {MuseumWaterMaterial} from './MuseumWaterMaterial.js';
 import {mainTidalShading} from './MainEstuary.js';
+import {coastalWaterOptics} from './CoastalWaterOptics.js';
+import {installCoastalPhase} from './CoastalWaveClimate.js';
 import {useHybridShoreDirection} from './CoveShoreField.js';
 import {WaterQuery} from '../vendor/tidewater/src/ocean/WaterQuery.js';
 import {createFoamTexture} from '../vendor/tidewater/src/ocean/FoamTexture.js';
@@ -52,8 +54,8 @@ fn museumHasCreek(p:vec2f)->bool{return creekContains(p)&&creekMeanAt(p)>terrain
   // same-frame native height/normal there; full FFT Eulerian queries remain in
   // simulation and spray. This keeps the beauty pass within 32 texture bindings.
   this.lensField=[0,0,0,0];
-  this.lensRegion=new UniformBlock('MuseumCameraRegion',{inland:['f32',-1]});
-  this.mediumModule=new ShaderModule({name:'museum-lens-water',deps:[this.resultsModule,domain],uniforms:this.lensRegion,uniformName:'museumCameraRegion',code:`
+  this.lensRegion=new UniformBlock('MuseumCameraRegion',{inland:['f32',-1],fresh:['f32',0]});
+  this.mediumModule=new ShaderModule({name:'museum-lens-water',deps:[this.resultsModule,domain,coastalWaterOptics],uniforms:this.lensRegion,uniformName:'museumCameraRegion',code:`
 fn museumCameraInland(p:vec2f)->bool{
  // Re-evaluate the exact GPU predicate at the freshwater edge. Away from it
  // every pixel shares the same region for the camera's scattering integral.
@@ -102,6 +104,11 @@ fn waterQueryResult(slot:u32)->vec4f{return oceanQueryResult(slot);}
   const inland=edge<-.05&&level>datum+.05;
   const outside=edge>.15||level<datum-.05;
   this.lensRegion.fields.inland.value=inland?1:outside?0:-1;
+  // Same smooth weights as museumInlandWeightForField, once at the lens
+  // rather than a hydrology texture lookup in every scattering sample.
+  const h=Math.max(0,Math.min(1,(level-G.seaLevel.value)/1.5));
+  const t=Math.max(0,Math.min(1,edge/8));
+  this.lensRegion.fields.fresh.value=h*h*(3-2*h)*(1-t*t*(3-2*t));
  }
  update(){this.ocean.update();for(const [i,p]of this.points)this.cpu[i*4]=i===0?this.height(...p):this.sample(...p)[0];}
  cameraState(){const mk=e=>Object.assign(new String(e),{module:this.resultsModule});const r=mk('waterQueryCameraState()');for(const c of 'xyzw')r[c]=mk('waterQueryCameraState().'+c);return r;}
@@ -116,14 +123,14 @@ export function createCoastalOcean(app,data){
  const surface=new WaterSurface({fft,cdlod:oceanLOD,foamTexture});surface.terrain=terrainGPU;
  const seaDetail=new SeaDetail();surface.detail=seaDetail;
  const shore=new ShoreWaves(terrainGPU);useHybridShoreDirection(shore,app.shoreField);surface.shore=shore;
- // A swash crest needs a continuous alongshore coordinate. Projecting the
- // 3.6 km world position on each turning 4 m direction sample advances the
- // phase by dozens of metres between adjacent points on the same sand bank.
- const phase='let along = dot( xz, vec2f( - dir.y, dir.x ) );';
- if(!shore.module.code.includes(phase))throw Error('Native alongshore phase seam changed');
  shore.module.deps.push(mainTidalShading);
- shore.module.code=shore.module.code.replace(phase,`let outlet=smoothstep(0.0,.22,museumMainTidalWeight(xz));
- let along=mix(dot(xz,vec2f(-dir.y,dir.x)),xz.y+(xz.x+550.0)*.09,outlet);`);
+ installCoastalPhase(shore);
+ // The local direction map is clamped at its edge. A clamped texel on a
+ // different bay must not colour all the shallow water beyond that window.
+ const localMedium='if ( shoreP.dirOn > 0.5 ) { expo = shoreDirAt( xz ).z; }';
+ if(!shore.module.code.includes(localMedium))throw Error('Native surf medium direction changed');
+ shore.module.code=shore.module.code.replace(localMedium,`let uv=(xz-shoreP.dirMin)/shoreP.dirSize;
+   if(shoreP.dirOn>.5 && all(uv>vec2f(.005)) && all(uv<vec2f(.995))){expo=shoreDirAt(xz).z;}`);
  const {x:cx,z:cz}=data.coast.coast;
  const shoreSim=new TravellingShoreSim(engine,{terrainGPU,shore,shelf:data.cove.continuous,center:new Vector2(cx,cz),size:480,res:768});surface.shoreSim=shoreSim;
  const surfFoam=new SurfFoam({shoreSim});surface.foamShading=args=>surfFoam.shading(args);
@@ -137,6 +144,14 @@ export function createCoastalOcean(app,data){
  // distinct names, then our hooks can delegate the sea branch without a second
  // copy of their resource graph (module de-duplication uses object identity).
  for(const [mod,name]of [[underwaterLighting.direct,'hookDirectModulation'],[underwaterLighting.ambient,'hookAmbientModulation'],[underwaterLighting.shadowPos,'hookShadowPosition']])mod.code=mod.code.replaceAll(name,'ocean'+name);
+ // The creek lighting hooks blend the two already-lit receivers at the
+ // estuary. Keep the native marine caustic and ambient paths in sea water.
+ underwaterLighting.direct.deps.push(coastalWaterOptics);
+ for(const module of [underwaterLighting.direct,underwaterLighting.ambient]){
+  const extinction='frame.waterAbsorption + frame.waterScattering';
+  if(!module.code.includes(extinction))throw Error('Native ocean light extinction changed');
+  module.code=module.code.replace(extinction,'museumAbsorption(0.0) + museumScattering(0.0)');
+ }
  // The light map stores resolved splashes at 25 cm near the visitor and 2 m
  // farther away. A distant smoothed water surface cannot cast the stored
  // centimetre-scale foam shadow. Otherwise black chevrons march along the
@@ -157,14 +172,23 @@ export function createCoastalOcean(app,data){
  const shoreSeam='let sw = shoreEvaluate( worldXZ, depth, ground );';
  if(!oceanModule.code.includes(shoreSeam))throw Error('Native shore detail seam changed');
  oceanModule.code=oceanModule.code.replace(shoreSeam,`${shoreSeam}
-  let resolved=mix(1.0-smoothstep(.75,2.75,spacing),1.0,museumShoreDetail.legacy);`)
+  let resolved=mix(1.0-smoothstep(.75,2.75,spacing),1.0,museumShoreDetail.legacy);
+  // The breaking lip is shorter than the incident swell. A metre-scale
+  // grid can lose the former while still carrying the latter over the bar.
+  let wavelength=shoreP.period*sqrt(9.81*clamp(depth,.3,25.0));
+  let resolvedSwell=1.0-smoothstep(.13,.40,spacing/wavelength);
+  let phase=sw.u*6.2831853;
+  let swell=shoreP.amplitude*sw.env*smoothstep(.0,1.8,depth)*resolvedSwell;
+  let broadHeight=cos(phase)*swell;
+  let broadSlope=sw.dir*(6.2831853/wavelength*swell*sin(phase));
+  let broadN=normalize(vec3f(-broadSlope.x,1.0,-broadSlope.y));`)
   // Where an aerial ocean cell spans several metres the centimetre-deep
   // run-up on the tidal spit must recede with the plunging face. Leaving the
   // sheet alone makes the folded water triangles glint across the dry sand.
   .replace('swashLevel = sw.swashLevel;',`let outlet=museumMainTidalWeight(worldXZ);
   swashLevel=mix(sw.swashLevel,min(sw.swashLevel,frame.seaLevel),outlet*(1.0-resolved));`)
-  .replace('extra += sw.disp;','extra += sw.disp * resolved;')
-  .replace('shoreN = clamp( sw.nShore, vec3f( -1.0 ), vec3f( 1.0 ) );','shoreN = normalize(mix(vec3f(0.0,1.0,0.0),clamp(sw.nShore,vec3f(-1.0),vec3f(1.0)),resolved));')
+  .replace('extra += sw.disp;','extra += mix(vec3f(0.0,broadHeight,0.0),sw.disp,resolved);')
+  .replace('shoreN = clamp( sw.nShore, vec3f( -1.0 ), vec3f( 1.0 ) );','shoreN = normalize(mix(broadN,clamp(sw.nShore,vec3f(-1.0),vec3f(1.0)),resolved));')
   .replace('shoreFoam = sw.foam;','shoreFoam = mix(.035*sw.env,sw.foam,resolved);')
   .replace('surfMask = vec2f( sw.face, sw.roller );','surfMask = vec2f(sw.face,sw.roller)*resolved;');
  surface.shoreReview=shoreReview;

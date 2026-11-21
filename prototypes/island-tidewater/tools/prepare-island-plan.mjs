@@ -118,6 +118,7 @@ const inputs = await Promise.all([
   // Runtime adapters can change the final cartography without changing the raw data.
   'creek/CoastTerrain.js',
   'creek/CoastalShelf.js',
+  'creek/PocketBeaches.js',
   'creek/ContinuousSample.js',
   'creek/IslandWaterField.js',
   'creek/MainEstuary.js',

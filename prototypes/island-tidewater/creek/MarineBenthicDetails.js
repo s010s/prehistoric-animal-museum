@@ -3,7 +3,7 @@
 import {Group, Mesh} from '../vendor/tidewater/src/engine/index.js';
 import {Material} from '../vendor/tidewater/src/engine/render/Material.js';
 import {srgb, terrainShadingModule} from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
-import {attachMarineRockProfiles,placeMarineRock,updateMarineRockProfiles} from './MarineRockProfiles.js';
+import {attachMarineRockProfiles,placeMarineRock,rockSurface,updateMarineRockProfiles} from './MarineRockProfiles.js';
 import {Builder} from '../vendor/tidewater/src/world/village/GeoBuilder.js';
 import {stone} from '../vendor/tidewater/src/world/debris/DebrisShapes.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
@@ -18,24 +18,6 @@ const coastForms = {
   carboniferous: ['acrocyathus'],
   neogene: ['flabellum'],
 };
-// Intersect the visible triangles of the host, so an encrusting colony
-// shares its angled contact plane even when its rock is partly embedded.
-function rockSurface(batch, x, z) {
-  const {pos, idx} = batch;
-  let highest = null;
-  for (let i = 0; i < idx.length; i += 3) {
-    const a = idx[i] * 3, b = idx[i+1] * 3, c = idx[i+2] * 3;
-    const bx = pos[b]-pos[a], bz = pos[b+2]-pos[a+2], cx = pos[c]-pos[a], cz = pos[c+2]-pos[a+2];
-    const det = bx*cz-bz*cx;
-    if (Math.abs(det) < 1e-9) continue;
-    const dx = x-pos[a], dz = z-pos[a+2], u = (dx*cz-dz*cx)/det, v = (bx*dz-bz*dx)/det;
-    if (u < 0 || v < 0 || u+v > 1) continue;
-    const by = pos[b+1]-pos[a+1], cy = pos[c+1]-pos[a+1], y = pos[a+1]+u*by+v*cy;
-    if (!highest || y > highest.y) highest = {y, slopeX:(by*cz-cy*bz)/det, slopeZ:(bx*cy-cx*by)/det};
-  }
-  return highest;
-}
-
 function stations(app, data) {
   const out = [];
   for (const [i,site] of data.cove.continuous.divingSites.entries()) {

@@ -123,7 +123,7 @@ export class CreekApp extends MuseumApp {
     this.coveRocks=new CoveRocks({scene,terrain:{data:data.terrain,gpu:this.terrainGPU},colliders:this.colliders,seed:17615});
     this.shelfReef=new ShelfReef(this,data);
     this.marineSnow=new MuseumPlankton({fft:this.fft,query:{module:this.query.module},count:12000,box:8});this.marineSnow.opacity.value=.24;scene.add(this.marineSnow.mesh);
-    this.audio=new MuseumSeaSound({shore:this.shore,field:this.shoreField,terrain:data.terrain,trees:this.vegetation.records,sample:data.field.continuousSample});
+    this.audio=new MuseumSeaSound({shore:this.shore,field:this.shoreField,shelf:data.cove.continuous,terrain:data.terrain,trees:this.vegetation.records,sample:data.field.continuousSample});
     installCreekLighting(data.field,this.terrainGPU,this.clouds,this.underwaterLighting);installGroundBounce({terrain:this.terrainGPU,clouds:this.clouds});
     this.water=createCreekWater({scene,sky:this.sky,clouds:this.clouds,sceneRenderer:this.sceneRenderer,field:data.field,terrain:this.terrainGPU,refraction:this.refraction,query:this.query,foamTexture:this.foamTexture});
     this.surface=this.water.surface;this.waterMaterial=this.water.material;

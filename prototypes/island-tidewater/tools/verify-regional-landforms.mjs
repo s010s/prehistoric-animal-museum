@@ -59,6 +59,22 @@ const offStation = Object.fromEntries(Object.entries(traverses).map(([id, points
 const lakeAccess = transect([[3242,-1940],[3200,-1940]]);
 assert(lakeAccess[0].depth < 0 && lakeAccess.at(-1).depth > 1.7);
 assert(lakeAccess.every(p => p.slope < .23), 'lake ramp has an abrupt ledge');
+const {pocketBeachVisits} = await import('../creek/IslandVisits.js');
+const arrivals = pocketBeachVisits();
+const beachEntries = {};
+for (const [id, swim] of [
+  ['east-pocket-beach', [10416,94]],
+  ['north-pocket-beach', [5206,-7408]],
+]) {
+  const samples = transect([arrivals[id].p, swim]);
+  const sea = data.island.seaLevel;
+  const swimDepth = sea - samples.at(-1).height;
+  const maxSlope = Math.max(...samples.map(p => p.slope));
+  assert(samples[0].height > sea + .4, id + ' walking arrival flooded');
+  assert(swimDepth > 2 && data.cove.continuous.marineAt(...swim) > .6, id + ' lost its open-water swimming approach');
+  assert(maxSlope < .24, id + ' has an abrupt ledge between the strand and swimming water');
+  beachEntries[id] = {swimDepth:round(swimDepth), maxSlope:round(maxSlope)};
+}
 const runnels = [5480, 5505, 5535].map(x => waterDepth(x,5900));
 assert(runnels[0] > 1.5 && runnels[1] < -.9 && runnels[2] > .75, 'wetland cross-section lost its two channels or island');
 const channelReach = transect([
@@ -128,7 +144,7 @@ for (const patch of data.regionalTerrains) {
 }
 assert.equal(new Set(data.regionalTerrains.map(p => p.id)).size, 5);
 console.log(JSON.stringify({
-  walking, offStation, mainEstuary:{deepestFan:round(deepestFan),greatestFanSlope:round(greatestFanSlope)}, lakeEntryDepth:round(lakeAccess.at(-1).depth), runnels:runnels.map(round), minRunnelDepth:round(minRunnelDepth),
+  walking, offStation, beachEntries, mainEstuary:{deepestFan:round(deepestFan),greatestFanSlope:round(greatestFanSlope)}, lakeEntryDepth:round(lakeAccess.at(-1).depth), runnels:runnels.map(round), minRunnelDepth:round(minRunnelDepth),
   poolMinimumDepth:round(Math.min(...pool)), confluenceDepth:round(confluenceDepth),
   northApronGrade:{before:round(apronGrade('before')),after:round(apronGrade('after'))},
   terrainAtlasLayerBytes:packed.heights.byteLength + packed.normals.byteLength,

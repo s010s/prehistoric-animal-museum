@@ -37,18 +37,20 @@ const pinOffsets = {
   'east-bay': [-32, 0],
 };
 const tourAdditions = {
+  'east-bay': [{ name: '东岸双岬沙湾', place: 'east-pocket-beach' }],
   creek: [
     { name: '岩隙里的细泉', place: 'sample-source' },
     { name: '溪谷巨木与幼树', place: 'sample-forest' },
   ],
   'west-coast': [
     { name: '西岸样板河口', place: 'sample-mouth' },
+    { name: '西岸迎浪岬', place: 'west-surf-point' },
     { name: '在浅湾岸边看无齿翼龙', place: 'sample-pteranodon' },
   ],
   lake: [{ name: '山间长湖砾岸', place: 'lake-shingle' }],
   grassland: [{ name: '东部支流曲流滩', place: 'alluvial-bend' }],
   wetland: [{ name: '南部湿地汊道', place: 'wetland-runnels' }],
-  highland: [{ name: '高地冰碛脊', place: 'tarn-moraine' }],
+  highland: [{ name: '高地冰碛脊', place: 'tarn-moraine' }, { name: '北岸岬间潮滩', place: 'north-pocket-beach' }],
   'dry-upland': [{ name: '背风谷岩阶', place: 'dry-escarpment' }],
 };
 for (const stop of freshwaterBedStops) tourAdditions[stop.region].push({name:stop.title, place:stop.id});

@@ -26,11 +26,11 @@ fn habitatBend(xz:vec2f,t:f32,seed:f32,part:f32,weight:f32,mode:f32,flow:vec2f)-
  return new Material({name,side:'double',textures:atlas?{habitatAlbedo:atlas}:{},modules:[batch.module,terrainGPU.module,motion],attributes:{aKind:'f32',aData:'vec4f'},varyings:{vHabitatColor:'vec3f',vHabitatAO:'f32',vHabitatMode:'f32'},vertex:`
  let index=${P}RecordIndex(u32(v.aKind),v.instance);
  let r0=${records[0]};let q=${records[1]};let r2=${records[2]};let r3=${records[3]};
- let distance=length(${namespace}View.position-r0.xyz);let grow=1.0-smoothstep(r2.y*.80,r2.y,distance);
+ let distance=length(${namespace}View.position-r0.xyz);let grow=${rigidSolids?'select(1.0-smoothstep(r2.y*.80,r2.y,distance),1.0,r3.w<0.0)':'1.0-smoothstep(r2.y*.80,r2.y,distance)'};
  var local=v.position*r0.w*grow;
  if(r2.z>.5&&r2.z<1.5){local.y+=r3.w*smoothstep(.008,.036,v.position.y)*grow;}
  var world=habitatRotate(q,local)+r0.xyz;
- let contact=${roamingGround?'select(select(1.0-smoothstep(0.0,.13,local.y),1.0,r2.z<-.5),0.0,r3.w<0.0)':'(1.0-smoothstep(0.0,.13,local.y))'}${rigidSolids?'*select(0.0,1.0,r3.z>0.0)':''};
+ let contact=${roamingGround?'select(select(1.0-smoothstep(0.0,.13,local.y),1.0,r2.z<-.5),0.0,r3.w<0.0)':'(1.0-smoothstep(0.0,.13,local.y))'}${rigidSolids?'*select(0.0,1.0,r3.z>0.0&&r3.w>=0.0)':''};
  let habitatGround=terrainHeightAt(world.xz);
  world.y+=(habitatGround-.018-r0.y)*contact;
  let weight=v.aData.x*v.aData.x*r3.z*r0.w*grow;

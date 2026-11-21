@@ -1,5 +1,6 @@
 // Native wave propagation at native local detail, alongside the coarse island
 // field. Both layers share ONE texture binding; no new simulation render pass.
+import {coastalClimateWGSL, coastalExposure} from './CoastalWaveClimate.js';
 import {computeShoreField} from '../vendor/tidewater/src/world/ShoreField.js';
 import {Texture} from '../vendor/tidewater/src/engine/gpu/Texture.js';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
@@ -47,6 +48,7 @@ export function refineCoveShoreField(gpu,terrain,field,cove){
  const oldFn=/fn terrainShoreSample\([\s\S]*?\n}/;
  if(!oldFn.test(gpu.module.code))throw Error('Pinned native wave field seam changed');
  gpu.module.code=gpu.module.code.replace(oldFn,`
+${coastalClimateWGSL}
 fn museumShoreLayer(xz:vec2f,c:vec2f,size:f32,res:f32,layer:i32,offset:vec2i)->vec4f{
  let f=clamp((xz-c+size*.5)/size*res-.5,vec2f(0.0),vec2f(res-1.001));let q=vec2i(floor(f))+offset;let t=fract(f);
  ${canPack?`if(layer==${host.layer}&&offset.x==0&&all(q>=vec2i(${ox-1},${oz-1}))&&all(q<vec2i(${ox+side},${oz+side}))){return vec4f(100000.0,0.0,0.0,100000.0);}`:''}
@@ -62,10 +64,19 @@ fn terrainShoreSample(p:vec2f)->vec4f{
  let c=vec2f(${f.center.map(x=>x.toFixed(7)).join(',')});let w=1.0-smoothstep(${f.fade[0]}.0,${f.fade[1]}.0,max(abs(p.x-c.x),abs(p.y-c.y)));
  if(w>0.0){let fine=museumShoreLayer(p,c,${f.local.size}.0,${f.local.res}.0,${f.layer},vec2i(${f.xy}));if(fine.x<10000.0&&fine.w<10000.0){if(coarse.x>=10000.0||coarse.w>=10000.0){coarse=fine;}else{coarse=mix(coarse,fine,w);}}}
  }`).join('\n')}
- return coarse;
+ return museumCoastalField(coarse);
 }`);
  const b=[0,0,0,0];
- field.sampleAt=(x,z,out=[0,0,0,0])=>{sample(field,x,z,out);for(const f of locals){const w=1-smooth(...f.fade,Math.max(Math.abs(x-f.center[0]),Math.abs(z-f.center[1])));if(w<=0)continue;sample(f.local,x-f.center[0],z-f.center[1],b);if(b[0]>=10000||b[3]>=10000)continue;const valid=out[0]<10000&&out[3]<10000;for(let i=0;i<4;i++)out[i]=valid?out[i]*(1-w)+b[i]*w:b[i];}return out;};
+ field.sampleRawAt=(x,z,out=[0,0,0,0])=>{sample(field,x,z,out);for(const f of locals){const w=1-smooth(...f.fade,Math.max(Math.abs(x-f.center[0]),Math.abs(z-f.center[1])));if(w<=0)continue;sample(f.local,x-f.center[0],z-f.center[1],b);if(b[0]>=10000||b[3]>=10000)continue;const valid=out[0]<10000&&out[3]<10000;for(let i=0;i<4;i++)out[i]=valid?out[i]*(1-w)+b[i]*w:b[i];}return out;};
+ field.sampleAt=(x,z,out=[0,0,0,0])=>{
+  field.sampleRawAt(x,z,out);
+  const e=Math.hypot(out[1],out[2]);
+  if(e>.00001&&out[0]<10000){
+   const gain=Math.max(e,coastalExposure(e)/1.4)/e;
+   out[1]*=gain;out[2]*=gain;
+  }
+  return out;
+ };
  field.localCove={center:cove.center,size:3072,res:n,texelMetres:3072/n,fields:locals.map(f=>({id:f.id,center:f.center,offsetSeconds:f.offset,texelMetres:f.local.cellSize})),extraBytes:(layers-1)*field.data.byteLength,buildMs:performance.now()-start,sampleBindingCountUnchanged:true,extraFramePasses:0};
  return gpu;
 }
