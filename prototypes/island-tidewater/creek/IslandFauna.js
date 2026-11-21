@@ -309,7 +309,7 @@ export class IslandFauna {
   scan(camera = this.app.camera.position, focus) {
     this.lastScan = new Vector3(camera.x, camera.y, camera.z);
     this.scanTime = 0;
-    this.residency.scan(camera, focus);
+    this.residency.scan(camera, focus, {deferNewAssets: !!this.app.fastHabitatTransit && !focus});
   }
 
   observe(id) {
@@ -324,7 +324,7 @@ export class IslandFauna {
     if (this.residency.disposed) return;
     const step = clamp(dt, 0, .08);
     this.scanTime += step;
-    if (!this.lastScan || this.scanTime >= .24 || this.lastScan.distanceToSquared(camera.position) > 144) this.scan(camera.position);
+    if (!this.lastScan || this.residency.deferNewAssets !== !!this.app.fastHabitatTransit || this.scanTime >= .24 || this.lastScan.distanceToSquared(camera.position) > 144) this.scan(camera.position);
     for (const actor of this.residents) moveActor(this.app, actor, step, camera.position);
   }
 

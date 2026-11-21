@@ -4,6 +4,7 @@ import {Material} from '../vendor/tidewater/src/engine/render/Material.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
 import {InstanceRecords, instancedMesh, kitModule, TAU, smooth, clamp} from '../vendor/tidewater/src/world/wildlife/Kit.js';
 import {loadReviewedFauna, reviewedAlbedo, reviewedGeometry} from './VaultEnvironmentAssets.js';
+import {islandFlightCommunities} from './IslandFlightCommunities.js';
 import {clipCreekRefraction} from './CreekWater.js';
 
 import { reviewedGeometryLods, loadReviewedIndices } from './VaultGeometryLods.js';
@@ -204,9 +205,9 @@ function flightOrbit(flier, angle, bird, out) {
  }
 }
 
-function flightCover(terrain, field, x, z, bird) {
+function flightCover(terrain, field, x, z, terrainOnly) {
  const ground=Math.max(SEA,terrain.heightAt(x,z));
- if (bird) return ground;
+ if (terrainOnly) return ground;
  const [level, edge]=field.sample(x,z);
  return Math.max(ground,edge<0?level:SEA);
 }
@@ -222,7 +223,7 @@ function flightFloor(flier, terrain, field, bird) {
  const point=new Float64Array(4);
  for (let i=0;i<clearance.length;i++) {
   flightOrbit(flier,i*step*.5,bird,point);
-  clearance[i]=flightCover(terrain,field,point[0],point[1],bird);
+  clearance[i]=flightCover(terrain,field,point[0],point[1],bird && !flier.habitat.roaming);
  }
  for (let i=0;i<count;i++) {
   floor[i]=Math.max(clearance[(2*i+clearance.length-1)%clearance.length],clearance[2*i],clearance[2*i+1])+.06;
@@ -249,7 +250,7 @@ function orbitFloor(floor, angle) {
  return floor[i]+(floor[(i+1)%floor.length]-floor[i])*fraction;
 }
 
-export function flightHabitats(data, visits) {
+export function flightHabitats(data, visits, colliders) {
  const {field}=data;
  const habitats=[];
  const add=(species,id,x,z,count,rx,rz,alt,heading=0)=>habitats.push({species,id,x,z,count,rx,rz,alt,heading});
@@ -289,15 +290,38 @@ export function flightHabitats(data, visits) {
   }
  }
  add('sapeornis','original-creek-ford',-19,-25,6,16,10,5.8,1.16);
- return habitats;
+ return habitats.concat(islandFlightCommunities(data, colliders, habitats));
+}
+
+// A camera cell contains every orbit which can enter draw range from it.
+// This also bounds per-LOD instance storage by local overlap on the island.
+const WINDOW = 128;
+const EMPTY = [];
+function flightWindows(state) {
+ const cells = new Map();
+ let capacity = 1;
+ for (const f of state.fliers) {
+  const h=f.habitat, reach=state.type.range+Math.max(h.rx,h.rz)*1.2;
+  for(let iz=Math.floor((h.z-reach)/WINDOW);iz<=Math.floor((h.z+reach)/WINDOW);iz++) {
+   for(let ix=Math.floor((h.x-reach)/WINDOW);ix<=Math.floor((h.x+reach)/WINDOW);ix++) {
+    const dx=Math.max(ix*WINDOW-h.x,0,h.x-(ix+1)*WINDOW), dz=Math.max(iz*WINDOW-h.z,0,h.z-(iz+1)*WINDOW);
+    if(dx*dx+dz*dz>reach*reach)continue;
+    const key=ix+','+iz;
+    let cell=cells.get(key);
+    if(!cell)cells.set(key,cell=[]);
+    cell.push(f); capacity=Math.max(capacity,cell.length);
+   }
+  }
+ }
+ state.cells=cells; state.capacity=capacity; state.local=EMPTY;
 }
 
 export class VaultEnvironmentFlight {
- constructor(group,data,visits,residency,prepare) {
+ constructor(group,data,visits,residency,prepare,colliders) {
   this.group=group;
   this.data=data;
   this.residency=residency;
-  this.habitats=flightHabitats(data,visits);
+  this.habitats=flightHabitats(data,visits,colliders);
   this.types=new Map(Object.keys(TYPES).map(id=>[id,{id,type:TYPES[id],fliers:[],batch:null}]));
   this.fliers=[];
   this.trackingFliers=[];
@@ -317,24 +341,46 @@ export class VaultEnvironmentFlight {
     state.fliers.push(flier); this.fliers.push(flier);
    }
   }
+  for(const state of this.types.values())flightWindows(state);
   if(residency)for(const state of this.types.values()){
    const {type,id}=state;
-   const habitats=this.habitats.filter(h=>h.species===id).map(h=>{
+   const habitats=[];
+   state.roamingSites=[];
+   for(const h of this.habitats.filter(h=>h.species===id)){
     const ground=Math.max(SEA,data.terrain.heightAt(h.x,h.z));
-    return {x:h.x,z:h.z,radius:Math.max(h.rx,h.rz)*1.15,minY:ground-4,maxY:ground+h.alt+12};
-   });
-   if(!habitats.length)continue;
+    const site={x:h.x,z:h.z,radius:Math.max(h.rx,h.rz)*1.15,minY:ground-4,maxY:ground+h.alt+12};
+    if(h.roaming)state.roamingSites.push(site);else habitats.push(site);
+   }
+   state.habitats=habitats;
+   state.fixedSites=habitats.length;
+   if(!habitats.length&&!state.roamingSites.length)continue;
    const bytes=15*1024**2;
    residency.add({id,habitats,bytes,range:type.preload,hysteresis:type.kind==='bird'?75:42,
-    load:signal=>createFlightBatch(id,type,state.fliers.length,data.field,signal),prepare:(batch,signal)=>prepare(id,batch,signal),
+    load:signal=>createFlightBatch(id,type,state.capacity,data.field,signal),prepare:(batch,signal)=>prepare(id,batch,signal),
     attach:batch=>{state.batch=batch;this.group.add(...batch.meshes);},
     detach:batch=>{
      for(const mesh of batch.meshes)mesh.removeFromParent();
      state.batch=null;
-     for(const f of state.fliers){f.fresh=true;f.active=false;}
+     for(const f of state.local){f.fresh=true;f.active=false;}
+     state.local=EMPTY;
     },
     dispose:batch=>batch.dispose(),
    });
+  }
+ }
+
+ prepareResidency(camera) {
+  for (const state of this.types.values()) {
+   if (!state.habitats) continue;
+   state.habitats.length=state.fixedSites;
+   const height=(state.type.kind==='bird'?72:30)+(state.batch?12:0);
+   for (const site of state.roamingSites) {
+    if(camera.y>site.maxY+height || camera.y<site.minY-height)continue;
+    // Skip distant territories before passing the small local set to the
+    // shared residency queue. Include its warm-retention band at a boundary.
+    const reach=state.type.preload+site.radius+(state.type.kind==='bird'?75:42);
+    if(Math.abs(camera.x-site.x)<=reach && Math.abs(camera.z-site.z)<=reach)state.habitats.push(site);
+   }
   }
  }
 
@@ -342,22 +388,28 @@ export class VaultEnvironmentFlight {
   const cp=camera.position, terrain=this.data.terrain;
   this.visible={birds:0,insects:0,triangles:0};
   this.trackingFliers.length=0;
+  const key=Math.floor(cp.x/WINDOW)+','+Math.floor(cp.z/WINDOW);
   for (const state of this.types.values()) {
    const {type,batch}=state;
    if (!batch) continue;
    const bird=type.kind==='bird', channel=bird?'birds':'insects';
    for(const level of batch.levels)level.records.begin();
-   for (const f of state.fliers) {
+   const local=enabled?(state.cells.get(key)??EMPTY):EMPTY;
+   if(local!==state.local){
+    for(const f of state.local)if(!local.includes(f)){f.fresh=true;f.active=false;}
+    state.local=local;
+   }
+   for (const f of local) {
     const h=f.habitat, range=type.range, anchorDistance=Math.hypot(cp.x-h.x,cp.z-h.z);
     f.active=false;
-    if (!enabled||anchorDistance>range+Math.max(h.rx,h.rz)*1.2) {f.fresh=true;continue;}
+    if (anchorDistance>range+Math.max(h.rx,h.rz)*1.2) {f.fresh=true;continue;}
     const angularVelocity=f.rate*f.direction;
     const a=time*angularVelocity+f.orbit,wobble=f.phase+time*(bird?.62:1.4);
     flightOrbit(f,a,bird,this.flightPoint);
     const [x,z,dx,dz,ax,az]=this.flightPoint;
     f.floor??=flightFloor(f,terrain,this.data.field,bird);
     const base=orbitFloor(f.floor,a);
-    const cover=flightCover(terrain,this.data.field,x,z,bird);
+    const cover=flightCover(terrain,this.data.field,x,z,bird && !h.roaming);
     const activity=bird?1:.52+.48*smooth(-.3,.85,Math.sin(time*.38+f.phase));
     const y=base+(bird?f.altitude+Math.sin(a+f.phase)*.72
      :Math.max(.24,f.altitude*activity+Math.sin(wobble*1.4)*.24));
@@ -407,7 +459,7 @@ export class VaultEnvironmentFlight {
   }
  }
 
- hold() {for (const f of this.fliers) f.fresh=true;}
+ hold() {for (const state of this.types.values())for (const f of state.local) f.fresh=true;}
 
  stats() {
   return {

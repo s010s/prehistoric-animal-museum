@@ -2,7 +2,7 @@ import {Material} from '../vendor/tidewater/src/engine/render/Material.js';
 import {ShaderModule} from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {commonModule} from '../vendor/tidewater/src/engine/render/wgsl/common.js';
 
-export function createHabitatPlantMaterial(batch,terrainGPU,view,{name='Sample Vault leaves, wind and current',namespace='sampleHabitat',atlas=null,rigidSolids=false}={}){
+export function createHabitatPlantMaterial(batch,terrainGPU,view,{name='Sample Vault leaves, wind and current',namespace='sampleHabitat',atlas=null,rigidSolids=false,roamingGround=false}={}){
  const P=batch.prefix,records=batch.record('index');
  const motion=new ShaderModule({name:namespace+'Motion',deps:[commonModule],uniforms:view,code:`
 fn habitatColor(f:f32)->vec3f{let u=u32(f);return vec3f(f32((u>>16u)&255u),f32((u>>8u)&255u),f32(u&255u))/255.0;}
@@ -30,7 +30,7 @@ fn habitatBend(xz:vec2f,t:f32,seed:f32,part:f32,weight:f32,mode:f32,flow:vec2f)-
  var local=v.position*r0.w*grow;
  if(r2.z>.5&&r2.z<1.5){local.y+=r3.w*smoothstep(.008,.036,v.position.y)*grow;}
  var world=habitatRotate(q,local)+r0.xyz;
- let contact=(1.0-smoothstep(0.0,.13,local.y))${rigidSolids?'*select(0.0,1.0,r3.z>0.0)':''};
+ let contact=${roamingGround?'select(select(1.0-smoothstep(0.0,.13,local.y),1.0,r2.z<-.5),0.0,r3.w<0.0)':'(1.0-smoothstep(0.0,.13,local.y))'}${rigidSolids?'*select(0.0,1.0,r3.z>0.0)':''};
  let habitatGround=terrainHeightAt(world.xz);
  world.y+=(habitatGround-.018-r0.y)*contact;
  let weight=v.aData.x*v.aData.x*r3.z*r0.w*grow;

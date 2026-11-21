@@ -5,6 +5,7 @@ import {UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {uploadHabitatAlbedo} from './VaultEnvironmentAssets.js';
 import {createHabitatPlantMaterial} from './HabitatPlantMaterial.js';
 import {planFreshwaterMarsilea} from './FreshwaterMarsileaPlan.js';
+import {RoamingUnderstory, ROAMING_PLANT_SLOTS} from './RoamingUnderstory.js';
 import {planLandUnderstory} from './LandUnderstoryPlan.js';
 import {islandEcologyGeometry} from './IslandEcology.js';
 import {loadGLB,decodeImage} from '../vendor/tidewater/src/engine/loaders/GLTF.js';
@@ -316,6 +317,11 @@ function habitatVisits(data,plan,app){
  return visits;
 }
 
+function writePlantRecord(batch, index, p) {
+ const half=p.yaw*.5;
+ batch.data.set([p.x,p.y,p.z,p.scale,0,Math.sin(half),0,Math.cos(half),p.seed,p.range,p.mode,p.height,p.flow[0],p.flow[1],p.flex,p.lift??0],index*16);
+}
+
 export class SampleHabitatEnrichment{
  static async create(app,data){
   if(!data.field.continuousSample)return null;
@@ -336,8 +342,9 @@ export class SampleHabitatEnrichment{
   this.landUnderstory=planLandUnderstory(data,app,SPECS);
   this.freshwaterMarsilea=planFreshwaterMarsilea(data,app.islandVisits,SPECS);
   this.plants=[...this.plan.plants,...this.landUnderstory.plants,...this.freshwaterMarsilea];
+  this.roamingUnderstory=new RoamingUnderstory(data,app,SPECS);
   const kinds=SPECS.map(spec=>({geometry:plantGeometry(model,spec),shadow:spec.mode===0}));
-  this.batch=new ReefBatch('Sample Habitat Vault Plants',kinds,{maxInstances:Math.max(1,this.plants.length)});
+  this.batch=new ReefBatch('Sample Habitat Vault Plants',kinds,{maxInstances:this.plants.length+ROAMING_PLANT_SLOTS});
   const uv=new Float32Array(this.batch.vertexCount*2);
   let offset=0;
   for(const {geometry} of kinds){
@@ -356,8 +363,7 @@ export class SampleHabitatEnrichment{
    const cell=Math.floor(p.x/this.plantCellSize)+','+Math.floor(p.z/this.plantCellSize);
    if(!this.plantCells.has(cell))this.plantCells.set(cell,[]);
    this.plantCells.get(cell).push(i);
-   const half=p.yaw*.5;
-   this.batch.data.set([p.x,p.y,p.z,p.scale,0,Math.sin(half),0,Math.cos(half),p.seed,p.range,p.mode,p.height,p.flow[0],p.flow[1],p.flex,p.lift??0],i*16);
+   writePlantRecord(this.batch,i,p);
   }
   this.batch.upload();
   this.trackMesh=null;
@@ -385,6 +391,7 @@ export class SampleHabitatEnrichment{
     if((cp.x-p.x)**2+(cp.y-p.y)**2+(cp.z-p.z)**2<=p.range*p.range)this.batch.add(p.kind,i);
    }
   }
+  this.roamingUnderstory.update(cp,this.batch,this.plants.length,writePlantRecord);
   this.batch.commit();
   if(this.trackMesh)this.trackMesh.visible=this.plan.tracks.some(p=>Math.hypot(cp.x-p.x,cp.y-p.y,cp.z-p.z)<34);
  }
@@ -405,6 +412,6 @@ export class SampleHabitatEnrichment{
  }
  stats(){
   const p=this.plan;
-  return {sourceRevision:'b213afa4b401bc5ae9f29a4c3fff8187d2a71142',plants:p.plants.length,landUnderstory:this.landUnderstory.counts,freshwaterMarsilea:this.freshwaterMarsilea.length,byForm:p.counts,visiblePlants:this.batch.visibleInstances,visibleTriangles:this.batch.visibleTriangles,plantDrawKinds:this.batch.mainOffsets.length,sourceForms:4,nativeSeagrass:true,tracks:p.tracks,trackPath:p.trackPath,trackGroundAudit:this.trackGroundAudit??null,trackTriangles:this.trackMesh?.geometry.index.count/3??0,trackPlacement:'source cavity topology, no substrate slab; terrain-matched 2–15 mm shallow relief; older artistic Parasaurolophus-like hindfoot trail, not current short-step footfalls',submergedPlants:p.plants.filter(x=>x.mode>=2).length,emergentFreshwaterMargins:p.plants.filter(x=>x.mode===1).length,landPlants:p.plants.filter(x=>x.mode===0).length,minSubmergedHeadroom:Math.min(...p.plants.filter(x=>x.mode>=2).map(x=>x.depth-x.height)),maxRootEmbedMetres:.018,maxRootCentreErrorMetres:Math.max(0,...p.plants.map(x=>Math.abs(x.y+.018-this.data.terrain.heightAt(x.x,x.z)))),sites:p.plants.map(x=>({id:x.id,x:x.x,y:x.y,z:x.z,mode:x.mode,depth:x.depth,height:x.height,slope:x.slope,scale:x.scale})),wind:'root-anchored leaf/branch bend with native frame wind and previous-pose velocity; current and swell for submerged plants',rejections:p.rejections};
+  return {sourceRevision:'b213afa4b401bc5ae9f29a4c3fff8187d2a71142',plants:p.plants.length,landUnderstory:this.landUnderstory.counts,roamingUnderstory:{visible:this.roamingUnderstory.visible,triangles:this.roamingUnderstory.triangles,slots:ROAMING_PLANT_SLOTS,cellsBuilt:this.roamingUnderstory.cellsBuilt},freshwaterMarsilea:this.freshwaterMarsilea.length,byForm:p.counts,visiblePlants:this.batch.visibleInstances,visibleTriangles:this.batch.visibleTriangles,plantDrawKinds:this.batch.mainOffsets.length,sourceForms:4,nativeSeagrass:true,tracks:p.tracks,trackPath:p.trackPath,trackGroundAudit:this.trackGroundAudit??null,trackTriangles:this.trackMesh?.geometry.index.count/3??0,trackPlacement:'source cavity topology, no substrate slab; terrain-matched 2–15 mm shallow relief; older artistic Parasaurolophus-like hindfoot trail, not current short-step footfalls',submergedPlants:p.plants.filter(x=>x.mode>=2).length,emergentFreshwaterMargins:p.plants.filter(x=>x.mode===1).length,landPlants:p.plants.filter(x=>x.mode===0).length,minSubmergedHeadroom:Math.min(...p.plants.filter(x=>x.mode>=2).map(x=>x.depth-x.height)),maxRootEmbedMetres:.018,maxRootCentreErrorMetres:Math.max(0,...p.plants.map(x=>Math.abs(x.y+.018-this.data.terrain.heightAt(x.x,x.z)))),sites:p.plants.map(x=>({id:x.id,x:x.x,y:x.y,z:x.z,mode:x.mode,depth:x.depth,height:x.height,slope:x.slope,scale:x.scale})),wind:'root-anchored leaf/branch bend with native frame wind and previous-pose velocity; current and swell for submerged plants',rejections:p.rejections};
  }
 }

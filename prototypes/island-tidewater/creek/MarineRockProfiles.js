@@ -9,9 +9,12 @@ export async function loadMarineRockProfiles(){
     return r.arrayBuffer();
   });
   const view=new DataView(bytes),profiles=[];
-  let offset=0;
+  const withLods=view.getUint32(0,true)===0x324c524d; // MRL2
+  let offset=withLods?4:0;
   while(offset<bytes.byteLength){
     const count=view.getUint32(offset,true),indices=view.getUint32(offset+4,true);offset+=8;
+    const coarseCount=withLods?view.getUint32(offset,true):0;
+    if(withLods)offset+=4;
     const p=new Float32Array(count*3),n=new Float32Array(count*3),colors=new Float32Array(count*3);
     for(let j=0;j<count;j++,offset+=12)for(let k=0;k<3;k++){
       p[j*3+k]=view.getInt16(offset+k*2,true)/30000;
@@ -24,7 +27,9 @@ export async function loadMarineRockProfiles(){
     geometry.setAttribute('normal',new BufferAttribute(n,3));
     geometry.setAttribute('tint',new BufferAttribute(colors,3));
     geometry.setIndex(new BufferAttribute(idx,1));geometry.computeBoundingSphere();
-    profiles.push({geometry,instances:[]});
+    const coarseIndices=withLods?new Uint16Array(bytes,offset,coarseCount):idx;
+    offset+=coarseCount*2;
+    profiles.push({geometry,coarseIndices,instances:[]});
   }
   return profiles;
 }

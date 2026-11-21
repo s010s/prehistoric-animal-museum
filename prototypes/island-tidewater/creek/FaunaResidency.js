@@ -49,8 +49,9 @@ export class FaunaResidency {
     this.entries.set(id, { definition, status: 'outside', distance: Infinity, wanted: false, errors: 0, waiters: [] });
   }
 
-  scan(camera, focus = this.focus) {
+  scan(camera, focus = this.focus, {deferNewAssets = this.deferNewAssets} = {}) {
     if (this.disposed) return;
+    this.deferNewAssets = !!deferNewAssets;
     this.focus = focus;
     this.camera = { x: camera.x, y: camera.y, z: camera.z };
     const candidates = [];
@@ -60,8 +61,10 @@ export class FaunaResidency {
         ? definition.habitats.reduce((nearest, habitat) => Math.min(nearest, distanceToFauna(camera, habitat)), Infinity)
         : distanceToFauna(camera, definition);
       entry.inRange = entry.distance <= definition.range + (wanted ? (definition.hysteresis ?? 28) : 0);
-      if (entry.inRange) candidates.push(entry);
-      else if (entry.errors) {
+      // A fast survey can cross several loading radii in one second. Keep
+      // drawing nearby residents and finish wanted in-flight requests.
+      if (entry.inRange && (!deferNewAssets || entry.model || entry.request || definition.id === focus)) candidates.push(entry);
+      else if (!entry.inRange && entry.errors) {
         this.clearRetry(entry);
         entry.error = null;
         entry.errors = 0;

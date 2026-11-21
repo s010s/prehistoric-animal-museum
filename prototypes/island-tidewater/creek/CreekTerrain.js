@@ -79,7 +79,15 @@ export class CreekTerrain extends Terrain {
  let meadow=museumSward(P,footprint,mat.gustOffset,soilVisible);
  var ground=vec3f(0.0);var meadowRelief=0.0;
  if(soilVisible){
-  let litter=mix(${srgb(.25,.23,.16)},${srgb(.36,.32,.22)},macroTone);
+  var litter=mix(${srgb(.25,.23,.16)},${srgb(.36,.32,.22)},macroTone);
+  if(cover.b*cover.a>.025){
+   let bed=clamp(.45+duneEdge*.105+(m.y-.5)*.49,0.0,1.0);
+   let seams=smoothstep(.42,.68,micro.w*.37+d.w*.63);
+   let dark=mix(${srgb(.115,.103,.077)},${srgb(.26,.209,.14)},bed);
+   let dryNeedles=mix(${srgb(.26,.213,.137)},${srgb(.385,.315,.205)},d.z);
+   let organic=mix(dark,dryNeedles,seams*(.23+.49*bed));
+   litter=mix(litter,organic,cover.b*smoothstep(.17,.75,cover.a));
+  }
   let soil=mix(${srgb(.32,.30,.24)},${srgb(.48,.45,.37)},d.z);
   ground=mix(meadow.albedo,litter,cover.a*0.70);
   ground=mix(ground,soil,cover.r);
@@ -297,6 +305,22 @@ export class CreekTerrain extends Terrain {
    ground=mix(ground,sorted,rim*mix(.67,.83,lakeMargin));
    grainRelief+=(d.z-.43)*(.004+sort*.009+lakeMargin*.006)*fine*rim;
   }
+ }
+ // Below the wetland bank top, standing water darkens organic silt in
+ // pockets. The rendered height above this water body locates the real
+ // shoreline, including mud flats deep inside the broad marsh footprint.
+ if(marsh*cover.b>.001 && wf.y<12.0 && wf.x>frame.seaLevel+.55 && bankRise>-.28 && bankRise<1.65){
+  let deposit=clamp(m.w*.53+d.y*.31+micro.z*.16,0.0,1.0);
+  let top=.64+(m.z-.5)*.71+(d.w-.5)*.16;
+  let damp=1.0-smoothstep(.06,top,bankRise);
+  let matting=smoothstep(top*.62,top*1.52,bankRise)*smoothstep(.35,.65,deposit);
+  let fineMud=mix(${srgb(.20,.195,.145)},${srgb(.38,.345,.25)},deposit);
+  let sedgeMat=mix(${srgb(.25,.27,.14)},${srgb(.36,.35,.19)},m.z);
+  let clay=mix(fineMud,${srgb(.43,.395,.29)}*(.74+.48*deposit),1.0-damp);
+  let margin=marsh*cover.b*(1.0-rockW)*(1.0-cover.r)*(1.0-smoothstep(.85,1.65,bankRise))
+    *smoothstep(-.28,-.03,bankRise);
+  ground=mix(ground,mix(clay,sedgeMat,matting*.68),margin*.91);
+  dampFilm=max(dampFilm,margin*damp*.5);
  }
  let rippleFilter=1.0-smoothstep(.6,2.2,rippleWidth);
  let sandRipples=sin(ripplePhase)*.0025*rippleFilter*underBed*(1.0-stoneShare);

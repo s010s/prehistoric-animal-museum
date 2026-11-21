@@ -1,4 +1,4 @@
-import {BufferAttribute, BufferGeometry, Float32BufferAttribute, Frustum, Group, Matrix4, Sphere, Vector3} from '../vendor/tidewater/src/engine/index.js';
+import {BufferAttribute, BufferGeometry, Float32BufferAttribute, Frustum, Group, Matrix4, Quaternion, Sphere, Vector3} from '../vendor/tidewater/src/engine/index.js';
 import {UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {ReefBatch} from '../vendor/tidewater/src/world/reef/ReefBatch.js';
 import {createSeagrass} from '../vendor/tidewater/src/world/reef/ReefGeometry.js';
@@ -6,6 +6,9 @@ import {buildRockGeometry} from '../vendor/tidewater/src/world/terrain/RockGeome
 import {terrainShadingModule} from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
 import {createHabitatPlantMaterial} from './HabitatPlantMaterial.js';
+import {WOODLAND_FLOOR_FORMS, woodlandFloorGeometry} from './WoodlandFloorGeometry.js';
+import {roamingStoneGeometry} from './RoamingStone.js';
+import {LAND_CAPACITY, RoamingLandCover} from './RoamingLandCover.js';
 import {planIslandEcology} from './IslandEcologyPlan.js';
 
 const TRIANGLE_BUDGET = 68000;
@@ -25,6 +28,7 @@ const FORMS = {
   scree: {reach: 100, flex: 0, color: [0x5c5a52, 0x7a7162], rock: 2},
   cobble: {reach: 67, flex: 0, color: [0x52564c, 0x6c6a5e], rock: 0},
   talus: {reach: 68, flex: 0, color: [0x414645, 0x5c6059], rock: 1},
+  ...WOODLAND_FLOOR_FORMS,
 };
 
 function linearSwatch(packed) {
@@ -153,6 +157,7 @@ function foliageGeometry(form, colors, lod, seed) {
 }
 
 export function islandEcologyGeometry(name, lod, seed) {
+  if (Object.hasOwn(WOODLAND_FLOOR_FORMS,name)) return woodlandFloorGeometry(name,lod);
   const form = FORMS[name], colors = form.color.map(linearSwatch);
   if (form.rock != null) {
     const g = buildRockGeometry(form.rock, seed, lod ? 1 : 2), pos = g.attributes.position, ao = g.attributes.ao, packed = [];
@@ -203,19 +208,39 @@ export class IslandEcology {
     for (const [i, [name, form]] of Object.entries(FORMS).entries()) {
       const kind = kinds.length;
       kinds.push({geometry: islandEcologyGeometry(name, 0, 17147 + i)}, {geometry: islandEcologyGeometry(name, 1, 17147 + i)});
-      const proxy = form.rock == null ? null : kinds.length;
-      if (proxy != null) kinds.push({geometry: islandEcologyGeometry(name, 1, 17147 + i), shadow: true, shadowOnly: true});
-      this.shapes[name] = {...form, kind, proxy};
+      const proxy = form.rock == null && !form.floorShadow ? null : kinds.length;
+      if (proxy != null) kinds.push({geometry: form.floorShadow === true ? kinds[kind].geometry : kinds[kind+1].geometry, shadow: true, shadowOnly: true});
+      const shape = this.shapes[name] = {...form, kind, proxy};
+      if (form.rock != null) {
+        const geo = kinds[kind].geometry;
+        geo.computeBoundingBox();
+        const b = geo.boundingBox;
+        shape.solid = {halfX:(b.max.x-b.min.x)*.34, halfZ:(b.max.z-b.min.z)*.34, top:b.max.y*.82};
+      }
     }
+    this.roamingShapes = {...this.shapes};
+    const profiles = app.life?.marineRockProfiles ?? [];
+    for (const [id, name] of ['scree','talus'].entries()) {
+      if (!profiles[id]) continue;
+      const kind=kinds.length, near=roamingStoneGeometry(profiles[id],false), far=roamingStoneGeometry(profiles[id],true);
+      kinds.push({geometry:near},{geometry:far},{geometry:near,shadow:true,shadowOnly:true});
+      near.computeBoundingBox();
+      const b=near.boundingBox;
+      this.roamingShapes[name]={...this.shapes[name],kind,proxy:kind+2,solid:{
+        halfX:(b.max.x-b.min.x)*.34,halfZ:(b.max.z-b.min.z)*.34,top:b.max.y*.82}};
+    }
+    this.up=new Vector3(0,1,0); this.normal=new Vector3();
+    this.yawRotation=new Quaternion(); this.groundRotation=new Quaternion();
+    this.terrain=data.terrain;
     this.view = new UniformBlock('IslandHabitatView', {position: ['vec3f', new Vector3()]});
-    this.batch = new ReefBatch('Island Ecology', kinds, {maxInstances: Math.max(1, this.plan.sites.length)});
+    this.batch = new ReefBatch('Island Ecology', kinds, {maxInstances: this.plan.sites.length + LAND_CAPACITY});
     const material = this.material = createHabitatPlantMaterial(this.batch, app.terrainGPU, this.view, {
-      name: 'Island ecology wind, swash and contact', namespace: 'islandHabitat',
+      name: 'Island ecology wind, swash and contact', namespace: 'islandHabitat', roamingGround: true,
     });
     material.modules.push(terrainShadingModule());
     material.varyings.vIslandCover = 'vec3f';
     material.vertex += `
- o.vIslandCover=vec3f(r2.w,world.y-habitatGround,r2.x);
+ o.vIslandCover=vec3f(r2.w,world.y-habitatGround,select(0.0,1.0,r3.w<0.0));
 `;
     material.surface += `
  let stone=in.vs.vIslandCover.x;
@@ -238,24 +263,81 @@ export class IslandEcology {
  s.roughness=mix(s.roughness,mix(.9,.97,contact),stone);
  s.ao=mix(s.ao,max(.33,s.ao)*(1.0-.4*contact),stone);
  s.translucency*=mix(.68,0.0,stone);
+ // The screened rock scan has a thin, inward-facing return surface. Match
+ // its original single-sided material inside the two-sided foliage batch.
+ if(in.vs.vIslandCover.z>.5 && !in.front){discard;}
 `;
+    material.shadow='return in.vs.vIslandCover.z<.5 || in.front;';
     this.group.add(this.batch.createMesh(material, {castShadow: true}));
     this.visible = {}; this.visibleForms = {};
     this.cells = new Map();
     const cell = k => Math.floor(k / 96);
     for (const [i, p] of this.plan.sites.entries()) {
-      const f = this.shapes[p.form], half = p.yaw * .5, id = cell(p.x) + ',' + cell(p.z);
-      this.batch.data.set([p.x, p.y, p.z, p.scale, 0, Math.sin(half), 0, Math.cos(half),
-        p.seed, f.reach, p.mode, f.rock == null ? 0 : 1, ...p.flow, f.flex, 0], i * 16);
+      const id = cell(p.x) + ',' + cell(p.z);
+      this.writeSite(i, p, this.shapes[p.form].reach);
       if (!this.cells.has(id)) this.cells.set(id, []);
       this.cells.get(id).push(i);
     }
     this.batch.upload();
+    this.colliders = app.colliders;
+    this.localSolids = new Map();
+    this.roaming = new RoamingLandCover(data, (slot, sites) => {
+      const first = this.plan.sites.length + slot;
+      for (let i = 0; i < sites.length; i++) this.writeSite(first+i, sites[i], Math.min(78, this.shapes[sites[i].form].reach), true);
+      if (sites.length) this.batch.instanceBuffer.write(this.batch.data.subarray(first*16, (first+sites.length)*16), first*64);
+    });
     this.frustum = new Frustum();
     this.viewProjection = new Matrix4();
     this.sphere = new Sphere();
     this.candidates = [];
+    this.frame = 0;
+    this.collectRoaming = (site,i) => this.collect(site,this.plan.sites.length+i,this.view.fields.position.value,true);
     app.scene.add(this.group);
+  }
+
+  writeSite(index, site, reach, roaming = false) {
+    const f = (roaming ? this.roamingShapes : this.shapes)[site.form];
+    const q = this.yawRotation.setFromAxisAngle(this.up,site.yaw);
+    let base = site.y;
+    const rigid = roaming && f.rock != null;
+    if (rigid) {
+      const {gx,gz}=site, radius=site.scale;
+      const align=this.groundRotation.setFromUnitVectors(this.up,this.normal.set(-gx,1,-gz).normalize());
+      q.premultiply(align);
+      // Embed the cut base in the lowest residual of the local supporting
+      // bed. This accounts for curvature even when the centre is on a ridge.
+      let residual=0;
+      for (let i=0;i<8;i++) {
+        const dx=radius*Math.cos(i*Math.PI/4), dz=radius*Math.sin(i*Math.PI/4);
+        residual=Math.min(residual,this.terrain.heightAt(site.x+dx,site.z+dz)-(site.y+.018+gx*dx+gz*dz));
+      }
+      base+=residual-.105*radius;
+      site.footing=base;
+    }
+    this.batch.data.set([site.x, base, site.z, site.scale, q.x,q.y,q.z,q.w,
+      site.seed, reach, site.mode, Number(f.rock != null), ...site.flow, f.flex, rigid ? -1 : 0], index*16);
+  }
+
+  collect(site, index, p, roaming) {
+    const shape = (roaming ? this.roamingShapes : this.shapes)[site.form];
+    const dx = site.x-p.x, dy = site.y-p.y, dz = site.z-p.z, d2 = dx*dx + dy*dy + dz*dz;
+    const reach = roaming ? Math.min(78, shape.reach) : shape.reach;
+    if (d2 > reach*reach) return;
+    if (roaming && d2 < 100 && shape.solid && site.footing + shape.solid.top * site.scale > site.y+.35) {
+      let solid = this.localSolids.get(site);
+      if (!solid) {
+        const h = shape.solid.top*site.scale;
+        const center = new Vector3(site.x,site.footing+(h-.2)/2,site.z);
+        const half = new Vector3(shape.solid.halfX*site.scale,(h+.2)/2,shape.solid.halfZ*site.scale);
+        const box = this.colliders.addBox(center,half,site.yaw,{tag:'roaming outcrop'});
+        this.localSolids.set(site, solid = {box});
+      }
+      solid.frame = this.frame;
+    }
+    this.sphere.center.set(site.x, site.y + site.scale * .45, site.z);
+    this.sphere.radius = site.scale * 1.45 + .47;
+    const visible = this.frustum.intersectsSphere(this.sphere);
+    if (visible || (d2 < 256 && shape.proxy != null)) this.candidates.push({site,index,distance:Math.sqrt(d2),visible,roaming});
   }
 
   update(camera) {
@@ -269,26 +351,30 @@ export class IslandEcology {
     const ix = Math.floor(p.x / 96), iz = Math.floor(p.z / 96);
     for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) {
       for (const index of this.cells.get((ix + i) + ',' + (iz + j)) ?? []) {
-        const s = sites[index], form = this.shapes[s.form];
-        const distance = Math.hypot(p.x - s.x, p.y - s.y, p.z - s.z);
-        if (distance > form.reach) continue;
-        this.sphere.center.set(s.x, s.y + s.scale * .45, s.z);
-        this.sphere.radius = s.scale * 1.45 + .47;
-        const visible = this.frustum.intersectsSphere(this.sphere);
-        if (visible || (distance < 16 && form.proxy != null)) candidates.push({index, distance, visible});
+        this.collect(sites[index],index,p,false);
       }
+    }
+    this.frame++;
+    this.roaming.update(p);
+    this.roaming.visit(this.collectRoaming);
+    for (const [site,solid] of this.localSolids) {
+      if (solid.frame === this.frame) continue;
+      this.colliders.removeBox(solid.box);
+      this.localSolids.delete(site);
     }
     candidates.sort((a, b) => a.distance - b.distance);
     this.batch.begin();
     this.visible = {}; this.visibleForms = {};
     let triangles = 0, shadowTriangles = 0;
-    for (const {index, distance, visible} of candidates) {
-      const site = sites[index], form = this.shapes[site.form];
+    this.roamingTriangles = this.roamingVisible = 0;
+    for (const {site, index, distance, visible, roaming} of candidates) {
+      const form = (roaming ? this.roamingShapes : this.shapes)[site.form];
       const kind = form.kind + (distance > Math.max(17, site.scale * 34) ? 1 : 0);
       const cost = this.batch.kinds[kind].triangles;
       if (visible && triangles + cost <= TRIANGLE_BUDGET) {
         this.batch.add(kind, index);
         triangles += cost;
+        if (roaming) { this.roamingVisible++; this.roamingTriangles += cost; }
         this.visible[site.region] = (this.visible[site.region] ?? 0) + 1;
         this.visibleForms[site.form] = (this.visibleForms[site.form] ?? 0) + 1;
       }
@@ -306,13 +392,16 @@ export class IslandEcology {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.roaming.clear();
+    for (const solid of this.localSolids.values()) this.colliders.removeBox(solid.box);
+    this.localSolids.clear();
     this.group.removeFromParent();
     this.batch.dispose();
     this.material.dispose();
   }
 
   stats() {
-    return {sites: this.plan.sites.length, counts: this.plan.counts, visibleByRegion: this.visible, visibleByForm: this.visibleForms,
+    return {sites: this.plan.sites.length, roaming:{...this.roaming.stats(),visible:this.roamingVisible,triangles:this.roamingTriangles,solidRocks:this.localSolids.size}, counts: this.plan.counts, visibleByRegion: this.visible, visibleByForm: this.visibleForms,
       triangles: this.batch.visibleTriangles, maxTriangles: TRIANGLE_BUDGET,
       shadowTriangles: this.batch.shadowTriangles, maxShadowTriangles: SHADOW_TRIANGLE_BUDGET,
       drawKinds: this.batch.mainOffsets.length, rootEmbedMetres: .018};

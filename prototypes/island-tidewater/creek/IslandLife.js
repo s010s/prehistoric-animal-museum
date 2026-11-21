@@ -19,8 +19,9 @@ import {markStreamedFaunaMaterials} from '../museum/StreamedFaunaPipelines.js';
 import {loadReviewedFauna, reviewedAlbedo} from './VaultEnvironmentAssets.js';
 import {loadReviewedIndices} from './VaultGeometryLods.js';
 import {REVIEWED_FISH, reviewedSwimKinds, installReviewedSwimAttributes, bindReviewedSwim, addReviewedSwimInstance} from './VaultEnvironmentSwim.js';
-import {createReviewedSwimMotion, createReviewedSwimMaterial, advanceReviewedSwimPose, steerReviewedSwimmer, reviewedCruiseSpeed, REVIEWED_SWIM_RIGS} from './VaultReviewedSwimMotion.js';
+import {createReviewedSwimMotion, createReviewedSwimMaterial, advanceReviewedSwimPose, steerReviewedSwimmer, reviewedCruiseSpeed} from './VaultReviewedSwimMotion.js';
 import {visitorShoals} from './VisitorShoals.js';
+import {createSwimmer, RoamingShoals, ROAMING_FISH_CAPACITY} from './RoamingShoals.js';
 
 // The vendor's two small school fish remain available in the original terrain mode.
 function nativeSwimEffort(fish,dt) {
@@ -110,9 +111,7 @@ export class IslandLife{
    const depthRange=search.depthBand?search.depthBand[1]-shallow:.46;
    this.groups.push(g);
    for(let i=0;i<count;i++){
-    const vaultFish=g.reviewed;
-    const L=length*(.82+rng()*.36);
-    this.fish.push({group:g,thrustPhase:vaultFish?REVIEWED_SWIM_RIGS[vaultFish].thrustPhase:0,phase:rng()*Math.PI*2,slot:rng()*6.283,spread:.25+rng()*.75,depth:shallow+rng()*depthRange,L,p:new Vector3(c.x,Math.max(c.floor+.15,c.h-.6),c.z),previous:new Vector3(),fresh:true,sleeping:true,velocity:new Vector3(),panic:0,yaw:rng()*6.283,morph:vaultFish?0:i%5===0?1:0,seed:rng(),vault:vaultFish});
+    this.fish.push(createSwimmer(g,i,length,rng,shallow,depthRange));
     // Large fish in the shallow sand channel need room for their long snouts
     // on waking. Stagger initial depth and radius without synchronising beats.
     if(id==='sample-sea'||id==='sample-mouth-fish'){
@@ -128,7 +127,10 @@ export class IslandLife{
   data.lifeObservations={creek:this.groups.find(g=>g.id==='creek'),west:this.groups.find(g=>g.id==='west-sea')??westSchools[0]};
   data.sampleLife=Object.fromEntries(Object.entries({pool:'sample-pool',midCreek:'sample-mid-creek',logPool:'sample-log-creek',bend:'sample-bend',siltPool:'sample-silt-pool',lowerCreek:'sample-lower-creek',transition:'sample-transition',sea:'sample-sea'}).map(([key,id])=>[key,this.groups.find(g=>g.id===id)]));
   if(sample)data.sampleLife.marineBed=wetNear(-929,147,{min:1.35,max:4,target:2.1,radius:52,step:1,sea:true,sampleMarine:true});
-  for(const g of this.groups)g.obstacles=[...(app.coveRocks?.instances??[]),...(app.shelfReef?.obstacles??[])].filter(r=>Math.hypot(r.x-g.x,r.z-g.z)<g.radius+12);
+  const obstacles=[...(app.coveRocks?.instances??[]),...(app.shelfReef?.obstacles??[])];
+  for(const g of this.groups)g.obstacles=obstacles.filter(r=>Math.hypot(r.x-g.x,r.z-g.z)<g.radius+12);
+  this.simulationGroups=this.groups.slice();
+  this.roaming=sample?new RoamingShoals(data,this.groups,breakDepth,obstacles):null;
   this.primarySwim=null;
   this.swimBatches=[];
   const nativeFish=this.fish.filter(f=>!f.vault);
@@ -151,9 +153,11 @@ export class IslandLife{
   for(const state of Object.values(this.reviewedSwim)){
    let i=0;
    for(const g of state.groups)for(let j=0;j<g.count;j++)this.fish[g.first+j].renderIndex=i++;
-   state.capacity=i;
-   if(!i)continue;
+   state.fixedCount=i;
+   state.capacity=i+(this.roaming?ROAMING_FISH_CAPACITY:0);
+   if(!state.capacity)continue;
    const {kind}=state, habitats=state.groups.map(g=>({x:g.x,z:g.z,radius:g.radius,minY:g.floor-4,maxY:g.h+5}));
+   state.habitats=habitats;
    this.environmentResidency.add({id:kind,habitats,range:96,hysteresis:54,bytes:(kind==='aspidorhynchus'?17:15)*1024**2,
     load:signal=>this.loadReviewedSwim(state,signal),prepare:(asset,signal)=>prepare(kind,asset,signal),
     attach:asset=>{
@@ -168,11 +172,12 @@ export class IslandLife{
      for(const g of state.groups)for(let j=0;j<g.count;j++){
       const f=this.fish[g.first+j];f.fresh=true;f.sleeping=true;
      }
+     for(const g of this.roaming?.groups??[])if(g.reviewed===kind)for(const f of g.members){f.fresh=true;f.sleeping=true;}
     },
     dispose:asset=>asset.dispose(),
    });
   }
-  this.environment=new VaultEnvironmentFlight(this.group,data,visits,this.environmentResidency,prepare);
+  this.environment=new VaultEnvironmentFlight(this.group,data,visits,this.environmentResidency,prepare,this.app.colliders);
   this.birds=this.environment.fliers.filter(f=>this.environment.types.get(f.species).type.kind==='bird');
   this.benthicDetails=data.field.continuousSample?new SampleBenthicDetails(app,data,data.sampleLife):null;
   this.benthos={corals:[],shells:[],sponges:[]};
@@ -260,13 +265,23 @@ export class IslandLife{
  }
  queueNearbyVault(camera){
   if(this.disposed)return;
-  const cp=camera.position, now=performance.now();
-  if(!this.lastScan||this.lastScan.distanceToSquared(cp)>36||now>=this.nextScan){
+  const cp=camera.position, now=performance.now(),transit=!!this.app.fastHabitatTransit;
+  if(!this.lastScan||this.lastTransit!==transit||this.lastScan.distanceToSquared(cp)>36||now>=this.nextScan){
+   this.lastTransit=transit;
    this.lastScan??=new Vector3();this.lastScan.copy(cp);this.nextScan=now+400;
-   this.environmentResidency.scan(cp);
+   if(!transit&&this.roaming?.scan(cp,this.reviewedSwim)){
+    this.simulationGroups.length=this.groups.length;
+    for(const state of Object.values(this.reviewedSwim))state.habitats.length=state.groups.length;
+    for(const g of this.roaming.groups){
+     this.simulationGroups.push(g);
+     this.reviewedSwim[g.reviewed].habitats.push({x:g.x,z:g.z,radius:g.radius,minY:g.floor-4,maxY:g.h+5});
+    }
+   }
+   this.environment.prepareResidency(cp);
+   this.environmentResidency.scan(cp,undefined,{deferNewAssets:transit});
    if(this.benthicDetails&&this.enabled){
     this.benthicResidency??=this.createBenthicResidency();
-    this.benthicResidency.scan(cp);
+    this.benthicResidency.scan(cp,undefined,{deferNewAssets:transit});
    }else if(this.benthicResidency){
     this.benthicResidency.dispose();
     this.benthicResidency=null;
@@ -287,10 +302,11 @@ export class IslandLife{
   this.group.visible=this.enabled;
   this.trackingSwimmers.length=0;
   this.time+=dt;const cp=camera.position;camera.updateMatrixWorld();this.viewProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.viewProjection,camera.coordinateSystem,camera.reversedDepth);this.pxScale=camera.projectionMatrix.elements[5]*this.app.engine.height*.5;this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};for(const {batch} of this.swimBatches)batch.begin();let live=0;this.audit.minBedClearance=Infinity;this.audit.minSurfaceClearance=Infinity;
-  for(const g of this.groups){
+  for(const g of this.simulationGroups){
+   const members=g.members??this.fish;
    const dx=cp.x-g.x,dz=cp.z-g.z;
    if(!this.enabled||dx*dx+dz*dz>65*65||cp.y>g.h+8){
-    if(g.awake)for(let i=g.first;i<g.first+g.count;i++){this.fish[i].fresh=true;this.fish[i].sleeping=true;}
+    if(g.awake)for(let i=g.first;i<g.first+g.count;i++){members[i].fresh=true;members[i].sleeping=true;}
     g.awake=false;
     continue;
    }
@@ -300,7 +316,7 @@ export class IslandLife{
    const {batch,motion}=render,D=batch.data;
    const step=Math.min(dt,.1);
    for(let i=g.first;i<g.first+g.count;i++){
-    const f=this.fish[i],renderIndex=f.renderIndex??i;
+    const f=members[i],renderIndex=f.renderIndex??i;
     f.previous.copy(f.p);this.advance(f,step,cp);
     const swim=g.reviewed?advanceReviewedSwimPose(f,step):null;
     const nativeEffort=swim?null:nativeSwimEffort(f,step);
@@ -313,7 +329,8 @@ export class IslandLife{
     if(pixels<1.2){f.fresh=true;continue;}
     this.sphere.center.copy(f.p);this.sphere.radius=L;
     f.trackingVisible=this.frustum.intersectsSphere(this.sphere);
-    if(distance<range){f.trackingId=i;this.trackingSwimmers.push(f);}
+    if(!g.members)f.trackingId=i;
+    this.trackingSwimmers.push(f);
     if(!f.trackingVisible){f.fresh=true;continue;}
     this.screen.copy(f.p).project(camera);this.frameSight.fish.push({position:f.p.toArray(),length:L,distance,pixels,ndc:[this.screen.x,this.screen.y],habitat:g.id,species:f.vault??'native',bedClearance:clear,surfaceClearance:top});
     if(swim){
@@ -370,8 +387,11 @@ export class IslandLife{
   for(let k=0;k<steps;k++){
    const time=this.time*(.11+f.seed*.07)+f.slot, schoolTime=this.time*.17+(g.routePhase??0);
    const local=g.school?.4:1, common=g.school?g.radius*.62:0, r=g.radius*f.spread*local;
-   const tx=g.x+Math.cos(schoolTime)*common+Math.cos(time)*r;
-   const tz=g.z+Math.sin(schoolTime)*common*.63+Math.sin(time*.73+f.seed)*r*.68;
+   const along=Math.cos(schoolTime)*common+Math.cos(time)*r;
+   const across=Math.sin(schoolTime)*common*.63+Math.sin(time*.73+f.seed)*r*.68;
+   // Stream fish patrol the channel, keeping their cross-current excursion short.
+   const tx=g.x+(g.current?along*g.current[0]-across*.60*g.current[1]:along);
+   const tz=g.z+(g.current?along*g.current[1]+across*.60*g.current[0]:across);
    const dx=tx-p.x,dz=tz-p.z,dl=Math.max(Math.hypot(dx,dz),1e-6);
    const approach=Math.min(1,dl/f.L);
    const speed=g.reviewed?reviewedCruiseSpeed(f,this.time,dl)
@@ -391,7 +411,8 @@ export class IslandLife{
    f.panic=Math.max(0,f.panic-hdt*.6);
    if(away<reach){const a=1-away/reach,force=a*a*8+a*2;ax+=awayX/(away+.01)*force;az+=awayZ/(away+.01)*force;f.panic=Math.max(f.panic,a);this.audit.fleeFrames++;if(v.x*awayX+v.z*awayZ>0)this.audit.fleeAwayFrames++;}
    // Short-range body separation within the active school, scaled by length.
-   for(let i=g.first;i<g.first+g.count;i++){const q=this.fish[i];if(q===f||q.sleeping)continue;const sx=p.x-q.p.x,sz=p.z-q.p.z,sd=Math.hypot(sx,sz),clear=(f.L+q.L)*.8;if(sd<clear&&sd>.001){const force=(clear-sd)*1.8;ax+=sx/sd*force;az+=sz/sd*force;}}
+   const members=g.members??this.fish;
+   for(let i=g.first;i<g.first+g.count;i++){const q=members[i];if(q===f||q.sleeping)continue;const sx=p.x-q.p.x,sz=p.z-q.p.z,sd=Math.hypot(sx,sz),clear=(f.L+q.L)*.8;if(sd<clear&&sd>.001){const force=(clear-sd)*1.8;ax+=sx/sd*force;az+=sz/sd*force;}}
    for(const rock of g.obstacles??[]){const rx=p.x-rock.x,rz=p.z-rock.z,d=Math.hypot(rx,rz),safe=(rock.footRadius??rock.size*.9)+f.L*1.5;if(d<safe+1.1&&p.y<(rock.top??rock.y+rock.size*rock.sy*1.1)){const force=(safe+1.1-d)*3;ax+=rx/(d+.01)*force;az+=rz/(d+.01)*force;this.audit.obstacleDeflections++;}}
    const lookX=p.x+v.x*.8,lookZ=p.z+v.z*.8,water=g.sea?g.h:this.query.height(lookX,lookZ),bed=this.terrain.heightAt(lookX,lookZ),minimum=g.sampleMarine?1.12:g.sea?Math.max(1.5,this.breakDepth(lookX,lookZ)+.35):.35;
    if(water-bed<minimum){const gx=this.terrain.heightAt(lookX+.5,lookZ)-this.terrain.heightAt(lookX-.5,lookZ),gz=this.terrain.heightAt(lookX,lookZ+.5)-this.terrain.heightAt(lookX,lookZ-.5),l=Math.hypot(gx,gz)||1;ax-=gx/l*2+v.x*2;az-=gz/l*2+v.z*2;}
@@ -414,7 +435,7 @@ export class IslandLife{
   this.primarySwim?.dispose();
   this.group.removeFromParent();
  }
- hold(){for(const f of this.fish)f.fresh=true;this.environment.hold();}
+ hold(){for(const f of this.fish)f.fresh=true;for(const g of this.roaming?.groups??[])for(const f of g.members)f.fresh=true;this.environment.hold();}
  stats(){
   const bottom=this.benthicResidency?.stats();
   const benthicErrors=[...(this.benthicResidency?.entries.values()??[])].filter(e=>e.error).map(e=>e.definition.id+' '+e.error);
@@ -426,7 +447,8 @@ export class IslandLife{
    enabled:this.enabled,fish:this.fish.length,shrimp:0,
    birds:this.birds.length,insects:this.environment.fliers.length-this.birds.length,
    environmentalFlight:this.environment.stats(),
-   environmentalShoals:Object.fromEntries(Object.entries(this.reviewedSwim).map(([kind,s])=>[kind,{ready:!!s.ready,habitats:s.groups.length,individuals:s.capacity,residency:this.environmentResidency.state(kind)}])),
+   environmentalShoals:Object.fromEntries(Object.entries(this.reviewedSwim).map(([kind,s])=>[kind,{ready:!!s.ready,habitats:s.groups.length,individuals:s.fixedCount,residency:this.environmentResidency.state(kind)}])),
+   roamingShoals:(this.roaming?.groups??[]).map(g=>({id:g.id,species:g.reviewed,water:g.water,center:[g.x,g.h,g.z],depth:g.depth,count:g.count})),
    environmentResidency:this.environmentResidency.stats(),
    corals:this.benthos?.corals.reduce((n,c)=>n+c.sites.length,0)??0,coralKinds:this.benthos?.corals.length??0,shellForms:this.benthos?.shells.reduce((n,s)=>n+s.sites.length,0)??0,shellKinds:this.benthos?.shells.length??0,sponges:this.benthos?.sponges.reduce((n,s)=>n+s.sites.length,0)??0,visibleCorals:this.benthos?.corals.reduce((n,c)=>n+c.mesh.count,0)??0,visibleShells:this.benthos?.shells.reduce((n,s)=>n+s.mesh.count,0)??0,benthicDetails:this.benthicDetails?.stats()??null,marineBed:this.marineBed?.stats()??[],species,
    visibleFish:this.visibleFish,visibleShrimp:this.visibleShrimp,visibleBirds:this.visibleBirds,

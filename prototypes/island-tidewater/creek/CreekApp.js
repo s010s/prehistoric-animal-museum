@@ -26,6 +26,7 @@ import { TerrainGPU } from '../vendor/tidewater/src/world/TerrainGPU.js';
 import {IslandLife} from './IslandLife.js';
 import {schoolObservation} from './IslandAquaticObservation.js';
 import {LandscapeDetails} from './LandscapeDetails.js';
+import {prepareLandHabitatField} from './LandHabitatField.js';
 import {IslandEcology} from './IslandEcology.js';
 import {SubmergedBed} from './SubmergedBed.js';
 import {IslandLandmarkProps} from './IslandLandmarkProps.js';
@@ -143,6 +144,7 @@ export class CreekApp extends MuseumApp {
       this.sampleMuseumLife=SampleMuseumLife.create(this,this.islandFauna.residency);
     }catch(error){this.disposeFauna();throw error;}
     this.dynamicMuseumShadows=attachDynamicMuseumShadows(this);
+    prepareLandHabitatField(data,this);
     this.habitatEnrichment=await SampleHabitatEnrichment.create(this,data);
     data.sampleHabitatEnrichmentVisits=this.habitatEnrichment?.visits??{};
     this.islandEcology=new IslandEcology(this,data,this.islandVisits);
@@ -410,6 +412,9 @@ export class CreekApp extends MuseumApp {
     const maxTurn = 1.25 * dt, damping = 1 - Math.exp(-12 * dt);
     player.yaw += Math.max(-maxTurn, Math.min(maxTurn, damping * Math.atan2(Math.sin(yaw), Math.cos(yaw))));
     player.pitch += Math.max(-maxTurn, Math.min(maxTurn, damping * pitch));
+  }
+  get fastHabitatTransit() {
+    return this.freeCam && this.fly.velocity.lengthSq() > 96*96;
   }
   _frame(dt){
     GPU.beginFrame();FrameUniforms.fields.frameIndex.value=GPU.frame;G.dt.value=dt;G.time.value+=dt;this.updateFPS(dt);
