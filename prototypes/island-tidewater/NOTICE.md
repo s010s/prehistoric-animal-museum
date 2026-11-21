@@ -74,6 +74,6 @@
 
 ### 整岛植物与地貌观察点
 
-整岛地貌与植物观察点使用的 Vault 模型来自 Leon Made This / s010s，许可为 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。运行时调整位置、尺度和地面接触，移除漂砾与交错层理砂岩的展示底座，将干裂泥面嵌入真实地面，保留源材质及贴图。每项源文件、修订号、审查范围和哈希见 [island-ecology.lock.json](creek/island-ecology.lock.json)。干裂泥面使用 2026-11-20 的底面材质修订。植物形态、地貌与混合生境用于展示生态过程。
+整岛地貌与植物观察点使用的 Vault 模型来自 Leon Made This / s010s，许可为 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。运行时调整位置、尺度和地面接触，移除漂砾与交错层理砂岩的展示底座，将干裂泥面嵌入真实地面，保留源材质及贴图。每项源文件、修订号、审查范围和哈希见 [island-ecology.lock.json](creek/island-ecology.lock.json)。近海露头另用交错层理砂岩与砾岩的轻量派生模型。制作时裁去展示底部、简化表面网格，并将原贴图颜色烘入顶点。干裂泥面使用 2026-11-20 的底面材质修订。植物形态、地貌与混合生境用于展示生态过程。
 
 湖岸、湿地与东部支流的水声使用原生 pier_lap.ogg 的独立空间声源。高地风声、林边鸟声及夜间虫声沿用原生 CC0 录音。这些现代录音的作者和来源见 [Tidewater audio credits](vendor/tidewater/public/audio/CREDITS.md)。

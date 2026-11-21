@@ -4,6 +4,8 @@ import {BufferGeometry,BufferAttribute,Float32BufferAttribute,Group,Mesh,Vector3
 import {UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {uploadHabitatAlbedo} from './VaultEnvironmentAssets.js';
 import {createHabitatPlantMaterial} from './HabitatPlantMaterial.js';
+import {planFreshwaterMarsilea} from './FreshwaterMarsileaPlan.js';
+import {planLandUnderstory} from './LandUnderstoryPlan.js';
 import {islandEcologyGeometry} from './IslandEcology.js';
 import {loadGLB,decodeImage} from '../vendor/tidewater/src/engine/loaders/GLTF.js';
 import {ReefBatch} from '../vendor/tidewater/src/world/reef/ReefBatch.js';
@@ -331,8 +333,11 @@ export class SampleHabitatEnrichment{
   this.group=new Group();this.group.name='Sample fern margins, aquatic plants and dinosaur tracks';
   this.data=data;this.plan=planSampleHabitat(data,app.vegetation?.records??[],readTrackPath(data));
   this.visits=habitatVisits(data,this.plan,app);
+  this.landUnderstory=planLandUnderstory(data,app,SPECS);
+  this.freshwaterMarsilea=planFreshwaterMarsilea(data,app.islandVisits,SPECS);
+  this.plants=[...this.plan.plants,...this.landUnderstory.plants,...this.freshwaterMarsilea];
   const kinds=SPECS.map(spec=>({geometry:plantGeometry(model,spec),shadow:spec.mode===0}));
-  this.batch=new ReefBatch('Sample Habitat Vault Plants',kinds,{maxInstances:Math.max(1,this.plan.plants.length)});
+  this.batch=new ReefBatch('Sample Habitat Vault Plants',kinds,{maxInstances:Math.max(1,this.plants.length)});
   const uv=new Float32Array(this.batch.vertexCount*2);
   let offset=0;
   for(const {geometry} of kinds){
@@ -345,7 +350,12 @@ export class SampleHabitatEnrichment{
   this.view=new UniformBlock('SampleHabitatView',{position:['vec3f',new Vector3()]});
   this.material=createHabitatPlantMaterial(this.batch,app.terrainGPU,this.view,{atlas});
   this.group.add(this.batch.createMesh(this.material,{castShadow:true}));
-  for(const [i,p]of this.plan.plants.entries()){
+  this.plantCells=new Map();
+  this.plantCellSize=Math.max(...SPECS.map(spec=>spec.range));
+  for(const [i,p]of this.plants.entries()){
+   const cell=Math.floor(p.x/this.plantCellSize)+','+Math.floor(p.z/this.plantCellSize);
+   if(!this.plantCells.has(cell))this.plantCells.set(cell,[]);
+   this.plantCells.get(cell).push(i);
    const half=p.yaw*.5;
    this.batch.data.set([p.x,p.y,p.z,p.scale,0,Math.sin(half),0,Math.cos(half),p.seed,p.range,p.mode,p.height,p.flow[0],p.flow[1],p.flex,p.lift??0],i*16);
   }
@@ -366,9 +376,14 @@ export class SampleHabitatEnrichment{
   // Also accepts update(camera) for the other local habitat adapters.
   if(!camera)camera=dt;
   const cp=camera.position;this.view.fields.position.value.copy(cp);this.batch.begin();
-  for(let i=0;i<this.plan.plants.length;i++){
-   const p=this.plan.plants[i];if(Math.hypot(cp.x-p.x,cp.y-p.y,cp.z-p.z)>p.range)continue;
-   this.batch.add(p.kind,i);
+  const cx=Math.floor(cp.x/this.plantCellSize),cz=Math.floor(cp.z/this.plantCellSize);
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+   const nearby=this.plantCells.get((cx+dx)+','+(cz+dz));
+   if(!nearby)continue;
+   for(const i of nearby){
+    const p=this.plants[i];
+    if((cp.x-p.x)**2+(cp.y-p.y)**2+(cp.z-p.z)**2<=p.range*p.range)this.batch.add(p.kind,i);
+   }
   }
   this.batch.commit();
   if(this.trackMesh)this.trackMesh.visible=this.plan.tracks.some(p=>Math.hypot(cp.x-p.x,cp.y-p.y,cp.z-p.z)<34);
@@ -390,6 +405,6 @@ export class SampleHabitatEnrichment{
  }
  stats(){
   const p=this.plan;
-  return {sourceRevision:'b213afa4b401bc5ae9f29a4c3fff8187d2a71142',plants:p.plants.length,byForm:p.counts,visiblePlants:this.batch.visibleInstances,visibleTriangles:this.batch.visibleTriangles,plantDrawKinds:this.batch.mainOffsets.length,sourceForms:4,nativeSeagrass:true,tracks:p.tracks,trackPath:p.trackPath,trackGroundAudit:this.trackGroundAudit??null,trackTriangles:this.trackMesh?.geometry.index.count/3??0,trackPlacement:'source cavity topology, no substrate slab; terrain-matched 2–15 mm shallow relief; older artistic Parasaurolophus-like hindfoot trail, not current short-step footfalls',submergedPlants:p.plants.filter(x=>x.mode>=2).length,emergentFreshwaterMargins:p.plants.filter(x=>x.mode===1).length,landPlants:p.plants.filter(x=>x.mode===0).length,minSubmergedHeadroom:Math.min(...p.plants.filter(x=>x.mode>=2).map(x=>x.depth-x.height)),maxRootEmbedMetres:.018,maxRootCentreErrorMetres:Math.max(0,...p.plants.map(x=>Math.abs(x.y+.018-this.data.terrain.heightAt(x.x,x.z)))),sites:p.plants.map(x=>({id:x.id,x:x.x,y:x.y,z:x.z,mode:x.mode,depth:x.depth,height:x.height,slope:x.slope,scale:x.scale})),wind:'root-anchored leaf/branch bend with native frame wind and previous-pose velocity; current and swell for submerged plants',rejections:p.rejections};
+  return {sourceRevision:'b213afa4b401bc5ae9f29a4c3fff8187d2a71142',plants:p.plants.length,landUnderstory:this.landUnderstory.counts,freshwaterMarsilea:this.freshwaterMarsilea.length,byForm:p.counts,visiblePlants:this.batch.visibleInstances,visibleTriangles:this.batch.visibleTriangles,plantDrawKinds:this.batch.mainOffsets.length,sourceForms:4,nativeSeagrass:true,tracks:p.tracks,trackPath:p.trackPath,trackGroundAudit:this.trackGroundAudit??null,trackTriangles:this.trackMesh?.geometry.index.count/3??0,trackPlacement:'source cavity topology, no substrate slab; terrain-matched 2–15 mm shallow relief; older artistic Parasaurolophus-like hindfoot trail, not current short-step footfalls',submergedPlants:p.plants.filter(x=>x.mode>=2).length,emergentFreshwaterMargins:p.plants.filter(x=>x.mode===1).length,landPlants:p.plants.filter(x=>x.mode===0).length,minSubmergedHeadroom:Math.min(...p.plants.filter(x=>x.mode>=2).map(x=>x.depth-x.height)),maxRootEmbedMetres:.018,maxRootCentreErrorMetres:Math.max(0,...p.plants.map(x=>Math.abs(x.y+.018-this.data.terrain.heightAt(x.x,x.z)))),sites:p.plants.map(x=>({id:x.id,x:x.x,y:x.y,z:x.z,mode:x.mode,depth:x.depth,height:x.height,slope:x.slope,scale:x.scale})),wind:'root-anchored leaf/branch bend with native frame wind and previous-pose velocity; current and swell for submerged plants',rejections:p.rejections};
  }
 }

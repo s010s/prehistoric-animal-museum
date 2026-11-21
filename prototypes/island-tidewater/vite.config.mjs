@@ -7,11 +7,13 @@ import { submergedShadingContract } from './tools/submerged-shading-contract.mjs
 import { cloudViewContract } from './tools/cloud-view-contract.mjs';
 import { meshJitterContract } from './tools/mesh-jitter-contract.mjs';
 import { temporalCoverageContract } from './tools/temporal-coverage-contract.mjs';
+import { prepareMarineRocks } from './tools/prepare-marine-rocks.mjs';
 import { prepareFaunaLods } from './tools/prepare-fauna-lods.mjs';
 import { prepareTerrainTransport } from './tools/prepare-terrain-transport.mjs';
 await writeBuildInfo();
 await prepareTerrainTransport();
 await prepareFaunaLods();
+await prepareMarineRocks();
 const path = name => fileURLToPath(new URL(name, import.meta.url));
 // Check the literal URLs the shipped browser code requests. The build can
 // emit a motion chunk yet leave a dangling source JSON import in its caller.

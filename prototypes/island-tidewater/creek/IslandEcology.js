@@ -19,11 +19,12 @@ const FORMS = {
   tussock: {reach: 89, flex: .90, color: [0x686146, 0x8a7f56]},
   heath: {reach: 74, flex: .30, color: [0x4c553c, 0x63694e]},
   submerged: {reach: 36, flex: .78, color: [0x505937, 0x62704a]},
-  seagrass: {reach: 39, flex: 1, color: [0x4d5b39, 0x637047]},
+  seagrass: {reach: 39, flex: 1, color: [0x526344, 0x8a905e]},
   algae: {reach: 30, flex: .33, color: [0x5b5940, 0x6d6b4d]},
   duff: {reach: 34, flex: 0, color: [0x4d4635, 0x5d513e]},
   scree: {reach: 100, flex: 0, color: [0x5c5a52, 0x7a7162], rock: 2},
   cobble: {reach: 67, flex: 0, color: [0x52564c, 0x6c6a5e], rock: 0},
+  talus: {reach: 68, flex: 0, color: [0x414645, 0x5c6059], rock: 1},
 };
 
 function linearSwatch(packed) {
@@ -155,7 +156,8 @@ export function islandEcologyGeometry(name, lod, seed) {
   const form = FORMS[name], colors = form.color.map(linearSwatch);
   if (form.rock != null) {
     const g = buildRockGeometry(form.rock, seed, lod ? 1 : 2), pos = g.attributes.position, ao = g.attributes.ao, packed = [];
-    g.scale(name === 'scree' ? .98 : 1.11, name === 'scree' ? .54 : .42, .79);
+    if (name === 'talus') g.scale(.88, .74, .73);
+    else g.scale(name === 'scree' ? .98 : 1.11, name === 'scree' ? .54 : .42, .79);
     g.rotateZ(name === 'scree' ? -.12 : .17);
     g.translate(0, .018, 0);
     for (let i = 0; i < pos.count; i++) {
@@ -167,11 +169,22 @@ export function islandEcologyGeometry(name, lod, seed) {
   }
   if (name === 'seagrass') {
     const g = createSeagrass(mulberry32(seed), lod), d = g.attributes.aData, pos = g.attributes.position;
-    g.scale(2.9, 1.75, 2.9);
+    // Flat blades arch along the local current. The tapered, lit tips
+    // separate neighbouring shoots when looking horizontally underwater.
+    g.scale(2.1, 1.52, 2.1);
+    const normal = g.attributes.normal;
     for (let i = 0; i < pos.count; i++) {
-      d.setY(i, colors[i % 2]);
-      d.setZ(i, .75 + Math.min(.25, pos.getY(i) * .64));
+      const t = d.getX(i), blade = d.getW(i), direction = blade * TAU;
+      const arch = t * t * (.12 + .19 * blade), height = pos.getY(i);
+      pos.setXYZ(i,pos.getX(i) + arch * (.65 + Math.cos(direction)),
+        height * (1 - t*t*(.15 + .22*blade)),pos.getZ(i) + arch * Math.sin(direction));
+      const ny = normal.getY(i) + .25 + .46 * t, nx = normal.getX(i), nz = normal.getZ(i);
+      const length = Math.hypot(nx,ny,nz);
+      normal.setXYZ(i,nx/length,ny/length,nz/length);
+      d.setY(i,colors[t>.62||blade>.73?1:0]);
+      d.setZ(i,.84 + .15*t);
     }
+    g.computeBoundingSphere();
     return g;
   }
   return foliageGeometry(name, colors, lod, seed);
@@ -181,7 +194,8 @@ export class IslandEcology {
   constructor(app, data, visits) {
     const shelf = app.shelfReef?.obstacles ?? [];
     const rock = app.coveRocks?.instances ?? [];
-    this.plan = planIslandEcology(data, visits, [...shelf, ...rock]);
+    this.plan = planIslandEcology(data, visits, [...shelf, ...rock], app.habitatEnrichment?.landUnderstory.coverSites);
+    app.life?.addMarineBed(this.plan);
     this.group = new Group();
     this.group.name = 'Island banks, scree, understory and marine vegetation';
     this.shapes = {};

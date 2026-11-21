@@ -40,7 +40,12 @@ export class CreekTerrain extends Terrain {
  let tidalSand=tidalOutlet*(1.0-smoothstep(.08,1.2,wf.x-frame.seaLevel));
  let bank=(1.0-tidalSand)*select(1.0-smoothstep(2.0,10.0,abs(wf.y)),1.0-smoothstep(.25,2.0,wf.y),sampleBank)*(1.0-smoothstep(0.6,2.2,P.y-wf.x));
  let channelStone=bank*smoothstep(.08,.4,1.0-N.y);
- let rockW=max(museumShoreRock(nr.z,N.y),channelStone*.92);
+ // Flow can expose bedrock on a steep submerged bank well inside the signed
+ // water footprint. Its face keeps the same fractures above and below water.
+ let cutFace=smoothstep(.135,.32,1.0-N.y)*smoothstep(.14,.30,length(wf.zw))
+   *smoothstep(.25,.85,wf.x-P.y)*(1.0-smoothstep(-.2,.2,wf.y))
+   *smoothstep(1.0,2.0,wf.x-frame.seaLevel)*smoothstep(44.0,74.0,sampleField.y);
+ let rockW=max(max(museumShoreRock(nr.z,N.y),channelStone*.92),cutFace);
  // Sea and freshwater have separate local bed levels at the mouth.
  let seaDepth=frame.seaLevel-P.y;
  let riverDepth=wf.x-P.y;
@@ -158,8 +163,13 @@ export class CreekTerrain extends Terrain {
    let gravel=mix(${srgb(.34,.35,.32)},${srgb(.46,.45,.40)},stone);
    let deposits=mix(silt,gravel,smoothstep(.35,.73,stone)*riverBed*.55);
    var bedColour=mix(deposits,legacyBed,fine*.65);
+   // Organic fines settle in quiet lake hollows; neighbouring washed pockets
+   // expose lighter silt. Reuse the filtered deposits, including their gradients.
+   let profundal=riverBed*smoothstep(4.2,8.0,riverDepth)*(1.0-smoothstep(.09,.19,length(wf.zw)));
+   let lens=smoothstep(.54,.73,m.w*.47+deposit*.37+B.y*.16);
+   bedColour=mix(bedColour,${srgb(.32,.30,.26)},profundal*lens*.52);
    bedColour=mix(mix(bedColour,legacyBed,museumGroundReview.inlandBedLegacy),mud,marsh*.75);
-   ground=mix(ground,bedColour,underBed);
+   ground=mix(ground,mix(bedColour,rockColour,cutFace*.87),underBed);
   }
   bedRelief=(A.y*.009+B.z*.004)*(1.0-smoothstep(.08,.42,footprint))*underBed;
  }
@@ -307,7 +317,7 @@ export class CreekTerrain extends Terrain {
  let swardWeight=1.0-smoothstep(.055,.27,reliefFootprint);
  let swardRelief=meadowRelief*swardWeight*(1.0-underBed)*(1.0-mouthSand)*(1.0-snow*museumGroundReview.snow);
  let soilRelief=((d.y-.35)*.022*litterWeight+(micro.z-.45)*.003*sandGrainWeight)*(1.0-mouthSand);
- s.normal=terrainPerturbNormal(P,N,(mix(soilRelief+swardRelief,rockRelief,rockW)*(1.0-underBed)+bedRelief+sandRipples+grainRelief)*museumGroundReview.bump,1.0);s.ao=mix(.72,1.0,nr.w);
+ s.normal=terrainPerturbNormal(P,N,(mix(soilRelief+swardRelief,rockRelief,rockW)*(1.0-underBed)+rockRelief*cutFace*underBed*.70+bedRelief+sandRipples+grainRelief)*museumGroundReview.bump,1.0);s.ao=mix(.72,1.0,nr.w);
  if(underBed>.5){if(museumGroundReview.bedDebug==1.0){s.albedo=vec3f(.2);}if(museumGroundReview.bedDebug==2.0){s.normal=vec3f(0.0,1.0,0.0);}if(museumGroundReview.bedDebug==3.0){s.albedo=vec3f(.15+(wf.x-P.y)*.025);s.normal=vec3f(0.0,1.0,0.0);}if(museumGroundReview.bedDebug==4.0){s.albedo=vec3f(.2);s.normal=vec3f(0.0,1.0,0.0);s.ao=1.0;}}
 `;
     this.setCoastWetness(null);mat.needsUpdate=true;this.mesh.name='Original museum creek and western coast terrain';

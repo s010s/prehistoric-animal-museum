@@ -195,7 +195,7 @@ function pockets(area, rng, count) {
   });
 }
 
-export function planIslandEcology(data, visits, obstacles = []) {
+export function planIslandEcology(data, visits, obstacles = [], visitorCover = []) {
   const areas = islandCoverAreas(data, visits), sites = [], counts = {};
   const route = data.field.continuousSample;
   const cellSize = 48, byCell = new Map();
@@ -245,6 +245,11 @@ export function planIslandEcology(data, visits, obstacles = []) {
       }
       regional[spec.form] = accepted.length;
     }
+  }
+  for (const site of visitorCover) {
+    sites.push(site);
+    const regional = counts[site.region] ??= {};
+    regional[site.form] = (regional[site.form] ?? 0) + 1;
   }
   return {areas, sites, counts};
 }

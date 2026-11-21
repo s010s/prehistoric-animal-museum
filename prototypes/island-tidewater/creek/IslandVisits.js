@@ -1,5 +1,6 @@
 // Museum visitor routes in one continuous world. Arrival points are checked
 // against the same physical terrain and inland water used for navigation.
+import {freshwaterBedVisits} from './FreshwaterBedVisits.js';
 import {sampleVisits} from './SampleVisits.js';
 import {regionalLandformVisits} from './RegionalLandforms.js';
 // Terrain and water are already final when the first guide is built. Later
@@ -99,7 +100,7 @@ export function createIslandVisits(data){
  const c=data.coast.coast;
  visits['coast-birds']={id:'coast-birds',title:'鱼鸟掠过浅湾',note:'留在岸边观察成群的鱼鸟贴着海面低飞。开启自然声可听到来自鸟群位置的现代海鸟录音。',p:[c.x+5,c.z],gaze:[c.x-45,7,c.z+7],time:10.7};
  if(life?.west){const g=life.west;visits['shore-life']={id:'shore-life',title:'浅湾潜水看鱼',note:'潜入砂槽，在清水中观察小鱼。WASD 游动，空格上浮，C 下潜；岸上的海鸟仍在飞行。',diveLevel:g.h,p:[g.x+4,g.z+1],gaze:[g.x,g.h-1,g.z],time:10.7};}
- Object.assign(visits,regionalLandformVisits(t),sampleVisits(data));
+ Object.assign(visits,regionalLandformVisits(t),sampleVisits(data),freshwaterBedVisits(data));
  for(const v of Object.values(visits)){v.ground=t.heightAt(v.p[0],v.p.at(-1));v.waterAtArrival=field.sample(v.p[0],v.p.at(-1))[0];}
  return visits;
 }

@@ -176,8 +176,8 @@ function rootGeometry(mesh, spec, terrain, referenceY, bounds) {
       // Expose irregular central cracking. The sidewall and rectangular
       // perimeter descend into the actual bank along the local contour.
       const u = (positions.getX(i) - center.x) / extent.x, v = (positions.getZ(i) - center.z) / extent.z;
-      const outline = Math.max(Math.abs(u + .085 * Math.sin(v * 12)), Math.abs(v + .075 * Math.sin(u * 9)));
-      const relief = (y - .012) * .57 + .022 - .100 * smooth(.62, .99, outline);
+      const outline = Math.hypot(u + .12 * Math.sin(v * 9), v * 1.17 + .12 * Math.sin(u * 8));
+      const relief = (y - .012) * .43 + .012 - .101 * smooth(.39, .95, outline);
       positions.setY(i, y + (ground + relief - world.y) / yScale);
     } else {
       const contact = 1 - smooth(.08, .61, (y - referenceY) * yScale);
@@ -223,6 +223,7 @@ async function makeModel(gltf, data, spec, isCurrent) {
       geometry.computeBoundingBox();
       bounds.union(geometry.boundingBox);
       const material = await materials(p.material, !!p.attributes.COLOR_0);
+      if (spec.id === 'desiccation-crack-surface') material.uniforms.color.value.setRGB(.50, .53, .42);
       const mesh = new Mesh(geometry, material);
       mesh.name = spec.id;
       mesh.receiveShadow = true;
@@ -267,6 +268,7 @@ export class IslandLandmarkProps {
     this.data = data;
     this.colliders = app.colliders;
     this.slots = arrangeIslandLandmarks(data, areas, [...(app.coveRocks?.instances ?? []), ...(app.shelfReef?.obstacles ?? [])]);
+    this.slots.push(...(app.habitatEnrichment?.landUnderstory.landmarks ?? []));
     this.group = new Group();
     this.group.name = 'Reviewed Lowpoly Vault island landmarks';
     this.active = true;

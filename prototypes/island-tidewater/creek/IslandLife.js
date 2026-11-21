@@ -6,9 +6,11 @@ import {fishGeometry} from '../vendor/tidewater/src/world/fish/FishGeometry.js';
 import {SPECIES} from '../vendor/tidewater/src/world/fish/FishSpecies.js';
 import {createSwimMaterial} from '../vendor/tidewater/src/world/fish/FishMaterial.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
-import {VAULT_BENTHIC,loadVaultCoastLife,createVaultBenthos} from './VaultCoastLife.js';
+import {loadBenthicSpecies} from './VaultCoastLife.js';
 import {clipCreekRefraction} from './CreekWater.js';
 import {SampleBenthicDetails} from './SampleBenthicDetails.js';
+import {loadMarineRockProfiles} from './MarineRockProfiles.js';
+import {MarineBenthicDetails} from './MarineBenthicDetails.js';
 
 
 import {VaultEnvironmentFlight} from './VaultEnvironmentFlight.js';
@@ -18,6 +20,7 @@ import {loadReviewedFauna, reviewedAlbedo} from './VaultEnvironmentAssets.js';
 import {loadReviewedIndices} from './VaultGeometryLods.js';
 import {REVIEWED_FISH, reviewedSwimKinds, installReviewedSwimAttributes, bindReviewedSwim, addReviewedSwimInstance} from './VaultEnvironmentSwim.js';
 import {createReviewedSwimMotion, createReviewedSwimMaterial, advanceReviewedSwimPose, steerReviewedSwimmer, reviewedCruiseSpeed, REVIEWED_SWIM_RIGS} from './VaultReviewedSwimMotion.js';
+import {visitorShoals} from './VisitorShoals.js';
 
 // The vendor's two small school fish remain available in the original terrain mode.
 function nativeSwimEffort(fish,dt) {
@@ -36,8 +39,14 @@ function nativeSwimEffort(fish,dt) {
 }
 
 export class IslandLife{
- static async create(options){return new IslandLife(options);}
- constructor({app,data,visits}){
+ static async create(options){
+  const profiles=options.data.field.continuousSample?await loadMarineRockProfiles().catch(error=>{
+   console.warn('Marine rock profiles unavailable',error);return [];
+  }):[];
+  return new IslandLife({...options,profiles});
+ }
+ constructor({app,data,visits,profiles}){
+  this.marineRockProfiles=profiles;
   this.app=app;this.data=data;this.terrain=data.terrain;this.query=app.query;this.time=0;this.groups=[];this.fish=[];this.audit={fleeFrames:0,fleeAwayFrames:0,obstacleDeflections:0,maxPanic:0,violations:0,minBedClearance:Infinity,minSurfaceClearance:Infinity,minBirdGroundClearance:Infinity};this.group=new Group();this.group.name='Museum environmental life';const rng=mulberry32(440213);
   // Habitat and visitor arrival are designed together. Keep native short draw
   // ranges; moving the lake school sixty metres away defeats a normal shore walk.
@@ -93,19 +102,27 @@ export class IslandLife{
    specs.push([site.id+'-life',{x:site.point[0],z:site.point[1]},shark?7:15,shark?.28:.48,4,
     {min:2.2,max:9,target:3.8,radius:45,step:2,sea:true,vault:nativeOr(kind),school:true}]);
   }
-  for(const [id,p,count,length,radius,search] of specs){const c=wetNear(p.x,p.z,search);if(!c)continue;const g={id,...c,reviewed:REVIEWED_FISH.includes(search.vault)?search.vault:null,sea:!!search.sea,sampleMarine:!!search.sampleMarine,radius,first:this.fish.length,count,school:!!search.school,routePhase:rng()*6.283,lowerDwell:!!search.lowerDwell,cruise:search.cruise??1};this.groups.push(g);for(let i=0;i<count;i++){
-   const vaultFish=g.reviewed;
-   const L=length*(.82+rng()*.36);
-   this.fish.push({group:g,thrustPhase:vaultFish?REVIEWED_SWIM_RIGS[vaultFish].thrustPhase:0,phase:rng()*Math.PI*2,slot:rng()*6.283,spread:.25+rng()*.75,depth:.26+rng()*.46,L,p:new Vector3(c.x,Math.max(c.floor+.15,c.h-.6),c.z),previous:new Vector3(),fresh:true,sleeping:true,velocity:new Vector3(),panic:0,yaw:rng()*6.283,morph:vaultFish?0:i%5===0?1:0,seed:rng(),vault:vaultFish});
-   // Large fish in the shallow sand channel need room for their long snouts
-   // on waking. Stagger initial depth and radius without synchronising beats.
-   if(id==='sample-sea'||id==='sample-mouth-fish'){
-    const f=this.fish.at(-1), ring=Math.sqrt((i+.65)/count);
-    f.slot=g.routePhase+i*2.399963+.32*(f.slot/6.283-.5);
-    f.spread=.16+.84*ring;
-    f.depth=.26+.46*((i*.414214+g.routePhase/6.283)%1);
+  if(sample)specs.push(...visitorShoals());
+  for(const [id,p,count,length,radius,search] of specs){
+   const c=wetNear(p.x,p.z,search);if(!c)continue;
+   const g={id,...c,reviewed:REVIEWED_FISH.includes(search.vault)?search.vault:null,sea:!!search.sea,sampleMarine:!!search.sampleMarine,radius,first:this.fish.length,count,school:!!search.school,routePhase:rng()*6.283,lowerDwell:!!search.lowerDwell,cruise:search.cruise??1};
+   const shallow=search.depthBand?.[0]??.26;
+   const depthRange=search.depthBand?search.depthBand[1]-shallow:.46;
+   this.groups.push(g);
+   for(let i=0;i<count;i++){
+    const vaultFish=g.reviewed;
+    const L=length*(.82+rng()*.36);
+    this.fish.push({group:g,thrustPhase:vaultFish?REVIEWED_SWIM_RIGS[vaultFish].thrustPhase:0,phase:rng()*Math.PI*2,slot:rng()*6.283,spread:.25+rng()*.75,depth:shallow+rng()*depthRange,L,p:new Vector3(c.x,Math.max(c.floor+.15,c.h-.6),c.z),previous:new Vector3(),fresh:true,sleeping:true,velocity:new Vector3(),panic:0,yaw:rng()*6.283,morph:vaultFish?0:i%5===0?1:0,seed:rng(),vault:vaultFish});
+    // Large fish in the shallow sand channel need room for their long snouts
+    // on waking. Stagger initial depth and radius without synchronising beats.
+    if(id==='sample-sea'||id==='sample-mouth-fish'){
+     const f=this.fish.at(-1), ring=Math.sqrt((i+.65)/count);
+     f.slot=g.routePhase+i*2.399963+.32*(f.slot/6.283-.5);
+     f.spread=.16+.84*ring;
+     f.depth=.26+.46*((i*.414214+g.routePhase/6.283)%1);
+    }
    }
-  }}
+  }
   const westSchools=this.groups.filter(g=>g.sea&&g.school&&g.h-g.floor>1.4);
   westSchools.sort((a,b)=>Math.hypot(a.x-westCenter[0],a.z-westCenter[1])-Math.hypot(b.x-westCenter[0],b.z-westCenter[1]));
   data.lifeObservations={creek:this.groups.find(g=>g.id==='creek'),west:this.groups.find(g=>g.id==='west-sea')??westSchools[0]};
@@ -158,10 +175,8 @@ export class IslandLife{
   this.environment=new VaultEnvironmentFlight(this.group,data,visits,this.environmentResidency,prepare);
   this.birds=this.environment.fliers.filter(f=>this.environment.types.get(f.species).type.kind==='bird');
   this.benthicDetails=data.field.continuousSample?new SampleBenthicDetails(app,data,data.sampleLife):null;
-  this.benthos=null;
-  this.vaultLoads=data.field.continuousSample?{
-   benthic:{ready:false,pending:null,attempts:0,retryAt:0,error:null},
-  }:null;
+  this.benthos={corals:[],shells:[],sponges:[]};
+  this.benthicResidency=null;
   this.vaultLocationReady=false;
   app.scene.add(this.group);this.q=new Quaternion();this.euler=new Euler(0,0,0,'YXZ');this.frustum=new Frustum();this.viewProjection=new Matrix4();this.sphere=new Sphere();this.screen=new Vector3();this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};this.trackingSwimmers=[];this.enabled=true;this.update(0,app.camera);
  }
@@ -200,25 +215,48 @@ export class IslandLife{
   }catch(error){for(const texture of textures)texture.destroy();throw error;}
  }
 
- requestBenthicModels(){
-  const state=this.vaultLoads.benthic;
-  if(state.ready||state.pending||state.attempts>=2||performance.now()<state.retryAt)return;
-  state.attempts++;
-  state.pending=(async()=>{
-   const vault=await loadVaultCoastLife(VAULT_BENTHIC);
-   if(this.disposed)return;
-   const group=new Group();group.name='Museum Vault benthos';
-   const benthos=await createVaultBenthos(vault,group,this.terrain,this.benthicDetails);
-   if(this.disposed){benthos?.dispose();return;}
-   this.benthos=benthos;
-   group.traverse(node=>{if(node.isMesh&&node.material)clipCreekRefraction(node.material,this.data.field);});
-   this.benthos?.update(this.app.camera);
-   this.group.add(group);
-   state.ready=true;state.error=null;
-  })().catch(error=>{
-   state.error=String(error);state.retryAt=performance.now()+5000;
-   console.warn('Museum Vault benthos unavailable',error);
-  }).finally(()=>{state.pending=null;});
+ addMarineBed(ecology){
+  if(!this.benthicDetails||!this.marineRockProfiles?.length)return;
+  this.marineBed=new MarineBenthicDetails(this.app,this.data,ecology,this.marineRockProfiles);
+ }
+ createBenthicResidency(){
+  // At the original west gardens all ten kinds can be in view together.
+  // Every other district reserves only the species occupying its actual beds.
+  const residency=new FaunaResidency({concurrency:2,residentLimit:10,speciesLimit:10,byteLimit:32*1024**2});
+  for(const [category,key] of [['corals','coralSites'],['shells','shellSites'],['sponges','spongeSites']]){
+   const sampleSites=this.benthicDetails[key],byKind=new Map();
+   for(const site of [...sampleSites,...(this.marineBed?.[key]??[])]){
+    if(!byKind.has(site.kind))byKind.set(site.kind,[]);
+    byKind.get(site.kind).push(site);
+   }
+   const sampleKinds=new Set(sampleSites.map(site=>site.kind));
+   for(const [kind,sites] of byKind){
+    const habitats=sites.map(s=>({x:s.x,z:s.z,y:s.floor}));
+    // Retain the historical approach to the west garden from the sample trail.
+    if(sampleKinds.has(kind))habitats.push({x:-980,z:150,minY:-30,maxY:0,radius:100});
+    residency.add({id:kind,habitats,range:80,hysteresis:35,bytes:3*1024**2+sites.length*128,
+     load:signal=>loadBenthicSpecies(kind,category,sites,this.terrain,signal),
+     prepare:(asset,signal)=>{
+      clipCreekRefraction(asset.mesh.material,this.data.field);
+      const model={meshes:[asset.mesh]};
+      markStreamedFaunaMaterials(model,'vault-benthos:'+kind);
+      return this.app.islandFauna?.pipelines.prepareMain(model,signal);
+     },
+     attach:asset=>{
+      asset.update(this.app.camera);
+      this.benthos[category].push(asset);
+      this.group.add(asset.mesh);
+     },
+     detach:asset=>{
+      const list=this.benthos[category],index=list.indexOf(asset);
+      if(index>=0)list.splice(index,1);
+      asset.mesh.removeFromParent();
+     },
+     dispose:asset=>asset.dispose(),
+    });
+   }
+  }
+  return residency;
  }
  queueNearbyVault(camera){
   if(this.disposed)return;
@@ -226,18 +264,22 @@ export class IslandLife{
   if(!this.lastScan||this.lastScan.distanceToSquared(cp)>36||now>=this.nextScan){
    this.lastScan??=new Vector3();this.lastScan.copy(cp);this.nextScan=now+400;
    this.environmentResidency.scan(cp);
+   if(this.benthicDetails&&this.enabled){
+    this.benthicResidency??=this.createBenthicResidency();
+    this.benthicResidency.scan(cp);
+   }else if(this.benthicResidency){
+    this.benthicResidency.dispose();
+    this.benthicResidency=null;
+   }
   }
-  if(!this.enabled)return;
-  if(!this.vaultLoads)return;
-  const {x,y,z}=camera.position,{benthic}=this.vaultLoads;
-  if(!benthic.ready&&!benthic.pending&&benthic.attempts<2&&y<40&&Math.hypot(x+980,z-150)<180)this.requestBenthicModels();
  }
 
  async prepareNearby(camera){
   this.vaultLocationReady=true;
   this.queueNearbyVault(camera);
-  await Promise.all([this.vaultLoads?.benthic.pending,
-   ...[...this.environmentResidency.entries.keys()].map(id=>this.environmentResidency.ready(id))]);
+  // Optional bottom fauna streams into the running scene. A damaged reef
+  // download must not hold the visitor at the loading screen.
+  await Promise.all([...this.environmentResidency.entries.keys()].map(id=>this.environmentResidency.ready(id)));
  }
 
  update(dt,camera){
@@ -245,60 +287,70 @@ export class IslandLife{
   this.group.visible=this.enabled;
   this.trackingSwimmers.length=0;
   this.time+=dt;const cp=camera.position;camera.updateMatrixWorld();this.viewProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.viewProjection,camera.coordinateSystem,camera.reversedDepth);this.pxScale=camera.projectionMatrix.elements[5]*this.app.engine.height*.5;this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};for(const {batch} of this.swimBatches)batch.begin();let live=0;this.audit.minBedClearance=Infinity;this.audit.minSurfaceClearance=Infinity;
-  for(let i=0;i<this.fish.length;i++){
-   const f=this.fish[i],g=f.group,dist=Math.hypot(cp.x-g.x,cp.z-g.z);if(!this.enabled||dist>65||cp.y>g.h+8){f.fresh=true;f.sleeping=true;continue;}
-   const render=g.reviewed?this.reviewedSwim[g.reviewed].ready:this.primarySwim;
-   if(!render)continue;
-   const {batch,motion}=render, D=batch.data, renderIndex=f.renderIndex??i;
-   const step=Math.min(dt,.1);
-   f.previous.copy(f.p);this.advance(f,step,cp);
-   const swim=g.reviewed?advanceReviewedSwimPose(f,step):null;
-   const nativeEffort=swim?null:nativeSwimEffort(f,step);
-   if(nativeEffort)f.phase=(f.phase+nativeEffort.deltaPhase)%(200*Math.PI);
-   const {x,y,z}=f.p,h=g.sea?g.h:this.query.height(x,z),floor=this.terrain.heightAt(x,z);
-
-   const clear=y-floor,top=h-y;this.audit.minBedClearance=Math.min(this.audit.minBedClearance,clear);this.audit.minSurfaceClearance=Math.min(this.audit.minSurfaceClearance,top);if(clear<0||top<0)this.audit.violations++;
-   const distance=cp.distanceTo(f.p),range=42;if(distance>range){f.fresh=true;continue;}
-   const L=f.L,pixels=L*this.pxScale/Math.max(.2,distance);
-   if(pixels<1.2){f.fresh=true;continue;}
-   this.sphere.center.copy(f.p);this.sphere.radius=L;
-   f.trackingVisible=this.frustum.intersectsSphere(this.sphere);
-   if(distance<range){f.trackingId=i;this.trackingSwimmers.push(f);}
-   if(!f.trackingVisible){f.fresh=true;continue;}
-   this.screen.copy(f.p).project(camera);this.frameSight.fish.push({position:f.p.toArray(),length:L,distance,pixels,ndc:[this.screen.x,this.screen.y],habitat:g.id,species:f.vault??'native',bedClearance:clear,surfaceClearance:top});
-   if(swim){
-    this.q.setFromEuler(this.euler.set(swim.pitch,f.yaw,swim.roll,'YXZ'));
-    motion.setPose(renderIndex,swim,this.q,f.fresh);
-    const k=renderIndex*16;
-    D[k]=x;D[k+1]=y;D[k+2]=z;D[k+3]=L;
-    D[k+12]=f.fresh?0:x-f.previous.x;D[k+13]=f.fresh?0:y-f.previous.y;D[k+14]=f.fresh?0:z-f.previous.z;
-    f.fresh=false;
-    addReviewedSwimInstance(batch,renderIndex,pixels,distance,range);
-    live++;
+  for(const g of this.groups){
+   const dx=cp.x-g.x,dz=cp.z-g.z;
+   if(!this.enabled||dx*dx+dz*dz>65*65||cp.y>g.h+8){
+    if(g.awake)for(let i=g.first;i<g.first+g.count;i++){this.fish[i].fresh=true;this.fish[i].sleeping=true;}
+    g.awake=false;
     continue;
    }
-   const level=pixels>=320?0:pixels>=80?1:pixels>=22?2:3,lod=f.morph*4+level;
-   const {deltaPhase,amplitude,bend,pitch,roll}=nativeEffort;
-   this.euler.set(pitch,f.yaw,roll,'YXZ');this.q.setFromEuler(this.euler);
-   const k=renderIndex*16;
-   D.set([x,y,z,L,this.q.x,this.q.y,this.q.z,this.q.w,f.phase,amplitude,bend,(f.morph?14:0)+f.seed*.9,f.fresh?0:x-f.previous.x,f.fresh?0:y-f.previous.y,f.fresh?0:z-f.previous.z,f.fresh?0:deltaPhase],k);
-   f.fresh=false;
-   const threshold=[320,80,22][level];
-   if(distance>range*.85)batch.addFade(lod,renderIndex,Math.max(0,(range-distance)/(range*.15)),false);
-   else if(level<3&&pixels<threshold*1.15){const a=(pixels/threshold-1)/.15;batch.addFade(lod,renderIndex,a,false);batch.addFade(lod+1,renderIndex,a,true);}
-   else batch.add(lod,renderIndex);live++;
+   const render=g.reviewed?this.reviewedSwim[g.reviewed].ready:this.primarySwim;
+   if(!render)continue;
+   g.awake=true;
+   const {batch,motion}=render,D=batch.data;
+   const step=Math.min(dt,.1);
+   for(let i=g.first;i<g.first+g.count;i++){
+    const f=this.fish[i],renderIndex=f.renderIndex??i;
+    f.previous.copy(f.p);this.advance(f,step,cp);
+    const swim=g.reviewed?advanceReviewedSwimPose(f,step):null;
+    const nativeEffort=swim?null:nativeSwimEffort(f,step);
+    if(nativeEffort)f.phase=(f.phase+nativeEffort.deltaPhase)%(200*Math.PI);
+    const {x,y,z}=f.p,h=g.sea?g.h:this.query.height(x,z),floor=this.terrain.heightAt(x,z);
 
+    const clear=y-floor,top=h-y;this.audit.minBedClearance=Math.min(this.audit.minBedClearance,clear);this.audit.minSurfaceClearance=Math.min(this.audit.minSurfaceClearance,top);if(clear<0||top<0)this.audit.violations++;
+    const distance=cp.distanceTo(f.p),range=42;if(distance>range){f.fresh=true;continue;}
+    const L=f.L,pixels=L*this.pxScale/Math.max(.2,distance);
+    if(pixels<1.2){f.fresh=true;continue;}
+    this.sphere.center.copy(f.p);this.sphere.radius=L;
+    f.trackingVisible=this.frustum.intersectsSphere(this.sphere);
+    if(distance<range){f.trackingId=i;this.trackingSwimmers.push(f);}
+    if(!f.trackingVisible){f.fresh=true;continue;}
+    this.screen.copy(f.p).project(camera);this.frameSight.fish.push({position:f.p.toArray(),length:L,distance,pixels,ndc:[this.screen.x,this.screen.y],habitat:g.id,species:f.vault??'native',bedClearance:clear,surfaceClearance:top});
+    if(swim){
+     this.q.setFromEuler(this.euler.set(swim.pitch,f.yaw,swim.roll,'YXZ'));
+     motion.setPose(renderIndex,swim,this.q,f.fresh);
+     const k=renderIndex*16;
+     D[k]=x;D[k+1]=y;D[k+2]=z;D[k+3]=L;
+     D[k+12]=f.fresh?0:x-f.previous.x;D[k+13]=f.fresh?0:y-f.previous.y;D[k+14]=f.fresh?0:z-f.previous.z;
+     f.fresh=false;
+     addReviewedSwimInstance(batch,renderIndex,pixels,distance,range);
+     live++;
+     continue;
+    }
+    const level=pixels>=320?0:pixels>=80?1:pixels>=22?2:3,lod=f.morph*4+level;
+    const {deltaPhase,amplitude,bend,pitch,roll}=nativeEffort;
+    this.euler.set(pitch,f.yaw,roll,'YXZ');this.q.setFromEuler(this.euler);
+    const k=renderIndex*16;
+    D.set([x,y,z,L,this.q.x,this.q.y,this.q.z,this.q.w,f.phase,amplitude,bend,(f.morph?14:0)+f.seed*.9,f.fresh?0:x-f.previous.x,f.fresh?0:y-f.previous.y,f.fresh?0:z-f.previous.z,f.fresh?0:deltaPhase],k);
+    f.fresh=false;
+    const threshold=[320,80,22][level];
+    if(distance>range*.85)batch.addFade(lod,renderIndex,Math.max(0,(range-distance)/(range*.15)),false);
+    else if(level<3&&pixels<threshold*1.15){const a=(pixels/threshold-1)/.15;batch.addFade(lod,renderIndex,a,false);batch.addFade(lod+1,renderIndex,a,true);}
+    else batch.add(lod,renderIndex);live++;
+   }
   }
   this.drawnTriangles=0;
   for(const {batch,motion} of this.swimBatches){
-   batch.commit();batch.upload();motion?.upload();
+   batch.commit();
+   if(batch.pairs||batch.fadePairs){batch.upload();motion?.upload();}
    this.drawnTriangles+=batch.kinds.reduce((sum,k,i)=>sum+k.geometry.index.count/3*(batch.counts[i]+batch.fadeCounts[i]),0);
   }
   this.visibleFish=live;this.visibleShrimp=0;
   this.environment.update(this.time,camera,this.frustum,this.pxScale,this.frameSight,this.enabled);
   this.visibleBirds=this.environment.visible.birds;
   this.audit.minBirdGroundClearance=this.frameSight.birds.reduce((min,b)=>Math.min(min,b.groundClearance),Infinity);
-  this.benthicDetails?.update(camera);this.benthos?.update(camera);
+  this.benthicDetails?.update(camera);this.marineBed?.update(cp);
+  for(const category of Object.values(this.benthos))for(const asset of category)asset.update(camera);
  }
  advance(f,dt,cp){
   const g=f.group,p=f.p,v=f.velocity;
@@ -356,23 +408,27 @@ export class IslandLife{
  dispose(){
   if(this.disposed)return;
   this.disposed=true;
-  this.benthos?.dispose();
+  this.benthicResidency?.dispose();
+  this.marineBed?.dispose();
   this.environmentResidency.dispose();
   this.primarySwim?.dispose();
   this.group.removeFromParent();
  }
  hold(){for(const f of this.fish)f.fresh=true;this.environment.hold();}
  stats(){
+  const bottom=this.benthicResidency?.stats();
+  const benthicErrors=[...(this.benthicResidency?.entries.values()??[])].filter(e=>e.error).map(e=>e.definition.id+' '+e.error);
   const species=Object.fromEntries(REVIEWED_FISH.map(kind=>[kind,this.fish.filter(f=>f.vault===kind).length]));
   return {
-   time:this.time,vaultAssets:this.vaultLoads?Object.fromEntries(Object.entries(this.vaultLoads).map(([name,state])=>[name,{ready:state.ready,pending:!!state.pending,attempts:state.attempts,error:state.error}])):null,
+   time:this.time,vaultAssets:this.benthicDetails?{benthic:{...bottom,ready:(bottom?.resident??0)>0,
+    pending:!!(bottom?.inFlight||bottom?.queued),attempts:bottom?.requested??0,error:benthicErrors.join('; ')||null}}:null,
    articulation:{fish:this.swimBatches.flatMap(({batch})=>batch.kinds.filter(k=>k.geometry.vaultRigStats).map(k=>k.geometry.vaultRigStats))},
    enabled:this.enabled,fish:this.fish.length,shrimp:0,
    birds:this.birds.length,insects:this.environment.fliers.length-this.birds.length,
    environmentalFlight:this.environment.stats(),
    environmentalShoals:Object.fromEntries(Object.entries(this.reviewedSwim).map(([kind,s])=>[kind,{ready:!!s.ready,habitats:s.groups.length,individuals:s.capacity,residency:this.environmentResidency.state(kind)}])),
    environmentResidency:this.environmentResidency.stats(),
-   corals:this.benthos?.corals.reduce((n,c)=>n+c.sites.length,0)??0,coralKinds:this.benthos?.corals.length??0,shellForms:this.benthos?.shells.reduce((n,s)=>n+s.sites.length,0)??0,shellKinds:this.benthos?.shells.length??0,sponges:this.benthos?.sponges.reduce((n,s)=>n+s.sites.length,0)??0,visibleCorals:this.benthos?.corals.reduce((n,c)=>n+c.mesh.count,0)??0,visibleShells:this.benthos?.shells.reduce((n,s)=>n+s.mesh.count,0)??0,benthicDetails:this.benthicDetails?.stats()??null,species,
+   corals:this.benthos?.corals.reduce((n,c)=>n+c.sites.length,0)??0,coralKinds:this.benthos?.corals.length??0,shellForms:this.benthos?.shells.reduce((n,s)=>n+s.sites.length,0)??0,shellKinds:this.benthos?.shells.length??0,sponges:this.benthos?.sponges.reduce((n,s)=>n+s.sites.length,0)??0,visibleCorals:this.benthos?.corals.reduce((n,c)=>n+c.mesh.count,0)??0,visibleShells:this.benthos?.shells.reduce((n,s)=>n+s.mesh.count,0)??0,benthicDetails:this.benthicDetails?.stats()??null,marineBed:this.marineBed?.stats()??[],species,
    visibleFish:this.visibleFish,visibleShrimp:this.visibleShrimp,visibleBirds:this.visibleBirds,
    activeBirds:this.birds.filter(b=>b.active).length,drawnTriangles:this.drawnTriangles,
    habitats:this.groups.map(g=>({id:g.id,center:[g.x,g.h,g.z],floor:g.floor,depth:g.h-g.floor,count:g.count,species:this.fish[g.first]?.vault??'native environmental form',lengthRange:[Math.min(...this.fish.slice(g.first,g.first+g.count).map(f=>f.L)),Math.max(...this.fish.slice(g.first,g.first+g.count).map(f=>f.L))],radius:g.radius,sea:g.sea??false,sampleMarine:g.sampleMarine??false,surfaceReference:g.sampleMarine?'fixed mean sea with 0.85m ceiling margin and 2.5m local depth footprint':g.sea?'fixed mean sea with 0.85m ceiling margin and native breaker exclusion':'local inland water'})),

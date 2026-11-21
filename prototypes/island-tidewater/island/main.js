@@ -1,3 +1,4 @@
+import { freshwaterBedStops } from '../creek/FreshwaterBedVisits.js';
 import { ISLAND_PLAN as plan } from './plan.js';
 import { ISLAND_FAUNA_PLAN, ISLAND_FAUNA_REGIONS } from '../creek/IslandFaunaPlan.js';
 import { mouthStops, rivers } from './assets/map.json';
@@ -50,7 +51,8 @@ const tourAdditions = {
   highland: [{ name: '高地冰碛脊', place: 'tarn-moraine' }],
   'dry-upland': [{ name: '背风谷岩阶', place: 'dry-escarpment' }],
 };
-const submergedSites = new Set(['shore-life']);
+for (const stop of freshwaterBedStops) tourAdditions[stop.region].push({name:stop.title, place:stop.id});
+const submergedSites = new Set(['shore-life', ...freshwaterBedStops.map(stop => stop.id)]);
 const aerialSites = new Set(['cove-close', 'giant-canopy', 'giant-extent']);
 const mediaLabels = { ground: '陆地', air: '空中', freshwater: '淡水', marine: '海水', benthic: '海底' };
 const options = [];
