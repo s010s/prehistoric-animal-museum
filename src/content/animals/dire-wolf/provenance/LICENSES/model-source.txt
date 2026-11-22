@@ -1,0 +1,20 @@
+Model source record
+===================
+
+Title: Italian White Wolf
+Author: SDPM (Sketchfab user sdpm)
+Page: https://sketchfab.com/3d-models/italian-white-wolf-1de9441cb0744c0d8459ce957b8d0a57
+Accessed: 2026-11-22
+Download variant: Sketchfab "Autoconverted format" GLB
+Original file: italian-white-wolf.glb
+Bytes: 2700808
+SHA-256: 28cb235a24d670116652b72321f45e56b9b5d9f7c3639466a0fa941ce3d1d347
+
+Use: artistic reconstruction carrier for the dire wolf exhibit. The dire wolf
+(Aenocyon dirus) was more robust with a broader skull and relatively shorter
+legs than the living gray-wolf build used by this model; the simplification is
+recorded in the parent-facing classification note.
+
+Direct source verified from the Sketchfab model page and its downloadable GLB on
+2026-11-22. The page displays the Creative Commons Attribution licence and the
+model description identifies the Italian wolf (Canis lupus italicus).

@@ -1,0 +1,16 @@
+Model licence record
+====================
+
+Licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
+Licence URL: https://creativecommons.org/licenses/by/4.0/
+Sketchfab licence label: CC Attribution
+
+Attribution: "Italian White Wolf" by SDPM (sdpm) on Sketchfab, CC BY 4.0;
+reoriented, rescaled and given a project-authored eight-second Idle morph for
+the Prehistoric Animal Museum.
+
+The licence permits sharing and adaptation for any purpose, including
+commercial use, provided attribution is given, a link to the licence is
+included and changes are indicated. The runtime model records these
+modifications in provenance.ts. Public redistribution decision: approved by
+the project owner on 2026-11-22.

@@ -252,6 +252,12 @@ export const reviewedBackgroundSources = {
 >
 
 export const reviewedEnglishNarrationArtifacts = {
+  'dire-wolf': {
+    generatedOn: '2026-11-22',
+    bytes: 145_484,
+    sha256:
+      'c27decdef12a7f4fbff6dfc8ba83ca1d0cedeba4eb8f856a98c37e49a30138e3',
+  },
   anomalocaris: {
     generatedOn: '2026-08-29',
     bytes: 130_365,

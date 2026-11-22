@@ -1089,6 +1089,90 @@ content, contributions, and Brand Assets follow the separate scopes in
 - Modifications:
   - Prepared a self-contained glTF derivative with calibrated material, coordinates and budget.
   - Authored an eight-second standing Idle with a larger flexible tail sway and compatible tail-follow joints; preserved the complete Walk deformation and original skin weights.
+## 恐狼 (`dire-wolf`)
+
+### `audio/narration.en.mp3`
+
+- Asset type: narration
+- Source: Dire Wolf English narration, generated with Qwen3-TTS CustomVoice on 2026-11-22
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated English narration produced locally with Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `c27decdef12a7f4fbff6dfc8ba83ca1d0cedeba4eb8f856a98c37e49a30138e3`
+- Modifications:
+  - Generated offline from the exact reviewed English two-sentence script with the Serena voice.
+  - Normalized to a reviewed 48 kHz mono MP3 without runtime synthesis.
+### `audio/narration.zh-CN.mp3`
+
+- Asset type: narration
+- Source: 恐狼 Mandarin narration, generated with Qwen3-TTS CustomVoice on 2026-11-22
+- License: [CC BY-NC-SA 4.0 project-owned Qwen3-TTS output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated Mandarin narration produced locally with Qwen3-TTS 0.6B CustomVoice (Serena).
+- Runtime SHA-256: `f54eedb8bff43c1ed11ccbbb4d0a3840b9385e05f77686f830ad2f042b814631`
+- Modifications:
+  - Generated offline from the exact reviewed two-sentence script.
+  - Normalized to a reviewed 48 kHz mono MP3 without runtime synthesis.
+### `backgrounds/landscape.webp`
+
+- Asset type: background
+- Source: Clarified woolly mammoth steppe-tundra — landscape, generated with OpenAI built-in image_gen on 2026-08-16
+- License: [CC BY-NC-SA 4.0 project-owned ImageGen output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated 恐狼 landscape created with OpenAI ImageGen.
+- Runtime SHA-256: `2b23ceaf9e6b7f6d270dcb327254f5be27fb764fc2a845c627fa928aa3c01eb4`
+- Modifications:
+  - Reused the already-reviewed project-authored mammoth Ice Age tundra background without modification; its palette and cold daylight suit the Late Pleistocene dire wolf exhibit.
+### `backgrounds/portrait.webp`
+
+- Asset type: background
+- Source: Clarified woolly mammoth steppe-tundra — portrait, generated with OpenAI built-in image_gen on 2026-08-16
+- License: [CC BY-NC-SA 4.0 project-owned ImageGen output](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+- Attribution: Project-generated 恐狼 portrait created with OpenAI ImageGen.
+- Runtime SHA-256: `3b5e795c4abe470c1ca0cfba9d7834397080b76cb261e2ea1d3f1757f0482335`
+- Modifications:
+  - Reused the already-reviewed project-authored mammoth Ice Age tundra portrait background without modification.
+### `images/poster-portrait.webp`
+
+- Asset type: poster
+- Source: 恐狼 transparent portrait model still, derived on 2026-11-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Italian White Wolf” by SDPM (Sketchfab user sdpm), CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `b6174fcc3d6fd00eb046ff34af44eb340a08b0304d4fc307fbe07f299d98d1bd`
+- Modifications:
+  - Removed the habitat composite and all interface chrome; kept only the model and contact shadow on a transparent background.
+  - Encoded as exact lossless WebP without text, controls, labels, logos, or watermarks.
+### `images/poster.webp`
+
+- Asset type: poster
+- Source: 恐狼 transparent model still, derived on 2026-11-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Italian White Wolf” by SDPM (Sketchfab user sdpm), CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `20342d2e0fea72adaa199f123b00f1d47122b819ae088f1cb37a519a0485bfed`
+- Modifications:
+  - Removed the habitat composite and all interface chrome; kept only the model and contact shadow on a transparent background.
+  - Encoded as lossless WebP without text, controls, labels, logos, or watermarks.
+### `images/thumbnail.webp`
+
+- Asset type: thumbnail
+- Source: 恐狼 collection thumbnail, derived on 2026-11-22
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Italian White Wolf” by SDPM (Sketchfab user sdpm), CC BY 4.0; modified for the Prehistoric Animal Museum. Scene art generated for this project.
+- Runtime SHA-256: `51e03b171a07d0927f3c4a054c9a5cee71d224ba700b40ac81f3b94a3cc260f3`
+- Modifications:
+  - Resized and centred the complete silhouette with animal-specific safe margins.
+  - Encoded as 320 × 320 lossy WebP at quality 88 without text, controls, labels, logos, or watermarks.
+### `model/model.glb`
+
+- Asset type: model
+- Source: [Italian White Wolf](https://sketchfab.com/3d-models/italian-white-wolf-1de9441cb0744c0d8459ce957b8d0a57) by SDPM (Sketchfab user sdpm)
+- License: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+- Attribution: “Italian White Wolf” by SDPM (Sketchfab user sdpm), CC BY 4.0; modified for the Prehistoric Animal Museum.
+- Runtime SHA-256: `55c83d5c87f2b28cdb3c5c1b021be610f14f9beffb0d4bc467424f6d752e2ec2`
+- Modifications:
+  - Used the CC BY 4.0 source directly; the licence permits modification and redistribution with attribution recorded here and in the public credits.
+  - Reoriented the source from its Y length axis into the canonical X body axis and rescaled it to the museum target length, keeping the model grounded for a land exhibit.
+  - Left the PBR metallic default in place after verifying the coat reads naturally under the runtime environment lighting; no material was rebuilt.
+  - Authored a deterministic project Idle (land-breathe-tail morph): eight-second closed loop with gentle breathing and tail sway, no root translation, no walking.
+  - Exported one self-contained GLB with one mesh, one material, one embedded base-colour texture and one Idle clip, validated against the model budget.
+  - The exhibit is an artistic reconstruction on a close relative gray-wolf build; the parent-facing note records that the real dire wolf was more robust with a broader skull.
 ## 似鸡龙 (`gallimimus`)
 
 ### `audio/narration.en.mp3`

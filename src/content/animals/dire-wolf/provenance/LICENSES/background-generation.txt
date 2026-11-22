@@ -1,0 +1,19 @@
+Background generation record
+============================
+
+No new background art was generated for the dire wolf exhibit. The project
+owner decided on 2026-11-22 to reuse the already-reviewed, project-authored
+mammoth Ice Age tundra backgrounds instead of generating new images.
+
+Source compositions: the mammoth exhibit landscape and portrait backgrounds,
+whose original image-generation record is retained in
+src/content/animals/mammoth/provenance/LICENSES/background-generation.txt
+(OpenAI built-in image_gen; generated 2026-07-29, portrait revised 2026-07-31,
+clarity edits 2026-08-16).
+
+Reused runtime files, copied without modification:
+- landscape: bytes 420388, SHA-256 2b23ceaf9e6b7f6d270dcb327254f5be27fb764fc2a845c627fa928aa3c01eb4
+- portrait:  bytes 268126, SHA-256 3b5e795c4abe470c1ca0cfba9d7834397080b76cb261e2ea1d3f1757f0482335
+
+Both images exclude animals, people, text, interface elements, logos and
+watermarks, and keep the central placement area quiet for the museum model.

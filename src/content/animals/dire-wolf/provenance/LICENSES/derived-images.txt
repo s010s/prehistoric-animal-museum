@@ -1,0 +1,23 @@
+Derived image record
+====================
+
+Posters and thumbnail were captured on 2026-11-22 from the local review build
+of the accepted runtime presentation (Vite review mode, headless Chrome at
+1440x900 desktop and 390x844@2x phone), with the approved model, material and
+Idle at its rest pose over the reused mammoth tundra backgrounds. Interface
+chrome (story panel, animal rail, header, gesture hint) was hidden before
+capture; no animal, text or logo was added.
+
+Derivations:
+- images/poster.webp: centre-cropped 16:9 from the desktop capture, Lanczos
+  scaled to the museum-standard 1200x675, WebP quality 80 effort 6. Bytes
+  125442, SHA-256 20342d2e0fea72adaa199f123b00f1d47122b819ae088f1cb37a519a0485bfed
+- images/poster-portrait.webp: the full 390:844 phone capture, Lanczos scaled
+  to the museum-standard 390x844, WebP quality 80 effort 6. Bytes 55812,
+  SHA-256 b6174fcc3d6fd00eb046ff34af44eb340a08b0304d4fc307fbe07f299d98d1bd
+- images/thumbnail.webp: square centre crop around the animal from the desktop
+  capture, Lanczos scaled to 640x640, WebP quality 80 effort 6. Bytes 45230,
+  SHA-256 51e03b171a07d0927f3c4a054c9a5cee71d224ba700b40ac81f3b94a3cc260f3
+
+The same model, material, pose direction and scene are shown in all three
+derivatives.

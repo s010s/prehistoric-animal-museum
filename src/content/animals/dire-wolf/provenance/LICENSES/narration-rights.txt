@@ -1,0 +1,33 @@
+Narration rights and listening record
+=====================================
+
+Engine: Qwen3-TTS CustomVoice 0.6B, local offline generation
+Model: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+Revision: 85e237c12c027371202489a0ec509ded67b5e4b5
+Speaker: Serena (built-in CustomVoice speaker)
+Generated on: 2026-11-22
+
+zh-CN
+language: Chinese
+script: 这是恐狼，一种生活在几十万年前的史前巨狼，它不是现在狼的祖先。
+        看看它粗壮的身体、宽宽的大脑袋和蓬松的大尾巴，比今天的狼还要威风。
+runtime: audio/narration.zh-CN.mp3
+bytes: 139004
+sha256: f54eedb8bff43c1ed11ccbbb4d0a3840b9385e05f77686f830ad2f042b814631
+duration: 13.84 s, 48 kHz mono MP3, integrated loudness -18.44 LUFS
+
+en
+language: English
+script: Meet the dire wolf, a great Ice Age wolf that lived long before the wolves of today.
+        Look at its strong body, broad head and big bushy tail - it was even heavier than wolves alive today.
+runtime: audio/narration.en.mp3
+bytes: 145484
+sha256: c27decdef12a7f4fbff6dfc8ba83ca1d0cedeba4eb8f856a98c37e49a30138e3
+duration: 14.47 s, 48 kHz mono MP3, integrated loudness -18.60 LUFS
+
+Human listening review: approved
+The project owner listened to both complete Serena candidates on 2026-11-22,
+checked name and term pronunciation, pacing, sentence separation, missing
+syllables and artefacts, and suitability for a parent-and-preschool-child
+museum audience, and approved both for publication. The scripts are
+human-reviewed; the audio was synthesized offline with AI.

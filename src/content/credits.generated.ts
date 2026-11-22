@@ -1564,6 +1564,129 @@ export const credits = [
     ]
   },
   {
+    "id": "dire-wolf:audio/narration.en.mp3",
+    "animalId": "dire-wolf",
+    "assetPath": "audio/narration.en.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "Dire Wolf English narration",
+    "author": "Qwen3-TTS CustomVoice",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-generated English narration produced locally with Qwen3-TTS 0.6B CustomVoice (Serena).",
+    "modifications": [
+      "Generated offline from the exact reviewed English two-sentence script with the Serena voice.",
+      "Normalized to a reviewed 48 kHz mono MP3 without runtime synthesis."
+    ]
+  },
+  {
+    "id": "dire-wolf:audio/narration.zh-CN.mp3",
+    "animalId": "dire-wolf",
+    "assetPath": "audio/narration.zh-CN.mp3",
+    "assetKind": "narration",
+    "sourceTitle": "恐狼 Mandarin narration",
+    "author": "Qwen3-TTS CustomVoice",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned Qwen3-TTS output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-generated Mandarin narration produced locally with Qwen3-TTS 0.6B CustomVoice (Serena).",
+    "modifications": [
+      "Generated offline from the exact reviewed two-sentence script.",
+      "Normalized to a reviewed 48 kHz mono MP3 without runtime synthesis."
+    ]
+  },
+  {
+    "id": "dire-wolf:backgrounds/landscape.webp",
+    "animalId": "dire-wolf",
+    "assetPath": "backgrounds/landscape.webp",
+    "assetKind": "background",
+    "sourceTitle": "Clarified woolly mammoth steppe-tundra — landscape",
+    "author": "OpenAI built-in image_gen",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned ImageGen output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-generated 恐狼 landscape created with OpenAI ImageGen.",
+    "modifications": [
+      "Reused the already-reviewed project-authored mammoth Ice Age tundra background without modification; its palette and cold daylight suit the Late Pleistocene dire wolf exhibit."
+    ]
+  },
+  {
+    "id": "dire-wolf:backgrounds/portrait.webp",
+    "animalId": "dire-wolf",
+    "assetPath": "backgrounds/portrait.webp",
+    "assetKind": "background",
+    "sourceTitle": "Clarified woolly mammoth steppe-tundra — portrait",
+    "author": "OpenAI built-in image_gen",
+    "licenseName": "CC BY-NC-SA 4.0 project-owned ImageGen output",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "attribution": "Project-generated 恐狼 portrait created with OpenAI ImageGen.",
+    "modifications": [
+      "Reused the already-reviewed project-authored mammoth Ice Age tundra portrait background without modification."
+    ]
+  },
+  {
+    "id": "dire-wolf:images/poster-portrait.webp",
+    "animalId": "dire-wolf",
+    "assetPath": "images/poster-portrait.webp",
+    "assetKind": "poster",
+    "sourceTitle": "恐狼 transparent portrait model still",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "“Italian White Wolf” by SDPM (Sketchfab user sdpm), CC BY 4.0; modified for the Prehistoric Animal Museum.",
+    "modifications": [
+      "Removed the habitat composite and all interface chrome; kept only the model and contact shadow on a transparent background.",
+      "Encoded as exact lossless WebP without text, controls, labels, logos, or watermarks."
+    ]
+  },
+  {
+    "id": "dire-wolf:images/poster.webp",
+    "animalId": "dire-wolf",
+    "assetPath": "images/poster.webp",
+    "assetKind": "poster",
+    "sourceTitle": "恐狼 transparent model still",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "“Italian White Wolf” by SDPM (Sketchfab user sdpm), CC BY 4.0; modified for the Prehistoric Animal Museum.",
+    "modifications": [
+      "Removed the habitat composite and all interface chrome; kept only the model and contact shadow on a transparent background.",
+      "Encoded as lossless WebP without text, controls, labels, logos, or watermarks."
+    ]
+  },
+  {
+    "id": "dire-wolf:images/thumbnail.webp",
+    "animalId": "dire-wolf",
+    "assetPath": "images/thumbnail.webp",
+    "assetKind": "thumbnail",
+    "sourceTitle": "恐狼 collection thumbnail",
+    "author": "Prehistoric Animal Museum",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "“Italian White Wolf” by SDPM (Sketchfab user sdpm), CC BY 4.0; modified for the Prehistoric Animal Museum. Scene art generated for this project.",
+    "modifications": [
+      "Resized and centred the complete silhouette with animal-specific safe margins.",
+      "Encoded as 320 × 320 lossy WebP at quality 88 without text, controls, labels, logos, or watermarks."
+    ]
+  },
+  {
+    "id": "dire-wolf:model/model.glb",
+    "animalId": "dire-wolf",
+    "assetPath": "model/model.glb",
+    "assetKind": "model",
+    "sourceTitle": "Italian White Wolf",
+    "author": "SDPM (Sketchfab user sdpm)",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://sketchfab.com/3d-models/italian-white-wolf-1de9441cb0744c0d8459ce957b8d0a57",
+    "attribution": "“Italian White Wolf” by SDPM (Sketchfab user sdpm), CC BY 4.0; modified for the Prehistoric Animal Museum.",
+    "modifications": [
+      "Used the CC BY 4.0 source directly; the licence permits modification and redistribution with attribution recorded here and in the public credits.",
+      "Reoriented the source from its Y length axis into the canonical X body axis and rescaled it to the museum target length, keeping the model grounded for a land exhibit.",
+      "Left the PBR metallic default in place after verifying the coat reads naturally under the runtime environment lighting; no material was rebuilt.",
+      "Authored a deterministic project Idle (land-breathe-tail morph): eight-second closed loop with gentle breathing and tail sway, no root translation, no walking.",
+      "Exported one self-contained GLB with one mesh, one material, one embedded base-colour texture and one Idle clip, validated against the model budget.",
+      "The exhibit is an artistic reconstruction on a close relative gray-wolf build; the parent-facing note records that the real dire wolf was more robust with a broader skull."
+    ]
+  },
+  {
     "id": "gallimimus:audio/narration.en.mp3",
     "animalId": "gallimimus",
     "assetPath": "audio/narration.en.mp3",

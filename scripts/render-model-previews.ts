@@ -89,6 +89,7 @@ try {
         html,
         body,
         #root,
+        .museum-page,
         .museum-experience,
         .stage-panel,
         .viewer-stage,
