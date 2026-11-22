@@ -180,6 +180,7 @@ interface RuntimeAnimal {
   readonly habitat: RenderableAnimalPackage['habitat']
   readonly atmosphere: RenderableAnimalPackage['atmosphere']
   readonly classification: string
+  readonly searchTerms?: readonly string[]
   readonly accent: string
   readonly accentSoft: string
   readonly narrationScript: readonly [string, string]
@@ -497,6 +498,12 @@ function toRuntimeAnimal(
     habitat: animal.habitat,
     atmosphere: animal.atmosphere,
     classification: content.classificationLabel,
+    searchTerms: [
+      animal.content['zh-CN']?.name,
+      animal.content['zh-CN']?.classificationLabel,
+      animal.content.en?.name,
+      animal.content.en?.classificationLabel,
+    ].filter((term): term is string => Boolean(term)),
     accent: accent.strong,
     accentSoft: accent.soft,
     narrationScript: content.narration.sentences,
@@ -1081,6 +1088,7 @@ function MuseumApp({
         classification: animal.classification,
         id: animal.id,
         name: animal.name,
+        ...(animal.searchTerms ? { searchTerms: animal.searchTerms } : {}),
         thumbnail: animal.assets.thumbnail,
         habitat: animal.habitat,
       })),
