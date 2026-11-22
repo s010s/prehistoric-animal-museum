@@ -76,6 +76,23 @@ for (const [id, swim] of [
   beachEntries[id] = {swimDepth:round(swimDepth), maxSlope:round(maxSlope)};
 }
 const runnels = [5480, 5505, 5535].map(x => waterDepth(x,5900));
+// Ordinary coasts between destinations. The former coarse ocean mask left a
+// long ankle-deep apron, or a sudden hole followed by a shoal, on these walks.
+const ordinaryShores = [
+  [10550,1024,.94925,-.31452], [2430,7774,-.55848,.82952],
+  [192,-6085,-.48190,-.87623], [3168,-7444,.11858,-.99294],
+];
+for (const [x,z,nx,nz] of ordinaryShores) {
+  const depth = r => data.island.seaLevel - terrain.heightAt(x + nx*r, z + nz*r);
+  assert(depth(-10) < 0, 'ordinary coast is missing its dry approach near '+[x,z]);
+  let previous = depth(0);
+  for (let r=2; r<=64; r+=2) {
+    const current = depth(r);
+    assert(Math.abs(current - previous) < .55, 'abrupt step across the ordinary shoreface near '+[x,z,r]);
+    if (r >= 50) assert(current > 1.5, 'swimmer runs aground beyond the strand near '+[x,z,r]);
+    previous = current;
+  }
+}
 assert(runnels[0] > 1.5 && runnels[1] < -.9 && runnels[2] > .75, 'wetland cross-section lost its two channels or island');
 const channelReach = transect([
   [5524,5730], [5523,5760], [5514,5770], [5474,5790], [5447,5810],

@@ -21,6 +21,7 @@ import {loadReviewedIndices} from './VaultGeometryLods.js';
 import {REVIEWED_FISH, reviewedSwimKinds, installReviewedSwimAttributes, bindReviewedSwim, addReviewedSwimInstance} from './VaultEnvironmentSwim.js';
 import {createReviewedSwimMotion, createReviewedSwimMaterial, advanceReviewedSwimPose, steerReviewedSwimmer, reviewedCruiseSpeed} from './VaultReviewedSwimMotion.js';
 import {visitorShoals} from './VisitorShoals.js';
+import {reefPatrolTarget, reefObstacleTop} from './ReefShoals.js';
 import {createSwimmer, RoamingShoals, ROAMING_FISH_CAPACITY} from './RoamingShoals.js';
 
 // The vendor's two small school fish remain available in the original terrain mode.
@@ -130,6 +131,7 @@ export class IslandLife{
   const obstacles=[...(app.coveRocks?.instances??[]),...(app.shelfReef?.obstacles??[])];
   for(const g of this.groups)g.obstacles=obstacles.filter(r=>Math.hypot(r.x-g.x,r.z-g.z)<g.radius+12);
   this.simulationGroups=this.groups.slice();
+  this.reefTarget=new Vector3();
   this.roaming=sample?new RoamingShoals(data,this.groups,breakDepth,obstacles):null;
   this.primarySwim=null;
   this.swimBatches=[];
@@ -269,7 +271,7 @@ export class IslandLife{
   if(!this.lastScan||this.lastTransit!==transit||this.lastScan.distanceToSquared(cp)>36||now>=this.nextScan){
    this.lastTransit=transit;
    this.lastScan??=new Vector3();this.lastScan.copy(cp);this.nextScan=now+400;
-   if(!transit&&this.roaming?.scan(cp,this.reviewedSwim)){
+   if(!transit&&this.roaming?.scan(cp,this.reviewedSwim,this.app.submergedBed)){
     this.simulationGroups.length=this.groups.length;
     for(const state of Object.values(this.reviewedSwim))state.habitats.length=state.groups.length;
     for(const g of this.roaming.groups){
@@ -315,9 +317,11 @@ export class IslandLife{
    g.awake=true;
    const {batch,motion}=render,D=batch.data;
    const step=Math.min(dt,.1);
+   if (g.reefId!==undefined) g.fadeIn=Math.min(1,(g.fadeIn??0)+step*1.6);
    for(let i=g.first;i<g.first+g.count;i++){
     const f=members[i],renderIndex=f.renderIndex??i;
     f.previous.copy(f.p);this.advance(f,step,cp);
+    if(f.sleeping)continue;
     const swim=g.reviewed?advanceReviewedSwimPose(f,step):null;
     const nativeEffort=swim?null:nativeSwimEffort(f,step);
     if(nativeEffort)f.phase=(f.phase+nativeEffort.deltaPhase)%(200*Math.PI);
@@ -340,7 +344,7 @@ export class IslandLife{
      D[k]=x;D[k+1]=y;D[k+2]=z;D[k+3]=L;
      D[k+12]=f.fresh?0:x-f.previous.x;D[k+13]=f.fresh?0:y-f.previous.y;D[k+14]=f.fresh?0:z-f.previous.z;
      f.fresh=false;
-     addReviewedSwimInstance(batch,renderIndex,pixels,distance,range);
+     addReviewedSwimInstance(batch,renderIndex,pixels,distance,range,g.fadeIn??1);
      live++;
      continue;
     }
@@ -376,6 +380,16 @@ export class IslandLife{
    const clear=Math.max(.14,f.L*.24),topMargin=g.sea?.85:clear;
    let bed=this.terrain.heightAt(p.x,p.z),water=g.sea?g.h:this.query.height(p.x,p.z);
    if(water-bed<clear+topMargin+.12){p.x=g.x;p.z=g.z;bed=g.floor;water=g.h;}
+   if (g.reefId!==undefined) {
+    // Wake the whole school in formation, with its tail stroke at a distinct
+    // phase. Reject an obstructed spawn rather than showing a fish in stone.
+    for (let attempt=0;attempt<6;attempt++) {
+     reefPatrolTarget(p,g,f,this.time+attempt*2.7);
+     bed=Math.max(this.terrain.heightAt(p.x,p.z),reefObstacleTop(g.reefObstacles,p.x,p.z,f.L*.48));
+     if (water-bed>topMargin+clear+.1) break;
+    }
+    if (water-bed<=topMargin+clear+.1) return;
+   }
    const ceiling=water-topMargin;
    const y=g.lowerDwell?bed+clear+.14:water-f.depth*(water-bed);
    p.y=Math.max(bed+clear,Math.min(ceiling,y));
@@ -390,8 +404,12 @@ export class IslandLife{
    const along=Math.cos(schoolTime)*common+Math.cos(time)*r;
    const across=Math.sin(schoolTime)*common*.63+Math.sin(time*.73+f.seed)*r*.68;
    // Stream fish patrol the channel, keeping their cross-current excursion short.
-   const tx=g.x+(g.current?along*g.current[0]-across*.60*g.current[1]:along);
-   const tz=g.z+(g.current?along*g.current[1]+across*.60*g.current[0]:across);
+   let tx=g.x+(g.current?along*g.current[0]-across*.60*g.current[1]:along);
+   let tz=g.z+(g.current?along*g.current[1]+across*.60*g.current[0]:across);
+   if (g.reefId!==undefined) {
+    const target=reefPatrolTarget(this.reefTarget,g,f,this.time+1.25);
+    tx=target.x;tz=target.z;
+   }
    const dx=tx-p.x,dz=tz-p.z,dl=Math.max(Math.hypot(dx,dz),1e-6);
    const approach=Math.min(1,dl/f.L);
    const speed=g.reviewed?reviewedCruiseSpeed(f,this.time,dl)
@@ -414,13 +432,34 @@ export class IslandLife{
    const members=g.members??this.fish;
    for(let i=g.first;i<g.first+g.count;i++){const q=members[i];if(q===f||q.sleeping)continue;const sx=p.x-q.p.x,sz=p.z-q.p.z,sd=Math.hypot(sx,sz),clear=(f.L+q.L)*.8;if(sd<clear&&sd>.001){const force=(clear-sd)*1.8;ax+=sx/sd*force;az+=sz/sd*force;}}
    for(const rock of g.obstacles??[]){const rx=p.x-rock.x,rz=p.z-rock.z,d=Math.hypot(rx,rz),safe=(rock.footRadius??rock.size*.9)+f.L*1.5;if(d<safe+1.1&&p.y<(rock.top??rock.y+rock.size*rock.sy*1.1)){const force=(safe+1.1-d)*3;ax+=rx/(d+.01)*force;az+=rz/(d+.01)*force;this.audit.obstacleDeflections++;}}
-   const lookX=p.x+v.x*.8,lookZ=p.z+v.z*.8,water=g.sea?g.h:this.query.height(lookX,lookZ),bed=this.terrain.heightAt(lookX,lookZ),minimum=g.sampleMarine?1.12:g.sea?Math.max(1.5,this.breakDepth(lookX,lookZ)+.35):.35;
+   const lookX=p.x+v.x*.8,lookZ=p.z+v.z*.8;
+   if (g.reefObstacles?.length) {
+    for (const rock of g.reefObstacles) {
+     const rx=lookX-rock.x,rz=lookZ-rock.z,reach=rock.radius+f.L*1.55;
+     if (p.y>rock.top+f.L*.5 || rx*rx+rz*rz>=reach*reach) continue;
+     const d=Math.max(.01,Math.hypot(rx,rz)),force=(reach-d)*2.7;
+     ax+=rx/d*force;az+=rz/d*force;this.audit.obstacleDeflections++;
+    }
+   }
+   const water=g.sea?g.h:this.query.height(lookX,lookZ),bed=this.terrain.heightAt(lookX,lookZ),minimum=g.sampleMarine?1.12:g.sea?Math.max(1.5,this.breakDepth(lookX,lookZ)+.35):.35;
    if(water-bed<minimum){const gx=this.terrain.heightAt(lookX+.5,lookZ)-this.terrain.heightAt(lookX-.5,lookZ),gz=this.terrain.heightAt(lookX,lookZ+.5)-this.terrain.heightAt(lookX,lookZ-.5),l=Math.hypot(gx,gz)||1;ax-=gx/l*2+v.x*2;az-=gz/l*2+v.z*2;}
    v.x+=ax*hdt;v.z+=az*hdt;const max=speed*(1+f.panic*3),length=Math.hypot(v.x,v.z);if(length>max){v.x*=max/length;v.z*=max/length;}
    if(g.reviewed)steerReviewedSwimmer(f,hdt);
    const bodyClearance=Math.max(.14,f.L*.24);
    let nx=p.x+v.x*hdt,nz=p.z+v.z*hdt,h=g.sea?g.h:this.query.height(nx,nz),floor=this.terrain.heightAt(nx,nz),ceiling=h-(g.sea?.85:bodyClearance);
    if(h-floor<minimum||ceiling<floor+bodyClearance+.08){nx=p.x;nz=p.z;v.x*=-.3;v.z*=-.3;h=g.sea?g.h:this.query.height(nx,nz);floor=this.terrain.heightAt(nx,nz);ceiling=h-(g.sea?.85:bodyClearance);}
+   if (g.reefObstacles?.length) {
+    // Keep the whole body outside the scanned footprint. Check ahead while
+    // steering, and reject a horizontal step into a taller rock face.
+    let top=reefObstacleTop(g.reefObstacles,nx,nz,f.L*.48);
+    if (top+bodyClearance>p.y && top>floor) {
+     nx=p.x;nz=p.z;v.x*=.5;v.z*=.5;
+     top=reefObstacleTop(g.reefObstacles,nx,nz,f.L*.48);
+     floor=this.terrain.heightAt(nx,nz);
+    }
+    floor=Math.max(floor,top);
+    if (floor+bodyClearance>ceiling) { f.sleeping=true;f.fresh=true;return; }
+   }
    const desired=g.lowerDwell?floor+bodyClearance+.14+Math.sin(time*.6)*.055:h-f.depth*(h-floor)+Math.sin(time*.6)*.06;
    const target=Math.max(floor+bodyClearance,Math.min(ceiling,desired));
    v.y+=(target-p.y)*hdt*4-v.y*hdt*3;const y=Math.max(floor+bodyClearance,Math.min(ceiling,p.y+v.y*hdt));p.set(nx,y,nz);this.audit.maxPanic=Math.max(this.audit.maxPanic,f.panic);

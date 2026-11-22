@@ -129,7 +129,21 @@ fn marineCrestsJoin(a:u32,b:u32)->bool{
   if (start < 0 || main < start || !source.includes(amplitude) || !source.includes(write) || !source.includes(emit)) {
     throw Error('Pinned breaker crest finder seam changed');
   }
-  const code = source.slice(start, main)
+  let crest = source.slice(start, main);
+  if(this.spray){
+    const emitCall='breakersEmit( i, slot, root, dir, b, H, trough, c, m, depth, shoreBore( A, depth ) );';
+    const emitArgs='m: f32, depth: f32, bore: vec4f )';
+    const roller='let roller = smoothstep( 1.05, 1.3, b ) * smoothstep( 0.06, 0.25, Hb );';
+    if(![emitCall,emitArgs,roller].every(seam=>crest.includes(seam)))throw Error('Pinned roller spray seam changed');
+    crest=crest
+      .replace(emitCall,`var air=1.0;
+    let ordinary=museumOrdinarySurf(pc);
+    if(ordinary>0.0&&b>1.05){air=mix(1.0,museumRollerAir(pc,dir,depth,A,b),ordinary);}
+    breakersEmit(i,slot,root,dir,b,H,trough,c,m,depth,shoreBore(A,depth),air);`)
+      .replace(emitArgs,'m: f32, depth: f32, bore: vec4f, air: f32 )')
+      .replace(roller,'let roller = smoothstep( 1.05, 1.3, b ) * smoothstep( 0.06, 0.25, Hb ) * air;');
+  }
+  const code = crest
     .replace(amplitude, 'let A = shoreWaveAmp( m, along ) * museumBreakerScale(ph.exposure);')
     // In 126 m the native last crossing usually wins. Across a wide reef,
     // a later bore on the same parity must not erase a visible plunging lip.

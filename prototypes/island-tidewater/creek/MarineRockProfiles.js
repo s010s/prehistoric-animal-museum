@@ -49,12 +49,32 @@ export function placeMarineRock(profile, host, x,y,z, sx,sy,sz, yaw,pitch,roll){
   for(const index of profile.geometry.index.array)host.idx.push(base+index);
 }
 
+// Index the exact transformed faces that may contain a vertical ray. The
+// array is temporary and shared by the colony and collision probes for a rock.
+export function indexRockSurface(batch, x, z, radius) {
+  const {pos, idx} = batch, divisions = 6;
+  const x0 = x-radius, z0 = z-radius, scale = divisions/(radius*2);
+  const column = v => Math.min(divisions-1,Math.max(0,Math.floor(v)));
+  const bins = Array.from({length:divisions*divisions},()=>[]);
+  for (let i=0;i<idx.length;i+=3) {
+    const a=idx[i]*3, b=idx[i+1]*3, c=idx[i+2]*3;
+    const ax=(pos[a]-x0)*scale, bx=(pos[b]-x0)*scale, cx=(pos[c]-x0)*scale;
+    const az=(pos[a+2]-z0)*scale, bz=(pos[b+2]-z0)*scale, cz=(pos[c+2]-z0)*scale;
+    const ix0=column(Math.min(ax,bx,cx)), ix1=column(Math.max(ax,bx,cx));
+    const iz0=column(Math.min(az,bz,cz)), iz1=column(Math.max(az,bz,cz));
+    for (let iz=iz0;iz<=iz1;iz++) for (let ix=ix0;ix<=ix1;ix++) bins[iz*divisions+ix].push(i);
+  }
+  batch.faceBin = (x,z) => bins[column((z-z0)*scale)*divisions+column((x-x0)*scale)];
+}
+
 // Intersect the visible triangles of the host, so an encrusting colony
 // shares its angled contact plane even when its rock is partly embedded.
 export function rockSurface(batch, x, z) {
-  const {pos, idx} = batch;
+  const {pos, idx} = batch, bin = batch.faceBin?.(x,z);
   let highest = null;
-  for (let i = 0; i < idx.length; i += 3) {
+  const count = bin ? bin.length : idx.length/3;
+  for (let j=0;j<count;j++) {
+    const i = bin ? bin[j] : j*3;
     const a = idx[i] * 3, b = idx[i+1] * 3, c = idx[i+2] * 3;
     const bx = pos[b]-pos[a], bz = pos[b+2]-pos[a+2], cx = pos[c]-pos[a], cz = pos[c+2]-pos[a+2];
     const det = bx*cz-bz*cx;

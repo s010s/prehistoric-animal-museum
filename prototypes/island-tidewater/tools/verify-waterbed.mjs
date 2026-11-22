@@ -6,10 +6,11 @@ import {Vector3} from '../vendor/tidewater/src/engine/index.js';
 import {loadRuntimeTerrain} from './load-runtime-terrain.mjs';
 import {BED_CELL, BED_CELL_CAPACITY, planFreshwaterBedCell} from '../creek/FreshwaterBedPlan.js';
 import {freshwaterBedStops, freshwaterBedVisits} from '../creek/FreshwaterBedVisits.js';
-import {nearMarineBed, planMarineBedCell} from '../creek/MarineBenthicTiles.js';
+import {nearMarineBed, planMarineBedCell, roamingReefRocks} from '../creek/MarineBenthicTiles.js';
 import {freshwaterRibbons} from '../creek/FreshwaterRibbons.js';
 import {loadMarineRockProfiles, rockSurface} from '../creek/MarineRockProfiles.js';
 import {marineOutcropKinds} from '../creek/MarineOutcrops.js';
+import {mainEstuaryWeight} from '../creek/MainEstuary.js';
 
 const data = await loadRuntimeTerrain();
 const visits = freshwaterBedVisits(data);
@@ -107,10 +108,42 @@ for (const [x,z] of [[-965,152],[-650,3689]]) {
   assert(!marineWindow(x,z).some(s => s.fixed), 'New hard ground entered an authored mouth');
 }
 
+// Audit the outer feather separately. An attachment or a long stone may cross
+// the cut-off even when its anchor point is outside the protected beach.
+let nearMouth = 0;
+for (let iz=184;iz<268;iz++) for (let ix=-80;ix<17;ix++) {
+  const x=(ix+.5)*BED_CELL, z=(iz+.5)*BED_CELL;
+  const mask = [[-20,-20],[-20,20],[20,-20],[20,20],[0,0]].map(([dx,dz])=>mainEstuaryWeight(x+dx,z+dz));
+  if (Math.min(...mask)>=.02 || Math.max(...mask)<=.02) continue;
+  for (const s of marineCell(ix,iz)) {
+    if (!s.reefId) continue;
+    const radius = s.coverRadius ?? s.radius;
+    assert(mainEstuaryWeight(s.x,s.z)<=.02, 'Reef anchor entered the main mouth');
+    for (let j=0;j<32;j++) {
+      const a=j*Math.PI/16;
+      assert(mainEstuaryWeight(s.x+Math.cos(a)*radius,s.z+Math.sin(a)*radius)<=.02, 'Reef footprint entered the main mouth');
+    }
+    nearMouth++;
+  }
+}
+assert(nearMouth>0, 'Audit did not reach the adjacent ordinary reef');
+
 // An ordinary southeast dive has staggered outcrops, including a distinct
 // near ledge, and swimming room at the visitor's actual eye position.
 const x = 10606.53, z = 5090.61, sea = data.island.seaLevel;
 const shelf = marineWindow(x,z), stones = shelf.filter(s => s.q);
+assert.equal(new Set(stones.map(s=>s.rockId)).size, stones.length, 'Reef rock identities must be distinct');
+assert.deepEqual(marineWindow(x,z).filter(s=>s.q).map(s=>s.rockId), stones.map(s=>s.rockId), 'Recycling a cell moved its reefs');
+const indexed=new Map();
+for (const s of shelf) {
+  const key=`${Math.floor(s.x/BED_CELL)},${Math.floor(s.z/BED_CELL)}`;
+  if (!indexed.has(key)) indexed.set(key,[]);
+  indexed.get(key).push(s);
+}
+const nearby=roamingReefRocks(indexed,x,z,19);
+assert(nearby.some(s=>s.reefRole==='crest') && nearby.some(s=>s.reefRole==='bench'), 'A shallow reef needs both relief and low shelves');
+assert.deepEqual(new Set(nearby),new Set(stones.filter(s=>Math.hypot(s.x-x,s.z-z)<=19+s.footRadius)), 'Nearby query missed a physical reef rock');
+assert(stones.some(s=>s.collision && s.top-s.floor>.9), 'Tall outcrops lost their swim collision');
 const sight = stones.filter(s => {
   const dx=s.x-x, dz=s.z-z, distance=Math.hypot(dx,dz);
   return -.643*dx+.766*dz>.68*distance;
@@ -135,13 +168,23 @@ for (const s of stones) {
     pos.push(v.x,v.y,v.z);
   }
   assert(lowest<-.04 && s.top<sea-.95, 'Outcrop must meet the floor and stay underwater');
-  surfaces.set(`${s.x},${s.z}`, {pos,idx:geometry.index.array});
+  const host={pos,idx:geometry.index.array};
+  surfaces.set(s.rockId,host);
+  const box=s.collision;
+  if (!box) continue;
+  const c=Math.cos(box.yaw), n=Math.sin(box.yaw);
+  assert(box.yMin<s.floor && box.yMax>box.yMin);
+  for (let u=-1;u<=1;u++) for (let v=-1;v<=1;v++) {
+    const px=box.x+u*box.halfX*c+v*box.halfZ*n, pz=box.z-u*box.halfX*n+v*box.halfZ*c;
+    const hit=rockSurface(host,px,pz);
+    assert(hit && hit.y>box.yMax, 'Collision roof entered open swimming space');
+  }
 }
 const benthos = shelf.filter(s => s.hostX!==undefined);
 for (const kind of ['holdfast','wrack','shell','colony','fingers']) assert(benthos.some(s => s.kind===kind));
 assert(shelf.some(s => s.kind==='reef-rubble'), 'The outcrops lost their sediment apron');
 for (const s of benthos) {
-  const host=surfaces.get(`${s.hostX},${s.hostZ}`), hit=rockSurface(host,s.x,s.z);
+  const host=surfaces.get(s.hostRockId), hit=rockSurface(host,s.x,s.z);
   assert(hit && hit.y-s.y>.005 && hit.y-s.y<.032, 'Settler lost contact with the scanned rock');
   assert(hit.y>data.terrain.heightAt(s.x,s.z)+.055, 'Settler was buried by the seabed');
 }

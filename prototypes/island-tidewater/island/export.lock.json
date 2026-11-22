@@ -47,7 +47,11 @@
     },
     {
       "path": "creek/CoastalShelf.js",
-      "sha256": "ec6e7e91f047d01c43e19dac63e1d4c50cd20deb6c9b3a5e27ea14cdc5805655"
+      "sha256": "11a25a9b1a7d3a8fe950ffe41c70b3d218a2e4ab7228e6731a68f3e91cc99016"
+    },
+    {
+      "path": "creek/ShorefaceDistance.js",
+      "sha256": "afbe9de2a14e84243f3da73d967c63a3f7a88080ff9d0f52cf42c014d0529678"
     },
     {
       "path": "creek/PocketBeaches.js",
@@ -83,14 +87,14 @@
     },
     {
       "path": "creek/WholeIslandData.js",
-      "sha256": "a9f732d52be8966f3c75f69f1d170feea0a01f7be4c914b475995df3bf67a68a"
+      "sha256": "20cd6cd6589626a28bfa88999009dbb45b786dd39c73655c6f265995251281a5"
     }
   ],
   "outputs": [
     {
       "path": "island/assets/heights.bin",
       "bytes": 1048576,
-      "sha256": "afd668a833056def031ac0d4eede1194d1eb323afc57b42e9075b892f68f2847"
+      "sha256": "48f3f8f9c0ad431fbf0555751dcbfc9411d60c5bc27ed6b1c97e25f6ec9bd247"
     },
     {
       "path": "island/assets/water.bin",
@@ -105,22 +109,22 @@
     {
       "path": "island/assets/map.json",
       "bytes": 8658,
-      "sha256": "c880d68d9dca30fcd6aff51aa152f44dd914484e7660bf5f38e7b30238e916b3"
+      "sha256": "dd1233004d87a323f11b5c01e168c4f3bde49b65173fa5bec8380cfa2d628799"
     },
     {
       "path": "creek/assets/arrival-map.webp",
-      "bytes": 11568,
-      "sha256": "f6135751188e88ccd9362add20e699ffde4437f9425ddf5605b42519156b686a"
+      "bytes": 11504,
+      "sha256": "015ffb4f5d3e3d361bd1decd8f4eeae3f73fbd6752eb6085b02f8abbdf31bfb7"
     },
     {
       "path": "island/assets/terrain.webp",
-      "bytes": 126290,
-      "sha256": "d8d97ef52ca48338cb8f47d40c63b453191d9cc9a15b6418d5cf11b1157b4db8"
+      "bytes": 126432,
+      "sha256": "258a394aa0dbe00c38218bb8821a029d14204ce9a132696211aab2c7fd9c6cc5"
     },
     {
       "path": "island/assets/habitat.webp",
-      "bytes": 150774,
-      "sha256": "b1c46bbd777042ac5495248db24c2d4a18af62912db9d27690b124c973c527e9"
+      "bytes": 150390,
+      "sha256": "535757a0df03feb054bb42ff53c6621577f9a82562b9e0315ac3041a71afc77b"
     }
   ]
 }

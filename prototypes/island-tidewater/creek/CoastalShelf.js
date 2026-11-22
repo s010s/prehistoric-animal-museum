@@ -2,6 +2,7 @@
 // native height/normal/shadow upload; no additional per-frame simulation.
 import {finishMainEstuary,mainEstuaryHeight,mainEstuaryWeight} from './MainEstuary.js';
 import {sculptPocketBeaches} from './PocketBeaches.js';
+import {shorefaceDistance} from './ShorefaceDistance.js';
 import {Noise2D} from '../vendor/tidewater/src/util/Noise.js';
 const SEA=-.7;
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
@@ -34,7 +35,7 @@ function distanceTransform(ocean,n){
  return out;
 }
 
-export function extendCoastalShelf(grids,readHeight,waterField){
+export function extendCoastalShelf(grids,readHeight,waterField,authoredShelves=[]){
  const started=performance.now(),size=32768,n=1024,texel=size/n,origin=-size/2;
  const pocketWeight=sculptPocketBeaches(grids,readHeight);
  const heights=new Float32Array(n*n),ocean=new Uint8Array(n*n),queue=new Int32Array(n*n);
@@ -125,6 +126,53 @@ export function extendCoastalShelf(grids,readHeight,waterField){
   });
   return {...s,id:'shelf-'+['east','southeast','south','southwest','west','northwest','north','northeast'][k],label,sector:k,width:widthAt(...s.point),at(offshore,along=0){return [s.point[0]+s.normal[0]*offshore-s.normal[1]*along,s.point[1]+s.normal[1]*offshore+s.normal[0]*along];}};
  });
+ // Keep the inherited local compositions, including the full west sample,
+ // the tidal fan and the reefs offshore from each original observation site.
+ const distanceToForeshore=shorefaceDistance(segments,readHeight,SEA);
+ const refuges=stations.map(s=>({x:s.point[0]+s.normal[0]*205,z:s.point[1]+s.normal[1]*205,
+   nx:s.normal[0],nz:s.normal[1],along:210,across:205}));
+ for(const s of authoredShelves) {
+  const [x,z]=s.at(0,s.width*.37);
+  refuges.push({x,z,nx:s.normal[0],nz:s.normal[1],along:s.along+90,across:s.width*.84});
+ }
+ function ordinaryShelfWeight(x,z) {
+  const box=(cx,cz,rx,rz)=>smooth(26,142,Math.max(Math.abs(x-cx)-rx,Math.abs(z-cz)-rz));
+  let w=Math.min(box(-1024,-160,530,530),box(-498,3645,770,715),
+    box(-826,-2418,155,136),box(10386,160,435,435),box(5224,-7336,435,435));
+  for(const r of refuges) {
+   const dx=x-r.x,dz=z-r.z;
+   if(Math.abs(dx)>r.along+r.across+152||Math.abs(dz)>r.along+r.across+152) continue;
+   const outside=Math.max(Math.abs(dx*r.nx+dz*r.nz)-r.across,Math.abs(dz*r.nx-dx*r.nz)-r.along);
+   w=Math.min(w,smooth(26,142,outside));
+  }
+  return w;
+ }
+ // A shoreface descends into an irregular trough, interrupted by oblique
+ // rock spurs. Evaluate it once in the physical grids so swimmers, sunlight,
+ // breakers and rock roots all see the same contour at every display LOD.
+ function reefFloor(x,z,d,h,near,ordinary) {
+  const depth=SEA-h;
+  if(d>440||depth<=0||!ordinary)return h;
+  const support=ordinary*(1-smooth(240,440,d));
+  if(!support)return h;
+  const district=noise.noise(x/546+18,z/430-12);
+  const wx=x+noise.noise(x/271,z/249)*39,wz=z+noise.noise(x/276+41,z/303)*45;
+  const strike=small.noise((wx*.87+wz*.49)/133,(wz*.87-wx*.49)/59);
+  const ledge=smooth(.08,.65,strike);
+  const trough=(3.85+district*1.15)*(1-Math.exp(-d/(59+district*15)));
+  const channel=.57*(1-ledge)+small.noise(wx/92+8,wz/115)*.37;
+  const relief=(channel-1.03*ledge)*smooth(18,80,d);
+  const target=Math.max(.2,trough+relief);
+  // Retain naturally deep pockets. Incoming waves still run up the original
+  // dry beach; depth and gradients join the outer platform continuously.
+  const oldDepthWeight=1-smooth(5.2,7,depth);
+  const outer=mix(h,Math.min(h,SEA-target),oldDepthWeight);
+  // The inherited shelf switched from raw deep seabed to a 0.18 m platform
+  // at a coarse grid crossing. Join at the actual waterline on both sides of
+  // that switch, with the same nearshore slope at every terrain resolution.
+  const inner=Number.isFinite(near) ? 1-smooth(54,98,near) : 0;
+  return mix(h,mix(outer,SEA-Math.max(.025,trough+relief),inner),support);
+ }
  const probeDistances=[25,75,150,300,500,750,1100,1500];
  const measure=height=>{
   const sectors=labels.map((label,i)=>({label,sector:i,coastLength:0,shallowLength:0,blockedLength:0}));
@@ -160,7 +208,13 @@ export function extendCoastalShelf(grids,readHeight,waterField){
     grid.rock[k]*=1-.48*smooth(.5,24,change);
     continue;
    }
-   const d=distanceAt(x,z);if(d<=0||d>1550||!oceanAt(x,z))continue;
+   const chart=distanceAt(x,z);
+   if(chart>1550)continue;
+   const legacyOcean=chart>0&&oceanAt(x,z);
+   const ordinary=chart<440 ? ordinaryShelfWeight(x,z) : 0;
+   const near=ordinary && chart<140 ? distanceToForeshore(x,z) : Infinity;
+   if(!legacyOcean && !Number.isFinite(near))continue;
+   const d=Number.isFinite(near)?mix(near,Math.max(0,chart),smooth(56,100,near)):Math.max(0,chart);
    waterField.sample(x,z,f);
    // An estuary is continuous with the shelf. A hard level cutoff raised the
    // first unprotected row by metres and baked its diagonal into the bed/AO.
@@ -169,11 +223,12 @@ export function extendCoastalShelf(grids,readHeight,waterField){
    const tail=f[0]>SEA+.01?1:1-smooth(3500,4050,z);
    const channel=(1-smooth(-8,24,f[1]))*tail;
    if(channel>.999){protectedWater++;continue;}
-   const form=shape(x,z,d);if(form.weight<=0)continue;
+   const form=shape(x,z,Math.max(0,chart));if(form.weight<=0)continue;
    // Leave the source wet/dry vertices intact. Near shore, the old shallow
    // slope is the upper envelope; no submerged moat around a new sand platform.
-   const target=d<50?Math.max(old,form.height):form.height;
-   const pocket=pocketWeight(x,z),weight=form.weight*(1-channel)*(1-pocket);const y=mix(old,target,weight);
+   const target=chart<50?Math.max(old,form.height):form.height;
+   const pocket=pocketWeight(x,z),weight=form.weight*(1-channel)*(1-pocket);const shelf=legacyOcean?mix(old,target,weight):old;
+   const y=reefFloor(x,z,d,shelf,near,ordinary*(1-channel)*(1-pocket));
    if(y===old)continue;grid.heights[k]=y;changed++;maxShift=Math.max(maxShift,Math.abs(y-old));if(old>=SEA)dryChanged++;
    const sand=1-smooth(.18,.7,form.reef/2.1);grid.sand[k]=Math.round(mix(sand*255,grid.sand[k],pocket));grid.rock[k]=mix(grid.rock[k],.06+(1-sand)*.5,weight);
   }

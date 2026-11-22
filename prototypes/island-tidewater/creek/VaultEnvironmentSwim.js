@@ -155,11 +155,11 @@ export function installReviewedSwimAttributes(batch) {
  }
 }
 
-export function addReviewedSwimInstance(batch,index,pixels,distance,range) {
+export function addReviewedSwimInstance(batch,index,pixels,distance,range,opacity=1) {
  const lod=pixels>=levels[0].pixels?0:pixels>=levels[1].pixels?1:2;
  const threshold=levels[lod]?.pixels;
- if(distance>range*.85){
-  batch.addFade(lod,index,Math.max(0,(range-distance)/(range*.15)),false);
+ if(distance>range*.85 || opacity<1){
+  batch.addFade(lod,index,Math.min(opacity,Math.max(0,(range-distance)/(range*.15))),false);
  }else if(threshold&&pixels<threshold*1.18){
   const share=(pixels/threshold-1)/.18;
   batch.addFade(lod,index,share,false);

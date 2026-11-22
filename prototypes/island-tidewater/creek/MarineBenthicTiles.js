@@ -3,11 +3,12 @@
 import {mulberry32, Noise2D} from '../vendor/tidewater/src/util/Noise.js';
 import {BED_CELL, BED_CELL_CAPACITY} from './FreshwaterBedPlan.js';
 import {mainEstuaryWeight} from './MainEstuary.js';
-import {fitMarineOutcrop, settleMarineOutcrop} from './MarineOutcrops.js';
+import {fitMarineOutcrop, outcropCollision, settleMarineOutcrop} from './MarineOutcrops.js';
 
 const seams = new Noise2D(66287);
 const TAU = Math.PI * 2;
 const BIN = 48;
+const footprintAngles = Array.from({length:16},(_,i)=>[Math.cos(i*TAU/16),Math.sin(i*TAU/16)]);
 const bedLanes = (x,z) => seams.noise(x/26+80,z/34) + .47*seams.noise(x/14,z/17+73);
 
 export function marineBedExclusions(app, data) {
@@ -45,11 +46,36 @@ export function nearMarineBed(data, position) {
     coast.marineAt(x,z-25) > .25 || coast.marineAt(x,z+25) > .25;
 }
 
+// Fish and the visitor share the streamed rock instances. A stateless query
+// also works while the far ring of the camera window is still being loaded.
+export function roamingReefRocks(cells, x, z, radius=22) {
+  const rocks = [], search = radius+4;
+  if (!cells) return rocks;
+  for (let iz=Math.floor((z-search)/BED_CELL);iz<=Math.floor((z+search)/BED_CELL);iz++) {
+    for (let ix=Math.floor((x-search)/BED_CELL);ix<=Math.floor((x+search)/BED_CELL);ix++) {
+      for (const rock of cells.get(`${ix},${iz}`)??[]) {
+        if (rock.rockId && (rock.x-x)**2+(rock.z-z)**2<=(radius+rock.footRadius)**2) rocks.push(rock);
+      }
+    }
+  }
+  return rocks;
+}
+
+function westernSample(x,z,pad=0) {
+  return x>-1225-pad && x< -755+pad && z> -83-pad && z<315+pad;
+}
+
+function protectedReefFootprint(x,z,radius) {
+  // The estuary feather belongs to the sediment bed. Expand the sampling
+  // circle slightly so shallow arcs between probes remain inside the test.
+  if (westernSample(x,z,radius) || mainEstuaryWeight(x,z)>.02) return true;
+  const reach = radius+.08;
+  return footprintAngles.some(([dx,dz])=>mainEstuaryWeight(x+dx*reach,z+dz*reach)>.02);
+}
+
 function bedAt(data,exclusions,x,z,pad=0) {
-  // The mouth and the whole approved sample cove include wide, intentional
-  // sand corridors outside the individually named observation patches.
-  if(x>-1225-pad&&x< -755+pad&&z> -83-pad&&z<315+pad)return null;
-  if(pad>0 && mainEstuaryWeight(x,z)>.02)return null;
+  // Ordinary sand and freshwater deposits retain their original registry.
+  if (pad>0 ? protectedReefFootprint(x,z,pad) : westernSample(x,z)) return null;
   const near=exclusions?.get(Math.floor(x/BIN)+','+Math.floor(z/BIN));
   if(near?.some(p=>(x-p.x)**2+(z-p.z)**2<(p.radius+pad)**2))return null;
   const coast=data.cove.continuous;
@@ -57,7 +83,7 @@ function bedAt(data,exclusions,x,z,pad=0) {
   const [surface,edge]=data.field.sample(x,z),level=data.island.seaLevel;
   if(edge<=.12&&surface>level+.15)return null;
   const t=data.terrain,floor=t.heightAt(x,z),depth=level-floor;
-  if(depth<1.25||depth>9.5)return null;
+  if(depth<(pad>0?1.15:1.25)||depth>9.5)return null;
   const gx=t.heightAt(x+.5,z)-t.heightAt(x-.5,z),gz=t.heightAt(x,z+.5)-t.heightAt(x,z-.5);
   const slope=Math.hypot(gx,gz);
   return slope<.45?{floor,depth,gx,gz,slope}:null;
@@ -108,48 +134,57 @@ function planOutcrops(data, exclusions, x0, z0, region, random, kinds, sites, ca
   for (let i = 0; i < 4; i++) {
     const x = x0 + 4.3 + random() * 7.4, z = z0 + 4.3 + random() * 7.4;
     const b = bedAt(data, exclusions, x, z, 3);
-    if (!b || b.depth < 1.8 || b.slope > .27) continue;
+    if (!b || b.slope > .29) continue;
     const substrate = data.landforms?.substrateAt(x, z);
     const rock = substrate?.rock ?? 0, sand = substrate?.sand ?? 1;
     // Follow contour variations in the measured shelf. Irregular sandy runs
     // cross tiles and widen over the flatter, more depositional parts.
-    const score = region * .34 + bedLanes(x,z) * .72 + rock * .68 + (1 - sand) * .16 + b.slope * 1.9;
-    if (score < .04 || anchor && score < anchor.score) continue;
+    const t=data.terrain;
+    const convex = Math.max(0, 4*b.floor-t.heightAt(x-6,z)-t.heightAt(x+6,z)-t.heightAt(x,z-6)-t.heightAt(x,z+6));
+    const score = region*.34 + bedLanes(x,z)*.72 + rock*.68 + (1-sand)*.16 + b.slope*1.9 + Math.min(.11,convex*.14);
+    if (score < (b.depth<1.8 ? .18 : .04) || anchor && score < anchor.score) continue;
     anchor = {...b, x, z, rock, score};
   }
   if (!anchor) return [];
 
   const trend = (anchor.slope > .013 ? Math.atan2(anchor.gx, -anchor.gz) : seams.noise(anchor.x/260, anchor.z/270)*TAU) + (random()-.5)*.8;
   const dx = Math.cos(trend), dz = Math.sin(trend), lithology = (anchor.rock > .23) === (random() < .69) ? 'sandstone' : 'conglomerate';
-  const level = data.island.seaLevel, rocks = [];
-  const members = 5 + Math.floor(random()*3);
+  const level = data.island.seaLevel, rocks = [], reefId = `shelf:${x0/BED_CELL},${z0/BED_CELL}`;
+  const ankle = anchor.depth<1.85, members = (ankle?3:5)+Math.floor(random()*3);
   for (let i = 0; i < members && sites.length + rocks.length < capacity; i++) {
     const side = i < 3 ? (random()-.5)*(i ? 2.9 : .5) : (i%2 ? -1 : 1)*(1.0+random()*1.3);
     const along = i < 3 ? (i === 0 ? 0 : (i%2 ? 1 : -1))*(.9+i*.55+random()*.75) : (random()-.48)*5.6;
     const x = anchor.x + along*dx - side*dz, z = anchor.z + along*dz + side*dx;
-    const scale = i === 0 ? 2.5+random()*2.0 : i < 3 ? 1.25+random()*1.35 : .62+random()*1.02;
-    const b = bedAt(data, exclusions, x, z, scale*.55);
-    if (!b || b.depth < 1.75 || b.slope > .32 || x<x0 || x>=x0+BED_CELL || z<z0 || z>=z0+BED_CELL) continue;
-    const kind = kinds.has(lithology) ? lithology : 'sandstone';
+    const size = i===0 ? 2.5+random()*2 : i<3 ? 1.25+random()*1.35 : .62+random()*1.02;
+    const b = bedAt(data, exclusions, x, z, size*.62);
+    if (!b || b.slope>.32 || x<x0 || x>=x0+BED_CELL || z<z0 || z>=z0+BED_CELL) continue;
+    // The shallow shoulder is low and sand-set. Across it a flatter bench
+    // and split ledges give the main submerged rise a readable lower tier.
+    const reefRole = i===0 && b.depth>=2.35 ? 'crest' : i===2 || b.depth<1.8 ? 'bench' : 'ledge';
+    const weathered = b.depth>2.35 && (reefRole==='crest' && lithology==='conglomerate' ||
+      i===1 && anchor.rock>.16);
+    let scale = reefRole==='crest' ? Math.min(size*1.09,(b.depth-.98)*4) : b.depth<1.8 ? Math.min(size,(b.depth-.91)*4.8) : size;
+    if (weathered) scale=Math.min(scale,(b.depth-1.04)/.41);
+    const kind = weathered ? 'weathered-knobs' : kinds.has(`${lithology}-${reefRole}`) ? `${lithology}-${reefRole}` : `sandstone-${reefRole}`;
     const yaw = -trend + (random()-.5) * (i ? 1.6 : .5);
     const rock = fitMarineOutcrop(data.terrain, level, {...b, kind, x, z, scale, yaw, seed:random(), mode:3,
-      flowX:0, flowZ:0, fixed:true, reach:31}, kinds.get(kind)[0].geometry);
-    if (rock && !rocks.some(other => Math.hypot(other.x-x, other.z-z)<(other.radius+rock.radius)*.47)) rocks.push(rock);
+      flowX:0, flowZ:0, fixed:true, reach:31, reefId, rockId:`${reefId}/${i}`, reefRole, reefYaw:trend}, kinds.get(kind)[0].geometry);
+    if (rock && !protectedReefFootprint(x,z,rock.radius) && !rocks.some(other => Math.hypot(other.x-x, other.z-z)<(other.radius+rock.radius)*.47)) rocks.push(rock);
   }
   for (const rock of rocks) {
     const {host, ...site} = rock;
-    sites.push(site);
+    sites.push({...site, collision:outcropCollision(rock,data.terrain)});
   }
   if (!rocks.length) return rocks;
 
   const occupied = [];
   // Coral recruits share only the larger hard surfaces in the middle of the
   // light zone. A second settlement is limited to established, higher rock.
-  const coralHabitat = anchor.depth > 2.15 && anchor.depth < 7.0 && random() < .79;
+  const coralHabitat = anchor.depth > 2.25 && anchor.depth < 7.0 && random() < .79;
   for (const [i, rock] of rocks.entries()) {
     const living = coralHabitat && (i===0 || i===1 && rock.scale>1.7 && random()<.61);
     const colony = living ? (random()<.56 ? 'colony' : 'fingers') : null;
-    const settlements = settleMarineOutcrop(rock, data.terrain, level, random, rocks, occupied, colony);
+    const settlements = settleMarineOutcrop(rock, data.terrain, level, random, rocks, occupied, colony, protectedReefFootprint);
     sites.push(...settlements.slice(0,capacity-sites.length));
   }
 
@@ -164,12 +199,31 @@ function planOutcrops(data, exclusions, x0, z0, region, random, kinds, sites, ca
     if (!b || x<x0 || x>=x0+BED_CELL || z<z0 || z>=z0+BED_CELL ||
         rocks.some(rock=>Math.hypot(rock.x-x,rock.z-z)<rock.radius*.71) ||
         deposits.some(site=>Math.hypot(site.x-x,site.z-z)<.68)) continue;
-    const rubble = i%3!==0;
+    const rubble = i%3!==0, scale = rubble?1.15+random()*1.33:.34+random()*.45;
+    const coverRadius = (rubble?.52:.59)*scale;
+    if (protectedReefFootprint(x,z,coverRadius)) continue;
     const site = {kind:rubble?'reef-rubble':'cobble', x, y:b.floor-.018, z,
-      scale:rubble?1.15+random()*1.33:.34+random()*.45, yaw:-trend+(random()-.5)*1.3,
-      seed:random(), gx:b.gx, gz:b.gz, flowX:0, flowZ:0, depth:b.depth, mode:3, fixed:true, reach:rubble?20:23};
+      scale, yaw:-trend+(random()-.5)*1.3,
+      seed:random(), gx:b.gx, gz:b.gz, flowX:0, flowZ:0, depth:b.depth, mode:3, fixed:true, reach:rubble?20:23, reefId, coverRadius};
     deposits.push(site);
     sites.push(site);
+  }
+  // Rhizomes collect behind low ledges on the sand-soft side of a group.
+  // Several leaves at a lip give the swimmer a near-scale cue around it.
+  const pocket = rocks.find(rock=>rock.reefRole==='bench') ?? rocks[1];
+  if (pocket && pocket.depth<5.4 && pocket.slope<.20 && anchor.rock<.62) {
+    const side = (anchor.gx*dz-anchor.gz*dx<0 ? -1 : 1) * (pocket.radius+.43);
+    for (let i=0;i<7 && sites.length<capacity;i++) {
+      const along=(random()-.46)*(1.7+pocket.radius), across=side+(random()-.46)*.62;
+      const x=pocket.x+dx*along-dz*across, z=pocket.z+dz*along+dx*across;
+      const b=bedAt(data,exclusions,x,z,.42);
+      if (!b || b.depth<1.25 || b.slope>.18 || x<x0 || x>=x0+BED_CELL || z<z0 || z>=z0+BED_CELL ||
+          rocks.some(rock=>(x-rock.x)**2+(z-rock.z)**2<(rock.radius+.06)**2)) continue;
+      const scale=.65+random()*.64, coverRadius=scale*.48;
+      if (protectedReefFootprint(x,z,coverRadius)) continue;
+      sites.push({kind:'seagrass',x,y:b.floor-.018,z,scale,yaw:-trend+random()*.9,seed:random(),
+        gx:b.gx,gz:b.gz,flowX:dx*.065,flowZ:dz*.065,depth:b.depth,mode:3,reefId,coverRadius});
+    }
   }
   return rocks;
 }

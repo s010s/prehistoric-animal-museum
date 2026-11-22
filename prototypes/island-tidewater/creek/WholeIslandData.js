@@ -62,7 +62,7 @@ export async function expandWholeIsland(data,onStage=()=>{}){
  gradeTributaryConfluence([global,grids[2]],world);
  data.cove=sculptShallowCove(regional,global,data.coast.coast,[grids[1],grids[2]]);global.museumCove=data.cove;
  const coastalPatches=[regional,grids[1],grids[2]],readCoast=(x,z)=>{let h=global.heightAt(x,z);for(const p of coastalPatches){const d=Math.max(Math.abs(x-p.center[0]),Math.abs(z-p.center[1])),w=1-smooth(3800,4080,d);if(w>0)h=h*(1-w)+p.heightAt(x,z)*w;}return h;};
- data.cove.continuous=extendCoastalShelf([global,...coastalPatches],readCoast,data.field);
+ data.cove.continuous=extendCoastalShelf([global,...coastalPatches],readCoast,data.field,data.cove.shelves);
  data.cove.id='museum-continuous-shallow-shelf-v3';
  // Compose all resolutions identically on CPU and GPU. Broad overlaps prevent
  // seams in both the surface and bounds; the original fine core stays intact.

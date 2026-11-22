@@ -37,7 +37,7 @@ const pinOffsets = {
   'east-bay': [-32, 0],
 };
 const tourAdditions = {
-  'east-bay': [{ name: '东岸双岬沙湾', place: 'east-pocket-beach' }],
+  'east-bay': [{ name: '东岸双岬沙湾', place: 'east-pocket-beach' }, { name: '从东岸沙滩游向浅礁', place: 'east-shore-swim' }],
   creek: [
     { name: '岩隙里的细泉', place: 'sample-source' },
     { name: '溪谷巨木与幼树', place: 'sample-forest' },
@@ -45,6 +45,7 @@ const tourAdditions = {
   'west-coast': [
     { name: '西岸样板河口', place: 'sample-mouth' },
     { name: '西岸迎浪岬', place: 'west-surf-point' },
+    { name: '从西北岸沙滩游向浅礁', place: 'northwest-shore-swim' },
     { name: '在浅湾岸边看无齿翼龙', place: 'sample-pteranodon' },
   ],
   lake: [{ name: '山间长湖砾岸', place: 'lake-shingle' }],

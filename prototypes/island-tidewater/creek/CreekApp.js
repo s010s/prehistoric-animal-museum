@@ -431,7 +431,8 @@ export class CreekApp extends MuseumApp {
     // The FFT clock never pauses. Prewarm surf well before reaching the coast;
     // the opaque valley ridge hides the sea while these cached maps are idle.
     const c=this.camera.position;
-    this.airMotes?.update(dt,this.camera,h);this.life?.update(dt,this.camera);this.habitatEnrichment?.update(dt,this.camera);this.landscapeDetails?.update(this.camera);this.islandEcology?.update(this.camera);this.submergedBed?.update(this.camera);this.islandLandmarkProps?.update(this.camera);this.sampleDetails?.update(this.camera);this.shoreHabitats.update(this.camera);this.coveRocks?.update(this.camera);this.shelfReef?.update(this.camera);this.marineSnow.opacity.value=h>1?.12:.42;this.marineSnow.update(this.camera,c.y<h+LENS_REACH&&h>-89);this.audio.updateAt(dt,this.camera,h,this.settings.timeOfDay);
+    this.submergedBed?.update(this.camera);
+    this.airMotes?.update(dt,this.camera,h);this.life?.update(dt,this.camera);this.habitatEnrichment?.update(dt,this.camera);this.landscapeDetails?.update(this.camera);this.islandEcology?.update(this.camera);this.islandLandmarkProps?.update(this.camera);this.sampleDetails?.update(this.camera);this.shoreHabitats.update(this.camera);this.coveRocks?.update(this.camera);this.shelfReef?.update(this.camera);this.marineSnow.opacity.value=h>1?.12:.42;this.marineSnow.update(this.camera,c.y<h+LENS_REACH&&h>-89);this.audio.updateAt(dt,this.camera,h,this.settings.timeOfDay);
     const edge=Math.max(Math.abs(c.x),Math.abs(c.z));
     const active=this.engine.meshRenderer.precompiling||(this.coastalActive?(edge>340||c.y>100):(edge>420||c.y>120));
     this.coastalActive=active;

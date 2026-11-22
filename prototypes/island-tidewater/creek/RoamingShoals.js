@@ -2,7 +2,11 @@ import {Vector3} from '../vendor/tidewater/src/engine/index.js';
 import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
 import {REVIEWED_SWIM_RIGS} from './VaultReviewedSwimMotion.js';
 
-const CELL = 44, SLOTS = 3, MEMBERS = 7;
+import {roamingReefRocks} from './MarineBenthicTiles.js';
+import {reefSchoolSite} from './ReefShoals.js';
+import {BED_CELL} from './FreshwaterBedPlan.js';
+
+const CELL = 44, SLOTS = 3, MEMBERS = 10;
 const TAU = Math.PI * 2;
 export const ROAMING_FISH_CAPACITY = SLOTS * MEMBERS;
 
@@ -78,7 +82,7 @@ export class RoamingShoals {
           this.rocks.get(key).push(rock);
         }
     }
-    this.cells=new Map(); this.slots=Array(SLOTS).fill(null);
+    this.reefHomes=new WeakMap(); this.cells=new Map(); this.slots=Array(SLOTS).fill(null);
     this.groups=[]; this.last=null;
   }
 
@@ -122,15 +126,22 @@ export class RoamingShoals {
     const random=mulberry32(site.seed^0x45eb19), base=swimmers[g.reviewed].fixedCount+slot*MEMBERS;
     const shallow=g.reviewed==='coccosteus'?.63:.25;
     for(let i=0;i<g.count;i++) {
-      const f=createSwimmer(g,i,lengths[g.reviewed],random,shallow,shallow>.6?.23:.40);
+      const f=createSwimmer(g,i,g.length??lengths[g.reviewed],random,shallow,shallow>.6?.23:.40);
+      if (g.reefId !== undefined) {
+        f.patrolLag=(i-(g.count-1)*.5)*.20+(random()-.5)*.12;
+        f.patrolSide=(i%2 ? -1 : 1)*(.23+random()*.41);
+        f.depth=.36+random()*.24;
+      }
       f.renderIndex=base+i; f.trackingId=g.id+'-'+i;
       g.members.push(f);
     }
     return g;
   }
 
-  scan(p, swimmers) {
-    if(this.last && this.last.distanceToSquared(p)<25)return false;
+  scan(p, swimmers, bed) {
+    const bedChanged = this.bedRevision !== bed?.revision;
+    if(this.last && !bedChanged && this.last.distanceToSquared(p)<25)return false;
+    this.bedRevision=bed?.revision;
     (this.last??=new Vector3()).copy(p);
     const ix=Math.floor(p.x/CELL),iz=Math.floor(p.z/CELL), candidates=[];
     const floor=this.data.terrain.heightAt(p.x,p.z);
@@ -149,17 +160,53 @@ export class RoamingShoals {
         const distance=Math.hypot(s.x-p.x,s.z-p.z);
         const held=this.groups.some(g=>g.id===s.id);
         if(distance>(held?88:76))continue;
-        candidates.push({s,score:held && distance<48 ? distance-90 : distance-(held?9:0)});
+        candidates.push({s,score:held && distance<(s.sea?24:48) ? distance-(s.sea?12:90) : distance-(held?9:0)});
       }
     }
     for(const [key,tile] of this.cells)if(Math.abs(tile.bx-ix)>2 || Math.abs(tile.bz-iz)>2)this.cells.delete(key);
+    const nearby = !protectedView && bed?.cells.size ? roamingReefRocks(bed.cells,p.x,p.z,44) : [];
+    const reefSites = new Map();
+    for (const crest of nearby) {
+      if (crest.reefRole !== 'crest') continue;
+      let site = this.reefHomes.get(crest);
+      if (site === undefined) {
+        const siblings=bed.cells.get(Math.floor(crest.x/BED_CELL)+','+Math.floor(crest.z/BED_CELL));
+        site=siblings && !inSample(crest.x,crest.z,47) &&
+          !this.authored.some(g=>Math.hypot(g.x-crest.x,g.z-crest.z)<g.radius+35)
+          ? reefSchoolSite(this.data,crest,siblings,this.breakDepth) : null;
+        this.reefHomes.set(crest,site);
+      }
+      if (site) reefSites.set(site.id,site);
+    }
+    // The outer bed row can unload before its fish leave sight. Keep the home
+    // and the physical obstacles for that short overlap across tile boundaries.
+    for (const g of this.groups) if (!protectedView && g.reefId !== undefined && !reefSites.has(g.id)) reefSites.set(g.id,g);
+    for (const s of reefSites.values()) {
+      const distance=Math.hypot(s.x-p.x,s.z-p.z), held=this.groups.some(g=>g.id===s.id);
+      if (distance>(held?43:36) || p.y>s.h+8 || p.y<s.floor-4) continue;
+      candidates.push({s,score:distance-19-(held?8:0)});
+    }
     candidates.sort((a,b)=>a.score-b.score || a.s.id.localeCompare(b.s.id));
-    const selected=candidates.slice(0,SLOTS).map(c=>c.s);
+    const selected=[];
+    for (const {s} of candidates) {
+      if (selected.some(other=>(s.reefId!==undefined || other.reefId!==undefined) &&
+          Math.hypot(s.x-other.x,s.z-other.z)<12)) continue;
+      selected.push(s);
+      if (selected.length===SLOTS) break;
+    }
     for(let i=0;i<SLOTS;i++)if(this.slots[i]&&!selected.some(s=>s.id===this.slots[i].id))this.slots[i]=null;
     for(const site of selected)if(!this.slots.some(g=>g?.id===site.id)) {
       const slot=this.slots.indexOf(null); this.slots[slot]=this.arrive(site,slot,swimmers);
     }
     this.groups=this.slots.filter(Boolean);
+    for (const g of this.groups) {
+      if (!g.sea || !bed?.cells.size) continue;
+      const rocks=roamingReefRocks(bed.cells,g.x,g.z,g.radius+9);
+      // A partial streamed window must not discard a still-relevant obstacle.
+      const resident=new Map((g.reefObstacles??[]).map(rock=>[rock.rockId,rock]));
+      for (const rock of rocks) resident.set(rock.rockId,rock);
+      g.reefObstacles=[...resident.values()];
+    }
     return true;
   }
 }
