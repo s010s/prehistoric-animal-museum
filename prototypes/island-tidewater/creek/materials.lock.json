@@ -14,6 +14,13 @@
       "sha256": "964db444257df1e5bf68855f72b717a034d2a54d469eeb3b5721123bd8d277d8",
       "bytes": 185198,
       "license": "Poly Haven fir_tree_01, CC0; original project extraction without resampling"
+    },
+    {
+      "path": "assets/fir-bark-normal.webp",
+      "source": "derived from assets/fir-bark-albedo.webp (512x512) via multi-scale Sobel wrap gradient",
+      "sha256": "1280f32a81b24edc9fcf6f0ca6a6d784b588221f0e5cd69f9a12b963bf2a5d6e",
+      "bytes": 49480,
+      "license": "Derived from Poly Haven fir_tree_01 (CC0); product AGPL-3.0"
     }
   ]
 }

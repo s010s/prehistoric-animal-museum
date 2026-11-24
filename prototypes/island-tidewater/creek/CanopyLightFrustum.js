@@ -26,7 +26,7 @@ export async function attachCanopyLightFrustum(app,{enabled=true,maxBytes=LIMIT,
   if(!mesh.isInstancedMesh||mesh.frustumCulled!==false||mesh.instanceColor||(mesh.onBeforeRender&&mesh.onBeforeRender!==Object3D.prototype.onBeforeRender)||!audit||!geo.index||geo.indirect||geo.groups.length||geo.drawRange.start!==0||
    !(geo.drawRange.count===Infinity||geo.drawRange.count===geo.index.count)||geo.attributes.iPos!==type.near.iPos||geo.attributes.iDat!==type.near.iDat||
    mesh.instanceMatrix!==type.near.instanceMatrix||!(mesh.instanceMatrix.array instanceof Float32Array)||!(type.near.iBuffer.array instanceof Float32Array))throw Error('Unproved native canopy layout/vertex seam');
-  const capacity=Math.max(1,type.inst.count),template=measureCanopyTemplate(geo);
+  const capacity=Math.max(1,type.near.capacity),template=measureCanopyTemplate(geo);
   if(Object.values(geo.attributes).some(a=>sourceOf(a).gpuBuffer))throw Error('Unproved storage-backed canopy geometry');
   const detailSpec=audit.veg.bindings.vegDetail,detailSource=detailSpec?.texture,detail=typeof detailSource==='function'?detailSource():detailSource;
   if(!detail||detail.format!=='rgba8unorm')throw Error('Unproved finite normalized gust detail texture');
@@ -81,16 +81,35 @@ export async function attachCanopyLightFrustum(app,{enabled=true,maxBytes=LIMIT,
   return {species:e.index,mesh:e.mesh.name,selected:n,kept:kept.length,removed:removed.length,keptSlots:kept,removedSlots:removed,envelopes,unknown,
    originalTriangles:n*e.template.triangles,candidateTriangles:kept.length*e.template.triangles,world:Array.from(world),view:Array.from(view)};
  }
+ function fastPlanInto(e,view,idsOut){
+  const n=e.mesh.count,M=e.instanceMatrix.array,B=e.iBuffer.array,world=Float32Array.from(e.mesh.matrixWorld.elements),unknown={};
+  const envelopeKey=[n,M,e.instanceMatrix.version,B,e.iBuffer.version,...world];
+  if(!same(e.envelopeKey,envelopeKey)){
+   e.envelopes=Array.from({length:n},(_,k)=>canopyInstanceEnvelope(e.template,M.subarray(k*16,k*16+16),B.subarray(k*8,k*8+4),B.subarray(k*8+4,k*8+8),world,limits));
+   e.envelopeKey=envelopeKey;envelopeBuilds++;
+  }else envelopeHits++;
+  const envelopes=e.envelopes,testLight=prepareCanopyLightTest(view,shadows.size,limits);
+  let kept=0;
+  for(let k=0;k<n;k++){
+   const envelope=envelopes[k];
+   if(testLight(envelope)<0){
+    if(kept<idsOut.length)idsOut[kept]=k;
+    kept++;
+    if(!envelope.known)unknown[envelope.reason]=(unknown[envelope.reason]??0)+1;
+   }
+  }
+  return {selected:n,kept,removed:n-kept,keptSlots:idsOut.subarray(0,kept),unknown};
+ }
  function packetFor(e,index,view){
   const p=e.packets[index],signature=[e.mesh.count,e.instanceMatrix.array,e.instanceMatrix.version,e.iBuffer.array,e.iBuffer.version,
    ...Float32Array.from(e.mesh.matrixWorld.elements),...view];
   if(same(p.signature,signature)){packetHits++;return p;}
   if(p.usedFrame===GPU.frame){usedFallbacks++;return null;}
-  const plan=planEntry(e,view),M=new Uint32Array(e.instanceMatrix.array.buffer,e.instanceMatrix.array.byteOffset,e.instanceMatrix.array.length),
+  const plan=fastPlanInto(e,view,p.ids),M=new Uint32Array(e.instanceMatrix.array.buffer,e.instanceMatrix.array.byteOffset,e.instanceMatrix.array.length),
    B=new Uint32Array(e.iBuffer.array.buffer,e.iBuffer.array.byteOffset,e.iBuffer.array.length);
   if(plan.kept>e.capacity)return null; // No clipping/truncation of a source pool.
-  for(let k=0;k<plan.keptSlots.length;k++){
-   const from=plan.keptSlots[k];p.ids[k]=from;p.matrixWords.set(M.subarray(from*16,from*16+16),k*16);p.packedWords.set(B.subarray(from*8,from*8+8),k*8);
+  for(let k=0;k<plan.kept;k++){
+   const from=p.ids[k];p.matrixWords.set(M.subarray(from*16,from*16+16),k*16);p.packedWords.set(B.subarray(from*8,from*8+8),k*8);
   }
   for(const [attribute,width]of [[p.matrix,16],[p.packed,8]]){attribute.clearUpdateRanges();if(plan.kept)attribute.addUpdateRange(0,plan.kept*width);attribute.needsUpdate=true;}
   p.count=plan.kept;p.signature=signature;p.last=plan;packetBuilds++;return p;
@@ -103,7 +122,8 @@ export async function attachCanopyLightFrustum(app,{enabled=true,maxBytes=LIMIT,
   if(!entries.every(sourceValid)){sourceFallbacks++;nativeFallback=true;reason='Original canopy shader/attribute/layout changed; complete native fallback';return nativeRender.call(this,scene,pass);}
   if(!supportedWind()){windFallbacks++;reason='Unsupported wind/time state; original canopy retained';return nativeRender.call(this,scene,pass);}
   const view=readView(cascade);if(!affine(view))return nativeRender.call(this,scene,pass);
-  scene.updateMatrixWorld();const prepared=[];
+  if(app.vegetation?.group)app.vegetation.group.updateMatrixWorld();else scene.updateMatrixWorld();
+  const prepared=[];
   for(const e of entries){const p=packetFor(e,index,view);if(!p)return nativeRender.call(this,scene,pass);prepared.push([e,p]);}
   if(frame!==GPU.frame){frame=GPU.frame;}
   passes++;reason=null;

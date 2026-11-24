@@ -10,23 +10,26 @@ import {WOODLAND_FLOOR_FORMS, woodlandFloorGeometry} from './WoodlandFloorGeomet
 import {roamingStoneGeometry} from './RoamingStone.js';
 import {LAND_CAPACITY, RoamingLandCover} from './RoamingLandCover.js';
 import {planIslandEcology} from './IslandEcologyPlan.js';
+import {setRefractionFrustum} from './RefractionFrustum.js';
 
-const TRIANGLE_BUDGET = 68000;
-const SHADOW_TRIANGLE_BUDGET = 4200;
+const TRIANGLE_BUDGET = 74000;
+const SHADOW_TRIANGLE_BUDGET = 3200;
+const SHADOW_RANGE = 18;
+const SHADOW_RANGE_SQ = SHADOW_RANGE * SHADOW_RANGE;
 const TAU = Math.PI * 2;
 
 // Display-referred swatches. Convert to linear before sending reflectance to WGSL.
 const FORMS = {
-  fern: {reach: 59, flex: .65, color: [0x4c5737, 0x606d46]},
+  fern: {reach: 59, flex: .65, color: [0x3c4a2b, 0x4f5e38]},
   rush: {reach: 84, flex: .88, color: [0x475333, 0x65704a, 0x5f5741, 0x42442e]},
   tussock: {reach: 89, flex: .90, color: [0x686146, 0x8a7f56]},
   heath: {reach: 74, flex: .30, color: [0x4c553c, 0x63694e]},
   submerged: {reach: 36, flex: .78, color: [0x505937, 0x62704a]},
   seagrass: {reach: 39, flex: 1, color: [0x526344, 0x8a905e]},
   algae: {reach: 30, flex: .33, color: [0x5b5940, 0x6d6b4d]},
-  duff: {reach: 34, flex: 0, color: [0x4d4635, 0x5d513e]},
+  duff: {reach: 36, flex: 0, color: [0x463d2d, 0x564935]},
   scree: {reach: 100, flex: 0, color: [0x5c5a52, 0x7a7162], rock: 2},
-  cobble: {reach: 67, flex: 0, color: [0x52564c, 0x6c6a5e], rock: 0},
+  cobble: {reach: 67, flex: 0, color: [0x52564c, 0x6c6a5e], rock: 0, noShadow: true},
   talus: {reach: 68, flex: 0, color: [0x414645, 0x5c6059], rock: 1},
   ...WOODLAND_FLOOR_FORMS,
 };
@@ -208,7 +211,7 @@ export class IslandEcology {
     for (const [i, [name, form]] of Object.entries(FORMS).entries()) {
       const kind = kinds.length;
       kinds.push({geometry: islandEcologyGeometry(name, 0, 17147 + i)}, {geometry: islandEcologyGeometry(name, 1, 17147 + i)});
-      const proxy = form.rock == null && !form.floorShadow ? null : kinds.length;
+      const proxy = (form.rock == null || form.noShadow) && !form.floorShadow ? null : kinds.length;
       if (proxy != null) kinds.push({geometry: form.floorShadow === true ? kinds[kind].geometry : kinds[kind+1].geometry, shadow: true, shadowOnly: true});
       const shape = this.shapes[name] = {...form, kind, proxy};
       if (form.rock != null) {
@@ -237,7 +240,7 @@ export class IslandEcology {
     const material = this.material = createHabitatPlantMaterial(this.batch, app.terrainGPU, this.view, {
       name: 'Island ecology wind, swash and contact', namespace: 'islandHabitat', roamingGround: true,
     });
-    material.modules.push(terrainShadingModule());
+    material.modules.push(terrainShadingModule(), data.appearance.module);
     material.varyings.vIslandCover = 'vec3f';
     material.vertex += `
  o.vIslandCover=vec3f(r2.w,world.y-habitatGround,select(0.0,1.0,r3.w<0.0));
@@ -254,15 +257,32 @@ export class IslandEcology {
    mottle=textureSampleGrad(terrainDetailTex,smpAniso4Repeat,q/.64,qDx/.64,qDy/.64).w;
    grain=textureSampleGrad(terrainDetailTex,smpAniso4Repeat,q/.16,qDx/.16,qDy/.16).w;
  }
- let contact=1.0-smoothstep(.01,.17,above+(mottle-.5)*.08);
- let mineral=in.vs.vHabitatColor * mix(.77,1.18,mottle) * mix(.87,1.11,grain);
- let soil=mineral*vec3f(.60,.56,.47);
- let micro=terrainPerturbNormal(in.P,in.N,(grain*.58+mottle*.42)*.012,1.0);
- s.albedo=mix(s.albedo,mix(mineral,soil,contact*.74),stone);
+ let contact=1.0-smoothstep(.01,.38,above+(mottle-.5)*.14);
+ let dryTone=museumDryGrassTone(in.P.xz);
+ let woodCov=museumCover(in.P.xz,0.0).a;
+ let rawMineral=in.vs.vHabitatColor * mix(.77,1.18,mottle) * mix(.87,1.11,grain);
+ let minLuma=dot(rawMineral,vec3f(.32,.48,.20));
+ let mineral=mix(rawMineral,vec3f(minLuma*1.04,minLuma*.96,minLuma*.82),dryTone*.55);
+ let localSoil=mix(mix(mineral*vec3f(.58,.54,.44),vec3f(.22,.19,.13),dryTone*.68),vec3f(.12,.14,.08),woodCov*.48);
+ let mossTop=smoothstep(.52,.88,in.N.y)*woodCov*smoothstep(.35,.72,mottle)*.45;
+ let blendedStone=mix(mix(mineral,localSoil,contact*.78),vec3f(.10,.14,.065),mossTop);
+ let micro=terrainPerturbNormal(in.P,in.N,(grain*.58+mottle*.42)*.015,1.0);
+ s.albedo=mix(s.albedo,blendedStone,stone);
  s.normal=normalize(mix(s.normal,micro,stone));
  s.roughness=mix(s.roughness,mix(.9,.97,contact),stone);
- s.ao=mix(s.ao,max(.33,s.ao)*(1.0-.4*contact),stone);
+ s.ao=mix(s.ao,max(.28,s.ao)*(1.0-.46*contact),stone);
  s.translucency*=mix(.68,0.0,stone);
+ if(stone<.5&&in.vs.vHabitatMode<1.5){
+  let ecoDist=distance(in.P,frame.cameraPos);
+  let farCalm=smoothstep(28.0,68.0,ecoDist);
+  if(farCalm>0.0){
+   s.normal=normalize(mix(s.normal,vec3f(0.0,1.0,0.0),farCalm*.60));
+   s.ao=mix(s.ao,mix(.82,1.0,s.ao),farCalm*.65);
+   s.roughness=mix(s.roughness,.93,farCalm);
+   s.specularIntensity*=(1.0-farCalm*.55);
+   s.translucency*=(1.0-farCalm*.70);
+  }
+ }
  // The screened rock scan has a thin, inward-facing return surface. Match
  // its original single-sided material inside the two-sided foliage batch.
  if(in.vs.vIslandCover.z>.5 && !in.front){discard;}
@@ -287,6 +307,7 @@ export class IslandEcology {
       if (sites.length) this.batch.instanceBuffer.write(this.batch.data.subarray(first*16, (first+sites.length)*16), first*64);
     });
     this.frustum = new Frustum();
+    this.refractionFrustum = new Frustum();
     this.viewProjection = new Matrix4();
     this.sphere = new Sphere();
     this.candidates = [];
@@ -336,8 +357,9 @@ export class IslandEcology {
     }
     this.sphere.center.set(site.x, site.y + site.scale * .45, site.z);
     this.sphere.radius = site.scale * 1.45 + .47;
-    const visible = this.frustum.intersectsSphere(this.sphere);
-    if (visible || (d2 < 256 && shape.proxy != null)) this.candidates.push({site,index,distance:Math.sqrt(d2),visible,roaming});
+    const aquatic = site.mode >= 1 || site.form === 'submerged' || site.form === 'seagrass' || site.form === 'algae' || site.form === 'cobble' || site.form === 'rush';
+    const visible = (aquatic ? this.refractionFrustum : this.frustum).intersectsSphere(this.sphere);
+    if (visible || (d2 < SHADOW_RANGE_SQ && shape.proxy != null && site.scale > .72)) this.candidates.push({site,index,distance:Math.sqrt(d2),visible,roaming});
   }
 
   update(camera) {
@@ -348,6 +370,7 @@ export class IslandEcology {
     camera.updateMatrixWorld();
     this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.viewProjection, camera.coordinateSystem, camera.reversedDepth);
+    setRefractionFrustum(this.refractionFrustum, camera, this.viewProjection);
     const ix = Math.floor(p.x / 96), iz = Math.floor(p.z / 96);
     for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) {
       for (const index of this.cells.get((ix + i) + ',' + (iz + j)) ?? []) {
@@ -369,7 +392,7 @@ export class IslandEcology {
     this.roamingTriangles = this.roamingVisible = 0;
     for (const {site, index, distance, visible, roaming} of candidates) {
       const form = (roaming ? this.roamingShapes : this.shapes)[site.form];
-      const kind = form.kind + (distance > Math.max(17, site.scale * 34) ? 1 : 0);
+      const kind = form.kind + (distance > Math.max(11, site.scale * 18) ? 1 : 0);
       const cost = this.batch.kinds[kind].triangles;
       if (visible && triangles + cost <= TRIANGLE_BUDGET) {
         this.batch.add(kind, index);
@@ -378,7 +401,7 @@ export class IslandEcology {
         this.visible[site.region] = (this.visible[site.region] ?? 0) + 1;
         this.visibleForms[site.form] = (this.visibleForms[site.form] ?? 0) + 1;
       }
-      if (form.proxy != null && site.scale > .34 && distance < 15) {
+      if (form.proxy != null && site.scale > .72 && distance < SHADOW_RANGE) {
         const shadowCost = this.batch.kinds[form.proxy].triangles;
         if (shadowTriangles + shadowCost <= SHADOW_TRIANGLE_BUDGET) {
           this.batch.add(form.proxy, index);

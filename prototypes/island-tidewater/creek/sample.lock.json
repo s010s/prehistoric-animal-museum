@@ -1,13 +1,13 @@
 {
   "schema": "museum-sample-authoring-v1",
   "blender": "5.2.0 LTS",
-  "method": "closed native-scale weathered joint boulders, irregular multi-scale surface, explicit triangles and checked vertex normals; no external scan",
-  "scientificStatus": "authored granite/weathered-joint analogy; visible gap is an outcrop recess, not the measured underground fracture aperture",
+  "method": "closed native-scale fractured stratified bedrock ledges, recessed fissure headwall and angular spring-apron cobbles; flat-faceted geological cleavage with checked manifold topology; no external scan",
+  "scientificStatus": "authored stratified bedrock/fracture spring analogy; visible recess is an outcrop gap, not a measured aquifer aperture",
   "assets": [
     {
       "path": "assets/sample-fissure.json",
-      "sha256": "08a1b7fdac30ddf08e4339496c7d41524d86e2cce6d2e52d9990132f50111dd9",
-      "bytes": 418701
+      "sha256": "4ec5cde23e6704a96b6a948a28f8801b3655be0f64a1a0fe9bbf43e498793e80",
+      "bytes": 1144467
     },
     {
       "path": "assets/sample-stream-nps.mp3",
@@ -28,97 +28,493 @@
   ],
   "objects": [
     {
-      "name": "rounded left bank mass",
-      "vertices": 162,
-      "triangles": 320,
+      "name": "headwall lower strata",
+      "vertices": 218,
+      "triangles": 432,
       "nonmanifoldEdges": 0,
       "blenderBounds": [
         [
-          -4.001582622528076,
-          -0.5255606174468994,
-          -1.0511040687561035
+          -3.3044631481170654,
+          1.3069796562194824,
+          -0.5529586672782898
         ],
         [
-          -0.23203086853027344,
-          3.9552907943725586,
-          1.7709441184997559
+          2.8490545749664307,
+          5.711202621459961,
+          1.702597975730896
         ]
       ]
     },
     {
-      "name": "low right joint block",
-      "vertices": 162,
-      "triangles": 320,
+      "name": "headwall overhang cap",
+      "vertices": 152,
+      "triangles": 300,
       "nonmanifoldEdges": 0,
       "blenderBounds": [
         [
-          -0.03486095741391182,
-          -0.5858723521232605,
-          -1.144803524017334
+          -3.089083194732666,
+          1.6919403076171875,
+          0.7222877740859985
         ],
         [
-          2.234768867492676,
-          3.485058307647705,
-          0.999150276184082
+          2.27573299407959,
+          5.9983978271484375,
+          2.039907217025757
         ]
       ]
     },
     {
-      "name": "buried slope head",
-      "vertices": 162,
-      "triangles": 320,
+      "name": "headwall right shoulder",
+      "vertices": 152,
+      "triangles": 300,
       "nonmanifoldEdges": 0,
       "blenderBounds": [
         [
-          -2.9265851974487305,
-          1.128543734550476,
-          -0.47899654507637024
+          -0.18563179671764374,
+          0.8058883547782898,
+          -0.2607665956020355
         ],
         [
-          1.8423844575881958,
-          6.275947093963623,
-          2.190734624862671
+          3.747870922088623,
+          5.157316207885742,
+          1.6989086866378784
         ]
       ]
     },
     {
-      "name": "apron left fragment",
-      "vertices": 162,
-      "triangles": 320,
+      "name": "left fractured buttress",
+      "vertices": 218,
+      "triangles": 432,
       "nonmanifoldEdges": 0,
       "blenderBounds": [
         [
-          -2.1722185611724854,
-          -2.2391459941864014,
-          -0.7294816970825195
+          -4.192180156707764,
+          -0.08680221438407898,
+          -0.7710399031639099
         ],
         [
-          -0.5601841807365417,
-          0.5598862171173096,
-          0.24481777846813202
+          0.14158999919891357,
+          3.9129316806793213,
+          1.6229501962661743
         ]
       ]
     },
     {
-      "name": "apron right fragment",
-      "vertices": 162,
-      "triangles": 320,
+      "name": "left lower strata ledge",
+      "vertices": 152,
+      "triangles": 300,
       "nonmanifoldEdges": 0,
       "blenderBounds": [
         [
-          0.39792078733444214,
-          -2.0861809253692627,
-          -0.7828578948974609
+          -2.7729406356811523,
+          -0.8462206125259399,
+          -0.6592761874198914
         ],
         [
-          1.7060617208480835,
-          0.529045820236206,
-          0.10975772142410278
+          0.049100976437330246,
+          1.9444316625595093,
+          0.4903542101383209
+        ]
+      ]
+    },
+    {
+      "name": "left back rib",
+      "vertices": 98,
+      "triangles": 192,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -4.148210048675537,
+          0.8800169229507446,
+          -0.46035245060920715
+        ],
+        [
+          -1.4653923511505127,
+          4.412635803222656,
+          1.181417465209961
+        ]
+      ]
+    },
+    {
+      "name": "right joint pillar",
+      "vertices": 218,
+      "triangles": 432,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -0.49854451417922974,
+          -0.11212196201086044,
+          -0.7723525166511536
+        ],
+        [
+          2.7048377990722656,
+          2.9354846477508545,
+          1.0545817613601685
+        ]
+      ]
+    },
+    {
+      "name": "right lower shelf",
+      "vertices": 152,
+      "triangles": 300,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          0.4712080657482147,
+          -1.7562644481658936,
+          -0.7007522583007812
+        ],
+        [
+          2.7657551765441895,
+          0.9443094730377197,
+          0.1904282122850418
+        ]
+      ]
+    },
+    {
+      "name": "apron left slab",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -2.2679691314697266,
+          -2.1414530277252197,
+          -0.6331461071968079
+        ],
+        [
+          -0.3147841989994049,
+          0.3428421914577484,
+          0.12815846502780914
+        ]
+      ]
+    },
+    {
+      "name": "apron right slab",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          0.028294123709201813,
+          -1.8104652166366577,
+          -0.699855625629425
+        ],
+        [
+          1.9174296855926514,
+          0.3440963625907898,
+          -0.023371592164039612
+        ]
+      ]
+    },
+    {
+      "name": "rill left ledge 1",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -2.930044174194336,
+          -3.1400041580200195,
+          -0.7359785437583923
+        ],
+        [
+          -0.9632735848426819,
+          -1.0842304229736328,
+          -0.13051094114780426
+        ]
+      ]
+    },
+    {
+      "name": "rill left ledge 2",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -3.3232240676879883,
+          -4.136391639709473,
+          -0.8377851843833923
+        ],
+        [
+          -2.0343401432037354,
+          -2.1688201427459717,
+          -0.32889243960380554
+        ]
+      ]
+    },
+    {
+      "name": "rill right cobble 1",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -0.1987949162721634,
+          -2.3953967094421387,
+          -0.6790654063224792
+        ],
+        [
+          1.086098313331604,
+          -1.0605106353759766,
+          -0.19914491474628448
+        ]
+      ]
+    },
+    {
+      "name": "rill right cobble 2",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -0.7912614345550537,
+          -3.193662166595459,
+          -0.6909391283988953
+        ],
+        [
+          0.2191227674484253,
+          -1.8122704029083252,
+          -0.27364465594291687
+        ]
+      ]
+    },
+    {
+      "name": "rill right cobble 3",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -1.717223882675171,
+          -4.019696235656738,
+          -0.7741193771362305
+        ],
+        [
+          -0.43897539377212524,
+          -2.829031467437744,
+          -0.3380415141582489
+        ]
+      ]
+    },
+    {
+      "name": "channel bed stone 1",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -0.8262055516242981,
+          -0.8169540762901306,
+          -0.503035843372345
+        ],
+        [
+          0.03157086670398712,
+          0.027303451672196388,
+          -0.21035847067832947
+        ]
+      ]
+    },
+    {
+      "name": "channel bed stone 2",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -1.2473982572555542,
+          -1.9323533773422241,
+          -0.5688323974609375
+        ],
+        [
+          -0.5817810893058777,
+          -1.2126823663711548,
+          -0.31521275639533997
+        ]
+      ]
+    },
+    {
+      "name": "channel bed stone 3",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -1.9506721496582031,
+          -2.8761024475097656,
+          -0.6558334827423096
+        ],
+        [
+          -1.284390926361084,
+          -2.3301267623901367,
+          -0.37845367193222046
+        ]
+      ]
+    },
+    {
+      "name": "bank talus left 1",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -3.417121410369873,
+          -1.57204270362854,
+          -0.4537467956542969
+        ],
+        [
+          -1.7881699800491333,
+          0.029089951887726784,
+          0.0904507115483284
+        ]
+      ]
+    },
+    {
+      "name": "bank talus left 2",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -3.945598602294922,
+          -2.4910500049591064,
+          -0.5555136799812317
+        ],
+        [
+          -2.6141138076782227,
+          -1.1688735485076904,
+          -0.08918910473585129
+        ]
+      ]
+    },
+    {
+      "name": "bank talus right 1",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          1.387744426727295,
+          -0.3447124660015106,
+          -0.5172960162162781
+        ],
+        [
+          3.1057491302490234,
+          1.0088963508605957,
+          0.07563260197639465
+        ]
+      ]
+    },
+    {
+      "name": "bank talus right 2",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          1.1581556797027588,
+          -2.2038466930389404,
+          -0.6165297031402588
+        ],
+        [
+          2.3389205932617188,
+          -0.97686767578125,
+          -0.22631193697452545
+        ]
+      ]
+    },
+    {
+      "name": "fissure throat stone",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          0.010119334794580936,
+          -0.022791046649217606,
+          -0.46295425295829773
+        ],
+        [
+          0.8420161604881287,
+          1.0097384452819824,
+          0.008625908754765987
+        ]
+      ]
+    },
+    {
+      "name": "headwall talus",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -3.326836347579956,
+          -0.17290011048316956,
+          -0.22298932075500488
+        ],
+        [
+          -1.6443477869033813,
+          1.709272027015686,
+          0.4599095582962036
+        ]
+      ]
+    },
+    {
+      "name": "fore slope slab right",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          1.3187835216522217,
+          -3.0418663024902344,
+          -0.656096875667572
+        ],
+        [
+          2.728738784790039,
+          -1.6647285223007202,
+          -0.2618895173072815
+        ]
+      ]
+    },
+    {
+      "name": "fore slope cobble right",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          0.6123594641685486,
+          -3.2685766220092773,
+          -0.6904603242874146
+        ],
+        [
+          1.7136476039886475,
+          -2.4543697834014893,
+          -0.3514421582221985
+        ]
+      ]
+    },
+    {
+      "name": "fore slope slab left",
+      "vertices": 56,
+      "triangles": 108,
+      "nonmanifoldEdges": 0,
+      "blenderBounds": [
+        [
+          -3.578925371170044,
+          -4.869889736175537,
+          -0.7483219504356384
+        ],
+        [
+          -2.352595567703247,
+          -3.1609537601470947,
+          -0.3005119264125824
         ]
       ]
     }
   ],
-  "triangles": 1600,
+  "triangles": 4740,
   "units": "metres",
   "basis": "x,z,-y from Blender to native Y-up",
   "copyright": "Museum-authored geometry; product AGPL-3.0"

@@ -3,6 +3,8 @@
 import { BufferGeometry, Float32BufferAttribute, Mesh, Sphere, Vector3 } from '../vendor/tidewater/src/engine/index.js';
 import { ShaderModule, UniformBlock } from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import {makeRefractedFloor} from './RefractedFloor.js';
+import {refractionProjection} from './RefractionFrustum.js';
+import {selectTerrainNodesForFrustum} from './TerrainCDLODSelect.js';
 import {MuseumWaterMaterial} from './MuseumWaterMaterial.js';
 import { MuseumRefractionPass } from '../museum/MuseumRefractionPass.js';
 import { Underwater } from '../vendor/tidewater/src/post/Underwater.js';
@@ -69,15 +71,30 @@ fn hookShadowPosition(P:vec3f,N:vec3f,pixel:vec2f)->vec3f {
 }
 
 export class CreekRefraction extends MuseumRefractionPass {
-  constructor(options,field,terrain=null){super(options);this.field=field;this.terrain=terrain;this.floor=terrain?makeRefractedFloor(terrain.lod):null;this.maxWaterY=Math.max(...field.g.waterRuns.flat().map(p=>p.level),...(field.island?.lakes.map(p=>p.level)??[]));this._defines={CREEK_REFRACTION:1};}
+  constructor(options,field,terrain=null){super(options);this.field=field;this.terrain=terrain;this.floor=terrain?makeRefractedFloor(terrain.lod):null;this._floorOrder=[];this.maxWaterY=Math.max(...field.g.waterRuns.flat().map(p=>p.level),...(field.island?.lakes.map(p=>p.level)??[]));this._defines={CREEK_REFRACTION:1};}
+  localWaterCeiling(){
+    const c=this.camera.position;
+    if(this.meshRenderer?.precompiling||c.y>140)return this.maxWaterY+.05;
+    let hi=this.field.island?.seaLevel??-.7;
+    for(const dz of [-480,-160,0,160,480])for(const dx of [-480,-160,0,160,480]){
+      const s=this.field.sample(c.x+dx,c.z+dz);
+      if(s[1]<96&&s[0]>hi)hi=s[0];
+    }
+    return Math.min(this.maxWaterY+.05,hi+48);
+  }
   render(){
-    if(!this.floor)return super.render(this.maxWaterY+.05);
-    const {mesh,lod}=this.terrain;
+    const ceiling=this.localWaterCeiling();
+    if(!this.floor)return super.render(ceiling);
+    const {mesh,lod,uViewPos}=this.terrain;
     const geometry=mesh.geometry;
-    if(geometry!==lod.geometry||geometry.drawRange.start!==0||geometry.drawRange.count<geometry.index.count)return super.render(this.maxWaterY+.05);
-    this.floor.instanceCount=geometry.instanceCount;
+    if(geometry!==lod.geometry||geometry.drawRange.start!==0||geometry.drawRange.count<geometry.index.count)return super.render(ceiling);
+    const nodeAttr=this.floor.attributes.nodeData;
+    refractionProjection(this.camera,this._camera.projectionMatrix);
+    const count=selectTerrainNodesForFrustum(this.terrain,this._camera,uViewPos.value,nodeAttr.array,this._floorOrder);
+    this.floor.instanceCount=count;
+    if(count>0){nodeAttr.clearUpdateRanges();nodeAttr.addUpdateRange(0,count*4);nodeAttr.needsUpdate=true;}
     mesh.geometry=this.floor;
-    try{return super.render(this.maxWaterY+.05);}
+    try{return super.render(ceiling);}
     finally{mesh.geometry=geometry;}
   }
 }
@@ -85,7 +102,7 @@ export function clipCreekRefraction(material,field) {
   if(material.userData?.creekClip)return;
   material.modules=[...(material.modules??[]),field.module];
   material.defines.MUSEUM_FULL_SUBMERGED_SHADING=1;
-  material.surface+=`\n#if CREEK_REFRACTION\n#if MUSEUM_TERRAIN_RECEIVER\nlet clipField=museumTerrainReceiver;\n#else\nlet clipField=creekFieldAt(in.P.xz);\n#endif\nlet clipInland=smoothstep(0.0,.2,clipField.x-frame.seaLevel)*(1.0-smoothstep(0.0,1.0,clipField.y));\nlet clipY=mix(frame.seaLevel+.4,clipField.x+.06,clipInland);if(in.P.y>clipY){discard;}\n#endif\n`;
+  material.surface+=`\n#if CREEK_REFRACTION\n#if MUSEUM_TERRAIN_RECEIVER\nlet clipField=museumTerrainReceiver;\n#else\nlet clipField=creekFieldAt(in.P.xz);\n#endif\nlet clipInland=smoothstep(0.0,.2,clipField.x-frame.seaLevel)*(1.0-smoothstep(-.02,.35,clipField.y));\nif(clipField.x>frame.seaLevel+.25&&clipField.y>.04){discard;}\nlet clipY=mix(frame.seaLevel+.4,clipField.x-.004,clipInland);if(in.P.y>clipY){discard;}\n#endif\n`;
   material.userData??={};material.userData.creekClip=true;material.needsUpdate=true;
 }
 
@@ -106,6 +123,25 @@ class RiverWaterMaterial extends MuseumWaterMaterial {
   let code=super._shadeWGSL(options);
   const replace=(a,b)=>{if(!code.includes(a))throw Error('Pinned river material seam changed: '+a);code=code.replace(a,b);};
   replace('let pos = in.P;','creekFlow=in.vs.vCreekFlow;\n let pos = in.P;');
+  // Conservative 2x2 depth check matching smpLinearClamp's bilinear footprint:
+  // rejects half-discarded foreground bank fringes so curved river shores never
+  // stamp jagged low-resolution sawtooth teeth onto the water surface.
+  replace(
+   'let rd = textureLoad( waterRefrDepth, vec2i( min( uvRc * rSize, rSize - 1.0 ) ), 0 ).x;',
+   `let rCoord=clamp(uvRc*rSize-.5,vec2f(0.0),rSize-1.0);
+   let rI0=vec2i(floor(rCoord));let rI1=min(rI0+vec2i(1),vec2i(rSize)-vec2i(1));
+   let rd00=textureLoad(waterRefrDepth,rI0,0).x;let rd10=textureLoad(waterRefrDepth,vec2i(rI1.x,rI0.y),0).x;
+   let rd01=textureLoad(waterRefrDepth,vec2i(rI0.x,rI1.y),0).x;let rd11=textureLoad(waterRefrDepth,rI1,0).x;
+   let rdMin=min(min(rd00,rd10),min(rd01,rd11));let rdMax=max(max(rd00,rd10),max(rd01,rd11));
+   let rd=select(0.0,rdMax,rdMin>0.0);`
+  );
+  replace('if ( rc.a > 0.5 && rd > 0.0 && surfViewZ + viewDepth( rd ) > WATER_BEHIND ) {','if ( rc.a > 0.92 && rd > 0.0 && surfViewZ + viewDepth( rd ) > WATER_BEHIND ) {');
+  replace('} else if ( rc.a > 0.5 && rd > 0.0 ) {','} else if ( rdMax > 0.0 ) {');
+  replace('if ( rcS.a > 0.5 && rdS > 0.0 && surfViewZ + viewDepth( rdS ) > WATER_BEHIND ) {',`let rCoordS=clamp(uvS*rSize-.5,vec2f(0.0),rSize-1.0);
+   let rS0=vec2i(floor(rCoordS));let rS1=min(rS0+vec2i(1),vec2i(rSize)-vec2i(1));
+   let rsMin=min(min(textureLoad(waterRefrDepth,rS0,0).x,textureLoad(waterRefrDepth,vec2i(rS1.x,rS0.y),0).x),min(textureLoad(waterRefrDepth,vec2i(rS0.x,rS1.y),0).x,textureLoad(waterRefrDepth,rS1,0).x));
+   let rsMax=max(max(textureLoad(waterRefrDepth,rS0,0).x,textureLoad(waterRefrDepth,vec2i(rS1.x,rS0.y),0).x),max(textureLoad(waterRefrDepth,vec2i(rS0.x,rS1.y),0).x,textureLoad(waterRefrDepth,rS1,0).x));
+   if ( rcS.a > 0.92 && rsMin > 0.0 && surfViewZ + viewDepth( rsMax ) > WATER_BEHIND ) {`);
   replace('pathLen = min( pathLen, crestT );',`pathLen=min(pathLen,crestT);
  let slopeY=normalize(in.vs.vShoreN).y;
  let sheet=max(creekFlow.w,0.025)*max(slopeY,0.05)/max(abs(dot(normalize(in.vs.vShoreN),Tv)),0.12);
@@ -234,11 +270,12 @@ fn waterSurfaceVertex(node:vec4f,grid:vec2f)->WaterSurfaceVertex {
 }
 struct WaterSurfaceFrag {normal:vec3f,foam:f32,coverage:f32,slopes:vec2f,jacobian:f32,rough:f32,aeration:f32,gust:f32,slick:f32};
 fn waterSurfaceFragment(lagXZ:vec2f,footprint:f32,depth:f32,vertexFoam:f32,shoreN:vec3f,shoreFoam:f32,extraFoam:f32,simState:vec4f,surfMask:vec2f,P:vec3f)->WaterSurfaceFrag {
- let f=creekFieldAt(lagXZ);if(f.y>=0.05||f.x<=frame.seaLevel+.5){discard;}
+ let f=creekFieldAt(lagXZ);let handoff=museumEstuaryHandoff(lagXZ);if(f.y>=0.05||f.x<=handoff){discard;}
  let owner=museumWaterOwner(lagXZ);if(owner>.5&&abs(creekFlow.z+owner)>.25){discard;}
  let extent=max(abs(P.x),abs(P.z));
  if((creekFlow.z<-.5&&extent<254.0)||(creekFlow.z>=-.5&&extent>=254.0)){discard;}
  let grad=creekGradient(lagXZ);let speed=max(length(f.zw),0.2);
+ let estuaryRamp=smoothstep(0.0,.68,f.x-handoff);
  // Travel time minus time is an advected scalar; a spatially varying
  // speed multiplier here would create ever-growing shear.
  let uv=vec2f(creekFlow.x,(creekFlow.y-frame.time)*0.38);
@@ -246,15 +283,26 @@ fn waterSurfaceFragment(lagXZ:vec2f,footprint:f32,depth:f32,vertexFoam:f32,shore
  let bandA=1.0-smoothstep(0.1,0.6,footprint);let bandB=1.0-smoothstep(0.035,0.18,footprint);let bandC=1.0-smoothstep(0.012,0.065,footprint);
  let sheet=smoothstep(0.12,0.8,length(grad))*creekSheetFlag();
  let thread=creekNoise(uv*vec2f(13.0,0.65)+vec2f(21.0,8.0));
- let rip=waterSurface.rippleScale*(.35+.65*smoothstep(.4,2.0,f.x-frame.seaLevel))*(a.yz*0.017*bandA+b.yz*0.010*bandB+c.yz*0.004*bandC+thread.yz*vec2f(.045,.009)*sheet*bandB)*mix(0.55,1.0,smoothstep(0.1,0.7,speed));
+ // Local obstacle wake & micro-foam around the sample-jam fallen log & shallow cobble riffles.
+ let jamA=vec2f(-704.0,-274.0);let jamB=vec2f(-693.0,-282.0);
+ let jamAB=jamB-jamA;let jamT=clamp(dot(lagXZ-jamA,jamAB)/max(dot(jamAB,jamAB),1e-4),0.0,1.0);
+ let jamNear=jamA+jamAB*jamT;let jamDiff=lagXZ-jamNear;let jamDist=length(jamDiff);
+ let jamDown=dot(jamDiff,normalize(f.zw+vec2f(1e-4)));
+ let jamCollar=1.0-smoothstep(.28,1.55,jamDist);
+ let jamWake=(1.0-smoothstep(.35,4.2,jamDist))*smoothstep(-.55,.65,jamDown)*(1.0-smoothstep(3.8,9.5,jamDown));
+ let apronDist=length(lagXZ-vec2f(-658.0,-485.0));
+ let apronWake=1.0-smoothstep(.9,2.8,apronDist);
+ let shallowRiffle=(1.0-smoothstep(.04,.34,depth))*smoothstep(.08,.55,speed)*estuaryRamp;
+ let obstacleRipple=creekNoise(uv*vec2f(16.0,9.5)+vec2f(3.7,-frame.time*1.35)).yz*(jamCollar*.048+jamWake*.028+apronWake*.032+shallowRiffle*.016)*bandB;
+ let rip=waterSurface.rippleScale*estuaryRamp*(.45+.55*smoothstep(.55,2.2,f.x-frame.seaLevel))*(a.yz*0.017*bandA+b.yz*0.010*bandB+c.yz*0.004*bandC+thread.yz*vec2f(.045,.009)*sheet*bandB+obstacleRipple)*mix(0.55,1.0,smoothstep(0.1,0.7,speed));
  let len=length(f.zw);let along=normalize(f.zw+vec2f(1e-4));let across=vec2f(along.y,-along.x);
  let slopes=grad+across*rip.x+along*rip.y;
  let mapUV=(lagXZ-vec2f(-72.0,-96.0))/96.0;
  let inside=select(0.0,1.0,all(mapUV>vec2f(0.0))&&all(mapUV<vec2f(1.0)));
  let source=textureSampleLevel(creekRapids,smpLinearClamp,mapUV,0.0)*inside;
  let springEnergy=museumSpringWhitewater(P,length(grad));
- let rapid=max(source.y,springEnergy.x);
- let landing=max(source.x,springEnergy.y);
+ let rapid=max(max(source.y,springEnergy.x),clamp(jamCollar*.75+jamWake*.48+apronWake*.52+shallowRiffle*.24,0.0,1.0));
+ let landing=max(max(source.x,springEnergy.y),jamCollar*.42+apronWake*.28);
  let riffle=source.z*(1.0-smoothstep(0.12,0.48,depth));
  // Native foam RGBA = foam coverage / bubbles / macro mottle / streaks.
  // The old blue-channel threshold displayed only the large mottle blobs.
@@ -267,8 +315,9 @@ fn waterSurfaceFragment(lagXZ:vec2f,footprint:f32,depth:f32,vertexFoam:f32,shore
  // The river sheet meets the native ShoreSim swash here. A second bank-foam
  // noise field formed round white spots on the shallow mouth instead of a
  // draining wave front; rapids and impact foam remain upstream.
- let foam=clamp((rapid*.36+landing*1.1+riffle*.12)*lace+cells.g*landing*.22,0.0,.78);
- var r:WaterSurfaceFrag;r.normal=normalize(vec3f(-slopes.x,1.0,-slopes.y));r.foam=foam;r.coverage=1.0;r.slopes=slopes;r.jacobian=1.0;r.rough=0.35;r.aeration=rapid*0.15;r.gust=0.0;r.slick=0.0;return r;
+ let foamFade=smoothstep(0.0,.45,f.x-handoff);
+ let foam=clamp(((rapid*.36+landing*1.1+riffle*.12)*lace+cells.g*landing*.22)*foamFade,0.0,.78);
+ var r:WaterSurfaceFrag;r.normal=normalize(vec3f(-slopes.x,1.0,-slopes.y));r.foam=foam;r.coverage=1.0;r.slopes=slopes;r.jacobian=1.0;r.rough=0.35;r.aeration=rapid*0.15*foamFade;r.gust=0.0;r.slick=0.0;return r;
 }`});
  const surface={terrain,module,params};
  const material=new RiverWaterMaterial({surface,sky,sceneCopy:sceneRenderer.opaqueCopy,sceneDepthHalf:sceneRenderer.opaqueDepthHalf.texture,refraction});

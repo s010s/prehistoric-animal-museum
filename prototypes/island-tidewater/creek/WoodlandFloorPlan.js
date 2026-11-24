@@ -48,7 +48,7 @@ export function* woodlandFloorPockets(data,ix,iz,size,remaining,existing) {
   // across the canopy footprint when little of a cell's budget is left.
   const sources=trunks.map(tree=>({tree,bearing:rng()*TAU}));
   let accepted=0;
-  for(let pass=0;pass<3 && accepted<remaining;pass++) {
+  for(let pass=0;pass<4 && accepted<remaining;pass++) {
     for(const {tree,bearing} of sources) {
       if(accepted>=remaining)break;
       const sites=[];
@@ -59,8 +59,8 @@ export function* woodlandFloorPockets(data,ix,iz,size,remaining,existing) {
         const x=tree.x+Math.cos(angle)*reach,z=tree.z+Math.sin(angle)*reach;
         const g=landContextAt(data,x,z);
         if(!eligible(g))continue;
-        const form=i%2===0?'needle-litter':i===1?'split-bough':rng()<.52?'fallen-branch':'needle-litter';
-        const litter=form==='needle-litter', scale=litter?1.02+rng()*.55:form==='fallen-branch'?1.12+rng()*.64:.68+rng()*.55;
+        const form=i%3===0?'needle-litter':i===1?'moss-hummock':i===2?'split-bough':rng()<.48?'fallen-branch':rng()<.55?'moss-hummock':'needle-litter';
+        const litter=form==='needle-litter'||form==='moss-hummock', scale=form==='needle-litter'?1.08+rng()*.62:form==='moss-hummock'?.95+rng()*.72:form==='fallen-branch'?1.12+rng()*.64:.68+rng()*.55;
         const pad=scale*(litter?.32:.54);
         if(blocked(x,z,pad,existing) || blocked(x,z,pad,sites))continue;
         const yaw=angle+(rng()-.5)*1.42;

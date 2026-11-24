@@ -195,7 +195,9 @@ export function createCoastalOcean(app,data){
  const seam='var o: WaterSurfaceVertex;';if(!oceanModule.code.includes(seam))throw Error('Native sea vertex seam changed');
  oceanModule.code=oceanModule.code.replace(seam,`let estuaryK=museumEstuaryBlend(worldXZ);
  y=mix(y,creekMeanAt(worldXZ),estuaryK);total.x*=1.0-estuaryK;total.z*=1.0-estuaryK;total.y=y-frame.seaLevel;
- shoreN=normalize(mix(shoreN,vec3f(0.0,1.0,0.0),estuaryK));
+ var estuaryShoreN=vec3f(0.0,1.0,0.0);
+ if(estuaryK>.001){let eg=creekGradient(worldXZ);estuaryShoreN=normalize(vec3f(-eg.x,1.0,-eg.y));}
+ shoreN=normalize(mix(shoreN,estuaryShoreN,estuaryK));
  var o: WaterSurfaceVertex;`);
  oceanModule.code=oceanModule.code.replace('o.normal = normal;',`
 #if MUSEUM_OCEAN_HYDROLOGY

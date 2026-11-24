@@ -61,41 +61,64 @@ export class SampleBenthicDetails{
     rocks.push(p);
    }
    if(spec.marine){
-    // A garden has many colony forms on broken carbonate, with sandy gaps
-    // between gardens. Keep the central ebb channel open through the shelf.
+    // Each garden forms 2–3 tight, multi-species reef bommie cores anchored on
+    // partly-buried carbonate rock, separated by clean open sand channels rather
+    // than evenly spaced display specimens on flat coasters.
     for(let cluster=0;cluster<spec.hard;cluster++){
      let anchor=pick({...spec,min:spec.id==='marine-mouth'?1.9:1.55,max:3.8,maxSlope:.18},center,this.reefGardens,8,420);
      if(spec.id==='marine-mouth'&&cluster===0){const x=-932,z=149,floor=ground(x,z),depth=water(x,z,true)-floor;if(depth>1.8&&depth<3.5&&slope(x,z)<.22)anchor={x,z,floor,depth};}
      if(!anchor)continue;
      const yaw=rng()*Math.PI*2,garden=this.reefGardens.length,occupied=[];
-     this.reefGardens.push({...anchor,id:spec.id+'-'+cluster,patch:spec.id,radius:3.4});
+     this.reefGardens.push({...anchor,id:spec.id+'-'+cluster,patch:spec.id,radius:3.5});
+     // Build 3 distinct sub-cores (1 main bommie + 2 flanking satellites across sand lanes).
+     const cores=[{x:anchor.x,z:anchor.z,r:1.35,w:1.0}];
+     for(let c=0;c<2;c++){
+      const ca=yaw+(c===0?0.45:2.95)+(rng()-.5)*.65,cd=1.95+rng()*1.05;
+      const cx=anchor.x+Math.cos(ca)*cd,cz=anchor.z+Math.sin(ca)*cd,cf=ground(cx,cz),cdpt=water(cx,cz,true)-cf;
+      if(cdpt>=spec.min&&cdpt<=spec.max&&slope(cx,cz)<.23&&!inSandChannel(cx,cz))cores.push({x:cx,z:cz,r:1.05,w:.65});
+     }
+     // Anchor 1–2 low, naturally sand-embedded carbonate reef cores per bommie (no coaster per coral).
+     for(const [ci,core] of cores.entries()){
+      const coreFloor=ground(core.x,core.z);
+      const baseScale=ci===0?1.35+rng()*.38:.88+rng()*.32;
+      this.hardSites.push({x:core.x,z:core.z,floor:coreFloor,scale:baseScale,yaw:yaw+ci*1.9+rng()*.8,seed:rng(),patch:spec.id,sink:.095,sy:.22});
+      if(ci===0){
+       const oa=yaw+1.5+rng()*.8,od=.52+rng()*.28;
+       const ox=core.x+Math.cos(oa)*od,oz=core.z+Math.sin(oa)*od;
+       this.hardSites.push({x:ox,z:oz,floor:ground(ox,oz),scale:.92+rng()*.30,yaw:oa+rng(),seed:rng(),patch:spec.id,sink:.085,sy:.20});
+      }
+     }
      for(let i=0;i<26;i++){
       const species=CORALS[(garden*7+i)%CORALS.length],span=species.span[0]+rng()*(species.span[1]-species.span[0]);
+      // Concentrate colonies densely onto the sub-cores; small peripheral encrusters hug core edges.
+      const coreIdx=i<13?0:cores.length>1?(i<20?1:cores.length-1):0;
+      const core=cores[coreIdx];
       let site=null;
-      for(let attempt=0;attempt<70;attempt++){
-       const a=yaw+rng()*Math.PI*2,r=Math.sqrt(rng())*3.1,x=anchor.x+Math.cos(a)*r,z=anchor.z+Math.sin(a)*r,floor=ground(x,z),depth=water(x,z,true)-floor;
+      for(let attempt=0;attempt<75;attempt++){
+       const a=yaw+rng()*Math.PI*2;
+       const r=Math.pow(rng(),1.35)*(core.r+span*.35);
+       const x=core.x+Math.cos(a)*r,z=core.z+Math.sin(a)*r,floor=ground(x,z),depth=water(x,z,true)-floor;
        if(depth<spec.min||depth>spec.max||slope(x,z)>.24||inSandChannel(x,z))continue;
-       if(occupied.some(p=>Math.hypot(p.x-x,p.z-z)<(p.span+span)*.46))continue;
-       site={x,z,floor,depth,y:floor-.012,kind:species.id,span,yaw:rng()*Math.PI*2,garden};break;
+       if(occupied.some(p=>Math.hypot(p.x-x,p.z-z)<(p.span+span)*.34))continue;
+       site={x,z,floor,depth,y:floor-.022,kind:species.id,span,yaw:rng()*Math.PI*2,garden};break;
       }
       if(!site)continue;
       occupied.push(site);this.coralSites.push(site);
-      // Colonies sit on separate partly buried crusts, whose footprints
-      // follow their real base size instead of one large display plinth.
-      if(span>.34)this.hardSites.push({x:site.x,z:site.z,floor:site.floor,scale:span*1.65,yaw:site.yaw,seed:rng(),patch:spec.id});
      }
-     for(let i=0;i<3;i++){
-      const a=yaw+i*2.399,r=1+rng()*2,x=anchor.x+Math.cos(a)*r,z=anchor.z+Math.sin(a)*r,floor=ground(x,z);
-      if(slope(x,z)<.22&&!inSandChannel(x,z))this.spongeSites.push({x,z,floor,depth:water(x,z,true)-floor,kind:SPONGES[(garden+i)%SPONGES.length],span:.12+rng()*.12,yaw:rng()*6.283,garden});
+     // Tuck sponges directly into sheltered reef-core crevices instead of bare open sand.
+     for(let i=0;i<4;i++){
+      const core=cores[i%cores.length];
+      const a=yaw+i*2.399+rng()*.4,r=.38+rng()*.88,x=core.x+Math.cos(a)*r,z=core.z+Math.sin(a)*r,floor=ground(x,z);
+      if(slope(x,z)<.22&&!inSandChannel(x,z))this.spongeSites.push({x,z,floor,depth:water(x,z,true)-floor,kind:SPONGES[(garden+i)%SPONGES.length],span:.12+rng()*.13,yaw:rng()*6.283,garden});
      }
-     // Shell lag deposits collect at the edge of each reef,
-     // with smaller scattered shells in the intervening sand.
+     // Shell lag deposits collect in the sheltered rubble aprons beside each core.
      for(let i=0;i<spec.shells;i++){
-       const a=yaw+i*2.399+rng()*.35,r=2.4+rng()*2.8,x=anchor.x+Math.cos(a)*r,z=anchor.z+Math.sin(a)*r;
+       const core=cores[i%cores.length];
+       const a=yaw+i*2.399+rng()*.45,r=core.r*.85+rng()*1.9,x=core.x+Math.cos(a)*r,z=core.z+Math.sin(a)*r;
        const floor=ground(x,z),depth=water(x,z,true)-floor;
        if(depth<1.15||depth>4.2||slope(x,z)>.25||inSandChannel(x,z))continue;
        const kind=depositShells[(garden*3+i)%depositShells.length];
-       this.shellSites.push({x,z,floor,depth,embedFraction:.18+rng()*.26,kind,span:.065+rng()*.095,yaw:rng()*Math.PI*2,lean:.05+rng()*.18,garden});
+       this.shellSites.push({x,z,floor,depth,embedFraction:.20+rng()*.26,kind,span:.065+rng()*.095,yaw:rng()*Math.PI*2,lean:.05+rng()*.18,garden});
      }
     }
     for(let i=0;i<18;i++){
@@ -141,7 +164,7 @@ export class SampleBenthicDetails{
   }
   for(const [i,p] of this.hardSites.entries()){
    const half=p.yaw*.5;
-   this.batch.data.set([p.x,p.floor-.040,p.z,p.scale,0,Math.sin(half),0,Math.cos(half),0x958b79,0x9f8c86,43+p.seed,SURFACE.rock,1,.30,1,-.025],(this.plants.length+i)*16);
+   this.batch.data.set([p.x,p.floor-(p.sink??.085),p.z,p.scale,0,Math.sin(half),0,Math.cos(half),0x898170,0x93857c,43+p.seed,SURFACE.rock,1,p.sy??.22,1,-.038],(this.plants.length+i)*16);
   }
   this.batch.upload();app.scene.add(this.group);this.update(app.camera);
   data.sampleBenthicDetails=this;

@@ -52,7 +52,7 @@ import { CreekTerrain } from './CreekTerrain.js';
 import { CreekForest } from './CreekForest.js';
 import {CANOPY_SHADOW_LAYER} from './CanopyShadows.js';
 import {attachCanopyLightFrustum} from './CanopyLightFrustum.js';
-import {installCreekShadowFilter} from './CreekShadowFilter.js';
+import {installCreekShadowFilter,stabilizeSunShadows} from './CreekShadowFilter.js';
 import { loadConiferTextures } from './ConiferGeometry.js';
 import {createMeadowAppearance} from './MeadowAppearance.js';
 import {ShoreHabitats} from './ShoreHabitats.js';
@@ -61,6 +61,7 @@ import {refineCoveShoreField} from './CoveShoreField.js';
 import {CoastActivity} from './CoastActivity.js';
 import {WaterFrameBudget} from './WaterFrameBudget.js';
 import {TerrainShadowRenderer} from './TerrainShadowRenderer.js';
+import {hardenTerrainBounds} from './TerrainCDLODSelect.js';
 import {MuseumSeaSound} from './MuseumSeaSound.js';
 import {MuseumPlankton} from './MuseumPlankton.js';
 import {createIslandVisits} from './IslandVisits.js';
@@ -69,7 +70,7 @@ import { CreekPlayer } from './CreekPlayer.js';
 import { CreekRefraction, CreekUnderwater, clipCreekRefraction, createCreekWater, installCreekLighting } from './CreekWater.js';
 
 export class CreekApp extends MuseumApp {
-  constructor(){super();this.settings.timeOfDay=12.6;}
+  constructor(){super();this.settings.timeOfDay=9.4;}
   async init(onProgress=()=>{}) {
     installCreekShadowFilter();
     const progress=async(p,text)=>{
@@ -83,13 +84,14 @@ export class CreekApp extends MuseumApp {
     this.input=new Input(engine.domElement);this.fly=new FlyCamera(camera,engine.domElement,this.input);this.fly.speed=48;
     this.atmosphere=new Atmosphere(engine);this.sky=new MuseumSky(this.atmosphere);
     this.clouds=new MuseumClouds(engine,this.atmosphere);await this.clouds.ready;this.sky.clouds=this.clouds;
-    this.shadows=this.csm=new SunShadows({size:2048,splits:[10,60,400],lightMargin:200,normalBias:[.015,.06,.3],bias:.00002});
+    this.shadows=this.csm=stabilizeSunShadows(new SunShadows({size:2048,splits:[10,60,400],lightMargin:200,normalBias:[.032,.11,.42],bias:.00008}));
     this.shadows.layerMask=(1<<LAYERS.OPAQUE)|(1<<LAYERS.TRANSPARENT)|(1<<CANOPY_SHADOW_LAYER);
     this.environment=new Environment(engine,scene,this.sky);
     await progress(.10,'读取地形与水系…');
     const watershed=await expandWatershed(await expandMuseumCoast(await loadCreekData()));
     await progress(.17,'读取整岛高程与水位…');
     const data=this.creekData=await expandWholeIsland(watershed,(p,text)=>progress(.17+p*.32,text));
+    hardenTerrainBounds(data);
     this.geography=data.geography;this.terrainData=data.terrain;
     await progress(.49,'准备海岸潮向与山体光影…');
     G.seaLevel.value=-.7;G.windSpeed.value=3.2;G.waterAbsorption.value.set(.16,.07,.045);G.waterScattering.value.set(.006,.010,.006);
@@ -127,7 +129,7 @@ export class CreekApp extends MuseumApp {
     installCreekLighting(data.field,this.terrainGPU,this.clouds,this.underwaterLighting);installGroundBounce({terrain:this.terrainGPU,clouds:this.clouds});
     this.water=createCreekWater({scene,sky:this.sky,clouds:this.clouds,sceneRenderer:this.sceneRenderer,field:data.field,terrain:this.terrainGPU,refraction:this.refraction,query:this.query,foamTexture:this.foamTexture});
     this.surface=this.water.surface;this.waterMaterial=this.water.material;
-    this.player=new CreekPlayer({camera,input:this.input,terrain:this.terrainData,colliders:this.colliders,query:this.query,boat:null});
+    this.player=new CreekPlayer({camera,input:this.input,terrain:this.terrainData,colliders:this.colliders,query:this.query,boat:null,audio:this.audio,seaLevel:G.seaLevel.value});
     this.islandVisits=createIslandVisits(data);
     this.landscapeDetails=new LandscapeDetails({scene,data,colliders:this.colliders});
     this.sampleDetails=await SampleDetails.create({scene,data,colliders:this.colliders});
@@ -140,7 +142,10 @@ export class CreekApp extends MuseumApp {
     this.islandFaunaHabitats=createIslandFaunaHabitats(data,islandMuseumModels,{colliders:this.colliders});
     this.islandFauna=new IslandFauna(this,this.islandFaunaHabitats.sites,this.islandFaunaHabitats.population);
     try{
-      this.animals=await createMuseumAnimals(this,this.islandFauna.residency,material=>clipCreekRefraction(material,data.field));
+      this.animals=await createMuseumAnimals(this,this.islandFauna.residency,material=>{
+        clipCreekRefraction(material,data.field);
+        if(!material.userData?.museumAnkleGround){material.modules=[...(material.modules??[]),this.terrainGPU.module];material.defines.MUSEUM_ANKLE_GROUND=1;material.userData??={};material.userData.museumAnkleGround=true;material.needsUpdate=true;}
+      });
       this.sampleMuseumLife=SampleMuseumLife.create(this,this.islandFauna.residency);
     }catch(error){this.disposeFauna();throw error;}
     this.dynamicMuseumShadows=attachDynamicMuseumShadows(this);
@@ -159,8 +164,10 @@ export class CreekApp extends MuseumApp {
     this.post=new PostFX(engine,{sceneRenderer:this.sceneRenderer,camera,underwater:this.underwater,clouds:this.clouds,sunDir:this.atmosphere.sunDir,haze:this.haze});
     this.post.lens=new MuseumLensDroplets();this.post.lens.compile();
     // Native morphological prefilter stabilises fine needle edges before TAA.
-    // Keep native sharpening and report the actual lookup/fallback path.
+    // Calm sub-pixel camera-motion jitter on dense woodland/meadow slopes while
+    // retaining full stationary super-sampling and native sharpening.
     this.post.aaMode='smaataa';
+    if(this.post.taau)this.post.taau.jitterMoving=.24;
     this.waterBudget=new WaterFrameBudget(this);
     this.setRenderScale(this.settings.renderScale);G.exposure.value=this.settings.exposure;G.seaLevel.value=-.7;
     G.windSpeed.value=3.2;G.waterAbsorption.value.set(.16,.07,.045);G.waterScattering.value.set(.006,.010,.006);this.updateSun();
@@ -210,6 +217,38 @@ export class CreekApp extends MuseumApp {
     this.watchedSubject = actor && !matchMedia('(prefers-reduced-motion: reduce)').matches
       ? {actor, place: this.currentLandmark, seconds} : null;
   }
+  aimAtPoint(point) {
+    if (!point || point.length < 3) return false;
+    const dx = point[0] - this.camera.position.x, dy = point[1] - this.camera.position.y, dz = point[2] - this.camera.position.z;
+    if (Math.hypot(dx, dy, dz) < .05) return false;
+    const yaw = Math.atan2(-dx, -dz);
+    const pitch = MathUtils.clamp(Math.atan2(dy, Math.hypot(dx, dz)), -1.5, 1.5);
+    if (this.freeCam) {
+      this.fly.setPose(this.camera.position.clone(), yaw, pitch);
+      this.fly.velocity.set(0, 0, 0);
+    } else {
+      this.player.yaw = yaw;
+      this.player.pitch = pitch;
+      this.player.update(0);
+    }
+    this.query.setCamera(this.camera.position.x, this.camera.position.z);
+    return true;
+  }
+  subjectFocusPoint(actor) {
+    if (!actor) return null;
+    if (actor.torsoCenter && actor.collider?.solid) return [actor.torsoCenter.x, actor.torsoCenter.y, actor.torsoCenter.z];
+    return [actor.x, actor.y, actor.z];
+  }
+  frameAttachedFauna(actor) {
+    if (!actor) return;
+    actor.needsArrivalFrame = false;
+    const visit = this.islandVisits?.[this.currentLandmark];
+    if (!visit || visit.animalId !== actor.site.id || !actor.active) return;
+    if (this.freeCam || this.input.keys.size || this.input.look.x || this.input.look.y || this.input.mouseDown || this.input.rightDown || this.input.wheel) return;
+    const point = this.subjectFocusPoint(actor);
+    if (point) this.aimAtPoint(point);
+    this.watchSubject(actor, actor.site.medium === 'ground' ? 4.5 : 8.0);
+  }
   toggleSpecimenLens() {
     if (!this.loupeActor) return;
     this.setSpecimenLens(this.camera.zoom > 1 ? 1 : this.loupePower);
@@ -248,7 +287,7 @@ export class CreekApp extends MuseumApp {
     if(animal)this.islandFauna?.observe(animal);
     else this.islandFauna?.scan(this.camera.position,id.startsWith('sample-')?'sample:'+id.slice(7):null);
     const subject = this.islandFauna?.actors.get(animal);
-    this.watchSubject(subject?.site.medium === 'air' ? subject : null, 5);
+    this.watchSubject(subject || null, subject?.site.medium === 'ground' ? 4.5 : 8.0);
     if (subject && subject.site.length <= .12 && (subject.site.medium === 'marine' || subject.site.medium === 'benthic')) {
       this.loupeActor = subject;
       // The 3 cm benthic specimen stays life size. Magnify its image while the diver observes it.
@@ -263,7 +302,7 @@ export class CreekApp extends MuseumApp {
     const coast=this.creekData.coast.coast;
     this.fly.velocity.set(0,0,0);
     const visit=this.islandVisits?.[id];
-    if(document.querySelector('#light-time')?.value==='auto')this.settings.timeOfDay=visit?.time??({coast:10.7,'rock-cove':14.5,estuary:15.5}[id]??12.6);
+    if(document.querySelector('#light-time')?.value==='auto')this.settings.timeOfDay=visit?.time??({coast:10.7,'rock-cove':14.5,estuary:15.5}[id]??9.4);
     if(visit){
       if(visit.target)this.vegetation.setReview({target:visit.target});
       if(visit.diveLevel!==undefined){
@@ -406,10 +445,11 @@ export class CreekApp extends MuseumApp {
     }
     if (!watch.actor.active) return;
     watch.seconds -= dt;
-    const dx = watch.actor.x - camera.position.x, dy = watch.actor.y - camera.position.y, dz = watch.actor.z - camera.position.z;
+    const target = this.subjectFocusPoint(watch.actor);
+    const dx = target[0] - camera.position.x, dy = target[1] - camera.position.y, dz = target[2] - camera.position.z;
     const yaw = Math.atan2(-dx, -dz) - player.yaw;
     const pitch = Math.atan2(dy, Math.hypot(dx, dz)) - player.pitch;
-    const maxTurn = 1.25 * dt, damping = 1 - Math.exp(-12 * dt);
+    const maxTurn = 1.65 * dt, damping = 1 - Math.exp(-12 * dt);
     player.yaw += Math.max(-maxTurn, Math.min(maxTurn, damping * Math.atan2(Math.sin(yaw), Math.cos(yaw))));
     player.pitch += Math.max(-maxTurn, Math.min(maxTurn, damping * pitch));
   }
@@ -453,17 +493,26 @@ export class CreekApp extends MuseumApp {
     if(marineLight || this.marineLightActive)this.underwaterLighting.update(this.camera);
     this.marineLightActive=marineLight;
     if(surf){this.breakers.update(this.camera);this.spray.update();}
-    this.clouds.update(dt,this.camera);this.environment.update(dt);this.terrain.update(this.camera);this.vegetation.update(dt,this.camera);this.localLights.update(this.camera,dt);
+    this.clouds.update(dt,this.camera);this.environment.update(dt);this.terrain.update(this.camera);
+    const crushers=[];
+    for(const actor of this.islandFauna.residents){
+      if(!actor.active||actor.site.medium!=='ground')continue;
+      const d2=(actor.x-c.x)**2+(actor.z-c.z)**2;
+      if(d2>4225)continue;
+      const r=MathUtils.clamp(Math.max(actor.body.half[0],actor.body.half[2])*.55,.55,2.5);
+      crushers.push({x:actor.x,y:actor.y,z:actor.z,r,d2});
+    }
+    if(crushers.length>4)crushers.sort((a,b)=>a.d2-b.d2);
+    this.vegetation.grass?.setCrushers(crushers);
+    this.haze?.updateRegion?.(this.camera,this.settings.timeOfDay);
+    this.vegetation.update(dt,this.camera);this.localLights.update(this.camera,dt);
     G.exposure.value=this.settings.exposure;updateCameraVelocity(this.camera);this.post.lens.update(dt,this.camera.position.y<h);
     if(this.post.flare){this.post.flare.setDepthHeight(this.sceneRenderer.sceneRT.height);this.post.flare.update(this.camera,dt,{aboveWater:this.camera.position.y>h-.02});}
     this.post.beginFrame();this.underwater.updateCamera(this.camera);
-    const inSea=this.coastalActive && Math.abs(h-G.seaLevel.value)<2.5 &&
-      (c.y<h-.08 || (!this.freeCam && this.player.wet));
-    const shadowRenderer=this.waterBudget.automatic && inSea ? this.terrainShadowRenderer : this.engine.meshRenderer;
-    this.shadows.render(this.scene,shadowRenderer,this.shadows.update(this.camera,G.sunDir.value));
+    this.shadows.render(this.scene,this.terrainShadowRenderer,this.shadows.update(this.camera,G.sunDir.value));
     this.sceneRenderer.render();this.waterBudget.sampleMask(performance.now());if(this.post.flare)this.post.flare.kernel.dispatch(1);
     this.post.lens.prepare(this.post._outW,this.post._outH);
     this.post.render();this.post.endFrame();GPU.submit();this.input.endFrame();
   }
-  sliceState(){if(!this.player||!this.water||!this.breakers||!this.groveDetails||!this.haze||!this.shoreHabitats||!this.shelfReef||!this.audio)return {loading:true};return {cloudShadow:this.clouds.stabilityStats(),regionMap:this.regionMap?.stats(),name:'溪畔的巨影',region:this.geography.region,sourceOrigin:this.geography.sourceOrigin,translationOnly:this.geography.translationOnly,relief:this.geography.relief,sourceAnimalSites:this.geography.animals,currentLandmark:this.currentLandmark,conditions:{timeOfDay:this.settings.timeOfDay,windSpeed:G.windSpeed.value,waterAbsorption:G.waterAbsorption.value.toArray(),waterScattering:G.waterScattering.value.toArray(),shadowMapSize:2048,shadowSplits:[10,60,400]},player:{position:this.player.position.toArray(),mode:this.player.mode,waterH:this.player.waterH,waterMean:this.player.waterMean,wet:this.player.wet,boundaryHits:this.player.boundaryHits},navigationCollisions:this.colliders.hitCount??0,hillShadow:{...this.terrainGPU.hillShadowStats,enabled:this.terrainGPU.uSunBaked.value,terrainCast:this.terrain.mesh.castShadow},groundReview:Object.fromEntries(Object.entries(this.terrain.review.fields).map(([k,f])=>[k,f.value])),habitatRepair:this.creekData.habitatRepair,bedRevision:this.creekData.bedRevision,landscapeDetails:this.landscapeDetails?.stats(),life:this.life?.stats(),sampleMuseumLife:this.sampleMuseumLife?.stats(),islandFauna:this.islandFauna?.stats(),habitatEnrichment:this.habitatEnrichment?.stats(),islandEcology:this.islandEcology?.stats(),submergedBed:this.submergedBed?.stats(),islandLandmarkProps:this.islandLandmarkProps?.stats(),shoreHabitats:this.shoreHabitats.stats(),shelfReef:this.shelfReef.stats(),shallowCove:{...this.creekData.cove,continuous:this.creekData.cove.continuous.summary,edgeAt:undefined,shelves:this.creekData.cove.shelves.map(({shore,at,...s})=>s),rocks:this.coveRocks.stats(),waveField:this.shoreField.localCove},marineSnow:{count:12000,box:8,opacity:this.marineSnow.opacity.value,visible:this.marineSnow.mesh.visible,space:'native neighbourhood/disc drawing with museum analytic world-space advection and previous pose; 1–6mm flecks, inland wave exclusion; wrapping fades at edges'},audio:this.audio.stats(),hydrology:{size:this.creekData.hydrology.size,riverStart:this.creekData.hydrology.riverStart,riverEnd:this.creekData.hydrology.riverStart+(this.creekData.hydrology.riverCount-1)*4,mouth:this.creekData.hydrology.mouth,coasts:this.creekData.hydrology.coasts},water:{...this.water.stats(),cameraWaterHeight:this.cameraWaterHeight,cameraUnderwater:G.cameraUnderwater.value,gpuReadbackCamera:{valid:this.query.ocean.cpuValid,height:this.query.ocean.cpu[0],normal:[this.query.ocean.cpu[1],this.query.ocean.cpu[2]],bed:this.query.ocean.cpu[3],input:Array.from(this.query.ocean.resultInputs.slice(0,2)),ageSeconds:this.query.ocean.latency},waterDepthAtCamera:this.cameraWaterHeight-this.camera.position.y,deepWaterPoint:this._deep??null},forest:{...this.vegetation.stats(),details:this.groveDetails.stats(),air:this.haze.stats(),motes:this.airMotes.stats()},geographyAudit:this.geometryAudit,coast:{...this.creekData.coast.coast,terrainSize:this.terrainData.size,terrainTexels:{core:1,outer:4},fineCore:this.terrainGPU.fineCore,seaLevel:-.7,pixelSeaDepth:this.oceanMaterial.depthReview.fields.pixelDepth.value,shoreDetailLegacy:this.oceanSurface.shoreReview.fields.legacy.value,nativeFFT:true,nativeShoreSim:true,oceanLocalWind:this.fft.local.windSpeed,oceanSwellWind:this.fft.swell.windSpeed,breakerStations:this.breakers.NS,surfWindow:this.shoreSim.stats(),breakerWindow:this.breakers.stats(),surfActive:this.coastalActive&&this.coastActivity.surf,marineLightActive:this.marineLightActive,simulation:'Continuous ocean FFT. Near-shore emitters and history follow the sea-level contour; marine light maps also cover open water.',active:this.coastalActive,cpuQueryLatencySeconds:this.query.ocean.latency},island:{size:this.terrainData.size,regionCount:9,visits:this.islandVisits,gridLayers:this.terrainGPU.fineCore,terrainLOD:{patches:this.terrain.lod.count,grid:64,rangeFactor:3,levels:this.terrain.lod.levels,triangles:this.terrain.lod.count*64*64*2},oceanLOD:{levels:this.oceanLOD.levels,patches:this.oceanLOD.count}},omitted:['village','boat','fishing','wake','whale'],underwaterCaustics:'native ocean caustics; creek attenuation without river-specific caustics',lensHeight:'one hybrid camera query per frame in native GPU results buffer; local ocean plane / exact inland field'};}
+  sliceState(){if(!this.player||!this.water||!this.breakers||!this.groveDetails||!this.haze||!this.shoreHabitats||!this.shelfReef||!this.audio)return {loading:true};return {cloudShadow:this.clouds.stabilityStats(),regionMap:this.regionMap?.stats(),name:'溪畔的巨影',region:this.geography.region,sourceOrigin:this.geography.sourceOrigin,translationOnly:this.geography.translationOnly,relief:this.geography.relief,sourceAnimalSites:this.geography.animals,currentLandmark:this.currentLandmark,conditions:{timeOfDay:this.settings.timeOfDay,windSpeed:G.windSpeed.value,waterAbsorption:G.waterAbsorption.value.toArray(),waterScattering:G.waterScattering.value.toArray(),shadowMapSize:2048,shadowSplits:[10,60,400]},player:{position:this.player.position.toArray(),mode:this.player.mode,waterH:this.player.waterH,waterMean:this.player.waterMean,wet:this.player.wet,boundaryHits:this.player.boundaryHits},navigationCollisions:this.colliders.hitCount??0,hillShadow:{...this.terrainGPU.hillShadowStats,enabled:this.terrainGPU.uSunBaked.value,terrainCast:this.terrain.mesh.castShadow},terrainShadow:this.terrainShadowRenderer?.reportStats?.()??null,groundReview:Object.fromEntries(Object.entries(this.terrain.review.fields).map(([k,f])=>[k,f.value])),habitatRepair:this.creekData.habitatRepair,bedRevision:this.creekData.bedRevision,landscapeDetails:this.landscapeDetails?.stats(),life:this.life?.stats(),sampleMuseumLife:this.sampleMuseumLife?.stats(),islandFauna:this.islandFauna?.stats(),habitatEnrichment:this.habitatEnrichment?.stats(),islandEcology:this.islandEcology?.stats(),submergedBed:this.submergedBed?.stats(),islandLandmarkProps:this.islandLandmarkProps?.stats(),shoreHabitats:this.shoreHabitats.stats(),shelfReef:this.shelfReef.stats(),shallowCove:{...this.creekData.cove,continuous:this.creekData.cove.continuous.summary,edgeAt:undefined,shelves:this.creekData.cove.shelves.map(({shore,at,...s})=>s),rocks:this.coveRocks.stats(),waveField:this.shoreField.localCove},marineSnow:{count:12000,box:8,opacity:this.marineSnow.opacity.value,visible:this.marineSnow.mesh.visible,space:'native neighbourhood/disc drawing with museum analytic world-space advection and previous pose; 1–6mm flecks, inland wave exclusion; wrapping fades at edges'},audio:this.audio.stats(),hydrology:{size:this.creekData.hydrology.size,riverStart:this.creekData.hydrology.riverStart,riverEnd:this.creekData.hydrology.riverStart+(this.creekData.hydrology.riverCount-1)*4,mouth:this.creekData.hydrology.mouth,coasts:this.creekData.hydrology.coasts},water:{...this.water.stats(),cameraWaterHeight:this.cameraWaterHeight,cameraUnderwater:G.cameraUnderwater.value,gpuReadbackCamera:{valid:this.query.ocean.cpuValid,height:this.query.ocean.cpu[0],normal:[this.query.ocean.cpu[1],this.query.ocean.cpu[2]],bed:this.query.ocean.cpu[3],input:Array.from(this.query.ocean.resultInputs.slice(0,2)),ageSeconds:this.query.ocean.latency},waterDepthAtCamera:this.cameraWaterHeight-this.camera.position.y,deepWaterPoint:this._deep??null},forest:{...this.vegetation.stats(),details:this.groveDetails.stats(),air:this.haze.stats(),motes:this.airMotes.stats()},geographyAudit:this.geometryAudit,coast:{...this.creekData.coast.coast,terrainSize:this.terrainData.size,terrainTexels:{core:1,outer:4},fineCore:this.terrainGPU.fineCore,seaLevel:-.7,pixelSeaDepth:this.oceanMaterial.depthReview.fields.pixelDepth.value,shoreDetailLegacy:this.oceanSurface.shoreReview.fields.legacy.value,nativeFFT:true,nativeShoreSim:true,oceanLocalWind:this.fft.local.windSpeed,oceanSwellWind:this.fft.swell.windSpeed,breakerStations:this.breakers.NS,surfWindow:this.shoreSim.stats(),breakerWindow:this.breakers.stats(),surfActive:this.coastalActive&&this.coastActivity.surf,marineLightActive:this.marineLightActive,simulation:'Continuous ocean FFT. Near-shore emitters and history follow the sea-level contour; marine light maps also cover open water.',active:this.coastalActive,cpuQueryLatencySeconds:this.query.ocean.latency},island:{size:this.terrainData.size,regionCount:9,visits:this.islandVisits,gridLayers:this.terrainGPU.fineCore,terrainLOD:{patches:this.terrain.lod.count,grid:64,rangeFactor:3,levels:this.terrain.lod.levels,triangles:this.terrain.lod.count*64*64*2},oceanLOD:{levels:this.oceanLOD.levels,patches:this.oceanLOD.count}},omitted:['village','boat','fishing','wake','whale'],underwaterCaustics:'native ocean caustics; creek attenuation without river-specific caustics',lensHeight:'one hybrid camera query per frame in native GPU results buffer; local ocean plane / exact inland field'};}
 }

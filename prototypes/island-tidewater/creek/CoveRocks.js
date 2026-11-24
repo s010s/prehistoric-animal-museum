@@ -1,10 +1,25 @@
 // Native Tidewater rock shapes/material/LOD; museum-authored cove composition.
 import {Rocks} from '../vendor/tidewater/src/world/Rocks.js';
 import {ROCK_STYLES} from '../vendor/tidewater/src/world/terrain/RockGeometry.js';
+import {bandFade} from '../vendor/tidewater/src/materials/LODFade.js';
 import {Vector3,Matrix4,Quaternion,Euler} from '../vendor/tidewater/src/engine/index.js';
 import {placePocketRocks} from './PocketBeaches.js';
+import {setRefractionFrustum} from './RefractionFrustum.js';
+
+const NEAR_DIST=60;
+const FAR_DIST=700;
+const BAND=.12;
+
 export class CoveRocks extends Rocks{
- constructor(options){super({...options,colliders:null});this.submergedColliders=0;this.exposedColliders=0;
+ constructor(options){
+  // SceneLighting directModulation already applies terrainSunShadowAt(P);
+  // pass sunShadow:false so rocks are not double-darkened by hill shadows.
+  super({...options,colliders:null,sunShadow:false});
+  // Solid depth shadow pass: avoid Bayer screen-door holes in the 60–80 m LOD fade band.
+  this.material.shadow='';
+  this.material.needsUpdate=true;
+  this._lastFocalX=NaN;this._lastFocalY=NaN;
+  this.submergedColliders=0;this.exposedColliders=0;
   this.classification={exposed:0,waterline:0,submerged:0};this.examples={};
   // Measure the actual native near geometry after its world transform, rather
   // than guessing that every style has the same 0.8m vertical extent.
@@ -28,7 +43,46 @@ export class CoveRocks extends Rocks{
    return {id:s.id,point:[x,z],gaze:[r.x,Math.max(r.top-.5,-3.1),r.z],rock:{x:r.x,z:r.z,top:r.top,bottom:r.bottom}};
   });
  }
- stats(){return {...super.stats(),submergedColliders:this.submergedColliders,exposedColliders:this.exposedColliders,classification:this.classification,examples:this.examples,bounds:'actual transformed near-LOD vertices; waterline category -1.45 to -0.25m around mean sea -0.7m',placement:'fixed uneven coastal clusters; four native shapes/two shared LODs'};}
+ update(camera){
+  const cam=camera.getWorldPosition(this._tmpV||(this._tmpV=new Vector3()));
+  const proj=camera.projectionMatrix.elements;
+  const moved=cam.distanceToSquared(this._lastCam)>1.0||!camera.quaternion.equals(this._lastQuat)||proj[0]!==this._lastFocalX||proj[5]!==this._lastFocalY;
+  if(!moved)return;
+  this._lastCam.copy(cam);this._lastQuat.copy(camera.quaternion);this._lastFocalX=proj[0];this._lastFocalY=proj[5];
+  camera.updateMatrixWorld();
+  setRefractionFrustum(this._frustum,camera,this._m4);
+  const sph=this._sphere;
+  for(const b of this.buckets){
+   let nn=0,nf=0;
+   const nl=b.near.geometry.attributes.iLod,fl=b.far.geometry.attributes.iLod;
+   for(const r of b.members){
+    const d=Math.hypot(r.x-cam.x,r.y-cam.y,r.z-cam.z);
+    const dn=NEAR_DIST+r.size*6,df=FAR_DIST+r.size*60;
+    const out=bandFade(d,df*(1-BAND),df);
+    if(out>=1)continue;
+    const t=bandFade(d,dn*(1-BAND/2),dn*(1+BAND/2));
+    // Keep all shadow-casting near boulders submitted regardless of camera
+    // facing so tall coastal rocks outside the view keep casting CSM shadows.
+    if(t<1){
+     nl.array[nn*2]=t;nl.array[nn*2+1]=1;
+     b.near.setMatrixAt(nn++,r.matrix);
+    }
+    if(t>0){
+     sph.center.set(r.x,r.y,r.z);sph.radius=r.radius;
+     if(!this._frustum.intersectsSphere(sph))continue;
+     fl.array[nf*2]=t*(1-out);fl.array[nf*2+1]=0;
+     b.far.setMatrixAt(nf++,r.matrix);
+    }
+   }
+   b.near.count=nn;b.far.count=nf;
+   for(const [a,c] of [[nl,nn],[fl,nf]]){
+    a.clearUpdateRanges();a.addUpdateRange(0,Math.max(1,c)*2);a.needsUpdate=true;
+   }
+   b.near.instanceMatrix.clearUpdateRanges();b.near.instanceMatrix.addUpdateRange(0,nn*16);b.near.instanceMatrix.needsUpdate=true;
+   b.far.instanceMatrix.clearUpdateRanges();b.far.instanceMatrix.addUpdateRange(0,nf*16);b.far.instanceMatrix.needsUpdate=true;
+  }
+ }
+ stats(){return {...super.stats(),submergedColliders:this.submergedColliders,exposedColliders:this.exposedColliders,classification:this.classification,examples:this.examples,bounds:'actual transformed near-LOD vertices; waterline category -1.45 to -0.25m around mean sea -0.7m',placement:'fixed uneven coastal clusters; four native shapes/two shared LODs; view-independent near shadow casters'};}
  _place(rand){
   const t=this.terrainData,cove=t.museumCove,out=[];if(!cove)return out;
   const add=(x,z,size,style,flat=1,strike)=>{

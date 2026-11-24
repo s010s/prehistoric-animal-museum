@@ -66,6 +66,13 @@ fn main(@builtin(local_invocation_index) i:u32) {
   }
 }`
     });
+    const initial = this.initialAutoScale();
+    if (initial < 1) this.apply(initial, performance.now());
+    app.engine.onResize.push(() => {
+      if (!this.automatic) return;
+      const target = this.initialAutoScale();
+      if (this.scale > target) this.apply(target, performance.now());
+    });
   }
 
   sampleMask(now) {
@@ -73,6 +80,13 @@ fn main(@builtin(local_invocation_index) i:u32) {
     this.lastProbe = now;
     this.probe.dispatch(1);
     this.readback.request(this.result);
+  }
+
+  initialAutoScale() {
+    const {width, height} = this.app.engine;
+    const pixels = width * height;
+    if (pixels <= referencePixels * 1.15) return 1;
+    return Math.min(1, Math.max(.65, Math.round(Math.sqrt((referencePixels * 1.15) / pixels) * 20) / 20));
   }
 
   setQuality(value) {
@@ -83,7 +97,7 @@ fn main(@builtin(local_invocation_index) i:u32) {
     this.coverage = 0;
     this.windowStart = null;
     this.deficitWindows = 0;
-    this.apply(this.automatic ? 1 : Number(value), performance.now());
+    this.apply(this.automatic ? this.initialAutoScale() : Number(value), performance.now());
   }
 
   setOutputDensity(value) {
@@ -97,15 +111,24 @@ fn main(@builtin(local_invocation_index) i:u32) {
   // Under-sampled wave edges need a wider spread of temporal samples. Store
   // the visitor's live settings so leaving the water recovers its original
   // grass/foliage response, including an explicitly adjusted sharpener.
+  // Never boost camera jitter or sharpening when land/grass dominates the view.
   apply(scale, now) {
     const {taau, params} = this.app.post;
     const sharpen = params.sharpen;
+    const submerged = this.app.camera.position.y < this.app.cameraWaterHeight - .08;
+    const openWaterDominant = submerged || (this.app.coastalActive && this.waterInView && this.coverage >= .75 && Math.abs(this.app.cameraWaterHeight - this.seaLevel) < 2.0);
     if (this.automatic && scale < 1) {
       if (!this.fullDetail) {
         this.fullDetail = {phases:taau.jitterPhaseOverride, jitter:taau.jitterMoving, sharpen:sharpen.value, refraction:this.app.refraction.scale};
+      }
+      if (openWaterDominant) {
         taau.jitterPhaseOverride = 8;
         taau.jitterMoving = .72;
-        if (Math.abs(sharpen.value - .45) < .001) sharpen.value = .6;
+        if (Math.abs(sharpen.value - this.fullDetail.sharpen) < .001 && Math.abs(this.fullDetail.sharpen - .45) < .001) sharpen.value = .6;
+      } else {
+        taau.jitterPhaseOverride = this.fullDetail.phases;
+        taau.jitterMoving = this.fullDetail.jitter;
+        if (Math.abs(sharpen.value - .6) < .001) sharpen.value = this.fullDetail.sharpen;
       }
       // Keep the displayed wave normals and foam at the chosen scene density.
       // The separately guarded view supplies the submerged colour behind them.
@@ -167,8 +190,8 @@ fn main(@builtin(local_invocation_index) i:u32) {
   // A larger desktop can use the same scene detail under sustained pressure
   // while the temporal reconstruction and the final canvas stay full size.
   viewportFloor(nominal) {
-    const {width, height, renderScale} = this.app.engine;
-    if (renderScale > 1 || width * height <= referencePixels) return nominal;
+    const {width, height} = this.app.engine;
+    if (width * height <= referencePixels) return nominal;
     const equivalent = nominal * Math.sqrt(referencePixels / (width * height));
     return Math.min(nominal, Math.max(.5, Math.ceil(equivalent * 20) / 20));
   }
@@ -233,7 +256,15 @@ fn main(@builtin(local_invocation_index) i:u32) {
     this.waterInView = wet;
     const nominal = wet ? this.waterFloor() : foliageFloor;
     this.viewMinimumScale = this.viewportFloor(nominal);
-    if (this.fullDetail) this.app.refraction.scale = wet ? this.refractionDensity(this.scale) : this.fullDetail.refraction;
+    if (this.fullDetail) {
+      const {taau, params} = this.app.post;
+      const submerged = this.app.camera.position.y < this.app.cameraWaterHeight - .08;
+      const openWaterDominant = submerged || (this.app.coastalActive && wet && this.coverage >= .75 && Math.abs(this.app.cameraWaterHeight - this.seaLevel) < 2.0);
+      taau.jitterPhaseOverride = openWaterDominant ? 8 : this.fullDetail.phases;
+      taau.jitterMoving = openWaterDominant ? .72 : this.fullDetail.jitter;
+      if (!openWaterDominant && Math.abs(params.sharpen.value - .6) < .001) params.sharpen.value = this.fullDetail.sharpen;
+      this.app.refraction.scale = wet ? this.refractionDensity(this.scale) : this.fullDetail.refraction;
+    }
     if (this.balanceOutput(now, fps, blocked, nominal)) return;
     if (this.scale < this.viewMinimumScale) {
       this.apply(this.viewMinimumScale, now);
@@ -243,9 +274,10 @@ fn main(@builtin(local_invocation_index) i:u32) {
     // On land, change the temporal input resolution only under sustained GPU
     // backpressure. A single model upload or tab transition is temporary.
     const deeper = this.scale <= nominal && this.viewMinimumScale < nominal;
-    const deficit = fps < (deeper ? 57.5 : 59.5) && blocked > 0;
+    const gpuOverBudget = blocked > 0 || (fps < 57.5 && this.completionMs > 15.8);
+    const deficit = fps < (deeper ? 57.5 : 59.5) && gpuOverBudget;
     this.deficitWindows = deficit ? this.deficitWindows + 1 : 0;
-    if (this.scale > this.viewMinimumScale && deficit && ((wet && !deeper) || this.deficitWindows >= 2) && (blocked >= 2 || this.deficitWindows >= 2 || this.completionMs > 23)) {
+    if (this.scale > this.viewMinimumScale && deficit && ((wet && !deeper) || this.deficitWindows >= 2) && (blocked >= 2 || this.deficitWindows >= 2 || this.completionMs > 17.5)) {
       const step = deeper && fps < 50 ? .1 : .05;
       const next = this.scale === 1 ? (fps < 53 ? .85 : .9) : this.scale - step;
       this.apply(Math.max(this.viewMinimumScale, Math.round(next * 20) / 20), now);

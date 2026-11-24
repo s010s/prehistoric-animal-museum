@@ -7,6 +7,7 @@ import * as Geo from '../vendor/tidewater/src/world/reef/ReefGeometry.js';
 import {ReefBatch} from '../vendor/tidewater/src/world/reef/ReefBatch.js';
 import {createReefMaterials,createReefView,SURFACE} from '../vendor/tidewater/src/world/reef/ReefMaterials.js';
 import {createNoiseVolume} from '../vendor/tidewater/src/world/reef/ReefNoise.js';
+import {setRefractionFrustum} from './RefractionFrustum.js';
 
 const forms=[
  {name:'framework',surface:SURFACE.rock,gen:(r,l)=>Geo.createMound(r,l,'slab'),palette:[0x877c69,0x99917a]},
@@ -32,17 +33,35 @@ export class ShelfReef{
    // North-facing cold shores favour exposed framework and rubble; the
    // sheltered east/south have denser colonies. Sand gaps remain between them.
    const warm=[0,1,2,7].includes(sector),target=warm?42:27;
-   for(let attempt=0;attempt<target*12&&this.items.length-before<target;attempt++){
-    const angle=rng()*Math.PI*2,r=4.5+Math.sqrt(rng())*12,x=center[0]+Math.cos(angle)*r,z=center[1]+Math.sin(angle)*r;
+   // Cluster colonies into 3–4 natural reef bommies with open sand channels between them.
+   const coreCount=warm?4:3,cores=[];
+   for(let c=0;c<coreCount;c++){
+    const baseAngle=(c/coreCount)*Math.PI*2+rng()*.65;
+    for(let tries=0;tries<18;tries++){
+     const ca=baseAngle+(rng()-.5)*.45,cr=6.5+rng()*8.5;
+     const cx=center[0]+Math.cos(ca)*cr,cz=center[1]+Math.sin(ca)*cr;
+     const cf=this.terrain.heightAt(cx,cz),cd=-.7-cf;
+     if(cd<2.2||cd>9.2||data.cove.continuous.marineAt(cx,cz)<.82)continue;
+     if(cores.some(k=>Math.hypot(k.x-cx,k.z-cz)<5.8))continue;
+     cores.push({x:cx,z:cz,angle:ca});break;
+    }
+   }
+   for(let attempt=0;attempt<target*16&&this.items.length-before<target;attempt++){
+    const placed=this.items.length-before;
+    const core=cores.length?cores[attempt%cores.length]:{x:center[0],z:center[1],angle:rng()*Math.PI*2};
+    const isCoreFramework=placed<cores.length;
+    const type=isCoreFramework?0:!warm?(rng()<.36?0:4):rng()<.14?0:rng()<.22?4:1+Math.floor(rng()*3),model=this.models[type];
+    const angle=rng()*Math.PI*2;
+    const r=isCoreFramework?rng()*1.2:type===4?2.0+rng()*2.6:Math.pow(rng(),1.35)*(type===0?2.4:3.3);
+    const x=core.x+Math.cos(angle)*r,z=core.z+Math.sin(angle)*r;
     const floor=this.terrain.heightAt(x,z),depth=-.7-floor;if(depth<2.1||depth>9.5||data.cove.continuous.marineAt(x,z)<.8)continue;
     if((app.coveRocks.instances??[]).some(rock=>Math.hypot(x-rock.x,z-rock.z)<rock.footRadius*.86+1.0))continue;
-    const type=!warm?(rng()<.4?0:4):rng()<.18?0:rng()<.18?4:1+Math.floor(rng()*3),model=this.models[type];
-    const s=type===0?1.1+rng()*1.3:type===4?.45+rng()*.5:.6+rng()*.65;
-    const spacing=type===0?2.5:1.2;if(local.some(a=>Math.hypot(x-a.x,z-a.z)<spacing+a.radius*.5))continue;
-    const sy=type===0?.42+rng()*.25:.7+rng()*.4,sx=.8+rng()*.45,sz=.8+rng()*.45;
+    const s=type===0?1.15+rng()*1.35:type===4?.45+rng()*.52:.58+rng()*.68;
+    const spacing=type===0?1.85:type===4?.72:.78;if(local.some(a=>Math.hypot(x-a.x,z-a.z)<spacing+a.radius*.36))continue;
+    const sy=type===0?.38+rng()*.24:.7+rng()*.4,sx=.8+rng()*.45,sz=.8+rng()*.45;
     const normal=new Vector3(this.terrain.heightAt(x-.5,z)-this.terrain.heightAt(x+.5,z),1,this.terrain.heightAt(x,z-.5)-this.terrain.heightAt(x,z+.5));normal.normalize().lerp(up,.4).normalize();
     q.setFromUnitVectors(up,normal).multiply(new Quaternion().setFromAxisAngle(up,rng()*Math.PI*2));
-    let y=floor-.08;for(let a=0;a<6;a++)y=Math.min(y,this.terrain.heightAt(x+Math.cos(a)*s*.7,z+Math.sin(a)*s*.7)-.04);
+    let y=floor-(type===0?.14:.09);for(let a=0;a<6;a++)y=Math.min(y,this.terrain.heightAt(x+Math.cos(a)*s*.7,z+Math.sin(a)*s*.7)-.05);
     matrix.compose(new Vector3(x,y,z),q,new Vector3(s*sx,s*sy,s*sz));
     let top=-Infinity,bottom=Infinity,radius=0;const positions=model.geometry.attributes.position;
     for(let v=0;v<positions.count;v++){p.set(positions.getX(v),positions.getY(v),positions.getZ(v)).applyMatrix4(matrix);top=Math.max(top,p.y);bottom=Math.min(bottom,p.y);radius=Math.max(radius,Math.hypot(p.x-x,p.z-z));}
@@ -75,11 +94,11 @@ export class ShelfReef{
    }
    return [{id:'reef-'+id.slice(6),p:arrival,gaze:[r.x,(r.top+r.bottom)*.5,r.z],colony:{type:r.model.name,top:r.top,bottom:r.bottom}}];
   });
-  this.batch.upload();app.scene.add(this.group);this.frustum=new Frustum();this.vp=new Matrix4();this.sphere=new Sphere();this.update(app.camera);
+  this.batch.upload();app.scene.add(this.group);this.frustum=new Frustum();this.refractionFrustum=new Frustum();this.vp=new Matrix4();this.sphere=new Sphere();this.update(app.camera);
  }
  update(camera){
   const cp=camera.position,range=cp.y<.3?45:Math.min(110,35+Math.max(0,cp.y)*1.4);
-  this.view.fields.position.value.copy(cp);this.view.fields.range.value=range;camera.updateMatrixWorld();this.vp.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.vp,camera.coordinateSystem,camera.reversedDepth);
+  this.view.fields.position.value.copy(cp);this.view.fields.range.value=range;camera.updateMatrixWorld();this.vp.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.vp,camera.coordinateSystem,camera.reversedDepth);setRefractionFrustum(this.refractionFrustum,camera,this.vp);
   this.batch.begin();this.visible=0;this.visibleTypes={};this.trackingColonies.length=0;
   if(this.enabled)for(let i=0;i<this.items.length;i++){
    const r=this.items[i],d=Math.hypot(cp.x-r.x,cp.y-r.y,cp.z-r.z),max=Math.min(range,r.range);
@@ -88,7 +107,7 @@ export class ShelfReef{
    this.sphere.center.set(r.x,(r.top+r.bottom)*.5,r.z);this.sphere.radius=r.radius+Math.max(0,r.top-r.y);
    const visible=this.frustum.intersectsSphere(this.sphere);
    if(r.type>0&&r.type<4&&d<max){r.trackingVisible=visible;this.trackingColonies.push(r);}
-   if(!visible)continue;
+   if(!visible&&!this.refractionFrustum.intersectsSphere(this.sphere))continue;
    const d0=Math.max(5,r.radius*7),d1=Math.max(17,r.radius*19),lod=d<d0?0:d<d1?1:2,kind=r.model.start+lod;
    if(d>max*.85)this.batch.addFade(kind,i,Math.max(0,(max-d)/(max*.15)),false);
    else if(lod<2&&d>(lod?d1:d0)*.88){const fade=(d/(lod?d1:d0)-.88)/.12;this.batch.addFade(kind,i,fade,true);this.batch.addFade(kind+1,i,fade,false);}

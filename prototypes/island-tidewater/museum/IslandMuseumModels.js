@@ -133,16 +133,48 @@ function modelMaterial(id, source, piece, pose, textures, morph) {
       default: break;
     }
   }
-  if (id === 'meganeura' && source.name === 'wings') {
-    // The atlas contains veins on clear texels. Give the thin membrane a
-    // small grazing-angle response and retain the vein contrast in the mips.
+  if (id === 'meganeura' && (source.name === 'wings' || source.alphaMode === 'BLEND')) {
+    // Give both dragonfly wing membrane materials a gossamer translucent film
+    // with sunlit backlight scattering and crisp amber-chitin veins instead of
+    // dark opaque plastic cards.
     fragment.push(
-      'let vein = clamp(s.alpha, 0.0, 1.0);',
+      'let vein = smoothstep(0.18, 0.85, clamp(s.alpha, 0.0, 1.0));',
       'let grazing = 1.0 - abs(dot(normalize(s.normal), in.V));',
-      'let film = mix(0.066, 0.109, grazing * grazing);',
-      's.alpha = 1.0 - (1.0 - film) * pow(1.0 - vein, 1.44);',
-      's.albedo = mix(vec3f(0.42, 0.40, 0.35), s.albedo, smoothstep(0.02, 0.21, vein));',
-      's.translucency = vec3f(0.065, 0.058, 0.048) * (1.0 - vein);',
+      'let film = mix(0.10, 0.28, grazing * grazing);',
+      's.alpha = clamp(mix(film, 0.84, vein * 0.78), 0.08, 0.88);',
+      'let chitin = max(s.albedo, vec3f(0.16, 0.14, 0.095));',
+      's.albedo = mix(vec3f(0.58, 0.56, 0.48), chitin, smoothstep(0.06, 0.35, vein));',
+      's.roughness = mix(0.28, 0.62, vein);',
+      's.specularIntensity = mix(0.68, 0.25, vein);',
+      's.translucency = vec3f(0.32, 0.30, 0.24) * (1.0 - vein * 0.52);',
+    );
+  }
+  const isLandHide = islandMuseumModels[id].habitat === 'land' && id !== 'sarcosuchus';
+  const matName = source.name ?? '';
+  const glossyPart = /eye|cornea|lense|tongue|tooth|teeth|enamel/i.test(matName);
+  const keratinPart = /claw|nail|horn|beak/i.test(matName);
+  if (isLandHide && !glossyPart && !feathers) {
+    if (keratinPart) {
+      fragment.push(
+        's.roughness = mix(0.56, 0.82, clamp(s.roughness, 0.0, 1.0));',
+        's.specularIntensity *= 0.68;',
+      );
+    } else {
+      fragment.push(
+        's.roughness = mix(0.76, 0.92, clamp(s.roughness, 0.0, 1.0));',
+        's.specularIntensity *= 0.42;',
+      );
+    }
+    fragment.push(
+      '#if MUSEUM_ANKLE_GROUND',
+      'let groundClear = max(in.P.y - terrainHeightAt(in.P.xz), 0.0);',
+      'let ankleDust = 1.0 - smoothstep(0.02, 0.62, groundClear);',
+      'let contactAO = 1.0 - smoothstep(0.0, 0.24, groundClear);',
+      's.albedo = mix(s.albedo, mix(s.albedo * 0.72, vec3f(0.18, 0.16, 0.115), 0.42), ankleDust * 0.46);',
+      's.ao *= 1.0 - contactAO * 0.44;',
+      's.roughness = mix(s.roughness, 0.95, ankleDust * 0.55);',
+      's.specularIntensity *= 1.0 - ankleDust * 0.55;',
+      '#endif',
     );
   }
   // Small overlapping feather vanes contain high-frequency barbs in both

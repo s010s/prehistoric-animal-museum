@@ -27,7 +27,7 @@ import {CanopyShadows,hasFixedCanopyShadow,fixedCanopyShadowWGSL} from './Canopy
 const RANGE=65;
 const CONIFER_BASE_BURIAL=.65;
 const review=new UniformBlock('MuseumCanopyReview',{coverage:['f32',.5],mode:['f32',0],wind:['f32',1],parallax:['f32',0],thinning:['f32',0],shade:['f32',0],shadows:['f32',1],fixedShadows:['f32',0],solo:['f32',0],pixelScale:['f32',1105],probeXZ:['vec2f',new Vector2(5.963828455,48.907625301)]},{label:'Museum canopy comparison'});
-const shader=new ShaderModule({name:'museumConifer',deps:[vegModule],uniforms:review,uniformName:'museumCanopy',bindings:{creekNeedles:{texture:()=>coniferTextures.needles},creekBark:{texture:()=>coniferTextures.bark}},code:`
+const shader=new ShaderModule({name:'museumConifer',deps:[vegModule],uniforms:review,uniformName:'museumCanopy',bindings:{creekNeedles:{texture:()=>coniferTextures.needles},creekBark:{texture:()=>coniferTextures.bark},creekBarkNormal:{texture:()=>coniferTextures.barkNormal}},code:`
 const MUSEUM_LOD_BAND:f32=.28;
 fn museumNear(seed:f32)->f32{return select(65.0,190.0,seed>=4.0);}
 fn museumTreeFar(H:f32,seed:f32,stretch:f32)->f32{return select(museumNear(seed),max(museumNear(seed)*4.0,H*museumCanopy.pixelScale/${TREE_ATLAS_PIXELS.toFixed(1)}),stretch<0.0);}
@@ -123,7 +123,7 @@ function canopyBounds(geometry){
 export class CreekForest {
   constructor({scene,data,colliders,terrainGPU,engine}) {
     this.engine=engine;
-    const {terrain,geography:g,field}=data;this.group=new Group();this.group.name='Museum creek woodland';review.fields.fixedShadows.value=field.continuousSample?1:0;
+    const {terrain,geography:g,field}=data;this.group=new Group();this.group.name='Museum creek woodland';review.fields.fixedShadows.value=1;
     for(const texture of Object.values(coniferTextures)){texture.getGPU();if(!texture.coverageMips)generateMipmaps(texture);}
     const templates=[coniferTemplate(3,0),coniferTemplate(11,1),fanTreeTemplate(),coniferTemplate(87,3),coniferTemplate(141,2)];
     const heroes=this.heroes=data.groveHeroes=locateGroveHeroes(data);
@@ -157,7 +157,28 @@ fn creekRootNormal(p:vec3f,base:vec3f,n:vec3f,wood:f32,seed:f32)->vec3f{
  let fade=select(smoothstep(museumNear(in.vs.vSeed)*(1.0-VEG_LOD_BAND/2.0),museumNear(in.vs.vSeed)*(1.0+VEG_LOD_BAND/2.0),in.vs.vDistance),0.0,museumCanopy.mode==1.0);
  if(bayer4(in.pixel)<fade){discard;}
  s.albedo=creekTemplateAlbedo(in.uv,leafKind,in.vs.vMat.z)*creekInstanceTint(in.vs.vSeed);s.ao=mix(.4,1.0,in.vs.vMat.y);s.roughness=0.93;s.specularIntensity=0.12;
- let leafN=normalize(in.vs.normal);s.normal=normalize(leafN+in.V*0.12*leaf);s.translucency=vegTranslucency(s.albedo,leafN,0.35,in.P)*leaf*(.6+.4*in.vs.vMat.y);`,output:canopyOutput,shadow:`let needlesVisible=creekNeedleVisible(in.uv,in.P,in.V);if(in.vs.vMat.x>0.5 && in.vs.vMat.x<1.5 && !needlesVisible){return false;}let fade=select(smoothstep(museumNear(in.vs.vSeed)*(1.0-VEG_LOD_BAND/2.0),museumNear(in.vs.vSeed)*(1.0+VEG_LOD_BAND/2.0),in.vs.vDistance),0.0,museumCanopy.mode==1.0);return vegHash12(floor(in.P.xz*8.0)+vec2f(in.vs.vSeed*71.0,13.0))>=fade;`});
+ let leafN=normalize(in.vs.normal);
+ let barkUV=in.uv*vec2f(2.0,12.0);
+ let barkDp1=dpdx(in.P);let barkDp2=dpdy(in.P);
+ let barkDuv1=dpdx(barkUV);let barkDuv2=dpdy(barkUV);
+ if(leafKind<.5){
+  let barkNM=textureSampleGrad(creekBarkNormal,smpAnisoRepeat,barkUV,barkDuv1,barkDuv2).xyz*2.0-1.0;
+  let dp2p=cross(barkDp2,leafN);let dp1p=cross(leafN,barkDp1);
+  let bT=dp2p*barkDuv1.x+dp1p*barkDuv2.x;
+  let bB=dp2p*barkDuv1.y+dp1p*barkDuv2.y;
+  let bInv=inverseSqrt(max(max(dot(bT,bT),dot(bB,bB)),1e-20));
+  let rootRise=max(in.P.y-in.vs.vRoot.y,0.0);
+  let baseMoss=(1.0-smoothstep(.2,2.6,rootRise))*(.42+.35*sin(in.P.x*1.7+in.P.z*1.3));
+  let baseContact=1.0-smoothstep(0.0,.75,rootRise);
+  s.albedo=mix(s.albedo,vec3f(.055,.075,.030),clamp(baseMoss,0.0,.62));
+  s.albedo*=1.0-baseContact*.28;
+  s.ao*=mix(.56,1.0,smoothstep(0.0,.9,rootRise))*mix(.82,1.0,clamp(barkNM.z,0.0,1.0));
+  s.normal=normalize(mat3x3f(bT*bInv,bB*bInv,leafN)*barkNM);
+  s.roughness=.95;
+ } else {
+  s.normal=normalize(leafN+in.V*0.12*leaf);
+ }
+ s.translucency=vegTranslucency(s.albedo,leafN,0.35,in.P)*leaf*(.6+.4*in.vs.vMat.y);`,output:canopyOutput,shadow:`let needlesVisible=creekNeedleVisible(in.uv,in.P,in.V);if(in.vs.vMat.x>0.5 && in.vs.vMat.x<1.5 && !needlesVisible){return false;}let fade=select(smoothstep(museumNear(in.vs.vSeed)*(1.0-VEG_LOD_BAND/2.0),museumNear(in.vs.vSeed)*(1.0+VEG_LOD_BAND/2.0),in.vs.vDistance),0.0,museumCanopy.mode==1.0);return vegHash12(floor(in.P.xz*8.0)+vec2f(in.vs.vSeed*71.0,13.0))>=fade;`});
     const mid=near.clone();mid.name='museum-conifer-middle-geometry';
     mid.vertex=mid.vertex.replace('let limit=select(nd*(1.0+VEG_LOD_BAND/2.0),nd*1.5,museumCanopy.mode==1.0);','let limit=museumTreeFar(v.iDat.z,v.iDat.w,v.iDat.y)*(1.0+VEG_LOD_BAND/2.0);').replace('d<limit&&museumCanopy.mode!=2.0','d<limit&&d>nd*(1.0-VEG_LOD_BAND/2.0)&&museumCanopy.mode==0.0');
     mid.surface=mid.surface.replace('if(bayer4(in.pixel)<fade){discard;}',`let farFade=smoothstep(in.vs.vGeometryEnd*(1.0-VEG_LOD_BAND/2.0),in.vs.vGeometryEnd*(1.0+VEG_LOD_BAND/2.0),in.vs.vDistance);if(bayer4(in.pixel)>=fade||bayer4(in.pixel)<farFade){discard;}`);
@@ -252,7 +273,20 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
       else if(original.marsh>.25)choice={variant:2,scale:.7+original.seed*.35,keep:original.seed<.42};
       else if(Math.max(Math.abs(original.x),Math.abs(original.z))>1900&&original.grass<.3&&original.seed>.76)choice={variant:2,scale:.86+original.seed*.2,keep:true};
       if(!choice.keep)continue;
-      const variant=choice.variant,r={...original,s:original.s*choice.scale,seed:variant<2?original.seed:variant+original.seed*.999,variant};
+      // Reshape uniform outer-island hillside scatter into cohesive valley and
+      // moist-slope forest belts while keeping the 512 m core and giant grove intact.
+      let beltScale=1;
+      if(Math.max(Math.abs(original.x),Math.abs(original.z))>=620&&edge<=.05){
+       const h0=terrain.heightAt(original.x,original.z);
+       const avg4=(terrain.heightAt(original.x+28,original.z)+terrain.heightAt(original.x-28,original.z)+terrain.heightAt(original.x,original.z+28)+terrain.heightAt(original.x,original.z-28))*.25;
+       const hollow=Math.max(-1,Math.min(1,(avg4-h0)/4.2));
+       const beltWave=.5+.32*Math.sin(original.x*.0048+Math.sin(original.z*.0037)*2.1)+.18*Math.cos(original.z*.0062-original.x*.0029);
+       const band=beltWave+hollow*.28+(original.marsh??0)*.22;
+       // Open exposed crests retain only occasional pioneer trees; moist hollows & belts stay lush.
+       if(band<.46&&original.seed>.11)continue;
+       beltScale=.76+.36*Math.max(0,Math.min(1,(band-.38)/.52));
+      }
+      const variant=choice.variant,r={...original,s:original.s*choice.scale*beltScale,seed:variant<2?original.seed:variant+original.seed*.999,variant};
       if(variant===4)r.s=(58+original.seed*35)/(templates[4].height*r.sy);
       records.push({...r,y:terrain.heightAt(r.x,r.z)-.08,la:r.yaw,l:r.sy,H:templates[variant].height*r.s*r.sy,qr:variant===4?GROVE.near+GROVE.margin:RANGE+16});
     }
@@ -260,6 +294,17 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
     const stand=fillGroveStand(data,records,templates,heroes);
     this.sampleForest=plantSampleForest(data,templates,records);
     this.pocketWoodland=plantPocketWoodland(data,templates,records,RANGE+16);
+    // Natural scale-reference woodland edge flanking large open-meadow dinosaurs
+    // (strictly outside the 512 m core and outside all animal patrol loops).
+    for(const [sx,sz,variant,H,yaw,seed] of [
+      [-596,338,1,13.5,0.4,.62],[-586,354,0,9.8,1.9,.21],[-562,358,3,7.2,3.1,3.34],[-528,346,1,11.6,4.2,.77],[-608,318,0,14.8,2.4,.14],
+      [7408,2964,1,12.4,1.1,.58],[7390,2948,0,15.2,2.7,.33],[7426,2980,3,7.8,4.6,3.41],[7482,2968,1,10.8,0.6,.81],
+      [7452,2578,1,13.0,2.2,.69],[7534,2576,0,11.2,3.8,.19],
+    ]){
+      if(Math.max(Math.abs(sx),Math.abs(sz))<515||records.some(r=>Math.hypot(r.x-sx,r.z-sz)<9))continue;
+      const sy=1,s=H/templates[variant].height,y=terrain.heightAt(sx,sz)-.12;
+      if(y>field.island.seaLevel+2)records.push({x:sx,y,z:sz,H,variant,s,sy,seed,yaw,la:yaw,l:sy,qr:RANGE+16});
+    }
     const protectedCore=sourceRecords.filter(r=>Math.max(Math.abs(r.x),Math.abs(r.z))<512),adaptedCore=records.filter(r=>Math.max(Math.abs(r.x),Math.abs(r.z))<512),coreByRoot=new Map(adaptedCore.map(r=>[r.x+','+r.z,r]));
     const corePreserved=protectedCore.length===adaptedCore.length&&protectedCore.every(a=>{const b=coreByRoot.get(a.x+','+a.z);return b&&b.seed===a.seed&&b.s===a.s&&b.sy===a.sy&&b.yaw===a.yaw&&b.variant===(a.seed<.5?0:1);});
     if(!corePreserved)throw Error('Ecology adaptation changed accepted creek core');
@@ -271,7 +316,8 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
     this.canopies=[makeCanopy('museum conifers',records.filter(r=>r.variant<2),nearGeometry),... [2,3,4].map(i=>makeCanopy('museum '+speciesNames[i],records.filter(r=>r.variant===i),variants[i],i===4?190:RANGE))];
     this.canopy=this.canopies[0];this.types=[...this.canopies];
     const middleTemplates=[coniferTemplate(3,0,null,null,1),coniferTemplate(11,1,null,null,1),templates[2],coniferTemplate(87,3,null,null,1),coniferTemplate(141,2,null,null,1)];
-    this.canopyShadows=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}],true);const items=field.continuousSample?records.filter(r=>hasFixedCanopyShadow(r)&&r.castsFixedShadow!==false&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i):[];return new CanopyShadows('museum depth-only '+speciesNames[i],items,geometry,shadowMaterial);});
+    const shadowTemplates=[coniferTemplate(3,0,null,null,2),coniferTemplate(11,1,null,null,2),templates[2],coniferTemplate(87,3,null,null,2),coniferTemplate(141,2,null,null,2)];
+    this.canopyShadows=shadowTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}],true);const items=records.filter(r=>hasFixedCanopyShadow(r)&&r.castsFixedShadow!==false&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i);return new CanopyShadows('museum depth-only '+speciesNames[i],items,geometry,shadowMaterial);});
     this.types.push(...this.canopyShadows);for(const type of this.canopyShadows)for(const mesh of type.meshes)this.group.add(mesh);
     this.geometryCanopies=middleTemplates.map((t,i)=>{const geometry=mergeParts([{geometry:t.wood,leaf:0,height:t.height,variant:i},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant:i}],true);const items=records.filter(r=>r.stableGeometry&&(r.seed<1?(r.seed>=.5?1:0):Math.floor(r.seed))===i);return new GeometryCanopy('museum middle '+speciesNames[i],items,geometry,mid,canopyBounds(geometry));});
     this.types.push(...this.geometryCanopies);for(const type of this.geometryCanopies)for(const mesh of type.meshes){mesh.renderOrder=1;mesh.underwaterLighting='none';mesh.material.underwaterLighting='none';this.group.add(mesh);}
@@ -307,12 +353,13 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
       if(rng()>sampleForestWeight(x,z)||f[1]<1.3||y<f[0]+.12||grade>.65||(field.continuousSample.forestRecords??[]).some(t=>Math.hypot(t.x-x,t.z-z)<(t.variant===4?1.8: .5)*t.s))continue;
       fernRecords.push({x,y:y-.03,z,s:.65+rng()*1.1,sy:1,yaw:rng()*6.283,la:0,l:0,H:.05,seed:UNDERSTORY.FERN+rng()*.999,qr:UNDER_FERN_FADE[1]+8});count++;
     }this.sampleForest.ferns=count;}
-    const fernMat=createPlantLeafMaterial();fernMat.modules.push(groveModule);fernMat.surface+='\nlet groveTint=museumGroveWeight(in.P.xz);s.albedo*=mix(vec3f(1.0),vec3f(.72,.78,.65),groveTint);s.translucency*=1.0-groveTint*.35;s.roughness=max(s.roughness,.9);';
+    const fernMat=createPlantLeafMaterial();fernMat.underwaterLighting='none';fernMat.modules.push(groveModule);fernMat.surface+='\nlet groveTint=museumGroveWeight(in.P.xz);s.albedo*=mix(vec3f(.68,.73,.52),vec3f(.44,.52,.33),groveTint);s.translucency*=mix(.55,.28,groveTint);s.ao*=.84;s.roughness=max(s.roughness,.92);';
     const fern=new VegType('museum ferns',fernRecords,{fade:[105,125],margin:10,sortNear:true,near:[{geometry:buildFern(3).geometry,material:fernMat,castShadow:false,name:'creek-ferns'}]});
-    this.types.push(fern);for(const mesh of fern.meshes)this.group.add(mesh);
+    this.types.push(fern);for(const mesh of fern.meshes){mesh.underwaterLighting='none';this.group.add(mesh);}
     this.groveAudit={...stand,mature:records.filter(r=>r.variant===4).length,young:records.filter(r=>groveWeight(r.x,r.z)>.6&&r.variant<2&&r.H<24).length,heroes:records.filter(r=>r.landmark).map(r=>({x:r.x,y:r.y,z:r.z,height:r.H,DBH:trunkSection(templates[4],r.s,r.sy),collarDiameter:1.64*r.s})),nearRange:GROVE.near,visualEnd:GROVE.near*1.14,cpuQuery:GROVE.near+GROVE.margin,refreshAllowance:6,path:GROVE.path,forestFerns:fernRecords.filter(r=>groveWeight(r.x,r.z)>.3).length};
     this.grass=new CreekGrass({data,terrainGPU});
-    for(const mesh of this.grass.meshes)this.group.add(mesh);
+    this.grass.material.underwaterLighting='none';
+    for(const mesh of this.grass.meshes){mesh.underwaterLighting='none';this.group.add(mesh);}
     this.group.updateMatrixWorld(true);scene.add(this.group);this.position=new Vector3();this.materials=[near,mid,far];this.records=records;this.review=review;this.reviewShadows=true;
   }
   update(dt,camera){
@@ -326,5 +373,5 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
   }
   giantWindow(p){const t=this.canopies.find(t=>t.nearRange===GROVE.near);return this.heroes.map(h=>{let id=-1;for(let i=0;i<t.inst.count;i++)if(Math.abs(t.inst.px[i]-h.x)<.02&&Math.abs(t.inst.pz[i]-h.z)<.02){id=i;break;}let inPool=false;for(let k=0;k<t.near.count;k++)if(t.nearIds[k]===id)inPool=true;return {root:[h.x,h.z],distance:Math.hypot(p.x-h.x,p.y-t.inst.py[id],p.z-h.z),horizontal:Math.hypot(p.x-h.x,p.z-h.z),inPool,queryRadius:t.queryRadius,visualEnd:GROVE.near*1.14};});}
   setReview({mode,wind,parallax,thinning,solo,target,shadows,shade,coverage}){if(coverage!==undefined)review.fields.coverage.value=Number(coverage);if(mode!==undefined){review.fields.mode.value=Number(mode);for(const t of this.canopies){t.queryRadius=Number(mode)===1?t.nearRange*1.5+6:t.nearRange+(t.nearRange===GROVE.near?GROVE.margin:16);t.inst.qr2.fill(t.queryRadius*t.queryRadius);t.lastX=Infinity;}}if(shade!==undefined)review.fields.shade.value=Number(shade);if(wind!==undefined)review.fields.wind.value=wind?1:0;if(parallax!==undefined)review.fields.parallax.value=parallax?1:0;if(thinning!==undefined)review.fields.thinning.value=thinning?1:0;if(solo!==undefined)review.fields.solo.value=solo?1:0;if(target)review.fields.probeXZ.value.set(...target);if(shadows!==undefined&&shadows!==this.reviewShadows){this.reviewShadows=shadows;review.fields.shadows.value=shadows?1:0;for(const type of [...this.canopies,...this.canopyShadows])for(const mesh of type.near.meshes)mesh.castShadow=shadows;for(const m of this.materials){m.receiveShadows=shadows;m.needsUpdate=true;}}}
-  stats(){return {geometryCanopy:this.geometryCanopies.map(t=>t.stats()),canopyShadows:this.canopyShadows.map(t=>t.stats()),canopyReview:{coverage:review.fields.coverage.value,shade:review.fields.shade.value,shadows:this.reviewShadows,mode:review.fields.mode.value,wind:review.fields.wind.value,parallax:review.fields.parallax.value,thinning:review.fields.thinning.value,solo:review.fields.solo.value,target:review.fields.probeXZ.value.toArray()},bounds:{center:this.bounds.center.toArray(),radius:this.bounds.radius,rh:this.bounds.rh,hv:this.bounds.hv,measured:this.bounds.measured},trees:this.records.length,pocketWoodland:this.pocketWoodland,grove:this.groveAudit,ecologyAudit:this.ecologyAudit,species:this.species,atlasBudget:this.atlasBudget,nearInstances:this.canopies.reduce((n,t)=>n+t.near.count,0),farInstances:this.canopies.reduce((n,t)=>n+t.far.count,0),nearTriangles:this.canopies.reduce((n,t)=>n+t.near.triangles,0),farTriangles:this.canopies.reduce((n,t)=>n+t.far.triangles,0),grass:this.grass.stats?.()??{patchTriangles:this.grass.patchTris},sameTemplateAtlas:true,colourSource:"original sRGB needle/bark and cool-warm palette; own analytic fan leaf; full RGB near/far",atlasBaked:this.atlas.baked,windVelocity:'rooted hf² bend shared with near geometry; reconstructed hit previous pose',atlasViewBlend:[150,220],needleCoverageMips:coniferTextures.needles.coverageMips,shadowFade:'sample: continuous fixed 3D canopy; outside sample: original world-anchored cells',palms:0};}
+  stats(){return {geometryCanopy:this.geometryCanopies.map(t=>t.stats()),canopyShadows:this.canopyShadows.map(t=>t.stats()),canopyReview:{coverage:review.fields.coverage.value,shade:review.fields.shade.value,shadows:this.reviewShadows,mode:review.fields.mode.value,wind:review.fields.wind.value,parallax:review.fields.parallax.value,thinning:review.fields.thinning.value,solo:review.fields.solo.value,target:review.fields.probeXZ.value.toArray()},bounds:{center:this.bounds.center.toArray(),radius:this.bounds.radius,rh:this.bounds.rh,hv:this.bounds.hv,measured:this.bounds.measured},trees:this.records.length,pocketWoodland:this.pocketWoodland,grove:this.groveAudit,ecologyAudit:this.ecologyAudit,species:this.species,atlasBudget:this.atlasBudget,nearInstances:this.canopies.reduce((n,t)=>n+t.near.count,0),farInstances:this.canopies.reduce((n,t)=>n+t.far.count,0),nearTriangles:this.canopies.reduce((n,t)=>n+t.near.triangles,0),farTriangles:this.canopies.reduce((n,t)=>n+t.far.triangles,0),grass:this.grass.stats?.()??{patchTriangles:this.grass.patchTris},sameTemplateAtlas:true,colourSource:"original sRGB needle/bark and cool-warm palette; own analytic fan leaf; full RGB near/far",atlasBaked:this.atlas.baked,windVelocity:'rooted hf² bend shared with near geometry; reconstructed hit previous pose',atlasViewBlend:[150,220],needleCoverageMips:coniferTextures.needles.coverageMips,shadowFade:'whole island: continuous fixed 3D canopy shadows; no camera-LOD dither',palms:0};}
 }

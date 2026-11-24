@@ -19,24 +19,71 @@ export class SampleDetails{
   // Conservative individual slabs; the small central emerging channel remains
   // open. Collision bounds are part of the landmark, not invisible railings.
   for(const [x,z,r]of [[-643.9,-501.6,1.15],[-640.3,-501.8,1.1],[-642,-503.6,1.4]])colliders.addCylinder(x,z,r,54,59,{tag:'sample embedded source slab'});
-  const addRock=(x,z,size,seed)=>{
-   const h=t.heightAt(x,z),g=buildRockGeometry(seed%3,seed,2);g.scale(size,size*(.45+rng()*.5),size*(.7+rng()*.45));g.rotateY(.42+(rng()-.5)*.7);g.rotateZ((rng()-.5)*.35);g.translate(x,h-size*.22,z);rocks.push(g);
-   const top=h+size*.78;this.rocks.push({x,z,size,base:h-size*.22,top});if(size>.32)colliders.addCylinder(x,z,size*.68,h-size*.3,top,{tag:'sample channel boulder'});
+  const visitorSpots=[[-639.5,-494.5],[-690,-275],[-742,-153],[-651,-478]];
+  const nearVisitor=(x,z)=>visitorSpots.some(([vx,vz])=>Math.hypot(x-vx,z-vz)<2.3);
+  const addRock=(x,z,size,seed,subdiv=null)=>{
+   const h=t.heightAt(x,z),g=buildRockGeometry(seed%3,seed,subdiv??(size<.32?1:2));g.scale(size,size*(.38+rng()*.46),size*(.68+rng()*.46));g.rotateY(.42+(rng()-.5)*1.4);g.rotateZ((rng()-.5)*.32);g.translate(x,h-size*.24,z);rocks.push(g);
+   const top=h+size*.72;this.rocks.push({x,z,size,base:h-size*.24,top});if(size>.36)colliders.addCylinder(x,z,size*.68,h-size*.3,top,{tag:'sample channel boulder'});
   };
   // Discrete rock controls at the plunge apron and selected bends. Density
   // varies by landmark; no regularly spaced ring or repeat along the stream.
-  for(const [cx,cz,count,spread,scale] of [[-650,-489,11,4.2,.5],[-660,-480,9,4.5,.42],[-706,-403,10,8,.7],[-714,-287,13,9,.65],[-743,-168,9,10,.6],[-783,24,7,8,.4],[-958,164,8,11,.9],[-1010,126,11,17,1.7]]){
+  for(const [cx,cz,count,spread,scale] of [
+   [-646,-494,14,3.4,.28],[-650,-489,14,4.4,.46],[-660,-480,12,4.8,.40],
+   [-706,-403,11,8,.68],[-714,-287,14,9,.62],[-696,-276,22,7.5,.38],[-703,-266,18,7.5,.34],
+   [-746,-161,24,8.5,.36],[-754,-166,18,7.5,.32],[-743,-168,11,10,.56],
+   [-783,24,9,8,.42],[-958,164,8,11,.9],[-1010,126,11,17,1.7],
+  ]){
    for(let i=0;i<count;i++){
     const a=rng()*Math.PI*2,r=Math.sqrt(rng())*spread,x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r,f=data.field.sample(x,z),h=t.heightAt(x,z);
-    if(h>f[0]+6||h<f[0]-12||Math.hypot(x+642,z+500)<2.5)continue;
-    addRock(x,z,scale*(.22+Math.pow(rng(),1.4)*1.5),1800+rocks.length*7);
+    if(h>f[0]+3.6||h<f[0]-10||Math.hypot(x+642,z+500)<2.4||nearVisitor(x,z))continue;
+    addRock(x,z,scale*(.20+Math.pow(rng(),1.35)*1.42),1800+rocks.length*7);
+   }
+  }
+  // Dense bank cobble & gravel shoals hugging the waterline at sample-source, sample-jam & sample-stream.
+  for(const [startD,endD,stepD,clusterCount] of [[16,62,4.5,4],[228,286,4.2,5],[358,412,4.5,5]]){
+   for(const pt of d.points){
+    if(pt.distance<startD||pt.distance>endD)continue;
+    if(Math.floor(pt.distance/stepD)===Math.floor((pt.distance-4)/stepD))continue;
+    const rn=d.nearest(pt.x,pt.z);if(!rn)continue;
+    const nx=rn.dir[1],nz=-rn.dir[0];
+    for(const side of [-1,1]){
+     for(let c=0;c<clusterCount;c++){
+      const along=(rng()-.5)*3.4,off=rn.width*(.72+rng()*.62)*side;
+      const x=pt.x+rn.dir[0]*along+nx*off,z=pt.z+rn.dir[1]*along+nz*off;
+      const f=data.field.sample(x,z),h=t.heightAt(x,z);
+      if(nearVisitor(x,z)||Math.hypot(x+642,z+500)<2.6||h>f[0]+1.25||h<f[0]-.65)continue;
+      const sz=.11+Math.pow(rng(),1.7)*.34;
+      addRock(x,z,sz,4100+rocks.length*11,1);
+     }
+    }
    }
   }
   const addWood=(g,kind=0)=>{g.setAttribute('aKind',new Float32BufferAttribute(new Float32Array(g.attributes.position.count).fill(kind),1));wood.push(g);};
   for(const control of d.channelControls){
    if(control.kind==='rock'){addRock(...control.position,control.radius,18813);continue;}
-   const a=control.a,b=control.b,r=control.radius,A=new Vector3(a[0],data.field.sample(...a)[0]+r*.22,a[1]),B=new Vector3(b[0],data.field.sample(...b)[0]+r*.22,b[1]),axis=B.clone().sub(A),g=new CylinderGeometry(r*.72,r,axis.length(),11,8),q=new Quaternion().setFromUnitVectors(UP,axis.clone().normalize()),uv=g.attributes.uv;
-   for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i),uv.getY(i)*axis.length()/3.1);g.applyQuaternion(q);g.translate(...A.clone().add(B).multiplyScalar(.5).toArray());addWood(g,1);
+   const a=control.a,b=control.b,r=control.radius,A=new Vector3(a[0],data.field.sample(...a)[0]+r*.22,a[1]),B=new Vector3(b[0],data.field.sample(...b)[0]+r*.22,b[1]),axis=B.clone().sub(A),L=axis.length(),g=new CylinderGeometry(r*.68,r*1.04,L,13,12),q=new Quaternion().setFromUnitVectors(UP,axis.clone().normalize()),p=g.attributes.position,uv=g.attributes.uv;
+   // Give the storm-felled jam trunk organic bark flutes, slight bow and weathered end.
+   for(let i=0;i<p.count;i++){
+    const py=p.getY(i),u=(py+L*.5)/L,ang=Math.atan2(p.getZ(i),p.getX(i));
+    const flute=1+.085*Math.sin(ang*5+py*1.1)+.045*Math.cos(ang*3-py*.6);
+    const bow=Math.sin(u*Math.PI)*.14;
+    p.setXYZ(i,p.getX(i)*flute+bow,py,p.getZ(i)*flute);
+    uv.setXY(i,uv.getX(i),uv.getY(i)*L/3.1);
+   }
+   g.computeVertexNormals();g.applyQuaternion(q);g.translate(...A.clone().add(B).multiplyScalar(.5).toArray());addWood(g,1);
+   // Wedged driftwood limbs and broken stubs caught against the fallen jam log.
+   const dir=axis.clone().normalize(),perp=new Vector3(-dir.z,0,dir.x);
+   for(const [u,sideSign,len,rad,pitch,yawOff] of [[.26,1,3.2,.11,.14,.52],[.48,-1,2.6,.09,.08,-.64],[.68,1,2.1,.08,.22,.88]]){
+    const baseP=A.clone().lerp(B,u).addScaledVector(perp,sideSign*r*.45);
+    baseP.y-=r*.15;
+    const limbDir=dir.clone().multiplyScalar(Math.cos(yawOff)).addScaledVector(perp,Math.sin(yawOff)*sideSign);
+    limbDir.y=pitch;limbDir.normalize();
+    const tipP=baseP.clone().addScaledVector(limbDir,len);
+    const lg=new CylinderGeometry(rad*.35,rad,len,7,4);
+    lg.applyQuaternion(new Quaternion().setFromUnitVectors(UP,limbDir));
+    lg.translate(...baseP.clone().add(tipP).multiplyScalar(.5).toArray());
+    addWood(lg,1);
+   }
    for(let i=0;i<Math.ceil(axis.length());i++){const p=A.clone().lerp(B,(i+.5)/Math.ceil(axis.length()));colliders.addCylinder(p.x,p.z,r*.8,p.y-r,p.y+r,{tag:'sample channel wood control'});}
    this.logs.push({id:control.id,hydraulicControl:true,a:A.toArray(),b:B.toArray(),radius:r,length:axis.length(),scour:control.scour,method:'shared authored wood/scour positions; geometric analogue, not sediment or flow simulation'});
   }
@@ -75,13 +122,51 @@ export class SampleDetails{
    const H=9+rng()*12,r=.35+rng()*.35,g=new CylinderGeometry(r*.33,r,H,9,7);g.translate(x,y+H/2-.12,z);addWood(g,2);colliders.addCylinder(x,z,r,y-.2,y+H,{tag:'sample snag'});this.snags.push({x,z,height:H,radius:r});
   }
   const rockMat=new Material({name:'Weathered coastal granite and wet joints',modules:[data.appearance.module,data.field.module],surface:`
- let P=in.P;let N=in.N;let grad=terrainImplicitGrad(P);let d=textureSample(terrainDetailTex,smpAnisoRepeat,P.xz/3.5);let r=terrainRockSurface(P*.83,N,P.y,d.w,.24,.18,grad);
- let f=creekFieldAt(P.xz);let wet=(1.0-smoothstep(.08,.9,P.y-f.x))*(1.0-smoothstep(.0,1.8,f.y));let tone=vec3f(.245,.238,.209)*(.82+d.z*.26);s.albedo=mix(r.albedo,tone,.62)*mix(1.0,.57,wet);s.normal=terrainPerturbNormal(P,N,r.hd*.45,1.0);s.roughness=mix(.93,.46,wet);s.specularIntensity=.18;s.ao=.94;`});
-  const woodMat=new Material({name:'Sample old wood and damp roots',attributes:{aKind:'f32'},varyings:{vKind:'f32'},bindings:{sampleBark:{texture:()=>coniferTextures.bark}},vertex:'o.vKind=v.aKind;',surface:`
- let bark=textureSample(sampleBark,smpAnisoRepeat,in.uv*vec2f(1.0,2.0)).rgb;let wet=smoothstep(.25,.9,in.N.y);s.albedo=bark*vec3f(.70,.74,.62);s.albedo=mix(s.albedo,vec3f(.055,.071,.029),wet*.33);s.roughness=.96;s.specularIntensity=.10;s.ao=.90;
+ let P=in.P;let N=in.N;let grad=terrainImplicitGrad(P);let d=textureSample(terrainDetailTex,smpAnisoRepeat,P.xz/3.5);let d2=textureSample(terrainDetailTex,smpAnisoRepeat,(P.xz+vec2f(P.y*.4,-P.y*.3))/1.3);let r=terrainRockSurface(P*.92,N,P.y,d.w,.32,.22,grad);
+ let f=creekFieldAt(P.xz);
+ let springDist=length(P.xz-vec2f(-642.0,-500.0));
+ let springSeep=(1.0-smoothstep(1.2,4.4,springDist))*(1.0-smoothstep(-.2,1.65,P.y-55.0));
+ let wet=max((1.0-smoothstep(.06,.85,P.y-f.x))*(1.0-smoothstep(.0,2.2,f.y)),springSeep*.82);
+ let strata=sin(P.y*7.8+d.w*2.6+P.x*.45)*.5+.5;
+ let tone=mix(vec3f(.175,.168,.148),vec3f(.275,.258,.218),strata*.55+d2.w*.45)*(.84+d.z*.26);
+ let mossMask=smoothstep(.46,.84,N.y)*smoothstep(.38,.72,d.w*.58+d2.w*.42)*(1.0-smoothstep(.02,.25,wet*.4));
+ var col=mix(r.albedo,tone,.52);
+ col=mix(col,vec3f(.075,.115,.042),mossMask*.56);
+ let seamAO=mix(.62,1.0,smoothstep(-.05,.38,P.y-terrainHeightAt(P.xz)));
+ s.albedo=col*mix(1.0,.52,wet);s.normal=terrainPerturbNormal(P,N,r.hd*.72+(d2.w-.5)*.022,1.0);s.roughness=mix(.93,.36,wet);s.specularIntensity=mix(.18,.34,wet);s.ao=.92*seamAO;`});
+  const woodMat=new Material({name:'Sample old wood and damp roots',attributes:{aKind:'f32'},varyings:{vKind:'f32'},modules:[data.field.module],bindings:{sampleBark:{texture:()=>coniferTextures.bark},sampleBarkNormal:{texture:()=>coniferTextures.barkNormal}},vertex:'o.vKind=v.aKind;',surface:`
+ let barkUV=in.uv*vec2f(1.0,2.2);
+ let bark=textureSample(sampleBark,smpAnisoRepeat,barkUV).rgb;
+ let barkNM=textureSample(sampleBarkNormal,smpAnisoRepeat,barkUV).xyz*2.0-1.0;
+ let barkN=perturbNormalByMap(in.P,in.N,barkUV,barkNM);
+ let wf=creekFieldAt(in.P.xz);
+ let waterWet=(1.0-smoothstep(.04,.55,in.P.y-wf.x))*(1.0-smoothstep(0.0,1.8,wf.y));
+ let moss=smoothstep(.32,.86,in.N.y)*(.45+.45*sin(in.P.x*1.3+in.P.z*.9));
+ s.albedo=bark*vec3f(.68,.70,.58);
+ s.albedo=mix(s.albedo,vec3f(.055,.082,.028),clamp(moss*.48,0.0,.55));
+ s.albedo*=mix(1.0,.54,waterWet);
+ s.normal=barkN;
+ s.roughness=mix(.95,.46,waterWet);s.specularIntensity=mix(.10,.26,waterWet);s.ao=.88*mix(.82,1.0,clamp(barkNM.z,0.0,1.0));
  if(in.vs.vKind>1.5){s.albedo*=.74;}
  `});
-  const addMesh=(parts,mat,name)=>{if(!parts.length)return;for(const g of parts){delete g.attributes.ao;if(!g.attributes.uv)g.setAttribute('uv',new Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));}const g=mergeGeometries(parts);parts.forEach(p=>p.dispose());g.computeBoundingSphere();const mesh=new Mesh(g,mat);mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;mesh.staticVelocity=true;this.group.add(mesh);return g.index.count/3;};
+  const addMesh=(parts,mat,name)=>{
+   if(!parts.length)return 0;
+   const buckets=new Map();
+   for(const g of parts){
+    delete g.attributes.ao;
+    if(!g.attributes.uv)g.setAttribute('uv',new Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
+    g.computeBoundingSphere();
+    const c=g.boundingSphere.center,key=Math.floor(c.x/160)+','+Math.floor(c.z/160);
+    let list=buckets.get(key);if(!list){list=[];buckets.set(key,list);}list.push(g);
+   }
+   let total=0;
+   for(const [key,list] of buckets){
+    const g=mergeGeometries(list);list.forEach(p=>p.dispose());g.computeBoundingSphere();
+    const mesh=new Mesh(g,mat);mesh.name=buckets.size===1?name:`${name} (${key})`;mesh.castShadow=true;mesh.receiveShadow=true;mesh.staticVelocity=true;this.group.add(mesh);
+    total+=g.index.count/3;
+   }
+   return total;
+  };
   this.rockTriangles=addMesh(rocks,rockMat,'Sample granite source and forced-pool stones');this.woodTriangles=addMesh(wood,woodMat,'Sample mixed-age dead wood and rooted feet');scene.add(this.group);
  }
  update(camera){this.group.visible=this.reviewVisible!==false&&Math.hypot(camera.position.x+750,camera.position.z+230)<1700;}

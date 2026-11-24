@@ -20,6 +20,9 @@ export class NativeRuntime {
     this.inFlight = 0; this.maximumInFlight = 2; this.targetFps = 60;
     this.cpu = {}; this.lastFrame = null; this.cancelled = false; this.lost = false;
     this.loaderStarted = performance.now();
+    if (kind === 'museum-creek' && new URLSearchParams(location.search).get('debug') === '1') {
+      document.body.classList.add('debug-ui');
+    }
     installRouteInput(this);
     bindSceneReport(this,buildInfo);
     bindSampleInspection(this,buildInfo);
@@ -101,6 +104,14 @@ export class NativeRuntime {
     window.addEventListener('keydown', event => {
       if (this.phase !== 'ready' || document.querySelector('#wildlife-directory[open]')) return;
       if (event.code === 'Escape' && this.running) this.stop('escape');
+      if (event.code === 'KeyD' && event.shiftKey && !event.repeat && !event.isComposing && !event.ctrlKey && !event.metaKey && !event.altKey
+          && !event.target?.closest?.('input, select, textarea, [contenteditable="true"]')) {
+        event.preventDefault();
+        this.app.input?.keys.delete('KeyD');
+        document.body.classList.toggle('debug-ui');
+        this.publish();
+        return;
+      }
       if (event.code !== 'KeyG' || event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey
           || event.target?.closest?.('input, select, textarea, [contenteditable="true"]') || this.routeOwnsInput) return;
       const open = document.querySelector('#wildlife-open');
@@ -207,12 +218,16 @@ export class NativeRuntime {
       };
       this.visitorGuide = new VisitorGuide(this.app, travel, point => {
         if (this.measuring || this.routeOwnsInput || this.recording || this.recordingVideo || this.recordingAudio) return;
-        const {camera, player, fly, freeCam} = this.app;
-        const dx = point[0] - camera.position.x, dy = point[1] - camera.position.y, dz = point[2] - camera.position.z;
-        if (Math.hypot(dx, dy, dz) < .05) return;
-        const controller = freeCam ? fly : player;
-        controller.yaw = Math.atan2(-dx, -dz);
-        controller.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+        this.app.watchedSubject = null;
+        if (!this.app.aimAtPoint?.(point)) {
+          const {camera, player, fly, freeCam} = this.app;
+          const dx = point[0] - camera.position.x, dy = point[1] - camera.position.y, dz = point[2] - camera.position.z;
+          if (Math.hypot(dx, dy, dz) < .05) return;
+          const controller = freeCam ? fly : player;
+          controller.yaw = Math.atan2(-dx, -dz);
+          controller.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+          if (freeCam) fly.apply(); else player.update(0);
+        }
         this.clearInput();
         this.resume();
       });

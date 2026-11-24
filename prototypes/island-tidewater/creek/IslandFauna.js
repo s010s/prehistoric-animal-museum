@@ -103,7 +103,16 @@ function prepareModelMaterials(app, actor, model) {
       mesh.geometry.boundingSphere = actor.body.sphere.clone();
       mesh.frustumCulled = true;
     }
-    for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) clipCreekRefraction(mat, app.creekData.field);
+    for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      clipCreekRefraction(mat, app.creekData.field);
+      if (actor.site.medium === 'ground' && app.terrainGPU?.module && !mat.userData?.museumAnkleGround) {
+        mat.modules = [...(mat.modules ?? []), app.terrainGPU.module];
+        mat.defines.MUSEUM_ANKLE_GROUND = 1;
+        mat.userData ??= {};
+        mat.userData.museumAnkleGround = true;
+        mat.needsUpdate = true;
+      }
+    }
   }
 }
 
@@ -118,6 +127,9 @@ function attachModel(app, actor, model) {
 function resetActor(app, actor) {
   actor.distance = 0;
   actor.time = 0;
+  actor.arrivalTimer = 0;
+  actor.stepAudioDist = 0;
+  actor.breathTimer = 6 + (actor.phase % 7);
   actor.alert = 0;
   actor.visitorNoticed = false;
   actor.watchSeconds = 0;
@@ -181,6 +193,7 @@ function moveActor(app, actor, dt, camera) {
   const arrival = actor.arrival;
   const stayedAtArrival = arrival && arrival.distanceToSquared(camera) < Math.min(.55, Math.max(.15, Math.hypot(...body.half) * .3)) ** 2;
   if (!stayedAtArrival) actor.arrival = null;
+  else actor.arrivalTimer = (actor.arrivalTimer ?? 0) + dt;
   const visitorRange = Math.hypot(visitor.x - actor.x, visitor.y - actor.y, visitor.z - actor.z);
   const noticeRadius = Math.max(m === 'air' ? 7 : 1.3, Math.hypot(...body.half) * 1.45 + 1.1);
   const near = !stayedAtArrival && (!wet || wetVisitor) && visitorRange < noticeRadius;
@@ -194,9 +207,9 @@ function moveActor(app, actor, dt, camera) {
   const quiet = behavior === 'rest' || behavior === 'ambush' || behavior === 'hover';
   const feeding = /graze|browse|forage/.test(behavior);
   const quietWindow = quiet ? 12 : feeding ? 5 : 1.6;
-  // Keep passing marine animals swimming through the observation point.
-  // Crawlers and naturally hovering or ambush species can pause there.
-  const arrivalHold = (ground || benthic || quiet) && stayedAtArrival && actor.time < 4;
+  // Start the arrival hold only after the model has loaded and attached.
+  const arrivalElapsed = actor.arrivalTimer ?? actor.time;
+  const arrivalHold = (ground || benthic || quiet) && stayedAtArrival && arrivalElapsed < 6;
   const pause = arrivalHold || (ground && (alert || cycle < quietWindow)) || (benthic && alert)
     || (!ground && quiet && !alert && cycle < quietWindow);
   const moving = route.length > 0 && !pause && (!ground || !!model.groundMotion || !!clips.movement);
@@ -206,10 +219,12 @@ function moveActor(app, actor, dt, camera) {
   actor.response = alert ? ground ? canWatch ? 'watching-visitor' : 'holding-footing' : benthic ? 'holding-bed'
     : m === 'air' ? 'passing-overhead' : 'giving-swimmer-space' : moving ? behavior : 'resting';
   let clip = clips.idle;
-  if (m === 'air') clip = clips.movement || clips.idle;
+  const glideBeat = m === 'air' && clips.activity && ((clock % 9.5) > 5.2);
+  const pauseForage = feeding && clips.activity && ((clock % 11.4) < 6.8);
+  if (m === 'air') clip = (glideBeat ? clips.activity : clips.movement) || clips.movement || clips.idle;
   else if (moving) clip = ground && model.groundMotion ? clips.strideBase || clips.idle : clips.movement || clips.idle;
   else if (!ground && !benthic) clip = clips.hover || clips.movement || clips.idle;
-  else clip = (alert && clips.alert) || clips.activity || clips.idle;
+  else clip = (alert && clips.alert) || (pauseForage ? clips.activity : null) || clips.idle;
   if (clip && clip !== actor.clip) {
     // Match the stroke across Swim/Hover. Changing cadence should not swap
     // a loaded fin for the opposite fin in the middle of its power stroke.
@@ -224,7 +239,8 @@ function moveActor(app, actor, dt, camera) {
     const direction = Math.atan2(visitor.x - actor.x, visitor.z - actor.z);
     const heading = actor.yaw + body.forward;
     const limit = model.headYawLimit;
-    const target = alert && !clips.alert ? groundLookAngle(direction, heading, limit) : 0;
+    const idleScan = !moving && !pauseForage ? Math.sin(clock * .52 + actor.phase * 1.7) * limit * .42 : 0;
+    const target = alert && !clips.alert ? groundLookAngle(direction, heading, limit) : idleScan;
     actor.headYaw = mix(actor.headYaw, target, 1 - Math.exp(-dt * 4.5));
     if (Math.abs(actor.headYaw) < .0001) actor.headYaw = 0;
     model.setHeadYaw(actor.headYaw);
@@ -242,6 +258,10 @@ function moveActor(app, actor, dt, camera) {
     if (stroke) stroke.speed = alert && !benthic ? 1.32 : 1;
     model.update(dt);
     travelled = aquaticTravel(actor.drive, stroke, previousTime, speed, moving, dt);
+    if (!benthic && !quiet && stayedAtArrival && arrivalElapsed < 8.5) {
+      const ramp = clamp((arrivalElapsed - 4.5) / 4.0, 0, 1);
+      travelled *= mix(.25, 1, ramp * ramp * (3 - 2 * ramp));
+    }
   }
   const next = actor.distance + travelled;
   let accepted = 0;
@@ -252,6 +272,22 @@ function moveActor(app, actor, dt, camera) {
     } else if (travelled) {
       if (wet) { actor.drive.speed = 0; actor.drive.loading = 0; }
       actor.response = 'holding-habitat-edge';
+    }
+  }
+  if (ground && site.length >= 4 && dt > 0) {
+    if (accepted > 0 && observerDistance < 54) {
+      actor.stepAudioDist = (actor.stepAudioDist ?? 0) + accepted;
+      const stride = clamp(site.length * .17, 1.15, 2.75);
+      if (actor.stepAudioDist >= stride) {
+        actor.stepAudioDist -= stride;
+        app.audio?.faunaFootstep?.(actor.x, actor.y, actor.z, site.length);
+      }
+    } else if (!moving && site.length >= 6 && observerDistance < 28) {
+      actor.breathTimer = (actor.breathTimer ?? 8) - dt;
+      if (actor.breathTimer <= 0) {
+        actor.breathTimer = 14 + ((actor.phase * 3.7 + actor.time) % 9);
+        app.audio?.faunaBreath?.(actor.x, actor.y, actor.z, site.length);
+      }
     }
   }
   if (!wet) model.update(dt,
@@ -293,7 +329,12 @@ export class IslandFauna {
           prepareModelMaterials(app, actor, model);
           return this.pipelines.prepareMain(model, signal);
         },
-        attach: model => { attachModel(app, actor, model); this.residents.add(actor); moveActor(app, actor, 0, app.camera.position); },
+        attach: model => {
+          attachModel(app, actor, model);
+          this.residents.add(actor);
+          moveActor(app, actor, 0, app.camera.position);
+          if (actor.needsArrivalFrame) app.frameAttachedFauna?.(actor);
+        },
         detach: model => {
           this.residents.delete(actor);
           app.dynamicMuseumShadows?.removeModel(model);
@@ -315,8 +356,16 @@ export class IslandFauna {
   observe(id) {
     const actor = this.actors.get(id);
     this.residency.retry(id);
-    if (actor) actor.arrival = this.app.camera.position.clone();
-    if (actor?.model) { resetActor(this.app, actor); moveActor(this.app, actor, 0, this.app.camera.position); }
+    if (actor) {
+      actor.arrival = this.app.camera.position.clone();
+      actor.arrivalTimer = 0;
+      actor.needsArrivalFrame = true;
+    }
+    if (actor?.model) {
+      resetActor(this.app, actor);
+      moveActor(this.app, actor, 0, this.app.camera.position);
+      this.app.frameAttachedFauna?.(actor);
+    }
     this.scan(this.app.camera.position, id);
   }
 

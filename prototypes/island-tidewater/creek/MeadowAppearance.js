@@ -7,6 +7,7 @@ import {ShaderModule,UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shad
 import {coveShadingWGSL} from './ShallowCove.js';
 import {groveModule,groveWeight,groveOpening,grovePathDistance,grovePatch} from './GroveDesign.js';
 import {terrainShadingModule,srgb} from '../vendor/tidewater/src/world/terrain/TerrainShading.js';
+import {groundNoiseModule} from './GroundNoise.js';
 import {createGrassDistance} from './GrassDistance.js';
 import {buildStrandGrowth} from './StrandGrowth.js';
 import {sampleForestWeight,sampleForestWGSL} from './SampleForest.js';
@@ -54,7 +55,7 @@ export function createMeadowAppearance(data,terrainGPU){
  const strandExposure=new Texture({label:'Museum connected shore growth exposure',width:strand.res,height:strand.res,format:'rg8unorm',data:strand.bytes,usage:['sample','copyDst'],sampler:'linearClamp'});
  strandExposure.getGPU();
  const review=new UniformBlock('MuseumHabitatReview',{legacyWater:['f32',0],patchCover:['f32',1]});
- const module=new ShaderModule({name:'museumMeadow',deps:[terrainGPU.module,terrainShadingModule(),data.field.module,groveModule,distance.module,mainTidalShading],uniforms:review,uniformName:'museumHabitatReview',bindings:{museumFineCover:{texture:fine},museumOuterCover:{texture:coarse},museumFlora:{texture:density},museumSampleGroundCover:{texture:sampleGround},museumStrandExposure:{texture:strandExposure}},code:`
+ const module=new ShaderModule({name:'museumMeadow',deps:[terrainGPU.module,terrainShadingModule(),groundNoiseModule(),data.field.module,groveModule,distance.module,mainTidalShading],uniforms:review,uniformName:'museumHabitatReview',bindings:{museumFineCover:{texture:fine},museumOuterCover:{texture:coarse},museumFlora:{texture:density},museumSampleGroundCover:{texture:sampleGround},museumStrandExposure:{texture:strandExposure}},code:`
 ${data.landforms.climate.wgsl}
 ${coveShadingWGSL}
 ${sampleForestWGSL}
@@ -90,22 +91,61 @@ fn museumMouthGrassFactor(p:vec2f,h:f32)->f32{
  let pockets=mix(.035,.55,smoothstep(.46,.70,pocketNoise));
  return (1.0-openSand)*mix(1.0,pockets,dune);
 }
-fn museumCover(p:vec2f,footprint:f32)->vec4f{
- let a=textureSampleLevel(museumFineCover,smpLinearClamp,(p+512.0)/1024.0,max(0.0,log2(max(footprint,0.001)/2.0)));
- let b=textureSampleLevel(museumOuterCover,smpLinearClamp,(p+16384.0)/32768.0,max(0.0,log2(max(footprint,0.001)/32.0)));
- var cover=mix(b,a,terrainFineWeight(p));cover.b=b.b;cover.a=max(cover.a,max(museumGroveWeight(p)*.94,${data.field.continuousSample?'museumSampleForest(p)*.92':'0.0'}));return cover;
+// Fast 1-tap isotropic multi-octave macro field from museumGroundTex Layer 0
+// (613 m tile, 12..14 cells/tile -> 51 m..3 m octaves, 0 banding, compute-safe).
+fn museumMacroField(p:vec2f,footprint:f32)->f32{
+ const r1=mat2x2f(.95630,.29237,-.29237,.95630);
+ let t=museumGroundLevel(p,613.0,r1,vec2f(.13,.41),footprint,0);
+ return clamp(.5+(t.r*.62+t.g*.38-.5)*1.12,0.0,1.0);
 }
-struct MuseumFloraSample { forms:vec4f, coverFactor:f32, glade:f32, litter:f32, rootFloor:f32 };
+// Break up the 32 m outer habitat grid into organic hillside contours in 1 smooth tap
+// while keeping the fine creek core, river/lake margins and coastal shore unwarped.
+// Returns vec3f(warp.x, warp.y, outerSmooth) so both outer cover and flora soften their 32 m grid uniformly.
+fn museumOuterWarpWithField(p:vec2f,f:vec4f,h:f32)->vec3f{
+ let outer=1.0-terrainFineWeight(p);
+ if(outer<=0.0){return vec3f(0.0);}
+ let dryLand=smoothstep(8.0,32.0,abs(f.y))*smoothstep(10.0,24.0,h-frame.seaLevel);
+ let outerSmooth=outer*dryLand;
+ let amp=outerSmooth*58.0;
+ if(amp<=.1){return vec3f(0.0,0.0,outerSmooth);}
+ const rW=mat2x2f(.89101,.45399,-.45399,.89101);
+ let t=textureSampleLevel(museumGroundTex,smpLinearRepeat,(rW*p)*(1.0/480.0)+vec2f(.21,.67),0,2.0);
+ return vec3f((t.rg-vec2f(.5))*(2.0*amp),outerSmooth);
+}
+fn museumOuterWarp(p:vec2f)->vec3f{
+ let outer=1.0-terrainFineWeight(p);
+ if(outer<=0.0){return vec3f(0.0);}
+ return museumOuterWarpWithField(p,creekFieldAt(p),terrainHeightAt(p));
+}
+fn museumCoverWithWarp(p:vec2f,footprint:f32,ow:vec3f)->vec4f{
+ let fineW=terrainFineWeight(p);
+ let a=textureSampleLevel(museumFineCover,smpLinearClamp,(p+512.0)/1024.0,max(0.0,log2(max(footprint,0.001)/2.0)));
+ // Hardware mip softening on dry outer hillsides dissolves 32 m bilinear checkerboard
+ // texels uniformly (never dropping to 0 at warp zero-crossings) before fractal breakup restores detail.
+ let outerLod=max(0.0,log2(max(footprint,0.001)/32.0))+ow.z*1.15;
+ let b=textureSampleLevel(museumOuterCover,smpLinearClamp,(p+ow.xy+16384.0)/32768.0,outerLod);
+ var cover=mix(b,a,fineW);cover.b=b.b;cover.a=max(cover.a,max(museumGroveWeight(p)*.94,${data.field.continuousSample?'museumSampleForest(p)*.92':'0.0'}));return cover;
+}
+fn museumCover(p:vec2f,footprint:f32)->vec4f{
+ return museumCoverWithWarp(p,footprint,museumOuterWarp(p));
+}
+struct MuseumFloraSample { forms:vec4f, cover:vec4f, wf:vec4f, grove:vec3f, coverFactor:f32, glade:f32, litter:f32, rootFloor:f32 };
 fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
- var out:MuseumFloraSample;out.forms=vec4f(0.0);out.coverFactor=1.0;out.rootFloor=-1000.0;
+ var out:MuseumFloraSample;out.forms=vec4f(0.0);out.cover=vec4f(0.0);out.wf=vec4f(0.0,1e6,0.0,0.0);out.grove=vec3f(0.0);out.coverFactor=1.0;out.rootFloor=-1000.0;
  if(max(abs(p.x),abs(p.y))>16368.0){return out;}
- var m=textureSampleLevel(museumFlora,smpLinearClamp,(p+16384.0)/32768.0,max(0.0,log2(max(footprint,0.001)/32.0)));
+ let f=creekFieldAt(p);let h=terrainHeightAt(p);out.wf=f;
+ let lod32=max(0.0,log2(max(footprint,0.001)/32.0));
+ var m=textureSampleLevel(museumFlora,smpLinearClamp,(p+16384.0)/32768.0,lod32);
  let marine=m.r;
- let cov=museumCover(p,footprint);m.g=mix(m.g,cov.g,terrainFineWeight(p));
+ let ow=museumOuterWarpWithField(p,f,h);
+ if(ow.z>0.001){
+  let mw=textureSampleLevel(museumFlora,smpLinearClamp,(p+ow.xy+16384.0)/32768.0,lod32+ow.z*1.15);
+  m=vec4f(marine,mw.gba);
+ }
+ let cov=museumCoverWithWarp(p,footprint,ow);out.cover=cov;m.g=mix(m.g,cov.g,terrainFineWeight(p));
  // The nearest owner may be a lake kilometres away and hundreds of metres
  // above this dry slope. Its level applies only inside its signed-edge support.
  // Blades and the distant ground share this continuous water/bank handover.
- let f=creekFieldAt(p);let h=terrainHeightAt(p);
  let support=1.0-smoothstep(0.0,2.5,f.y);
  let dry=mix(1.0,smoothstep(.08,.6,h-f.x),mix(support,1.0,museumHabitatReview.legacyWater));m.g*=dry;
  let rise=h-f.x;
@@ -121,24 +161,24 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
  let shoreStalks=max(m.b,m.g*.85*(1.0-smoothstep(1.0,12.0,abs(f.y)))*dry)*saline*.58;
  let freshShoots=max(m.b,m.g*.85)*freshBank;
  m.b=max(freshShoots,shoreStalks)*(1.0-museumWetlandSoil(p));
- let grove=museumGroveFloor(p);let gk=1.0-grove.x*(.92-grove.y*.30-smoothstep(.6,.9,grove.z)*.30);
+ let grove=museumGroveFloor(p);out.grove=grove;let gk=1.0-grove.x*(.92-grove.y*.30-smoothstep(.6,.9,grove.z)*.30);
  // Fine reconstruction also observes the same world-fixed litter/opening field.
  m.g=mix(m.g,m.g*gk,terrainFineWeight(p));m.a*=1.0-grove.x*.75;
  ${data.field.continuousSample?`let sf=museumSampleField(p);if(sf.y<44.0){
   // Sea-oat seed-head cards are a modern coastal template. This sample uses
   // jointed wet-bank forms instead; bare wet margins share the same field.
   m.b=0.0;let tidal=1.0-smoothstep(.4,3.0,sf.x);let margin=mix(.18,1.35,tidal);
-  let retreat=smoothstep(margin,margin+.9,h-sf.x);let support=1.0-smoothstep(2.0,8.0,sf.y);m.ga*=mix(1.0,retreat,support);
+  let retreat=smoothstep(margin,margin+.9,h-sf.x);let support=1.0-smoothstep(2.0,8.0,sf.y);let retreatKeep=mix(1.0,retreat,support);m.g*=retreatKeep;m.a*=retreatKeep;
  }
- m.gba*=museumMouthGrassFactor(p,h);`:''}
+ let mouthFactor=museumMouthGrassFactor(p,h);m=vec4f(m.r,m.gba*mouthFactor);`:''}
  let tidal=museumMainTidalWeight(p);
- if(tidal>0.0&&aboveSea<10.0){m.gba*=mix(1.0,museumTidalGrowth(p,aboveSea),tidal);}
- m.gba*=1.0-museumSpringOutcrop(p);
+ if(tidal>0.0&&aboveSea<10.0){let tidalFactor=mix(1.0,museumTidalGrowth(p,aboveSea),tidal);m=vec4f(m.r,m.gba*tidalFactor);}
+ let springKeep=1.0-museumSpringOutcrop(p);m=vec4f(m.r,m.gba*springKeep);
  // A dry opening in the terrace leaves room to see the low animal through
  // the sward without changing its real size. The coarse cover stays intact.
  let clearing=p-vec2f(${LYSTROSAURUS_CLEARING.map(v=>v.toFixed(1)).join(',')});
  let margin=length(clearing)+.65*sin(p.x*.93)*sin(p.y*.81);
- m.gba*=mix(.025,1.0,smoothstep(8.0,16.0,margin));
+ let clearingKeep=mix(.025,1.0,smoothstep(8.0,16.0,margin));m=vec4f(m.r,m.gba*clearingKeep);
  ${data.field.continuousSample?`if(museumHabitatReview.patchCover>0.0){
   // The beach mask already protects open sand. Let a world-fixed pattern
   // interrupt the over-broad 32 m grass channel on the vegetated backshore.
@@ -151,7 +191,7 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
   // suppress all ground-flora forms on walls while leaving level banks alone.
   let slope=mix(1.0,sampleGround.g,enabled*sampleGround.b);
   out.coverFactor=pattern*slope;
-  m.gb*=out.coverFactor;m.a*=mix(1.0,pattern,.5)*slope;
+  m.g*=out.coverFactor;m.b*=out.coverFactor;m.a*=mix(1.0,pattern,.5)*slope;
  }`:''}
  if(cov.b>.001){
   // Decametre openings connect the pigment below the stems with the
@@ -163,7 +203,7 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
      *(1.0-smoothstep(.0,14.0,f.y));
   let pocket=mix(.045,.98,opening)*(1.0-cov.a*.49)*(1.0-damp*.74);
   let keep=mix(1.0,pocket,cov.b);
-  m.ga*=keep;
+  m.g*=keep;m.a*=keep;
   out.glade=cov.b*(1.0-opening);
   out.litter=cov.b*cov.a*(1.0-opening*.40);
   out.coverFactor*=keep;
@@ -175,77 +215,86 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
     *(1.0-smoothstep(.0,.14,museumMainTidalWeight(mix(vec2f(-653.0,3690.0),p,.82))))
     *(1.0-freshWater*(1.0-smoothstep(.15,8.0,f.y)));
   let growth=museumStrandGrowth(p,aboveSea,ordinaryCoast);
-  m.gba*=growth.x;
+  m=vec4f(m.r,m.gba*growth.x);
   out.rootFloor=growth.y;
+ }
+ if(m.g>.14 && aboveSea>6.0){
+  let clumpFade=(1.0-smoothstep(.65,2.6,footprint))*smoothstep(6.0,10.0,aboveSea);
+  if(clumpFade>0.0){
+   const rC=mat2x2f(.79864,.60182,-.60182,.79864);
+   let c=museumGroundLevel(p,180.0,rC,vec2f(.19,.47),footprint,0);
+   let rawClump=mix(.85,1.15,smoothstep(.22,.78,c.r*.62+c.g*.38));
+   let edgeRamp=smoothstep(.14,.38,m.g);
+   m.g=min(1.0,m.g*mix(1.0,rawClump,clumpFade*edgeRamp));
+  }
  }
  out.forms=m;return out;
 }
 fn museumFloraAt(p:vec2f,footprint:f32)->vec4f{return museumFloraSampleAt(p,footprint).forms;}
-fn museumMeadowAt(p:vec2f,footprint:f32)->MeadowTone{
- let a=mat2x2f(.764842187,.644217687,-.644217687,.764842187)*p/173.0;
- let b=mat2x2f(-.504846105,.863209367,-.863209367,-.504846105)*p/47.0;
- let ma=textureSampleLevel(terrainDetailTex,smpLinearRepeat,a,max(0.0,log2(max(footprint,.001)*512.0/173.0))).w;
- let mb=textureSampleLevel(terrainDetailTex,smpLinearRepeat,b,max(0.0,log2(max(footprint,.001)*512.0/47.0))).w;
- // Broad, low-contrast moisture variation. Native tropical threshold bands
- // amplified repeating detail tiles when seen across kilometres of bare slope.
- let broad=textureSampleLevel(terrainDetailTex,smpLinearRepeat,p/613.0+vec2f(mb,ma)*.13,max(0.0,log2(max(footprint,.001)*512.0/613.0))).w;
- let dry=smoothstep(.32,.78,ma*.35+mb*.25+broad*.4);
- var tone:MeadowTone;tone.tone=mix(${srgb(.25,.30,.15)},${srgb(.37,.38,.23)},dry*.7);tone.dry=dry*.55;tone.lush=1.0-dry;
+fn museumMeadowFromBroad(p:vec2f,broad:f32)->MeadowTone{
+ let dry=smoothstep(.18,.82,broad);
+ var tone:MeadowTone;tone.tone=mix(${srgb(.25,.30,.15)},${srgb(.37,.38,.23)},dry*.72);tone.dry=dry*.55;tone.lush=1.0-dry;
  let upland=museumDryGrassTone(p);let heath=museumCoolGrassTone(p);
  tone.tone=mix(tone.tone,${srgb(.41,.36,.27)},upland*.52);tone.tone=mix(tone.tone,${srgb(.32,.36,.30)},heath*.72);return tone;
 }
+fn museumMeadowAt(p:vec2f,footprint:f32)->MeadowTone{
+ // Shared identically by rooted blades and distant slopes via the same 613 m field.
+ return museumMeadowFromBroad(p,museumMacroField(p,footprint));
+}
 struct MuseumSward { albedo:vec3f, relief:f32 };
 fn museumMeadowSoil(tone:vec3f)->vec3f{return mix(tone*.75,${srgb(.29,.28,.22)},.55);}
-// Take the derivatives before testing visibility so that adjacent covered
-// fragments still contribute to the footprint of warped meadow textures.
-struct SwardDetailUV { uv:vec2f, dx:vec2f, dy:vec2f };
-fn swardDetailUV(uv:vec2f)->SwardDetailUV{return SwardDetailUV(uv,dpdx(uv),dpdy(uv));}
-fn swardDetail(t:SwardDetailUV)->vec4f{return textureSampleGrad(terrainDetailTex,smpAniso4Repeat,t.uv,t.dx,t.dy);}
-fn museumSward(p:vec3f,footprint:f32,gustOffset:vec2f,visible:bool)->MuseumSward{
- let r=mat2x2f(.267499,.963558,-.963558,.267499);
- let warp=vec2f(perlin2(p.xz/71.3),perlin2(p.xz/59.1+27.0));
- let nearUV=swardDetailUV((p.xz+warp*.65)/1.9);
- let middleUV=swardDetailUV(r*(p.xz+warp*3.2)/6.7+.21);
- let fineUV=swardDetailUV(mat2x2f(-.737394,.675463,-.675463,-.737394)*p.xz/.63+.53);
- let along=dot(p.xz,frame.windDir);let across=dot(p.xz,vec2f(-frame.windDir.y,frame.windDir.x));
- let combUV=swardDetailUV(vec2f(along/7.5,across/.9)+vec2f(.31,.77));
- let windP=p.xz-gustOffset;
- let gustAUV=swardDetailUV(windP/140.0);let gustBUV=swardDetailUV(windP/61.0+.37);
+fn museumSwardTerrain(
+ p:vec3f,footprint:f32,reliefFootprint:f32,gustOffset:vec2f,visible:bool,
+ flora:MuseumFloraSample,m:vec4f,d:vec4f,orgB:vec4f,gf:MuseumGroundField,
+ normalY:f32,terrainAO:f32,
+)->MuseumSward{
  var out:MuseumSward;
  if(!visible){return out;}
- let mt=museumMeadowAt(p.xz,footprint);let flora=museumFloraSampleAt(p.xz,footprint);let density=flora.forms.g;
- let dN=swardDetail(nearUV);let dM=swardDetail(middleUV);let dF=swardDetail(fineUV);
- let fine=1.0-smoothstep(.018,.12,footprint);
- // The texture's mip chain already removes subpixel grain. Keep metre-scale
- // clumps until they too become subpixel, rather than flattening them at 0.65m.
- let middle=1.0-smoothstep(.4,1.4,footprint);
- let broad=clamp(.5+perlin2(p.xz/13.7+warp*.9)*.45,0.0,1.0);
- let broadFiltered=mix(.5,broad,1.0-smoothstep(2.0,8.0,footprint));
- let clump=mix(broadFiltered,dM.w*.6+dN.y*.4,middle*.7);
+ // Reuse gf.broad directly (exact match with museumMeadowAt, 0 extra fetches).
+ let mt=museumMeadowFromBroad(p.xz,gf.broad);let density=flora.forms.g;
+ let fine=1.0-smoothstep(.022,.11,reliefFootprint);
+ let middle=1.0-smoothstep(.25,.90,reliefFootprint);
+ let broadFiltered=clamp(gf.broad*.55+gf.zone*.27+gf.meso*.18,0.0,1.0);
+ let clump=mix(broadFiltered,gf.fbm*.56+gf.gran*.44,middle*.72);
  // Cover and colour belong to the world, independent of the camera's pitch
  // or grass rendering radius. Only unresolved detail is footprint-filtered.
- var lawn=mt.tone*(1.0+(clump-.5)*.36)*(1.0+(dF.y-.4)*.08*fine);
- let comb=swardDetail(combUV).w;
- lawn*=1.0+(comb-.5)*.10*fine;
- let gustA=swardDetail(gustAUV).w;let gustB=swardDetail(gustBUV).w;
- let gust=smoothstep(.46,.6,gustA*.62+gustB*.38)*clamp(frame.windSpeed*.05,0.0,.35);
- lawn=mix(lawn,lawn*vec3f(1.14,1.12,1.04),gust*.5);
- var base=museumMeadowSoil(mt.tone)*(1.0+(dN.y-.45)*.22)*(1.0+(dF.y-.4)*.08*fine);
- // A thin sward exposes soil, dry litter and small clumps gradually. This is
- // the same continuous density that decides the world-fixed blade presence.
- let spatialCover=smoothstep(.008,.36,density);
- let dryThatch=mix(mt.tone*.78,${srgb(.36,.34,.23)},.24);
- base=mix(base,dryThatch,(1.0-spatialCover)*(1.0-flora.coverFactor)*.65);
- let thatch=mix(${srgb(.29,.27,.17)},${srgb(.43,.39,.24)},clump);
- base=mix(base,thatch,flora.glade*.48);
- let humus=mix(${srgb(.20,.165,.12)},${srgb(.33,.28,.20)},dN.w*.48+dM.z*.52);
- lawn=mix(lawn,humus,flora.litter*.37);
- base=mix(base,humus,flora.litter*.91);
+ let slope=clamp(1.0-normalY,0.0,1.0);
+ let hollow=clamp((.86-terrainAO)*2.2,0.0,1.0);
+ let lushPocket=smoothstep(.44,.82,(1.0-gf.dry)*.48+hollow*.38+(1.0-gf.fbm)*.24);
+ let strawPatch=smoothstep(.48,.84,gf.dry*.42+gf.fbm*.34+slope*.45+(gf.grit-.5)*.28);
+ var lawnTone=mix(mt.tone,mt.tone*vec3f(.87,.94,.82),lushPocket*.24);
+ lawnTone=mix(lawnTone,mix(mt.tone,${srgb(.43,.38,.23)},.40),strawPatch*.30);
+ var lawn=lawnTone*(1.0+(clump-.5)*.28+(gf.gran-.5)*.20+(gf.grit-.5)*.10);
+ let windP=p.xz-gustOffset;
+ const rW=mat2x2f(.88295,.46947,-.46947,.88295);
+ let gustW=textureSampleLevel(museumGroundTex,smpLinearRepeat,(rW*windP)*(1.0/360.0)+vec2f(.11,.37),0,2.0).r;
+ let gust=smoothstep(.46,.68,gustW)*clamp(frame.windSpeed*.05,0.0,.35);
+ lawn=mix(lawn,lawn*vec3f(1.14,1.12,1.04),gust*.48);
+ var base=museumMeadowSoil(mt.tone)*(1.0+(broadFiltered-.5)*.20)*(1.0+(gf.fbm-.5)*.22*middle)*(1.0+(gf.gran-.5)*.24+(gf.grit-.5)*.14);
+ // A thin sward exposes soil, dry litter and small clumps gradually. Soft
+ // breakup feathers outer transitions without sharp blotch contours.
+ let outer=1.0-terrainFineWeight(p.xz);
+ let edgeOrganic=(gf.fbm-.5)*.36*outer*smoothstep(.008,.24,density);
+ let spatialCover=smoothstep(.004,.40,density+edgeOrganic);
+ let dryThatch=mix(mt.tone*.78,${srgb(.36,.34,.23)},.26);
+ base=mix(base,dryThatch,(1.0-spatialCover)*(1.0-flora.coverFactor)*.64);
+ let thatch=mix(${srgb(.29,.27,.17)},${srgb(.42,.38,.24)},clump);
+ base=mix(base,thatch,flora.glade*.46);
+ let humus=mix(${srgb(.19,.16,.115)},${srgb(.32,.27,.19)},mix(broadFiltered,gf.fbm*.52+gf.gran*.48,middle));
+ lawn=mix(lawn,humus,flora.litter*.38);
+ base=mix(base,humus,flora.litter*.90);
  out.albedo=mix(base,lawn,spatialCover);
- // Centimetre-scale tussock relief succeeds distant blades in the native
- // surface-gradient normal. Broad warped clumps survive; subpixel detail fades.
- out.relief=(clump-.5)*.085*middle*spatialCover;
+ // Fine close-range tussock relief complements the hardware-mipmapped normal.
+ out.relief=(gf.gran-.5)*.024*fine*spatialCover;
  return out;
+}
+fn museumSward(p:vec3f,footprint:f32,gustOffset:vec2f,visible:bool)->MuseumSward{
+ let px=dpdx(p.xz);let py=dpdy(p.xz);
+ let flora=museumFloraSampleAt(p.xz,footprint);
+ let gf=museumGroundField(p.xz,px,py,footprint);
+ let m=vec4f(.411,.370,.455,clamp(.498+(gf.fbm-.5)*.38,0.0,1.0));
+ let d=vec4f(.411,clamp(.370+(gf.gran-.5)*.36,0.0,1.0),.455,clamp(.498+(gf.fbm-.5)*.38,0.0,1.0));
+ return museumSwardTerrain(p,footprint,footprint,gustOffset,visible,flora,m,d,d,gf,1.0,.85);
 }
 fn museumGrassGround(p:vec2f)->f32{return terrainHeightAt(p)-.035;}
 `});

@@ -17,8 +17,8 @@ const PLANTS = new URL('./assets/habitat-reviewed-plants.glb', import.meta.url);
 const TRACK = new URL('./assets/habitat-three-toed-track-vault.glb', import.meta.url);
 const SPECS=[
  {id:'cycad',count:44,mode:0,scale:[.55,.92],height:1.3678,bank:[5,23],rise:[.65,12],spacing:2.25,range:38,flex:.34},
- {id:'onoclea',count:62,mode:0,scale:[.46,.83],height:.8818,bank:[2.0,18],rise:[.24,9],spacing:1.35,range:29,flex:.72},
- {id:'rush',count:106,mode:0,scale:[.38,.72],height:1.4816,bank:[.5,7],rise:[.08,2.5],spacing:.69,range:31,flex:1},
+ {id:'onoclea',count:114,mode:0,scale:[.44,.86],height:.8818,bank:[.7,14],rise:[.16,9],spacing:1.15,range:32,flex:.72},
+ {id:'rush',count:168,mode:0,scale:[.38,.78],height:1.4816,bank:[.25,5.5],rise:[.05,2.2],spacing:.58,range:33,flex:1},
  {id:'marsilea',count:90,mode:1,scale:[1.45,2.65],height:.08491,bank:[-1.8,-.15],spacing:.48,range:24,flex:.8},
  {id:'submerged',count:100,mode:2,scale:[2.3,4.3],height:.15,spacing:.63,range:30,flex:.76},
  {id:'halimeda',count:132,mode:3,scale:[1.4,3.1],height:.15,spacing:.72,range:32,flex:.34},
@@ -67,9 +67,11 @@ export function planSampleHabitat(data,forestRecords=[],trackPath=null){
  if(!route)return {plants:[],tracks:[],counts:{},rejections:{},trackPath:null};
  const terrain=data.terrain,ground=(x,z)=>terrain.heightAt(x,z),rng=mulberry32(281094);
  const plants=[],counts={},rejections={};
- const nodes=route.points.filter(p=>p.distance>150&&p.distance<665);
+ const nodes=route.points.filter(p=>p.distance>12&&p.distance<665);
+ const upperMid=nodes.filter(p=>p.distance>12&&p.distance<445);
  const lower=nodes.filter(p=>p.distance>445);
- const nearTrack=(x,z)=>distanceToTrack(x,z,trackPath)<1.6;
+ const visitorFootings=[[-639.5,-494.5],[-690,-275],[-742,-153],[-651,-478]];
+ const nearTrack=(x,z)=>distanceToTrack(x,z,trackPath)<1.6||visitorFootings.some(([vx,vz])=>Math.hypot(x-vx,z-vz)<2.3);
  const margins=reefMargins(data);
  for(const spec of SPECS){
   let made=0,rejected=0;
@@ -78,7 +80,9 @@ export function planSampleHabitat(data,forestRecords=[],trackPath=null){
    let x,z,r,margin,lobe;
    const scale=spec.scale[0]+rng()*(spec.scale[1]-spec.scale[0]);
    if(spec.mode<3){
-    const choices=rng()<.73?lower:nodes,p=choices[Math.floor(rng()*choices.length)];
+    const bankFocus=spec.id==='onoclea'||spec.id==='rush';
+    const choices=bankFocus?(rng()<.62?upperMid:lower):(rng()<.73?lower:nodes);
+    const p=choices[Math.floor(rng()*choices.length)];
     r=route.nearest(p.x,p.z);
     const side=rng()<.5?-1:1;
     const offset=spec.mode===2?r.width*(.36+rng()*.44):r.width+spec.bank[0]+rng()*(spec.bank[1]-spec.bank[0]);

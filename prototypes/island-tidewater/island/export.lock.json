@@ -39,7 +39,7 @@
     },
     {
       "path": "creek/sample.lock.json",
-      "sha256": "fab50595288a5be280ac949f121a321d049357d3b7131dce871372935a2623d2"
+      "sha256": "ed9039d8e77c709e40382cd37205ff25790edfecd03894dfe605ffda66a08bd7"
     },
     {
       "path": "creek/CoastTerrain.js",
@@ -63,7 +63,7 @@
     },
     {
       "path": "creek/IslandWaterField.js",
-      "sha256": "c7a6627eb2ec913b2ffdcfce61843aa7c090f637d18cc5e0286e0a28c910f514"
+      "sha256": "71e23a0f094df6e4a18802e18b7918473be3472a9529260f6cf65ca688ce1683"
     },
     {
       "path": "creek/MainEstuary.js",
@@ -71,7 +71,7 @@
     },
     {
       "path": "creek/RegionalLandforms.js",
-      "sha256": "27ede615dfb297fd426d83f4c381e2c4398b5bc62d18fcfe25cb3ac695b58f8c"
+      "sha256": "1f4ed49cf6d9fe48534b491fd9f53e0f77e6c53a8ca0b9fb735502e7416eba54"
     },
     {
       "path": "creek/SampleTerrain.js",
@@ -79,7 +79,7 @@
     },
     {
       "path": "creek/SampleVisits.js",
-      "sha256": "4fddd83d4054a315975c89fe679f664fd3f807dd2869f8d5dc9ae1b9698aead7"
+      "sha256": "cc9acd324404bfeb1f5c79ff8518c42bc569ce8e54437197b12ebcb2825f9215"
     },
     {
       "path": "creek/WatershedData.js",
@@ -87,14 +87,14 @@
     },
     {
       "path": "creek/WholeIslandData.js",
-      "sha256": "20cd6cd6589626a28bfa88999009dbb45b786dd39c73655c6f265995251281a5"
+      "sha256": "f3b5faa9a5352af2c37c026d2d96b33a276a3255c248ff4292c1e6ff6419c501"
     }
   ],
   "outputs": [
     {
       "path": "island/assets/heights.bin",
       "bytes": 1048576,
-      "sha256": "48f3f8f9c0ad431fbf0555751dcbfc9411d60c5bc27ed6b1c97e25f6ec9bd247"
+      "sha256": "7413226a388d46e0eb929b354ce871ada8f4117123e5c48ce6ccda1d4a8b731d"
     },
     {
       "path": "island/assets/water.bin",
@@ -104,7 +104,7 @@
     {
       "path": "island/assets/habitat.bin",
       "bytes": 1048576,
-      "sha256": "7cccf24134c14ce38d33a5870f13795389ddc53831d41f8b12ca6b9def41a369"
+      "sha256": "32f99fa45a883bd9f80ec4d42582a676c7aa026ec8adf1fc6cab25080502949d"
     },
     {
       "path": "island/assets/map.json",
@@ -113,18 +113,18 @@
     },
     {
       "path": "creek/assets/arrival-map.webp",
-      "bytes": 11504,
-      "sha256": "015ffb4f5d3e3d361bd1decd8f4eeae3f73fbd6752eb6085b02f8abbdf31bfb7"
+      "bytes": 11492,
+      "sha256": "26cce4266a5c53eb91152454d7a74b76653e4534d518ad689f180d7a3d3b0c1e"
     },
     {
       "path": "island/assets/terrain.webp",
-      "bytes": 126432,
-      "sha256": "258a394aa0dbe00c38218bb8821a029d14204ce9a132696211aab2c7fd9c6cc5"
+      "bytes": 126420,
+      "sha256": "792ff25eed02262ada8136782c837208d3051e5e44bf205a76107a3723df53da"
     },
     {
       "path": "island/assets/habitat.webp",
-      "bytes": 150390,
-      "sha256": "535757a0df03feb054bb42ff53c6621577f9a82562b9e0315ac3041a71afc77b"
+      "bytes": 150400,
+      "sha256": "20409920f5671b6f9ba2cb6a3c0d972b0f41bb46865257e23beec0bae29490bd"
     }
   ]
 }

@@ -119,6 +119,10 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
     if (next.size !== dynamic.size || [...next.keys()].some(mesh => !dynamic.has(mesh))) invalidate(false);
     dynamic = next;
   }
+  const isChainVisible = object => {
+    for (let cur = object; cur; cur = cur.parent) if (!cur.visible) return false;
+    return true;
+  };
   const eligible = mesh => dynamic.has(mesh);
   function render(scene, meshRenderer, indices) {
     frameRestoredPixels = 0; frameDynamicDraws = 0; activeCasters = 0;
@@ -130,6 +134,10 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
     }
     try {
       ensureResources(); discover(scene);
+      scene.updateMatrixWorld();
+      const visibleDynamic = [];
+      for (const mesh of dynamic.keys()) if (isChainVisible(mesh)) visibleDynamic.push(mesh);
+      const dynamicProxy = { visible: true, children: visibleDynamic, updateMatrixWorld() {} };
       const periods = [...this.periods];
       const sun = this.lastSun ? [this.lastSun.x, this.lastSun.y, this.lastSun.z] : null;
       if (previousPeriods && !sameValues(previousPeriods, periods)) invalidate(false);
@@ -168,9 +176,9 @@ export function attachDynamicMuseumShadows(app, { enabled = true } = {}) {
           camera: cascade.camera, frameBlock: cascade.block, layerMask: this.layerMask,
           depthBias: 2, depthBiasSlopeScale: 1.5, passKey: DEPTH_PASS_KEY,
           filter: eligible };
-        // Native collection honors ancestor visibility, caster flag, layers,
-        // material groups, and light frustum.
-        const lists = meshRenderer.collect(scene, pass);
+        // Collect directly against visible dynamic casters whose world matrices
+        // were already updated above, avoiding redundant full-scene traversals.
+        const lists = visibleDynamic.length ? meshRenderer.collect(dynamicProxy, pass) : { opaque: [], transparent: [] };
         let currentRect = null;
         for (const item of [...lists.opaque, ...lists.transparent]) {
           const mesh = item.object;

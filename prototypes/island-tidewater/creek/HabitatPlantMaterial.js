@@ -7,13 +7,14 @@ export function createHabitatPlantMaterial(batch,terrainGPU,view,{name='Sample V
  const motion=new ShaderModule({name:namespace+'Motion',deps:[commonModule],uniforms:view,code:`
 fn habitatColor(f:f32)->vec3f{let u=u32(f);return vec3f(f32((u>>16u)&255u),f32((u>>8u)&255u),f32(u&255u))/255.0;}
 fn habitatRotate(q:vec4f,p:vec3f)->vec3f{return p+cross(q.xyz,cross(q.xyz,p)+p*q.w)*2.0;}
-fn habitatBend(xz:vec2f,t:f32,seed:f32,part:f32,weight:f32,mode:f32,flow:vec2f)->vec3f{
+fn habitatBend(xz:vec2f,t:f32,seed:f32,part:f32,weight:f32,mode:f32,flow:vec2f,camDist:f32)->vec3f{
  let phase=seed*31.0+part*13.0;
  if(mode<1.5){
   let wind=max(frame.windSpeed*.1,.03);
+  let flutterKeep=1.0-smoothstep(12.0,28.0,camDist);
   let gust=.57+.23*sin(dot(xz,vec2f(.071,.039))-t*.63)+.20*sin(dot(xz,vec2f(-.031,.083))-t*.37);
-  let pulse=(.045+wind*.13)*gust+sin(t*2.3+phase)*.018*wind;
-  let side=sin(t*5.1+phase+xz.x*.12)*.011*wind;
+  let pulse=(.045+wind*.13)*gust+sin(t*2.3+phase)*.018*wind*flutterKeep;
+  let side=sin(t*5.1+phase+xz.x*.12)*.011*wind*flutterKeep;
   return vec3f(frame.windDir.x*pulse-frame.windDir.y*side,-abs(pulse)*.06,frame.windDir.y*pulse+frame.windDir.x*side)*weight;
  }
  let marine=select(0.0,1.0,mode>2.5);
@@ -34,10 +35,12 @@ fn habitatBend(xz:vec2f,t:f32,seed:f32,part:f32,weight:f32,mode:f32,flow:vec2f)-
  let habitatGround=terrainHeightAt(world.xz);
  world.y+=(habitatGround-.018-r0.y)*contact;
  let weight=v.aData.x*v.aData.x*r3.z*r0.w*grow;
- let now=habitatBend(r0.xz,frame.time,r2.x,v.aData.w,weight,r2.z,r3.xy);
- let old=habitatBend(r0.xz,frame.time-frame.dt,r2.x,v.aData.w,weight,r2.z,r3.xy);
+ let curDist=length(frame.cameraPos-r0.xyz);
+ let prevDist=length(frame.prevCameraPos-r0.xyz);
+ let now=habitatBend(r0.xz,frame.time,r2.x,v.aData.w,weight,r2.z,r3.xy,curDist);
+ let old=habitatBend(r0.xz,frame.time-frame.dt,r2.x,v.aData.w,weight,r2.z,r3.xy,prevDist);
  v.useWorld=true;v.worldPos=world+now;v.prevWorldPos=world+old;v.worldNormal=normalize(habitatRotate(q,v.normal));
- o.vHabitatColor=habitatColor(v.aData.y)*(vec3f(.88,.91,.84)+r2.x*.16);
+ o.vHabitatColor=habitatColor(v.aData.y)*(vec3f(.78,.83,.70)+r2.x*.15);
  o.vHabitatAO=v.aData.z;o.vHabitatMode=r2.z;
 `,surface:`
  s.albedo=in.vs.vHabitatColor;

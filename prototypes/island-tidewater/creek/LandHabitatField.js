@@ -25,10 +25,10 @@ export function prepareLandHabitatField(data, app) {
   }
   for (const visit of Object.values({...app.islandVisits, ...app.islandFaunaHabitats?.visits})) {
     const [x, z] = [visit.p[0], visit.p.at(-1)];
-    protect(x, z, 38);
+    protect(x, z, 5.5);
     if (!visit.gaze) continue;
     const dx = visit.gaze[0] - x, dz = visit.gaze[2] - z, length = Math.hypot(dx, dz);
-    for (let d = 14; d < Math.min(84, length + 12); d += 14) protect(x + d*dx/length, z + d*dz/length, 18);
+    for (let d = 8; d < Math.min(76, length + 8); d += 8) protect(x + d*dx/length, z + d*dz/length, 4.2);
   }
   for (const actor of app.islandFauna?.individuals.values() ?? []) {
     if (actor.site.medium !== 'ground') continue;

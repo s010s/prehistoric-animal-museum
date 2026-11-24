@@ -118,36 +118,44 @@ function lakeShingle(x, z, h, grain, lake) {
 
 function tarnMoraine(u, v, h, grain) {
   // The ridge is oblique to the basin. Two terminal lobes bracket a low
-  // meltwater saddle, with smaller till hummocks behind their crest.
+  // meltwater saddle, with irregular till hummocks and incised rills.
   const across = u + .31 * v - 14 * bell((v + 28) / 78);
   const saddle = bell((v + 19) / 20);
-  const lobe = 13 * envelope(v, 60, 153) * bell(across / 31) * (1 - .83 * saddle);
-  const parallel = 5.6 * envelope(v + 18, 57, 122) * bell((across - 62) / 25);
+  const tillOutcrop = 1.35 * Math.max(0, noise.noise(across / 12.5 + 4.2, v / 19.0 - 8.1) + .42 * noise.noise(across / 6.2, v / 8.4) - .16) * bell(across / 25);
+  const rill = 1.05 * bell((v - 11 + .22 * u) / 7.2) * smooth(-8, 28, across) * (1 - smooth(38, 68, across));
+  const lobe = (13.3 + tillOutcrop) * envelope(v, 60, 153) * bell(across / 30) * (1 - .82 * saddle);
+  const parallel = 5.9 * envelope(v + 18, 57, 122) * bell((across - 62) / 24);
   const hummock = 4.6 * bell((u + 73) / 37) * bell((v - 42) / 33) + 2.3 * bell((u + 63) / 23) * bell((v + 63) / 30);
   const melt = 2.3 * saddle * bell((across + 24) / 42);
   const support = envelope(u, 125, 203) * envelope(v, 123, 197);
-  const slabs = .9 * grain + 1.6 * noise.noise(across / 16, v / 39);
-  const rock = .27 + .49 * smooth(1, 9, lobe + parallel) + .12 * grain;
-  return [h + support * (lobe + parallel + hummock - melt + slabs), rock, .02, support];
+  const slabs = .92 * grain + 1.75 * noise.noise(across / 14, v / 36);
+  const rock = clamp(.26 + .50 * smooth(1.2, 9.0, lobe + parallel) + .14 * grain, 0, 1);
+  return [h + support * (lobe + parallel + hummock - melt - rill + slabs), rock, .02, support];
 }
 
 function dryEscarpment(u, v, h, grain) {
-  // Tilted strata crop out along an irregular break in slope. Gullies split
-  // the face into buttresses. A colluvial apron and a gentler floor sit below.
+  // Tilted strata crop out along an irregular stepped escarpment. Incised
+  // gullies split the cliff into rock buttresses above a colluvial apron.
   const strike = u - .42 * v;
   const warp = 8 * noise.noise(v / 33, 29) + 5 * noise.noise(v / 81, u / 90);
   const scarp = strike - warp;
-  const gully = .63 * bell((v - 24 + .33 * u) / 9) + .77 * bell((v + 47 + .19 * u) / 11);
-  const upper = 15 * smooth(-13, 2, scarp);
-  const middle = 6 * smooth(-26, -18, scarp + 2 * grain);
-  const lower = 4 * smooth(-42, -24, scarp) + 1.5 * smooth(-67, -43, scarp);
+  const gully = .65 * bell((v - 24 + .33 * u) / 8.5) + .79 * bell((v + 47 + .19 * u) / 10.2)
+    + .38 * bell((v - 62 + .26 * u) / 8.0);
+  const upper = 15.4 * smooth(-12.5, 1.8, scarp);
+  const middle = 6.2 * smooth(-25.5, -18.2, scarp + 2.0 * grain);
+  const lower = 4.1 * smooth(-41, -24.5, scarp) + 1.5 * smooth(-66, -43.5, scarp);
+  // Discontinuous caprock ledges that pinch out naturally along strike (never sinusoidal washboard ribs)
+  const benchA = smooth(-.12, .58, noise.noise(v / 37 + 7.1, u / 43));
+  const benchB = smooth(-.08, .62, noise.noise(v / 31 - 13.4, u / 39 + 5.2));
+  const strataBench = (1.55 * smooth(-21.5, -15.5, scarp + 1.4 * grain) * benchA
+    + 1.15 * smooth(-35.0, -28.5, scarp + 1.2 * grain) * benchB) * (1 - smooth(-1, 15, scarp));
   const wash = 2.6 * envelope(v + 5, 42, 125) * bell((scarp + 57) / 8.5);
-  const talus = (2.1 + grain) * bell((scarp + 39) / 18) * (1 - .66 * gully);
-  const bedding = .65 * noise.noise(scarp / 4.8, v / 41) * smooth(-38, -8, scarp);
+  const talus = (2.15 + grain) * bell((scarp + 39) / 17.5) * (1 - .67 * gully);
+  const bedding = .72 * noise.noise(scarp / 6.4, v / 38) * smooth(-39, -7, scarp);
   const support = envelope(u, 80, 144) * envelope(v, 76, 143);
-  const rock = clamp(.15 + .77 * smooth(-36, -1, scarp) * (1 - .52 * gully) + .23 * talus, 0, 1);
+  const rock = clamp(.12 + .76 * smooth(-30, -2, scarp) * (1 - .50 * gully) + .20 * talus, 0, 1);
   const sand = .26 * bell((scarp + 50) / 22);
-  return [h + support * ((upper + middle) * (1 - gully) + lower + talus - wash + bedding + .24 * grain), rock, sand, support];
+  return [h + support * ((upper + middle) * (1 - gully) + lower + strataBench * (1 - .65 * gully) + talus - wash + bedding + .25 * grain), rock, sand, support];
 }
 
 function wetlandRunnels(u, v, h, grain, level) {

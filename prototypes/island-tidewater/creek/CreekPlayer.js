@@ -15,7 +15,9 @@ const BED_CLEARANCE = .25;
 export class CreekPlayer extends Player {
   constructor(options) {
     super(options);
+    this.seaLevel = options.seaLevel ?? -.7;
     this.wet = false;
+    this.wasWet = false;
     this.boundaryHits = 0;
     this.candidate = new Vector3();
     this.wish = new Vector3();
@@ -36,6 +38,23 @@ export class CreekPlayer extends Player {
     this.bob = this.stepDist = this.wade = 0;
     this._camY = null;
     this.refreshWater();
+    this.wasWet = this.wet;
+    this.wasUnder = mode === 'swim' && y + SWIM_EYE < this.waterH - .05;
+  }
+
+  surfaceType(depth) {
+    const p = this.position;
+    if (depth > .06) return 'water';
+    const floor = this.terrain.heightAt(p.x, p.z);
+    if (this.colliders.groundHeightAt(p.x, p.z, p.y + .1) > floor + .05) return 'wood';
+    const e = .5;
+    const gx = this.terrain.heightAt(p.x + e, p.z) - this.terrain.heightAt(p.x - e, p.z);
+    const gz = this.terrain.heightAt(p.x, p.z + e) - this.terrain.heightAt(p.x, p.z - e);
+    if (Math.hypot(gx, gz) / (2 * e) > .42 || floor > 340) return 'rock';
+    const aboveSea = floor - this.seaLevel;
+    if (this.wet || (aboveSea < 1.3 && depth > -.25)) return 'wetsand';
+    if (aboveSea < 4.0) return 'sand';
+    return 'grass';
   }
 
   placeOnGround(x, z, reach) {
@@ -192,14 +211,19 @@ export class CreekPlayer extends Player {
       this.stepDist += moved;
       if (this.stepDist > (sprint ? .9 : .62)) {
         this.stepDist = 0;
-        if (this.audio) this.audio.footstep(this.surfaceType(depth));
+        this.surface = this.surfaceType(depth);
+        if (this.audio) this.audio.footstep(this.surface);
       }
     }
     this.redirectHorizontal(q, moved, dt);
     p.copy(q);
+    const prevWet = this.wasWet;
     this.refreshWater(floor);
+    const newDepth = this.waterMean - p.y;
+    if (!prevWet && this.wet && newDepth > .14) this.audio?.splash(MathUtils.clamp(.18 + newDepth * .28, .18, .45), p);
+    this.wasWet = this.wet && newDepth > .06;
 
-    if (this.wet && this.waterMean - p.y > SWIM_DEPTH) {
+    if (this.wet && newDepth > SWIM_DEPTH) {
       const wadedIn = this.grounded;
       this.mode = 'swim';
       this.grounded = false;
@@ -207,7 +231,7 @@ export class CreekPlayer extends Player {
       this.stepDist = 0;
       if (wadedIn) p.y = this.waterH - SWIM_EYE + .1;
       v.y = wadedIn ? 0 : Math.max(v.y * .3, -2.5);
-      this.audio?.splash(wadedIn ? .2 : .5, p);
+      this.audio?.splash(wadedIn ? .32 : .65, p);
     }
   }
 
@@ -256,5 +280,11 @@ export class CreekPlayer extends Player {
       this.stepDist = 0;
       this.audio?.swimStroke();
     }
+    const under = p.y + SWIM_EYE < this.waterH - .05;
+    if (under !== this.wasUnder && this.audio) {
+      if (under) this.audio.submerge();
+      else this.audio.emerge();
+    }
+    this.wasUnder = under;
   }
 }

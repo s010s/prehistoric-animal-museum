@@ -99,10 +99,13 @@ export class NearbyFaunaGuide {
     if (lock) {
       const nameRange = target && clamp(12 + target.size * 32, 16, 220);
       seen = this.placeLabel(camera, target?.live && target.visible &&
-        Math.hypot(target.x-p.x, target.y-p.y, target.z-p.z) < nameRange ? [target] : []);
+        Math.hypot(target.x-p.x, target.y-p.y, target.z-p.z) < nameRange ? [target] : [], false);
       if (!seen && target?.medium === 'air') this.placeFlightMarker(camera, target);
+    } else if (mode === 'all') {
+      this.placeLabel(camera, near, true);
     } else {
-      this.placeLabel(camera, near);
+      this.label.hidden = true;
+      this.labelId = null;
     }
     if (target || lock) this.renderBearing(camera, target, lock, mode, seen);
   }
@@ -153,14 +156,15 @@ export class NearbyFaunaGuide {
     this.label.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) translate(-50%,-50%)';
   }
 
-  placeLabel(camera, candidates) {
+  placeLabel(camera, candidates, centerOnly = false) {
     let best = null, bestScore = Infinity, cx = 0, cy = 0;
+    const limit = centerOnly ? .24 : .89;
     for (const animal of candidates) {
       view.set(animal.x, animal.y, animal.z).applyMatrix4(camera.matrixWorldInverse);
       if (view.z >= -camera.near) continue;
       const depth = -view.z;
       view.applyMatrix4(camera.projectionMatrix);
-      if (Math.abs(view.x) > .89 || Math.abs(view.y) > .89) continue;
+      if (Math.abs(view.x) > limit || Math.abs(view.y) > limit) continue;
       // The animal under the visitor's gaze wins over one at the edge.
       const score = Math.hypot(view.x, view.y) + depth * .005 - (animal.id === this.labelId ? .05 : 0);
       if (score >= bestScore) continue;

@@ -18,7 +18,7 @@ const flightViews = {
   meganeura: { distance: 1.95, maxDistance: 3.1, sky: true, altitude: 3.05, incline: .92, sunSide: .12 },
   anurognathus: { distance: 1.16, maxDistance: 1.6, sky: true, altitude: 2.04, incline: .57, sunSide: .65, lit: true, clearSeconds: 2.7 },
   sordes: { distance: 1.65, maxDistance: 2.5, sky: true, altitude: 2.25, incline: .65, sunSide: .58, lit: true, clearSeconds: 3.85 },
-  archaeopteryx: { distance: 1.65, maxDistance: 2.6, sky: true, altitude: 2.5, incline: .76, backdrop: 24, clearSeconds: 1.6 },
+  archaeopteryx: { distance: 2.3, maxDistance: 4.0, sky: true, altitude: 4.2, incline: .78, backdrop: 24, clearSeconds: 1.6 },
   rhamphorhynchus: { distance: 3.8, maxDistance: 5.6, sky: true, altitude: 3.35, incline: .62 },
   tupandactylus: { distance: 6.2, maxDistance: 9.3, altitude: 3.8 },
 };
@@ -255,12 +255,15 @@ function observationFor(context, site, body, path, frame = null) {
   const sunSideMin = mammoth ? .42 : flight?.sunSide;
   const daylight = sunSideMin === undefined ? null : sunDirectionFromTime(site.time);
   const authoredDistance = flight?.distance ?? (wet
-    ? clamp(length * 1.12, .37, 19)
+    ? clamp(length * 1.12, .37, 18.5)
     : air ? clamp(length * 2.1, 2.25, 37) : clamp(length * 1.13, 2.4, 29));
   const view = frame ? frame.distance : authoredDistance;
   const range = frame ? [.55, .68, .8, .94, 1.1, 1.3, 1.6] : air ? [1, 1.7, .75, 2.6, 3.8] : [1, 1.2, .82, 1.55, .68];
   if (site.medium === 'freshwater') range.push(.48, .32);
   const lookHeight = ground ? Math.max(.16, -body.floor * 1.15) : benthic ? -body.floor : 0;
+  let loopCx = 0, loopCz = 0;
+  for (const pt of path) { loopCx += pt[0]; loopCz += pt[2]; }
+  loopCx /= path.length; loopCz /= path.length;
   let best = null;
   for (let i = 0; i < (frame ? 1 : path.length); i += Math.max(1, path.length / 8)) {
     const [x, y, z] = path[i];
@@ -305,9 +308,11 @@ function observationFor(context, site, body, path, frame = null) {
         // In deep water a shorter three-quarter view retains colour and detail.
         if (wet) framingCost += Math.max(0, distance - 9) * .22;
       }
+      const loopPenalty = wet && !benthic && path.length > 1
+        ? Math.max(0, Math.hypot(px - loopCx, pz - loopCz) - Math.hypot(x - loopCx, z - loopCz)) * .14 : 0;
       const score = framingCost + Math.abs(oblique - (overheadWater ? .57 : flight?.sky ? .39 : .35)) * (flight?.sky || overheadWater ? 3 : .95)
         + (air ? Math.abs(viewIncline - (flight?.incline ?? .14)) * 1.25 : 0)
-        + lightPenalty + i * .005;
+        + lightPenalty + loopPenalty + i * .005;
       if (best && score >= best.score) continue;
       if (flight?.sky && !openFlightBackdrop(terrain, colliders, gaze, dx, dz, viewIncline, flight.backdrop)) continue;
       if (!clearSight(terrain, colliders, [px, py, pz], gaze, !!flight?.sky)) continue;
@@ -340,7 +345,7 @@ function projectedCoverage(frame, eye, gaze) {
 }
 
 export function frameFaunaVisit(context, actor, visit, camera) {
-  if (!actor || camera.aspect >= 1 || !(camera.aspect > 0)) return visit;
+  if (!actor || !(camera.aspect > 0)) return visit;
   const { site, body } = actor;
   const [cx, cy, cz] = site.path[0];
   const tanY = Math.tan(camera.fov * Math.PI / 360) / (camera.zoom || 1);
@@ -353,7 +358,9 @@ export function frameFaunaVisit(context, actor, visit, camera) {
   for (const x of [-hx, hx]) for (const y of [-hy, hy]) for (const z of [-hz, hz]) {
     corners.push([x*c + z*s, centerY - visit.gaze[1] + y, z*c - x*s]);
   }
-  const distance = Math.hypot(hx, hz) / Math.sin(Math.atan(tanX)) / .81;
+  const wet = submerged(site.medium);
+  const fitDistance = Math.max(Math.hypot(hx, hz) / Math.sin(Math.atan(tanX)) / .81, hy / Math.sin(Math.atan(tanY)) / .75);
+  const distance = wet ? clamp(fitDistance, .37, Math.min(20, Math.max(14, site.length * 1.25))) : fitDistance;
   const originalRange = Math.hypot(cx - visit.p[0], cz - visit.p[1]);
   const frame = { tanX, tanY, distance, corners, ownCollider: actor.collider,
     incline: (visit.gaze[1] - visit.eye[1]) / originalRange };
@@ -370,7 +377,8 @@ export function frameFaunaVisit(context, actor, visit, camera) {
       return { ...visit, p: [eye[0], eye[2]], eye, gaze, diveLevel: site.level, eyeBelowSurface: site.level - eye[1] };
     }
   }
-  if (projectedCoverage(frame, visit.eye, visit.gaze) <= .86
+  if (projectedCoverage(frame, visit.eye, visit.gaze) <= .84
+      && (!wet || originalRange <= 22)
       && unobstructedView(context.colliders, visit.eye, visit.gaze, actor.collider)) return visit;
   const view = observationFor(context, site, body, site.path, frame);
   if (!view) return visit;

@@ -86,8 +86,11 @@ export function arrangeIslandLandmarks(data, areas, obstacles = []) {
   });
 }
 
-function materialBuilder(gltf, textures, field, isCurrent, materials, encoder) {
+function materialBuilder(gltf, textures, data, spec, terrainGPU, isCurrent, materials, encoder) {
+  const field = data.field;
   const cache = new Map();
+  const isStone = SOLID.has(spec.id);
+  const isSandstone = spec.id === 'cross-bedded-sandstone';
   async function materialFor(index, hasColors) {
     const key = index + ':' + hasColors;
     if (cache.has(key)) return cache.get(key);
@@ -115,16 +118,33 @@ function materialBuilder(gltf, textures, field, isCurrent, materials, encoder) {
     const color = new Vector3().fromArray(pbr.baseColorFactor ?? [1, 1, 1]);
     const emissive = new Vector3().fromArray(m.emissiveFactor ?? [0, 0, 0])
       .multiplyScalar(m.extensions?.KHR_materials_emissive_strength?.emissiveStrength ?? 1);
+    const stoneBlend = isStone && terrainGPU ? `
+let lmGroundY = terrainHeightAt(in.P.xz);
+let lmAbove = max(in.P.y - lmGroundY, 0.0);
+let lmDustNoise = .5 + .25 * sin(in.P.x * 1.9 + in.P.z * 1.3) + .25 * sin(in.P.z * 3.7 - in.P.x * 2.1);
+let lmSkirt = 1.0 - smoothstep(0.02, 0.58, lmAbove + (lmDustNoise - .5) * .16);
+let lmTopDust = smoothstep(0.52, 0.90, in.N.y) * (.22 + .18 * lmDustNoise);
+let lmSeamAO = 1.0 - 0.42 * (1.0 - smoothstep(0.0, 0.30, lmAbove));
+${isSandstone ? `let lmLuma = dot(s.albedo, vec3f(0.32, 0.48, 0.20));
+let lmWeathered = vec3f(lmLuma * 1.05, lmLuma * 0.95, lmLuma * 0.78);
+s.albedo = mix(s.albedo, lmWeathered, 0.56);
+let lmLocalEarth = vec3f(0.24, 0.21, 0.145) * (0.86 + 0.24 * lmDustNoise);` : `let lmLocalEarth = vec3f(0.17, 0.16, 0.125) * (0.86 + 0.24 * lmDustNoise);`}
+s.albedo = mix(s.albedo, lmLocalEarth, clamp(lmSkirt * 0.76 + lmTopDust * 0.35, 0.0, 0.84));
+s.roughness = max(s.roughness, mix(0.88, 0.96, lmSkirt));
+s.specularIntensity = min(s.specularIntensity, 0.18);
+s.ao *= lmSeamAO;` : '';
     const surface = [
       bindings.islandVaultColor ? 'let texel=textureSample(islandVaultColor,smpAnisoRepeat,in.uv);s.albedo*=texel.rgb;s.alpha*=texel.a;' : '',
       bindings.islandVaultNormal ? 'let nm=textureSample(islandVaultNormal,smpAnisoRepeat,in.uv).xyz*2.0-1.0;s.normal=perturbNormalByMap(in.P,in.N,in.uv,nm);' : '',
       bindings.islandVaultOrm ? 'let orm=textureSample(islandVaultOrm,smpAnisoRepeat,in.uv);s.roughness*=orm.g;s.metalness*=orm.b;' : '',
       bindings.islandVaultEmission ? 's.emissive*=textureSample(islandVaultEmission,smpAnisoRepeat,in.uv).rgb;' : '',
+      stoneBlend,
     ].join('\n');
     const material = new Material({name: m.name || 'Island Vault stone and leaf', color, emissive,
       roughness: pbr.roughnessFactor ?? 1, metalness: pbr.metallicFactor ?? 1,
       side: m.doubleSided ? 'double' : 'front', vertexColors: hasColors,
       alphaTest: m.alphaMode === 'MASK' ? (m.alphaCutoff ?? .5) : 0,
+      modules: isStone && terrainGPU ? [terrainGPU.module] : [],
       textures: bindings, surface});
     clipCreekRefraction(material, field);
     cache.set(key, material);
@@ -202,11 +222,11 @@ function release(resources) {
   for (const texture of resources.textures.values()) texture.destroy();
 }
 
-async function makeModel(gltf, data, spec, isCurrent) {
+async function makeModel(gltf, data, spec, terrainGPU, isCurrent) {
   const group = new Group(), content = new Group(), textures = new Map(), geometries = [], bounds = new Box3();
   const resources = {group, textures, geometries, materials: new Set()};
   const encoder = GPU.device.createCommandEncoder({label: 'Island landmark ' + spec.id});
-  const materials = materialBuilder(gltf, textures, data.field, isCurrent, resources.materials, encoder);
+  const materials = materialBuilder(gltf, textures, data, spec, terrainGPU, isCurrent, resources.materials, encoder);
   const cut = FOOTING_CUTS[spec.id];
   const local = new Matrix4(), point = new Vector3();
   async function visit(id, parentMatrix) {
@@ -266,6 +286,7 @@ async function makeModel(gltf, data, spec, isCurrent) {
 export class IslandLandmarkProps {
   constructor(app, data, areas) {
     this.data = data;
+    this.terrainGPU = app.terrainGPU;
     this.colliders = app.colliders;
     this.slots = arrangeIslandLandmarks(data, areas, [...(app.coveRocks?.instances ?? []), ...(app.shelfReef?.obstacles ?? [])]);
     this.slots.push(...(app.habitatEnrichment?.landUnderstory.landmarks ?? []));
@@ -311,7 +332,7 @@ export class IslandLandmarkProps {
         if (!response.ok) throw Error('Island GLB load failed ' + response.status + ': ' + slot.id);
         const gltf = parseGLB(await response.arrayBuffer());
         if (!inReach()) return;
-        const resources = await makeModel(gltf, this.data, slot, inReach);
+        const resources = await makeModel(gltf, this.data, slot, this.terrainGPU, inReach);
         if (!inReach()) {
           release(resources);
           return;

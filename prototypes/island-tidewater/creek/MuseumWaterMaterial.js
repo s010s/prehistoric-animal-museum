@@ -80,7 +80,7 @@ export class MuseumWaterMaterial extends WaterMaterial{
 #if MUSEUM_OCEAN_HYDROLOGY
  var museumTransition=0.0;var museumFresh=0.0;
  if(museumMayHaveInlandWater(pos.xz)){
-  let field=creekFieldAt(pos.xz);if(field.y<.05&&field.x>frame.seaLevel+.5){discard;}
+  let field=creekFieldAt(pos.xz);if(field.y<.05&&field.x>museumEstuaryHandoff(pos.xz)){discard;}
   museumTransition=museumEstuaryBlendForField(field);museumFresh=museumInlandWeightForField(field);
  }
 #else
@@ -98,7 +98,7 @@ export class MuseumWaterMaterial extends WaterMaterial{
    let thinSheet=1.0-smoothstep(.085,.22,max(thickness,0.0));
    let ordinary=smoothstep(320.0,425.0,distance(pos.xz,vec2f(-875.0,125.0)));
    let museumFilmWeight=max(museumMainTidalWeight(pos.xz),thinSheet*ordinary)*
-        smoothstep(-.35,.02,museumGroundH-frame.seaLevel);
+        smoothstep(-.35,.02,museumGroundH-frame.seaLevel)*(1.0-museumTransition);
    if(receiver.y<pos.y+.04){
     thickness=mix(min(thickness,max(pos.y-receiver.y,0.0)),thickness,museumFilmWeight);
    }`);

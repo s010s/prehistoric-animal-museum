@@ -7,6 +7,7 @@ import { submergedShadingContract } from './tools/submerged-shading-contract.mjs
 import { cloudViewContract } from './tools/cloud-view-contract.mjs';
 import { meshJitterContract } from './tools/mesh-jitter-contract.mjs';
 import { temporalCoverageContract } from './tools/temporal-coverage-contract.mjs';
+import { postStabilityContract } from './tools/post-stability-contract.mjs';
 import { prepareMarineRocks } from './tools/prepare-marine-rocks.mjs';
 import { prepareFaunaLods } from './tools/prepare-fauna-lods.mjs';
 import { prepareTerrainTransport } from './tools/prepare-terrain-transport.mjs';
@@ -65,7 +66,7 @@ function serveLocalReview(server){
 }
 export default defineConfig({
   root: path('./'), base: './', publicDir: path('vendor/tidewater/public'),
-  plugins: [submergedShadingContract(),cloudViewContract(),meshJitterContract(),temporalCoverageContract(),verifyLazyModules(),{name:'private-native-review',configureServer:serveLocalReview,configurePreviewServer:serveLocalReview}],
+  plugins: [submergedShadingContract(),cloudViewContract(),meshJitterContract(),temporalCoverageContract(),postStabilityContract(),verifyLazyModules(),{name:'private-native-review',configureServer:serveLocalReview,configurePreviewServer:serveLocalReview}],
   build: { target: 'esnext', outDir: '.review-dist', chunkSizeWarningLimit: 4000, assetsInlineLimit: 0, rollupOptions: { input: { home: path('index.html'), island: path('island/index.html'), reference: path('reference/index.html'), museum: path('museum/index.html'), creek: path('creek/index.html') } } },
   server: { host: '127.0.0.1', port: 4402, strictPort: true, hmr: false },
 });

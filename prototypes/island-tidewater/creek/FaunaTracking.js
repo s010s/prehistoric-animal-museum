@@ -121,17 +121,21 @@ export class FaunaTracking {
     const near = [];
     if (mode === 'off') return { target: null, near, lock: this.lockState() };
 
+    const visitorWater = waterSurfaceAt(this.app, visitor.x, visitor.z);
+    const visitorUnderwater = visitor.y < visitorWater - .12 && this.app.terrainData.heightAt(visitor.x, visitor.z) < visitorWater;
     let closest = null, previous = null, lockedTarget = null;
-    if (this.lastMode !== mode) this.autoId = null;
+    if (this.lastMode !== mode || this.lastUnderwater !== visitorUnderwater) this.autoId = null;
     this.lastMode = mode;
+    this.lastUnderwater = visitorUnderwater;
     visitNearbyFauna(this.app, visitor, NEARBY_RANGE, target => {
       const distance = distanceTo(visitor, target);
       const labelRange = Math.min(34, Math.max(2.5, 2.2 + target.size * 3.5));
-      if (target.live && target.visible && distance < labelRange) near.push(target);
+      if (target.live && target.visible && distance < labelRange && (!visitorUnderwater || target.medium !== 'air')) near.push(target);
       if (this.locked) {
         if (target.id === this.locked.id) lockedTarget = target;
         return;
       }
+      if (visitorUnderwater && target.medium === 'air') return;
       if (distance > NEARBY_RANGE || (!target.museum && mode !== 'all')) return;
       const item = candidateAt(target, distance);
       if (betterCandidate(item, closest)) closest = item;
@@ -145,7 +149,7 @@ export class FaunaTracking {
     }
     if (previous && previous.observable === closest.observable
         && previous.distance <= closest.distance + Math.min(1.5, closest.distance * .035)) closest = previous;
-    const target = closest?.target ?? this.farTarget(visitor);
+    const target = closest?.target ?? this.farTarget(visitor, visitorUnderwater);
     this.autoId = target?.id;
     return { target, near, lock: null };
   }
@@ -154,15 +158,17 @@ export class FaunaTracking {
     return this.locked && { ...this.locked, state: target?.availability ?? 'unavailable' };
   }
 
-  farTarget(visitor) {
-    const cached = this.farId && readFaunaTarget(this.app, this.farId);
+  farTarget(visitor, underwater = false) {
+    const cached = this.farId && this.farUnderwater === underwater && readFaunaTarget(this.app, this.farId);
     if (cached && cached.availability !== 'unavailable' && distanceTo(visitor, this.farPosition) <= FAR_REFRESH_DISTANCE) return cached;
     let closest = null;
     visitNearbyFauna(this.app, visitor, Infinity, target => {
+      if (underwater && target.medium === 'air') return;
       const item = candidateAt(target, distanceTo(visitor, target));
       if (betterCandidate(item, closest)) closest = item;
     }, { museumOnly: true });
     this.farId = closest?.target.id;
+    this.farUnderwater = underwater;
     this.farPosition = { x: visitor.x, y: visitor.y, z: visitor.z };
     return closest?.target ?? null;
   }

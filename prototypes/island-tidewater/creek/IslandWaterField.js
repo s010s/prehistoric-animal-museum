@@ -46,7 +46,7 @@ export function installIslandWater(field,world,headwater){
  const oceanSupport=packOceanWaterSupport(field,world,packed,W,W*n+start+trip.length/4);
  const old=field.texture;field.texture=new Texture({label:'Museum inland-water atlas',width:W,height:H,format:'rgba32float',data:packed,usage:['sample','copyDst']});field.module.bindings.creekFieldTex.texture=field.texture;old.destroy();
  const l=field.riverLayout,T=world.tributary,M=world.marsh;
- const estuaryBlend='smoothstep(0.0,.2,f.x-frame.seaLevel)*(1.0-smoothstep(1.0,3.0,f.x-frame.seaLevel))*(1.0-smoothstep(-1.0,0.0,f.y))';
+ const estuaryBlend='smoothstep(0.02,.32,f.x-frame.seaLevel)*(1.0-smoothstep(1.2,3.2,f.x-frame.seaLevel))*(1.0-smoothstep(.05,2.2,f.y))';
  const fineCode=field.module.code.split('fn creekRiverRow')[0];
  const sample=`fn islandWaterBilinear(p:vec2f,c:vec2f,size:f32,res:f32,offset:vec2i)->vec4f{
  let f=(p-c+size*.5)/size*res-.5;if(any(f<vec2f(0.0))||any(f>=vec2f(res-1.0))){return vec4f(0.0,10000.0,0.0,0.0);}
@@ -75,7 +75,11 @@ fn museumWaterOwner(p:vec2f)->f32{
  if(length((p-vec2f(${num(M.x)},${num(M.z)}))/vec2f(${num(M.rx)},${num(M.rz)}))<1.04){return 4.0;}
  let t=islandTributary(p.y);if(t.z>0.0&&abs(p.x-t.x)<t.z+1.0){return select(5.0,6.0,museumEastSourceInside(p));}return 1.0;
 }
-fn museumEstuaryOwns(p:vec2f)->bool{return creekContains(p)&&creekMeanAt(p)>frame.seaLevel+.5;}
+fn museumEstuaryHandoff(p:vec2f)->f32{
+ let w=sin(p.x*.37+p.y*.29)*.5+sin(p.y*.53-p.x*.21)*.3+sin((p.x+p.y)*.83)*.2;
+ return frame.seaLevel+.5+w*.055;
+}
+fn museumEstuaryOwns(p:vec2f)->bool{return creekContains(p)&&creekMeanAt(p)>museumEstuaryHandoff(p);}
 // Light transport crosses the tidal reach continuously. Mesh ownership is a
 // rasterisation choice, not a physical boundary in the underwater medium.
 fn museumInlandWeightForField(f:vec4f)->f32{return smoothstep(0.0,1.5,f.x-frame.seaLevel)*(1.0-smoothstep(0.0,8.0,f.y));}

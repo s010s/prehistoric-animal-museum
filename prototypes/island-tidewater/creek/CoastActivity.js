@@ -39,7 +39,7 @@ export class CoastActivity {
     }
     // Native recentering starts within 950 m. Wake before that point even
     // on a diagonal crossing of a coarse contour cell. Retain hysteresis.
-    this.surf = best < (this.surf ? 1400 : 1200) ** 2;
-    this.lighting = this.surf || best < (this.lighting ? 1700 : 1500) ** 2 || this.shelf.marineAt(x, z) > 0;
+    this.surf = best < (this.surf ? 1080 : 960) ** 2;
+    this.lighting = this.surf || best < (this.lighting ? 1200 : 1060) ** 2 || this.shelf.marineAt(x, z) > 0;
   }
 }

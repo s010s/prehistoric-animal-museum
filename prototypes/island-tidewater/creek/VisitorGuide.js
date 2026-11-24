@@ -14,7 +14,11 @@ export class VisitorGuide {
     this.credit = document.querySelector('#model-credit');
     this.face.onclick = () => {
       const visit = app.islandVisits[app.currentLandmark];
-      const point = visit?.animalId && app.islandFauna.state(visit.animalId)?.position;
+      const actor = visit?.animalId && app.islandFauna?.actors.get(visit.animalId);
+      const locked = this.nearby.snapshot?.target;
+      const point = (actor?.active && app.subjectFocusPoint?.(actor))
+        || (visit?.animalId && app.islandFauna.state(visit.animalId)?.position)
+        || (locked?.live && [locked.x, locked.y, locked.z]);
       if (point) lookAt(point);
     };
     this.travelButton = document.querySelector('#fauna-travel');

@@ -10,7 +10,16 @@ import {groveModule,groveWeight} from './GroveDesign.js';
 
 export class ForestAir extends AirHaze{
  constructor(options,terrainData){
-  super(options);this.localAir=new UniformBlock('MuseumForestAir',{center:['vec3f',new Vector3(1408,terrainData.heightAt(1408,-2098)+12,-2098)],radius:['vec3f',new Vector3(110,22,105)],sigma:['f32',.00085],enabled:['f32',1]},{label:'world-fixed humid forest opening'});
+  super(options);
+  this.zones=[
+   {id:'giant-forest',center:new Vector3(1408,terrainData.heightAt(1408,-2098)+12,-2098),radius:new Vector3(135,24,130),sigma:.00088,tint:new Vector3(1.05,1.00,.90)},
+   {id:'wetland',center:new Vector3(5450,7.5,5950),radius:new Vector3(540,16,500),sigma:.00074,tint:new Vector3(.95,1.02,1.06)},
+   {id:'highland',center:new Vector3(3860,terrainData.heightAt(3860,-4860)+28,-4860),radius:new Vector3(640,58,640),sigma:.00046,tint:new Vector3(.88,.96,1.08)},
+   {id:'dry-upland',center:new Vector3(4960,terrainData.heightAt(4960,560)+24,560),radius:new Vector3(520,48,520),sigma:.00042,tint:new Vector3(1.12,.98,.80)},
+   {id:'sample-creek',center:new Vector3(-715,terrainData.heightAt(-715,-290)+14,-290),radius:new Vector3(220,28,260),sigma:.00050,tint:new Vector3(1.00,1.01,.97)},
+  ];
+  this.activeZone=this.zones[0].id;
+  this.localAir=new UniformBlock('MuseumForestAir',{center:['vec3f',this.zones[0].center.clone()],radius:['vec3f',this.zones[0].radius.clone()],sigma:['f32',this.zones[0].sigma],enabled:['f32',1],tint:['vec3f',this.zones[0].tint.clone()]},{label:'world-fixed regional local atmosphere'});
   this.localModule=new ShaderModule({name:'museumForestAir',uniforms:this.localAir,uniformName:'forestAir',code:`
 fn groveAirErf(x:f32)->f32{
  let a=abs(x);let t=1.0/(1.0+.3275911*a);
@@ -56,12 +65,13 @@ fn groveAirInScatter(cam:vec3f,dir:vec3f,d:f32)->f32{
      let globalAll=clamp(sh.y*exactGlobal,0.0,exactTotal);let localAll=max(exactTotal-globalAll,0.0);
      let globalLit=sat(sh.x)*globalAll;let localLit=sat(sh.z)*localAll;
      let tauGlobal=(hazeLayerDepth(HZ_MARINE_SIGMA,HZ_MARINE_H,camH,dir.y,dist)+hazeLayerDepth(HZ_AEROSOL_SIGMA,HZ_AEROSOL_H,camH,dir.y,dist))*hazeParams.density;
+     let localFog=fog*forestAir.tint;let localEp=Ep*forestAir.tint;
      var physical=c.rgb*exp(-tauGlobal-tauLocal)+fog*globalAll*(1.0-fSun*(1.0-h));
-     physical+=Ep*(globalLit*(1.0-h)+localLit)*hazeParams.shafts-fog*fSun*(globalAll-globalLit)*h;
-     physical+=fog*localAll*(1.0-fSun);
+     physical+=(Ep*globalLit*(1.0-h)+localEp*localLit)*hazeParams.shafts-fog*fSun*(globalAll-globalLit)*h;
+     physical+=localFog*localAll*(1.0-fSun);
      // The atmospheric sky already contains the global aerosol. Only the
      // new local volume gets an extra transmission / emission here.
-     if(sky){physical=c.rgb*exp(-tauLocal)-fog*fSun*(globalAll-globalLit)+fog*localAll*(1.0-fSun)+Ep*localLit*hazeParams.shafts;}
+     if(sky){physical=c.rgb*exp(-tauLocal)-fog*fSun*(globalAll-globalLit)+localFog*localAll*(1.0-fSun)+localEp*localLit*hazeParams.shafts;}
      out=mix(out,max(physical,vec3f(0.0)),smoothstep(1e-5,.001,tauLocal));
     }
    `);this._forestComposite=true;
@@ -78,7 +88,6 @@ fn fragment(in:FSIn)->vec4f{
   let jitter=fract(interleavedGradientNoise(in.pos.xy)+hazeParams.frame*.61803398875);
   let sigM=HZ_MARINE_SIGMA*hazeParams.density;let sigA=HZ_AEROSOL_SIGMA*hazeParams.density;
   var lit=0.0;var all=0.0;var localLit=0.0;var localAll=0.0;var tau=0.0;var tPrev=0.0;
-  let fwd=-vec3f(frame.view[0][2],frame.view[1][2],frame.view[2][2]);
   var sc0:array<vec4f,4>;var scd:array<vec4f,4>;
   for(var c=0;c<i32(shadowParams.count);c++){sc0[c]=shadowParams.matrices[c]*vec4f(cam,1.0);scd[c]=shadowParams.matrices[c]*vec4f(R.dir,0.0);}
   for(var i=0;i<16;i++){
@@ -86,8 +95,38 @@ fn fragment(in:FSIn)->vec4f{
    let h=max(P.y-frame.seaLevel,0.0);let sig=exp(h/-HZ_MARINE_H)*sigM+exp(h/-HZ_AEROSOL_H)*sigA;
    tau+=sig*(t-tPrev);tPrev=t;let Tr=exp(-tau-groveAirTau(cam,R.dir,t));let w=sig*Tr*dt;
    var v=1.0;
-   if(shadowParams.enabled>.5){let c=shadowCascadeOf(dot(P-frame.cameraPos,fwd));if(c>=0){let sc=sc0[c]+scd[c]*t;let uv=vec2f(sc.x*.5+.5,.5-sc.y*.5);if(!(any(uv<=vec2f(0.0))||any(uv>=vec2f(1.0))||sc.z>1.0)){v=select(0.0,1.0,sc.z-2e-5<=_shadowDepth(uv,c));}}}
-   lit+=w*hazeVisibilityRest(P,v);all+=w;
+   if(shadowParams.enabled>.5){
+    let d=length(P-frame.cameraPos);
+    let last=i32(shadowParams.count)-1;
+    for(var c=0;c<=last;c++){
+     let b=shadowParams.blend[c];
+     let center=(b.x+b.y)*.5;
+     let margin=max(select(b.w,b.z,d<center),1e-5);
+     let csmX=b.x-margin*.5;
+     let csmY=select(b.y+margin*.5,b.y,c==last);
+     if(d>=csmX&&d<=csmY){
+      var ratio=clamp(min(d-csmX,csmY-d)/margin,0.0,1.0);
+      if(c==0&&d<=center){ratio=1.0;}
+      let sc=sc0[c]+scd[c]*t;let uv=vec2f(sc.x*.5+.5,.5-sc.y*.5);
+      if(!(any(uv<=vec2f(0.0))||any(uv>=vec2f(1.0))||sc.z>1.0)){
+       let cv=select(0.0,1.0,sc.z-2e-5<=_shadowDepth(uv,c));
+       v-=(1.0-cv)*ratio;
+      }
+     }
+    }
+    v=max(v,0.0);
+   }
+   if(v>0.0){
+#if HZ_TERRAIN
+    v*=terrainSunShadowAt(P);
+#endif
+#if HZ_CLOUDS
+    let L=frame.sunDir;
+    let g=P.xz-L.xz*(max(P.y,0.0)/max(L.y,.08));
+    v*=cloudsShadow(g);
+#endif
+   }
+   lit+=w*v;all+=w;
   }
   let seg=groveAirSegment(cam,R.dir,tMax);let step=(seg.y-seg.x)/8.0;
   if(step>.001){for(var i=0;i<8;i++){
@@ -118,8 +157,31 @@ fn fragment(in:FSIn)->vec4f{
 }
 `}));
  }
+ updateRegion(camera,timeOfDay=9.4){
+  if(!this.zones?.length)return;
+  const p=camera.position;
+  let best=this.zones[0],bestD2=Infinity;
+  for(const z of this.zones){
+   const dx=(p.x-z.center.x)/z.radius.x,dy=(p.y-z.center.y)/(z.radius.y*2.5),dz=(p.z-z.center.z)/z.radius.z;
+   const d2=dx*dx+dy*dy+dz*dz;
+   if(d2<bestD2){bestD2=d2;best=z;}
+  }
+  const f=this.localAir.fields;
+  if(this.activeZone!==best.id){
+   this.activeZone=best.id;
+   f.center.value.copy(best.center);
+   f.radius.value.copy(best.radius);
+   f.tint.value.copy(best.tint);
+   this._histValid=false;
+  }
+  let timeFactor=1;
+  if(best.id==='wetland')timeFactor=timeOfDay<10?1.18:timeOfDay>15.5?1.08:.72;
+  else if(best.id==='dry-upland')timeFactor=timeOfDay>14.5?1.15:.85;
+  else if(best.id==='sample-creek')timeFactor=timeOfDay<10.5?1.12:.75;
+  f.sigma.value=best.sigma*timeFactor;
+ }
  setLocalEnabled(on){this.localAir.fields.enabled.value=on?1:0;this._histValid=false;}
- stats(){return {enabled:this.localAir.fields.enabled.value,center:this.localAir.fields.center.value.toArray(),radius:this.localAir.fields.radius.value.toArray(),sigma:this.localAir.fields.sigma.value,pass:'native haze march + temporal + depth-aware composite; no additional per-frame pass',steps:{global:16,local:8},normalization:'same analytic Gaussian in extinction, march transmittance and exact in-scatter',history:this._histValid};}
+ stats(){return {enabled:this.localAir.fields.enabled.value,activeZone:this.activeZone,center:this.localAir.fields.center.value.toArray(),radius:this.localAir.fields.radius.value.toArray(),sigma:this.localAir.fields.sigma.value,tint:this.localAir.fields.tint.value.toArray(),pass:'native haze march + temporal + depth-aware composite; single active regional ellipsoid, no additional per-frame pass',steps:{global:16,local:8},normalization:'same analytic Gaussian in extinction, march transmittance and exact in-scatter',history:this._histValid};}
 }
 
 export class ForestMotes extends AirMotes{

@@ -6,7 +6,7 @@ import {landContextAt, protectedSampleLand} from './LandHabitatField.js';
 
 export const LAND_CELL = 48;
 const RADIUS = 2;
-const GROUPS = 7, MEMBERS = 7;
+const GROUPS = 11, MEMBERS = 9;
 const PER_CELL = GROUPS * MEMBERS;
 const CELLS = (2*RADIUS + 1)**2;
 export const LAND_CAPACITY = CELLS * PER_CELL;
@@ -15,8 +15,8 @@ export const LAND_CAPACITY = CELLS * PER_CELL;
 // its margins. Gravel can share a bank with rushes, but does not grow in rows.
 const recipes = {
   meadow: [['tussock','heath','tussock'], ['heath','tussock','cobble']],
-  woodland: [['fern','duff','fern'], ['duff','fern','cobble']],
-  'wet-bank': [['rush','duff','rush'], ['fern','rush','duff']],
+  woodland: [['fern','duff','moss-hummock'], ['duff','moss-hummock','fern']],
+  'wet-bank': [['rush','duff','cobble'], ['fern','rush','cobble']],
   'dry-slope': [['heath','scree','tussock'], ['scree','heath','cobble']],
   upland: [['scree','talus','heath'], ['heath','tussock','scree']],
   shore: [['cobble','scree','cobble'], ['scree','cobble','heath']],
@@ -29,10 +29,10 @@ export function* landCellColonies(data, ix, iz) {
     const x = (ix + rng()) * LAND_CELL, z = (iz + rng()) * LAND_CELL;
     const home = landContextAt(data,x,z);
     const sites = [];
-    if (home && rng() < .36 + home.patchStrength*.72) {
+    if (home && rng() < .52 + home.patchStrength*.60) {
       const rocky = home.rock > .52 || home.slope > .39;
-      const recipe = recipes[home.biome][Number(rng() < (rocky ? .78 : .32))];
-      const amount = Math.min(MEMBERS, 2 + Math.floor(home.patchStrength*3 + rng()*3));
+      const recipe = recipes[home.biome][Number(rng() < (rocky ? .78 : .35))];
+      const amount = Math.min(MEMBERS, 3 + Math.floor(home.patchStrength*3.5 + rng()*3.5));
       // Align slope deposits roughly along contour, disturb the alignment on flats.
       const angle = home.slope > .13 ? Math.atan2(home.gx, -home.gz) + (rng()-.5)*.9 : rng()*Math.PI*2;
       const ca = Math.cos(angle), sa = Math.sin(angle);
@@ -63,9 +63,12 @@ export function* landCellColonies(data, ix, iz) {
       }
     }
     for (const site of sites) {
-      if (site.region === 'roaming-woodland' && site.form === 'duff' && site.seed < .79) {
-        site.form = 'needle-litter'; site.mode = -1;
-        site.scale = Math.max(.94,site.scale);
+      if (site.region === 'roaming-woodland' && site.form === 'duff' && site.seed < .82) {
+        site.form = site.seed < .56 ? 'needle-litter' : 'moss-hummock'; site.mode = -1;
+        site.scale = Math.max(.96,site.scale);
+      } else if (site.form === 'moss-hummock') {
+        site.mode = -1;
+        site.scale = Math.max(.85, site.scale);
       }
     }
     existing.push(...sites);

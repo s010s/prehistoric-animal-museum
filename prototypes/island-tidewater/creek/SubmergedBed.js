@@ -13,6 +13,7 @@ import {marineBedExclusions, nearMarineBed, planMarineBedCell} from './MarineBen
 import {freshwaterRibbons} from './FreshwaterRibbons.js';
 import {marineOutcropKinds} from './MarineOutcrops.js';
 import {BED_CELL, BED_RADIUS, BED_CELL_CAPACITY, planFreshwaterBedCell} from './FreshwaterBedPlan.js';
+import {setRefractionFrustum} from './RefractionFrustum.js';
 
 const REACH = 26;
 const WINDOW_CELLS = (BED_RADIUS * 2 + 1) ** 2;
@@ -49,8 +50,8 @@ function buildKinds() {
       else if (id === 'seagrass') geometry = islandEcologyGeometry('seagrass', lod, 5652);
       else if (id === 'limb') geometry = sunkenLimb();
       else geometry = islandEcologyGeometry(form, lod, 81914 + i * 17);
-      if (id === 'ledge') geometry.scale(1.64, .68, .71);
-      if (id === 'pebble') geometry.scale(.85, .80, 1.15);
+      if (id === 'ledge') { geometry.scale(1.18, .24, .48); geometry.translate(0, -.025, 0); }
+      if (id === 'pebble') geometry.scale(.85, .80, .98);
       kinds.push({geometry});
     }
   }
@@ -86,12 +87,21 @@ export class SubmergedBed {
  let rockGrad=terrainImplicitGrad(in.P);
  let footprint=max(length(rockGrad.dpdx),length(rockGrad.dpdy));
  let mineral=in.vs.vBedMineral;
+ if(mineral>.5&&!in.front){discard;}
  var relief=0.0;
+ var bedNormalBlend=vec4f(0.0);
  if(mineral>.5){
    if(mineral<1.5){
+     let bedRise=in.P.y-terrainHeightAt(in.P.xz);
+     if(bedRise<.008){discard;}
      let sediment=textureSampleGrad(terrainDetailTex,smpAniso4Repeat,uvBed/.52,gradX/.52,gradY/.52);
-     s.albedo*=mix(.74,1.22,sediment.w);
-     s.roughness=.93;
+     let bedContact=1.0-smoothstep(.008,.15,bedRise);
+     let wetStone=s.albedo*mix(.40,.58,sediment.w);
+     let bankSand=mix(vec3f(.095,.092,.072),vec3f(.155,.148,.112),sediment.y*.5+sediment.w*.5);
+     s.albedo=mix(wetStone,bankSand,bedContact*.94);
+     s.ao=mix(s.ao*.82,.84,bedContact*.94);
+     s.roughness=mix(.92,.88,bedContact);
+     bedNormalBlend=vec4f(terrainNormalAt(in.P.xz),bedContact*.95);
    }else{
      let p=in.vs.vBedLocal;
      let bedding=textureSampleLevel(bedGrowthNoise,smpLinearRepeat,in.P*.17,0.0);
@@ -133,7 +143,8 @@ export class SubmergedBed {
  }
  // Derivatives must be taken in uniform flow. Fade subpixel relief as the
  // swimmer moves away to avoid sparkle on distant rocks and colonies.
- s.normal=terrainPerturbNormal(in.P,in.N,relief,1.0);`;
+ s.normal=terrainPerturbNormal(in.P,in.N,relief,1.0);
+ if(bedNormalBlend.w>0.0){s.normal=normalize(mix(s.normal,bedNormalBlend.xyz,bedNormalBlend.w));}`;
     this.mesh = this.batch.createMesh(this.material);
     this.mesh.visible = false;
     app.scene.add(this.mesh);
@@ -294,8 +305,7 @@ export class SubmergedBed {
     const candidates = this.candidates;
     candidates.length = 0;
     camera.updateMatrixWorld();
-    this.matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-    this.frustum.setFromProjectionMatrix(this.matrix, camera.coordinateSystem, camera.reversedDepth);
+    setRefractionFrustum(this.frustum, camera, this.matrix);
     for (let index = 0; index < this.sites.length; index++) {
       const s = this.sites[index];
       if (!s) continue;

@@ -7,7 +7,8 @@ import {Vector3} from '../vendor/tidewater/src/engine/index.js';
 import {coastalAlong,coastalExposure,coastalWaveAmplitude,coastalWaveWobble} from './CoastalWaveClimate.js';
 import {marineShoreFor} from './MarineShore.js';
 
-const allowed=new Set(['surf_far','surf_crash','surf_wash','surf_backwash','under_reef','bird_forest','bird_dove','birds_dawn','gull','tern','wind','crickets','pier_lap']);
+const allowed=new Set(['surf_far','surf_crash','surf_wash','surf_backwash','under_reef','bird_forest','bird_dove','birds_dawn','gull','tern','wind','crickets','pier_lap','step_sand','step_wetsand','step_wood','step_water','step_grass','step_rock','splash','swim','uw_swim','submerge','emerge']);
+const STEP_BANKS={sand:['step_sand',0],wetsand:['step_wetsand',0],wood:['step_wood',2],water:['step_water',2],grass:['step_grass',2],rock:['step_rock',1]};
 const surfVoices = {
  crash: {bank:'surf_crash', target:MIX.crash, range:150, ref:10, rolloff:.65},
  wash: {bank:'surf_wash', target:MIX.wash, range:70, ref:5, rolloff:.8},
@@ -24,10 +25,96 @@ export class MuseumSeaSound extends SoundScape {
   this.coastline=shelf.segments;this.marineShore=marineShoreFor(terrain,shelf,seaLevel);
   this.surfProbeIn=0;
   this.surfExposure=0;this.surfEvents=[];this.surfCounts={crash:0,wash:0,back:0};
-  this.forward=new Vector3();this.up=new Vector3();this.birdEvents=[];this.birdPeakRMS=0;this.flock=[];
+  this.forward=new Vector3();this.up=new Vector3();this.birdEvents=[];this.birdPeakRMS=0;this.flock=[];this.movementCounts={step:0,splash:0,swim:0,submerge:0,emerge:0};this.movementEvents=[];this.faunaAudioCounts={step:0,breath:0};
   try{this.savedChoice=localStorage.getItem('museum-natural-sound')??'off';}catch{this.savedChoice='off';}
  }
  _field(x,z,out){return this._shore.field.sampleRawAt?this._shore.field.sampleRawAt(x,z,out):super._field(x,z,out);}
+ _recordMovement(kind,detail){
+  this.movementCounts[kind]=(this.movementCounts[kind]??0)+1;
+  this.movementEvents.push({time:this.ctx?.currentTime??0,kind,...detail});
+  if(this.movementEvents.length>40)this.movementEvents.shift();
+ }
+ footstep(surface){
+  if(!this.enabled||!this.choice||this.paused)return;
+  const [bank,trim]=STEP_BANKS[surface]??STEP_BANKS.sand;
+  const target=MIX.step+11+trim+(Math.random()-.5)*2.5;
+  if(this._shot(bank,'step',this.foot,target,.93+Math.random()*.14))this._recordMovement('step',{surface,bank,targetLufs:target});
+ }
+ splash(strength){
+  if(!this.enabled||!this.choice||this.paused)return;
+  super.splash(strength);
+  this._recordMovement('splash',{strength});
+ }
+ swimStroke(){
+  if(!this.enabled||!this.choice||this.paused)return;
+  super.swimStroke();
+  this._recordMovement('swim',{underwater:this.env.u>.5});
+ }
+ submerge(){
+  if(!this.enabled||!this.choice||this.paused)return;
+  super.submerge();
+  this._recordMovement('submerge',{});
+ }
+ emerge(){
+  if(!this.enabled||!this.choice||this.paused)return;
+  super.emerge();
+  this._recordMovement('emerge',{});
+ }
+ _noiseBuffer(){
+  if(this._faunaNoise||!this.ctx)return this._faunaNoise;
+  const sr=this.ctx.sampleRate,len=Math.round(sr*1.2),buf=this.ctx.createBuffer(1,len,sr),ch=buf.getChannelData(0);
+  for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
+  return (this._faunaNoise=buf);
+ }
+ faunaFootstep(x,y,z,length=8){
+  if(!this.enabled||!this.choice||this.paused||!this.ctx||!this.above)return;
+  const ly=y-this.seaLevel,dist=Math.hypot(x-this.env.lx,ly-this.env.ly,z-this.env.lz);
+  if(dist>54)return;
+  const c=this.ctx,t=c.currentTime+.005,mass=Math.max(0,Math.min(1,(length-4)/18));
+  const pan=this._panner(this.above,5.5,1.25);
+  pan.positionX.value=x;pan.positionY.value=ly;pan.positionZ.value=z;
+  const osc=c.createOscillator(),g=c.createGain(),lp=c.createBiquadFilter();
+  osc.type='sine';
+  const f0=78-mass*24,f1=36-mass*10;
+  osc.frequency.setValueAtTime(f0,t);
+  osc.frequency.exponentialRampToValueAtTime(f1,t+.15);
+  lp.type='lowpass';lp.frequency.value=135-mass*30;
+  const peak=.055+.065*mass;
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.linearRampToValueAtTime(peak,t+.014);
+  g.gain.exponentialRampToValueAtTime(.0001,t+.22);
+  osc.connect(lp).connect(g).connect(pan);
+  osc.start(t);osc.stop(t+.24);
+  const src=c.createBufferSource(),ng=c.createGain(),nlp=c.createBiquadFilter();
+  src.buffer=this._noiseBuffer();
+  nlp.type='lowpass';nlp.frequency.value=220;
+  ng.gain.setValueAtTime(.0001,t);
+  ng.gain.linearRampToValueAtTime(peak*.32,t+.012);
+  ng.gain.exponentialRampToValueAtTime(.0001,t+.14);
+  src.connect(nlp).connect(ng).connect(pan);
+  src.start(t,Math.random()*.5,.16);
+  osc.onended=()=>{g.disconnect();lp.disconnect();ng.disconnect();nlp.disconnect();pan.disconnect();};
+  this.faunaAudioCounts.step++;
+ }
+ faunaBreath(x,y,z,length=8){
+  if(!this.enabled||!this.choice||this.paused||!this.ctx||!this.above)return;
+  const ly=y-this.seaLevel,dist=Math.hypot(x-this.env.lx,ly-this.env.ly,z-this.env.lz);
+  if(dist>28)return;
+  const c=this.ctx,t=c.currentTime+.01,mass=Math.max(0,Math.min(1,(length-6)/16));
+  const pan=this._panner(this.above,4.0,1.3);
+  pan.positionX.value=x;pan.positionY.value=ly;pan.positionZ.value=z;
+  const src=c.createBufferSource(),bp=c.createBiquadFilter(),g=c.createGain();
+  src.buffer=this._noiseBuffer();
+  bp.type='bandpass';bp.frequency.value=320-mass*110;bp.Q.value=2.4;
+  const dur=.95+mass*.35,peak=.022+.016*mass;
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.linearRampToValueAtTime(peak,t+dur*.32);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  src.connect(bp).connect(g).connect(pan);
+  src.start(t,Math.random()*.15,dur+.05);
+  src.onended=()=>{bp.disconnect();g.disconnect();pan.disconnect();};
+  this.faunaAudioCounts.breath++;
+ }
  _want(name){return allowed.has(name)?super._want(name):null;}
  setIslandAmbience(plan){this.ambiencePlan=plan;this.freshwaterSound=new IslandFreshwaterSound(plan,this.seaLevel);}
  _bed(name,gain,now,tau,rate){
@@ -193,7 +280,7 @@ export class MuseumSeaSound extends SoundScape {
  _syncContext(){this._contextWork=(this._contextWork??Promise.resolve()).catch(e=>this._warn(e)).then(async()=>{if(!this.ctx)return;const run=this.choice&&!this.paused;if(run&&this.ctx.state!=='running')await this.ctx.resume();else if(!run&&this.ctx.state==='running')await this.ctx.suspend();}).finally(()=>this.onStateChange?.());return this._contextWork;}
  async toggle(){
   const recover=this.choice&&!this.paused&&!this.enabled;this.choice=recover||!this.choice;
-  if(this.choice){this.paused=false;const ok=await super.resume();if(!ok&&this.ctx?.state!=='interrupted'){this.choice=false;this._warn('Audio output unavailable');}else{this._birdT=0;this._gullT=.5;this._ternT=2;for(const bank of ['bird_forest','bird_dove','gull','tern'])this._want(bank);}}
+  if(this.choice){this.paused=false;const ok=await super.resume();if(!ok&&this.ctx?.state!=='interrupted'){this.choice=false;this._warn('Audio output unavailable');}else{this._birdT=0;this._gullT=.5;this._ternT=2;for(const bank of ['bird_forest','bird_dove','gull','tern','step_rock','uw_swim','submerge','emerge'])this._want(bank);}}
   if(this.choice&&this.sample&&!this.streamSource)await this.startSampleStream().catch(e=>this._warn(e));
   await this._syncContext();try{this.savedChoice=this.choice?'on':'off';localStorage.setItem('museum-natural-sound',this.savedChoice);}catch{}this.onStateChange?.();return this.choice;
  }
@@ -249,7 +336,7 @@ export class MuseumSeaSound extends SoundScape {
   const surfIntensity=Math.min(1,shore.amplitude.value*shore.enabled.value/.6);
   super.update(dt,{listener:{position:{x:p.x,y:p.y-this.seaLevel,z:p.z},forward:this.forward,up:this.up},underwater:u,depthBelowSurface:depth,distanceToShore:this._distance,coastDistance:(this.regionalSound.sample?this.terrain.heightAt(p.x,p.z)>this.seaLevel:!this.regionalSound.ocean)?-this._distance:this._distance,windSpeed:this.regionalSound.wind,surfIntensity,timeOfDay});
  }
- stats(){let rms=0,birdRMS=0;if(this.analyser&&this.enabled){this.analyser.getFloatTimeDomainData(this.waveform);rms=Math.sqrt(this.waveform.reduce((a,x)=>a+x*x,0)/this.waveform.length);this.peakRMS=Math.max(this.peakRMS,rms);this.birdAnalyser.getFloatTimeDomainData(this.birdWaveform);birdRMS=Math.sqrt(this.birdWaveform.reduce((a,x)=>a+x*x,0)/this.birdWaveform.length);this.birdPeakRMS=Math.max(this.birdPeakRMS,birdRMS);}return {regional:{...this.regionalSound,freshwater:this.freshwaterSound?.stats()??[]},stream:{...this.streamState,distance:this.streamDistance??null,envelope:this.streamEnvelope??0,currentGain:this.streamGain?.gain.value??0},requested:this.choice,context:this.ctx?.state??'not-created',paused:this.paused,savedChoice:this.savedChoice,unlock:'explicit sound-button gesture; cold load is silent, never restores sound without a gesture',volume:this.volume,decoded:[...this._buffers.keys()],shoreDistance:this._distance,stations:this._stations?.length??0,surf:{exposure:this.surfExposure,counts:{...this.surfCounts},events:this.surfEvents.slice(-24)},underwater:this.env.u,lowpassHz:this.muffle?.[0].frequency.value??null,outputRMS:rms,peakRMS:this.peakRMS,birdChannelRMS:birdRMS,birdChannelPeakRMS:this.birdPeakRMS,birdMeter:'post-HRTF/distance, before water filtering and master; total output measured post-limiter',birdEvents:this.birdEvents.slice(-24),voices:Object.fromEntries(Object.entries(this._voices).map(([k,v])=>[k,v.length])),failures:this.failures,source:'Tidewater CC0 audio/CREDITS.md',birdPerches:'actual nearest museum tree positions; modern shore-call analogues use the active, world-fixed Ichthyornis poses',singers:this._singers.map(s=>({x:s.x,y:s.y+this.seaLevel,z:s.z,bank:s.bank})),phase:'native ShoreWaves timing; positioned forest phrases and time-aware chorus'};}
+ stats(){let rms=0,birdRMS=0;if(this.analyser&&this.enabled){this.analyser.getFloatTimeDomainData(this.waveform);rms=Math.sqrt(this.waveform.reduce((a,x)=>a+x*x,0)/this.waveform.length);this.peakRMS=Math.max(this.peakRMS,rms);this.birdAnalyser.getFloatTimeDomainData(this.birdWaveform);birdRMS=Math.sqrt(this.birdWaveform.reduce((a,x)=>a+x*x,0)/this.birdWaveform.length);this.birdPeakRMS=Math.max(this.birdPeakRMS,birdRMS);}return {regional:{...this.regionalSound,freshwater:this.freshwaterSound?.stats()??[]},stream:{...this.streamState,distance:this.streamDistance??null,envelope:this.streamEnvelope??0,currentGain:this.streamGain?.gain.value??0},requested:this.choice,context:this.ctx?.state??'not-created',paused:this.paused,savedChoice:this.savedChoice,unlock:'explicit sound-button gesture; cold load is silent, never restores sound without a gesture',volume:this.volume,decoded:[...this._buffers.keys()],shoreDistance:this._distance,stations:this._stations?.length??0,surf:{exposure:this.surfExposure,counts:{...this.surfCounts},events:this.surfEvents.slice(-24)},movement:{counts:{...this.movementCounts},events:this.movementEvents.slice(-16)},faunaAudio:{...this.faunaAudioCounts},underwater:this.env.u,lowpassHz:this.muffle?.[0].frequency.value??null,outputRMS:rms,peakRMS:this.peakRMS,birdChannelRMS:birdRMS,birdChannelPeakRMS:this.birdPeakRMS,birdMeter:'post-HRTF/distance, before water filtering and master; total output measured post-limiter',birdEvents:this.birdEvents.slice(-24),voices:Object.fromEntries(Object.entries(this._voices).map(([k,v])=>[k,v.length])),failures:this.failures,source:'Tidewater CC0 audio/CREDITS.md',birdPerches:'actual nearest museum tree positions; modern shore-call analogues use the active, world-fixed Ichthyornis poses',singers:this._singers.map(s=>({x:s.x,y:s.y+this.seaLevel,z:s.z,bank:s.bank})),phase:'native ShoreWaves timing; positioned forest phrases and time-aware chorus'};}
  async record(seconds=20,scope='mix'){
   if(!this.enabled||!this.choice||this.paused)throw Error('请先开启自然声并继续观察');
   const mimeType=['audio/webm;codecs=opus','audio/webm'].find(t=>MediaRecorder.isTypeSupported(t));if(!mimeType)throw Error('浏览器不支持本地声音记录');

@@ -57,12 +57,12 @@ export function createIslandVisits(data){
  const t=data.terrain,field=data.field;
  const dryNear=(x,z,level,radius=100)=>findDryBank(data,x,z,level,radius);
  const visits={};
- visits['main-estuary-overlook']={id:'main-estuary-overlook',title:'主河入海口',note:'从潮口上方观察两岸、潮沟和近海砂洲。',p:[-560,230,3650],gaze:[-515,-1,3650],fly:true,time:12.6};
+ visits['main-estuary-overlook']={id:'main-estuary-overlook',title:'主河入海口',note:'从潮口上方观察两岸、潮沟和近海砂洲。',p:[-560,230,3650],gaze:[-515,-1,3650],fly:true,time:15.6};
  const entrance=data.geography.landmarks?.find(place=>place.id==='entrance');
  if(entrance){
   const [x,z]=entrance.p, [tx,,tz]=entrance.gaze;
   // Keep the spring trail's heading while looking ahead from standing eye height.
-  visits.entrance={...entrance,time:12.6,gaze:[x+4*(tx-x),t.heightAt(x,z)+1.15,z+4*(tz-z)]};
+  visits.entrance={...entrance,time:9.4,gaze:[x+4*(tx-x),t.heightAt(x,z)+1.15,z+4*(tz-z)]};
  }
  visits['review-cove-safe']={id:'review-cove-safe',title:'浅湾与海底石脊',note:'从海上俯视浅湾与岸肩，沿岸平移检查水色、床面和落石的连续性。',p:[-980,65,100],gaze:[-890,-2,-20],fly:true,time:10.7};
  visits['review-cove-boundary']={id:'review-cove-boundary',title:'浅湾波场接续',note:'沿岸平移检查局部精细传播场与整岛波场的连续接续。',p:[-1000,100,330],gaze:[-830,-1,330],fly:true,time:10.7};
@@ -86,7 +86,7 @@ export function createIslandVisits(data){
  visits['review-source-bed']={id:'review-source-bed',title:'源头溪床对照',note:'从空中沿浅池缓慢平移，检查溪床纹理、缓滩和连续水线。',p:[260,216,-3282],gaze:[255,207,-3310],fly:true,time:12.6};
  const eastSource=field.tributarySource.origin;
  visits['east-source']={id:'east-source',title:'东部坡脚泉',note:'岩隙细流沿坡脚汇入浅池，碎石与节状挺水植物依水深分布。沿支流可以走向南部湿地。',p:[eastSource.x+6,eastSource.z+26],gaze:[eastSource.x,eastSource.level+1.6,eastSource.z],time:14.2};
- const sc=data.island.source.center;visits['north-source']={id:'north-source',title:'北部岩隙源头',note:'泉水从岩隙中流出，汇入山脚浅池，再沿主河道降向大海。',p:[sc[0]+6,sc[1]-9],gaze:[sc[0]-2,210.6,sc[1]-18],time:12.6};
+ const sc=data.island.source.center;visits['north-source']={id:'north-source',title:'北部岩隙源头',note:'泉水从岩隙中流出，汇入山脚浅池，再沿主河道降向大海。',p:[sc[0]+6,sc[1]-9],gaze:[sc[0]-2,210.6,sc[1]-18],time:9.2};
  visits['giant-forest']={id:'giant-forest',title:'古杉巨木林',note:'沿林隙进入连片巨木林。粗干、幼树、蕨丛、枯立木与倒木组成不同层次；更高的地标木藏在林心。这是一处古森林生态类比展区。',p:[1360,-2090],gaze:[1410,t.heightAt(1410,-2120)+27,-2120],time:9.2};
  visits['giant-root']={id:'giant-root',title:'巨木根盘',note:'走近粗干，再抬头看高处的枝冠。根盘两侧保留通行空间。',p:[1382,-2116],gaze:[1390,t.heightAt(1390,-2116)+3.8,-2116],time:9.2};
  visits['giant-glade']={id:'giant-glade',title:'林隙晨光',note:'晨光经过上层枝冠，在湿润林隙中留下明暗层次。空气微尘随光线与风移动；不同朝向看到的亮度不同。',p:[1407,-2092],gaze:[1444,t.heightAt(1407,-2092)+19,-2087],time:7.8};

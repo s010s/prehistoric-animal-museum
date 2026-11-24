@@ -23,10 +23,19 @@ export function museumMaterialOptions({ gltfMaterial: gm, textures, nativeNormal
     color: new Color(...color.slice(0, 3)),
     // Museum skin has always been nonmetallic (see original encounter.js).
     metalness: 0,
-    surface: `s.specularIntensity *= ${Number(specular).toFixed(8)};
+    surface: `s.specularIntensity *= ${Number(specular * .45).toFixed(8)};
+s.roughness = mix(0.76, 0.92, clamp(s.roughness, 0.0, 1.0));
 ${gm.occlusionTexture && textures.orm && gm.occlusionTexture.index === pbr.metallicRoughnessTexture?.index ? `s.ao *= mix(1.0, orm.r, ${Number(.6 * (gm.occlusionTexture.strength ?? 1)).toFixed(8)});` : ''}
 ${textures.normal && (!nativeNormalIncluded || normalScale !== 1) ? `let museumN = textureSample(chNormal, smpAnisoRepeat, in.uv).xyz * 2.0 - 1.0;
-s.normal = perturbNormalByMap(in.P, in.N, in.uv, vec3f(museumN.xy * ${Number(normalScale).toFixed(8)}, museumN.z));` : ''}`,
+s.normal = perturbNormalByMap(in.P, in.N, in.uv, vec3f(museumN.xy * ${Number(normalScale).toFixed(8)}, museumN.z));` : ''}
+#if MUSEUM_ANKLE_GROUND
+let groundClear = max(in.P.y - terrainHeightAt(in.P.xz), 0.0);
+let ankleDust = 1.0 - smoothstep(0.02, 0.62, groundClear);
+let contactAO = 1.0 - smoothstep(0.0, 0.24, groundClear);
+s.albedo = mix(s.albedo, mix(s.albedo * 0.72, vec3f(0.18, 0.16, 0.115), 0.42), ankleDust * 0.46);
+s.ao *= 1.0 - contactAO * 0.44;
+s.roughness = mix(s.roughness, 0.95, ankleDust * 0.55);
+#endif`,
   };
 }
 

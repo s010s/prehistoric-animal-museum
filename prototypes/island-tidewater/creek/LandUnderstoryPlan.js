@@ -14,13 +14,32 @@ const COMMUNITIES = {
   savanna: [cover('heath', 12, .54, .98), cover('tussock', 17, .66, 1.19)],
   dry: [cover('cycad', 3, .58, .91), cover('scree', 16, .46, 1.64), cover('heath', 9, .42, .86)],
   conifer: [cover('onoclea', 7, .59, .95), cover('duff', 13, .62, 1.3), cover('scree', 7, .32, .93)],
+  'giant-floor': [
+    cover('needle-litter', 26, 1.05, 1.95),
+    cover('moss-hummock', 18, .92, 1.85),
+    cover('fallen-branch', 10, .95, 1.65),
+    cover('split-bough', 6, .85, 1.35),
+    cover('fern', 14, .75, 1.35),
+    cover('onoclea', 6, .58, .95),
+    cover('duff', 10, .68, 1.35),
+  ],
+  'meadow-scale': [
+    cover('cycad', 8, .95, 1.85),
+    cover('heath', 16, .85, 1.65),
+    cover('tussock', 18, .72, 1.32),
+    cover('scree', 9, .55, 1.45),
+    cover('cobble', 10, .35, .85),
+  ],
   tundra: [cover('talus', 11, .35, .88), cover('scree', 9, .32, .94), cover('heath', 6, .27, .45), cover('tussock', 9, .46, .84)],
 };
 const DISTRICTS = [
   ['fauna-maiasaura', 'meadow'], ['fauna-ankylosaurus', 'meadow'], ['fauna-phorusrhacos', 'savanna'],
   ['fauna-gallimimus', 'conifer'], ['fauna-carnotaurus', 'dry'], ['fauna-mammoth', 'tundra'],
   ['fauna-baryonyx', 'floodplain'], ['fauna-spinosaurus', 'marsh'], ['grassland', 'meadow-edge'],
-  ['dry-upland', 'dry'], ['alluvial-bend', 'floodplain'], ['wetland-runnels', 'marsh'],
+  ['dry-upland', 'dry'], ['dry-escarpment', 'dry'], ['alluvial-bend', 'floodplain'],
+  ['wetland-runnels', 'marsh'], ['wetland', 'marsh'],
+  ['giant-glade', 'giant-floor'], ['giant-heart', 'giant-floor'], ['giant-forest', 'giant-floor'],
+  ['fauna-apatosaurus', 'meadow-scale'], ['fauna-triceratops', 'meadow-scale'], ['fauna-tyrannosaurus-rex', 'meadow-scale'],
 ];
 
 function animalTrack(actor) {
@@ -105,11 +124,12 @@ export function planLandUnderstory(data, app, plantSpecs) {
         const radius = scale * (form === 'cycad' ? 1.2 : form === 'onoclea' || form === 'scree' || form === 'talus' ? .75 : .45);
         if (!free(x, z, radius)) continue;
         const g = islandGroundAt(data, x, z);
-        if (g.height < .09 || g.trail > .55 || g.slope > (form === 'scree' || form === 'talus' ? .75 : .53)) continue;
+        const floorForm = form === 'needle-litter' || form === 'moss-hummock' || form === 'fallen-branch' || form === 'split-bough';
+        if (g.height < .09 || g.trail > (floorForm ? .72 : .55) || g.slope > (form === 'scree' || form === 'talus' ? .75 : .53)) continue;
         if (form === 'rush' && !(g.fresh && g.height < 2.3)) continue;
         if ((form === 'cycad' || form === 'onoclea') && g.rock > .77) continue;
         const site = {region:id, x, z, y:g.y - .018, scale, seed:rng(), yaw:rng() * TAU,
-          mode:0, depth:-g.height, flow:g.flow};
+          mode:floorForm ? -1 : 0, depth:-g.height, flow:g.flow};
         if (atlasKind >= 0) {
           const p = plantSpecs[atlasKind];
           plants.push({...site, id:form, kind:atlasKind, height:p.height * scale, ground:g.y, slope:g.slope,

@@ -149,6 +149,7 @@ async function createFlightBatch(kind, type, capacity, field, signal) {
    name:`Vault flying ${kind}`, vertexColors:true, side:type.kind==='insect'?'double':'front',
    roughness:.76, metalness:0, modules:[flightModule], textures:texture?{vaultFlightAlbedo:texture}:{},
    storage:{vaultFlightInstances:records.buffer}, attributes:{aWing:'vec4f',aFlightBody:'vec4f'},
+   varyings:type.kind==='insect'?{vWingMask:'f32'}:{},
    vertex:/* wgsl */`
     let center = ${F(0)}; let q=${F(1)}; let wings=${F(2)};
     let oldCenter = ${F(3)}; let oldQ=${F(4)}; let oldWings=${F(5)};
@@ -163,9 +164,11 @@ async function createFlightBatch(kind, type, capacity, field, signal) {
     v.worldPos=center.xyz+rotateQ(q,p*center.w);
     v.worldNormal=rotateQ(q,n);
     v.prevWorldPos=oldCenter.xyz+rotateQ(oldQ,previous*oldCenter.w);
+    ${type.kind==='insect'?'o.vWingMask = wing.x;':''}
    `,
    surface:`${texture?'s.albedo*=textureSample(vaultFlightAlbedo,smpAnisoRepeat,in.uv).rgb;':''}
-    s.specularIntensity=${type.kind==='bird'?'.15':'.24'};`,
+    s.specularIntensity=${type.kind==='bird'?'.15':'.28'};
+    ${type.kind==='insect'?'let wm=smoothstep(0.15,0.65,in.vs.vWingMask);s.roughness=mix(0.68,0.34,wm);s.translucency=vec3f(0.28,0.26,0.20)*wm;s.albedo=mix(s.albedo,max(s.albedo,vec3f(0.42,0.40,0.34)),wm*0.55);':''}`,
   });
   clipCreekRefraction(material,field);
   const mesh=instancedMesh(kind,levelGeometry,material,records);

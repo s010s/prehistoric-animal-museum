@@ -3,9 +3,10 @@ import {mulberry32} from '../vendor/tidewater/src/util/Noise.js';
 import {woodlandBranchScan} from './WoodlandBranchScan.js';
 
 export const WOODLAND_FLOOR_FORMS = {
-  'fallen-branch': {reach:32, flex:0, floorShadow:true},
-  'split-bough':   {reach:32, flex:0, floorShadow:true},
-  'needle-litter': {reach:23, flex:0, floorShadow:'far'},
+  'fallen-branch': {reach:34, flex:0, floorShadow:false},
+  'split-bough':   {reach:34, flex:0, floorShadow:false},
+  'needle-litter': {reach:32, flex:0, floorShadow:false},
+  'moss-hummock':  {reach:35, flex:0, floorShadow:false},
 };
 
 function linearByte(v) {
@@ -144,6 +145,55 @@ function woodyDebris(name, lod) {
       const tip=[p[0]+.20,p[1]-.018,p[2]+sign*reach];
       stem([p,mid,tip],[.019-i*.002,.012-i*.001,.004],lod?3:5,bark);
       if(!lod && i!==3)stem([mid,[mid[0]+.16,mid[1]-.012,mid[2]+sign*.08]],[.008,.002],4,bark);
+    }
+  } else if (name === 'moss-hummock') {
+    // Low earthy woodland moss & humus hummock with fallen needles/bark bits.
+    // Grounded via dark base vertex AO; casts no CSM shadows.
+    const moss = [colour(38, 49, 25), colour(52, 60, 31), colour(46, 42, 27), colour(58, 66, 35)];
+    const rings = lod ? 2 : 3, segs = lod ? 7 : 10;
+    const lobe = (r, a) => r * (1 + .25 * Math.cos(a * 2 + .4) + .16 * Math.sin(a * 3 - .7));
+    const mounds = [
+      [0, 0, .58, .12, 0],
+      [.34, .18, .36, .08, 1],
+      [-.28, .22, .31, .065, 2],
+    ];
+    for (const [cx, cz, rx, hy, mIdx] of mounds) {
+      if (lod && mIdx === 2) continue;
+      const top = vertex([cx, hy, cz], moss[3], .90);
+      const ringStarts = [];
+      for (let r = 1; r <= rings; r++) {
+        const t = r / rings;
+        const start = pos.length / 3;
+        ringStarts.push(start);
+        const y = hy * Math.cos(t * Math.PI * .52);
+        const ao = .38 + .50 * (1 - t * t);
+        for (let s = 0; s < segs; s++) {
+          const a = 2 * Math.PI * s / segs;
+          const rad = lobe(rx * t, a + mIdx * 1.1);
+          const shade = moss[(s + mIdx * 2 + r) % moss.length];
+          vertex([cx + Math.cos(a) * rad, Math.max(-.014, y + (random() - .5) * .022 * (1 - t * .5)), cz + Math.sin(a) * rad * .86], shade, ao);
+        }
+      }
+      for (let s = 0; s < segs; s++) {
+        const s1 = (s + 1) % segs;
+        indices.push(top, ringStarts[0] + s1, ringStarts[0] + s);
+      }
+      for (let r = 0; r < rings - 1; r++) {
+        const a0 = ringStarts[r], b0 = ringStarts[r + 1];
+        for (let s = 0; s < segs; s++) {
+          const s1 = (s + 1) % segs;
+          indices.push(a0 + s, a0 + s1, b0 + s, a0 + s1, b0 + s1, b0 + s);
+        }
+      }
+    }
+    if (!lod) {
+      const needles = [barkColour(110, 86, 50), barkColour(88, 70, 44)];
+      stem([[-.48, .032, -.18], [-.16, .072, -.05], [.14, .054, .12], [.42, .026, .24]], [.024, .019, .014, .006], 4, bark);
+      curledBark(.18, -.26, .65, .28, .048, .05);
+      for (let j = 0; j < 6; j++) {
+        const a = random() * Math.PI * 2, d = random() * .34;
+        ribbon(Math.cos(a) * d, Math.sin(a) * d, .06 + (1 - d / .4) * .05, random() * Math.PI * 2, .11 + random() * .10, .008, .02, needles[j % 2], .012, 2);
+      }
     }
   } else {
     // Shed laterals retain sprays of dead needles. Loose needles and strips

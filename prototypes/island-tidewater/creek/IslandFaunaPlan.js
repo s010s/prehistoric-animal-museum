@@ -52,13 +52,13 @@ export const ISLAND_FAUNA_PLAN = [
     ['sordes', '索德斯翼龙', 'Sordes', '晚侏罗世', 'air', 'glide', [-695, -138], 3.25, .75, .6, '看它飞过谷坡时，留意薄翼膜和末端延伸的尾巴。'],
   ]),
   ...stops('jurassic-conifer-grove', [
-    ['archaeopteryx', '始祖鸟', 'Archaeopteryx', '晚侏罗世（约 1.49 亿至 1.45 亿年前）', 'air', 'flutter', [1410, -2096], 2.3, .60, .5, '站在林隙看低处的短距离扑翼，留意翅爪和长尾羽。'],
+    ['archaeopteryx', '始祖鸟', 'Archaeopteryx', '晚侏罗世（约 1.49 亿至 1.45 亿年前）', 'air', 'flutter', [1410, -2096], 4.6, .66, .5, '站在林隙看林冠下层的短距离扑翼与滑翔，留意翅爪和长尾羽。'],
   ]),
   ...stops('jurassic-lagoon', [
     ['rhamphorhynchus', '喙嘴翼龙', 'Rhamphorhynchus', '晚侏罗世（约 1.5 亿年前）', 'air', 'fish', [-10, 5368], 7.1, 1.25, 1.4, '靠近岸边等小翼龙低飞，找尾巴末端的小帆。'],
-    ['dakosaurus', '达科龙', 'Dakosaurus', '晚侏罗世', 'marine', 'cruise', [-353, 5814], 19, 2, 4.8, '顺着四只鳍状肢看向尾鳍，留意身体转弯的姿态。'],
-    ['plesiosaurus', '蛇颈龙类', 'Plesiosaurs', '晚三叠世至晚白垩世', 'marine', 'cruise', [-425, 5780], 24, 1.8, 8.7, '看四片鳍状肢划水时，长颈怎样保持方向。'],
-    ['ichthyosaur', '鱼龙类', 'Ichthyosaurs', '三叠纪至晚白垩世', 'marine', 'cruise', [-214, 5890], 19, 2.25, 7.3, '观察流线形身体和尾鳍驱动，找与现生海豚相似的轮廓。'],
+    ['dakosaurus', '达科龙', 'Dakosaurus', '晚侏罗世', 'marine', 'cruise', [-353, 5814], 16, 2, 4.8, '顺着四只鳍状肢看向尾鳍，留意身体转弯的姿态。'],
+    ['plesiosaurus', '蛇颈龙类', 'Plesiosaurs', '晚三叠世至晚白垩世', 'marine', 'cruise', [-425, 5780], 18, 1.8, 8.7, '看四片鳍状肢划水时，长颈怎样保持方向。'],
+    ['ichthyosaur', '鱼龙类', 'Ichthyosaurs', '三叠纪至晚白垩世', 'marine', 'cruise', [-214, 5890], 17, 2.25, 7.3, '观察流线形身体和尾鳍驱动，找与现生海豚相似的轮廓。'],
     ['ammonite', '菊石类', 'Ammonites', '古生代至中生代', 'marine', 'hover', [-115, 5550], 1.2, .17, .48, '从壳口看柔软的触腕，再绕到侧面看卷曲的壳。'],
   ]),
   ...stops('cretaceous-freshwater', [
@@ -90,12 +90,12 @@ export const ISLAND_FAUNA_PLAN = [
     ['quetzalcoatlus', '风神翼龙', 'Quetzalcoatlus', '晚白垩世', 'air', 'soar', [10010, 467], 41, 5.9, 9.5, '先留意长脖子和喙，再沿翼膜看完整的翼展。'],
     ['dallasaurus', '达拉斯蜥蜴', 'Dallasaurus', '晚白垩世', 'marine', 'cruise', [10596, 196], 4.2, .57, 1.0, '近看四条小腿和脚趾，留意它怎样摆动尾部。'],
     ['xiphactinus', '剑射鱼', 'Xiphactinus', '晚白垩世', 'marine', 'school', [11030, 195], 23, 2.5, 5.5, '看大嘴和腹侧小鳍如何随着鱼转向显现。'],
-    ['mosasaurus', '沧龙', 'Mosasaurus', '晚白垩世（约 8200 万至 6600 万年前）', 'marine', 'cruise', [11208, 53], 34, 3.4, 12, '从侧面观察有力的尾部和拨水的四只鳍状肢。'],
-    ['styxosaurus', '冥河龙', 'Styxosaurus', '晚白垩世', 'marine', 'cruise', [11157, -128], 32, 2.1, 10.7, '不妨先看划水的四只鳍，再沿长颈找到小小的头。'],
+    ['mosasaurus', '沧龙', 'Mosasaurus', '晚白垩世（约 8200 万至 6600 万年前）', 'marine', 'cruise', [11208, 53], 18, 3.1, 12, '从侧面观察有力的尾部和拨水的四只鳍状肢。'],
+    ['styxosaurus', '冥河龙', 'Styxosaurus', '晚白垩世', 'marine', 'cruise', [11157, -128], 18, 2.1, 10.7, '不妨先看划水的四只鳍，再沿长颈找到小小的头。'],
   ]),
   ...stops('neogene-sea', [
-    ['livyatan', '梅氏利维坦鲸', 'Livyatan', '中新世', 'marine', 'cruise', [9125, -2665], 52, 3.6, 13.5, '看它从侧面经过，留意宽大的头与水平的尾叶。'],
-    ['megalodon', '巨齿鲨', 'Megalodon', '中新世早期至上新世早期（约 2300 万至 360 万年前）', 'marine', 'cruise', [9340, -2500], 51, 4.25, 16.5, '让它从侧前方游过，比较鲨鱼的垂直尾鳍与鲸的水平尾叶。'],
+    ['livyatan', '梅氏利维坦鲸', 'Livyatan', '中新世', 'marine', 'cruise', [9125, -2665], 24, 3.3, 13.5, '看它从侧面经过，留意宽大的头与水平的尾叶。'],
+    ['megalodon', '巨齿鲨', 'Megalodon', '中新世早期至上新世早期（约 2300 万至 360 万年前）', 'marine', 'cruise', [9340, -2500], 24, 3.9, 16.5, '让它从侧前方游过，比较鲨鱼的垂直尾鳍与鲸的水平尾叶。'],
   ]),
   ...stops('neogene-grassland', [
     ['phorusrhacos', '骇鸟', 'Phorusrhacos', '中新世', 'ground', 'patrol', [6200, 2400], 14, 1.45, 2.4, '在草地上绕到它的侧面，看长腿和尖端向下钩的大喙。'],

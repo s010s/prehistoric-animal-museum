@@ -23,6 +23,7 @@ import {createReviewedSwimMotion, createReviewedSwimMaterial, advanceReviewedSwi
 import {visitorShoals} from './VisitorShoals.js';
 import {reefPatrolTarget, reefObstacleTop} from './ReefShoals.js';
 import {createSwimmer, RoamingShoals, ROAMING_FISH_CAPACITY} from './RoamingShoals.js';
+import {setRefractionFrustum} from './RefractionFrustum.js';
 
 // The vendor's two small school fish remain available in the original terrain mode.
 function nativeSwimEffort(fish,dt) {
@@ -185,7 +186,7 @@ export class IslandLife{
   this.benthos={corals:[],shells:[],sponges:[]};
   this.benthicResidency=null;
   this.vaultLocationReady=false;
-  app.scene.add(this.group);this.q=new Quaternion();this.euler=new Euler(0,0,0,'YXZ');this.frustum=new Frustum();this.viewProjection=new Matrix4();this.sphere=new Sphere();this.screen=new Vector3();this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};this.trackingSwimmers=[];this.enabled=true;this.update(0,app.camera);
+  app.scene.add(this.group);this.q=new Quaternion();this.euler=new Euler(0,0,0,'YXZ');this.frustum=new Frustum();this.refractionFrustum=new Frustum();this.viewProjection=new Matrix4();this.sphere=new Sphere();this.screen=new Vector3();this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};this.trackingSwimmers=[];this.enabled=true;this.update(0,app.camera);
  }
  createSwimBatch(name,kinds,count,configure,reviewed){
   const batch=new ReefBatch(name,kinds,{maxInstances:Math.max(1,count),dynamic:true,fade:true});
@@ -303,7 +304,7 @@ export class IslandLife{
   if(this.vaultLocationReady)this.queueNearbyVault(camera);
   this.group.visible=this.enabled;
   this.trackingSwimmers.length=0;
-  this.time+=dt;const cp=camera.position;camera.updateMatrixWorld();this.viewProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.viewProjection,camera.coordinateSystem,camera.reversedDepth);this.pxScale=camera.projectionMatrix.elements[5]*this.app.engine.height*.5;this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};for(const {batch} of this.swimBatches)batch.begin();let live=0;this.audit.minBedClearance=Infinity;this.audit.minSurfaceClearance=Infinity;
+  this.time+=dt;const cp=camera.position;camera.updateMatrixWorld();this.viewProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.viewProjection,camera.coordinateSystem,camera.reversedDepth);setRefractionFrustum(this.refractionFrustum,camera,this.viewProjection);this.pxScale=camera.projectionMatrix.elements[5]*this.app.engine.height*.5;this.frameSight={fish:[],shrimp:[],birds:[],insects:[]};for(const {batch} of this.swimBatches)batch.begin();let live=0;this.audit.minBedClearance=Infinity;this.audit.minSurfaceClearance=Infinity;
   for(const g of this.simulationGroups){
    const members=g.members??this.fish;
    const dx=cp.x-g.x,dz=cp.z-g.z;
@@ -335,8 +336,9 @@ export class IslandLife{
     f.trackingVisible=this.frustum.intersectsSphere(this.sphere);
     if(!g.members)f.trackingId=i;
     this.trackingSwimmers.push(f);
-    if(!f.trackingVisible){f.fresh=true;continue;}
-    this.screen.copy(f.p).project(camera);this.frameSight.fish.push({position:f.p.toArray(),length:L,distance,pixels,ndc:[this.screen.x,this.screen.y],habitat:g.id,species:f.vault??'native',bedClearance:clear,surfaceClearance:top});
+    const renderVisible=f.trackingVisible||this.refractionFrustum.intersectsSphere(this.sphere);
+    if(!renderVisible){f.fresh=true;continue;}
+    if(f.trackingVisible){this.screen.copy(f.p).project(camera);this.frameSight.fish.push({position:f.p.toArray(),length:L,distance,pixels,ndc:[this.screen.x,this.screen.y],habitat:g.id,species:f.vault??'native',bedClearance:clear,surfaceClearance:top});}
     if(swim){
      this.q.setFromEuler(this.euler.set(swim.pitch,f.yaw,swim.roll,'YXZ'));
      motion.setPose(renderIndex,swim,this.q,f.fresh);

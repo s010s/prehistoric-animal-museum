@@ -68,16 +68,20 @@ export class GroveDetails{
     for(let j=0;j<3;j++){const t0=j/3,t1=(j+1)/3,d0=start+t0*L,d1=start+t1*L,x=r.x+dx*(d0+d1)*.5,z=r.z+dz*(d0+d1)*.5,base=terrain.heightAt(x,z)-.07,top=base+r.s*.20*(1-t0)*(1-t0);colliders.addBox(new Vector3(x,(base+top)*.5,z),new Vector3(r.s*(.30*(1-t0)+.035),Math.max(.06,(top-base)*.5),L/6),Math.atan2(dx,dz),{solid:true,walkable:true,tag:'old-growth exposed root'});}
    }
   }
-  const material=new Material({name:'Museum aged wood and moss',side:'double',attributes:{aWood:'f32'},varyings:{vWood:'f32'},bindings:{groveBark:{texture:()=>coniferTextures.bark}},vertex:'o.vWood=v.aWood;',surface:`
- let bark=textureSample(groveBark,smpAnisoRepeat,in.uv*vec2f(1.0,2.4)).rgb;
+  const material=new Material({name:'Museum aged wood and moss',side:'double',attributes:{aWood:'f32'},varyings:{vWood:'f32'},bindings:{groveBark:{texture:()=>coniferTextures.bark},groveBarkNormal:{texture:()=>coniferTextures.barkNormal}},vertex:'o.vWood=v.aWood;',surface:`
+ let barkUV=in.uv*vec2f(1.0,2.4);
+ let bark=textureSample(groveBark,smpAnisoRepeat,barkUV).rgb;
+ let barkNM=textureSample(groveBarkNormal,smpAnisoRepeat,barkUV).xyz*2.0-1.0;
+ let barkN=perturbNormalByMap(in.P,in.N,barkUV,barkNM);
  let r=length(in.uv-.5);let grain=sin(r*120.0)*(.12*(1.0-smoothstep(.01,.05,fwidth(r))));
  let end=mix(vec3f(.095,.061,.028),vec3f(.20,.144,.07),r*.6+.3+grain);
  let moss=.5+.25*sin(in.P.x*.9+sin(in.P.z*.7))+.2*sin(in.P.z*1.7);
  s.albedo=mix(bark*vec3f(.77,.76,.69),end,step(.5,in.vs.vWood));
  s.albedo=mix(s.albedo,vec3f(.055,.080,.025),smoothstep(.4,.8,in.N.y)*smoothstep(.51,.75,moss)*.65);
+ if(in.vs.vWood<.5||in.vs.vWood>2.5){s.normal=barkN;}
  if(in.vs.vWood>1.5&&in.vs.vWood<2.5){s.albedo=mix(vec3f(.12,.086,.046),vec3f(.22,.18,.12),clamp(in.N.y,0.0,1.0));}
  if(in.vs.vWood>2.5){s.albedo=bark*vec3f(.58,.58,.53);}
- s.roughness=.96;s.specularIntensity=.08;s.ao=.82;`});
+ s.roughness=.96;s.specularIntensity=.08;s.ao=.82*mix(.84,1.0,clamp(barkNM.z,0.0,1.0));`});
   const geometry=mergeGeometries(parts);parts.forEach(g=>g.dispose());geometry.computeBoundingSphere();this.mesh=new Mesh(geometry,material);this.mesh.name='Grove rooted feet and fallen trunks';this.mesh.castShadow=true;this.mesh.receiveShadow=true;this.mesh.staticVelocity=true;this.group.add(this.mesh);scene.add(this.group);this.triangles=geometry.index.count/3;
   const point=this.fungalSpots[3]??this.fungalSpots[0];let view=null;
   const nearby=forest.records.filter(t=>Math.hypot(t.x-point[0],t.z-point[2])<20);

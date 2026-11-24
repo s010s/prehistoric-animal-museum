@@ -165,7 +165,7 @@ export function installIslandTerrainGPU(gpu,data){
  ${localFine.map(t=>`{let c=vec2f(${t.center.map(x=>x.toFixed(7)).join(',')});let w=1.0-smoothstep(${t.inner.toFixed(1)},${t.outer.toFixed(1)},max(abs(p.x-c.x),abs(p.y-c.y)));if(w>0.0){h=mix(h,terrainFineAt(p,c,${t.size.toFixed(1)},${t.res.toFixed(1)},${t.layer}),w);}}`).join('\n')}if(regional.weight>0.0){h=mix(h,museumRegionalHeight(regional),regional.weight);}return h;}
  `);
  // Explicit gradients permit skipping inactive maps without changing the
- // physical mip footprint. Previously every terrain pixel read every region.
+ // physical mip footprint.
  const normalBody=fragment=>{
   const sample=(tex,uv,layer,scale)=>fragment?`textureSampleGrad(${tex},smpLinearClamp,${uv},${layer},dx/${scale},dy/${scale})`:`textureSampleLevel(${tex},smpLinearClamp,${uv},${layer},l)`;
   const fineSample=t=>sample('terrainFineNormalTex',`clamp((p-vec2f(${t.center.map(x=>x.toFixed(7)).join(',')})+${(t.size/2).toFixed(1)})/${(t.texel*1024).toFixed(1)},vec2f(.00048828125),vec2f(${((t.res-.5)/1024).toFixed(10)}))`,t.layer,(t.texel*1024).toFixed(1));
@@ -177,7 +177,13 @@ export function installIslandTerrainGPU(gpu,data){
   code+=fragment?`var rw=regional.weight;var regionalLOD=0.0;
     if(rw>0.0){let footprint=max(length(dx),length(dy));rw*=1.0-smoothstep(5.0,16.0,footprint);regionalLOD=log2(max(footprint,.001)*regional.res/regional.span);}`
     :`let rw=regional.weight;let regionalLOD=l;`;
+  const noLaterRegion=idx=>data.regionTerrains.slice(idx+1).map(p=>`&&max(abs(p.x-(${p.center[0].toFixed(7)})),abs(p.y-(${p.center[1].toFixed(7)})))>=4080.0`).join('');
+  const noLocalOuter=localFine.map(p=>`&&max(abs(p.x-(${p.center[0].toFixed(7)})),abs(p.y-(${p.center[1].toFixed(7)})))>=${p.outer.toFixed(1)}`).join('');
   code+=`if(rw>=1.0){let s=museumRegionalNormal(regional,regionalLOD);${decode}}`;
+  for(const [i,t]of [...data.regionTerrains.entries()].reverse()){
+   const coreCheck=i===0?'&&max(abs(p.x),abs(p.y))>=496.0':'';
+   code+=`{let c=vec2f(${t.center.map(x=>x.toFixed(7)).join(',')});if(max(abs(p.x-c.x),abs(p.y-c.y))<=3800.0&&rw<=0.0${coreCheck}${noLaterRegion(i)}${noLocalOuter}){let s=${sample('terrainNormalTex','(p-c+4096.0)/8192.0',i+1,'8192.0')};${decode}}}`;
+  }
   code+=`var s=${sample('terrainNormalTex','(p+16384.0)/32768.0',0,'32768.0')};`;
   for(const [i,t]of data.regionTerrains.entries())code+=`{let c=vec2f(${t.center.map(x=>x.toFixed(7)).join(',')});let w=1.0-smoothstep(3800.0,4080.0,max(abs(p.x-c.x),abs(p.y-c.y)));if(w>0.0){s=mix(s,${sample('terrainNormalTex','(p-c+4096.0)/8192.0',i+1,'8192.0')},w);}}`;
   code+=`let fw=terrainFineWeight(p);if(fw>0.0){s=mix(s,${sample('terrainFineNormalTex','(p+512.0)/1024.0',0,'1024.0')},fw);}`;
