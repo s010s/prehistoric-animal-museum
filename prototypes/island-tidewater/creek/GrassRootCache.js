@@ -3,7 +3,7 @@ import {ShaderModule,UniformBlock} from '../vendor/tidewater/src/engine/gpu/Shad
 import {vegModule} from '../vendor/tidewater/src/world/vegetation/VegNodes.js';
 import {G} from '../vendor/tidewater/src/core/Globals.js';
 
-const ROWS=4,STRIDE=64;
+const ROWS=5,STRIDE=80;
 // Island cells lie on an integer grid. Keep the public field query usable for
 // fractional cells as well, without collisions or quantising their position.
 function cellKey(x,z){
@@ -53,14 +53,18 @@ fn main(@builtin(global_invocation_id) gid:vec3u){
  let record=museumGrassRootCells[index/${this.slotCount}u];let cell=record.xy;let slot=museumGrassRootSlots[index%${this.slotCount}u];
  ${PLACEMENT}
  let flora=museumFloraSampleAt(xz,0.0);let height=terrainHeightAt(xz);let cover=museumCover(xz,0.0).a;
- let water=creekFieldAt(xz);let meadow=museumMeadowAt(xz,0.0);let row=(u32(record.z)+index%${this.slotCount}u)*4u;
+ let water=creekFieldAt(xz);let meadow=museumMeadowAt(xz,0.0);
+ let gnd=terrainNormalRockLevel(xz,0.0);
+ let turfScale=mix(1.0,.68,clamp(museumCoolGrassTone(xz)*.78+museumDryGrassTone(xz)*.55,0.0,1.0));
+ let row=(u32(record.z)+index%${this.slotCount}u)*5u;
  museumGrassRootOut[row]=flora.forms;museumGrassRootOut[row+1u]=vec4f(xz,height,cover);
  museumGrassRootOut[row+2u]=vec4f(water.xy,meadow.lush,flora.rootFloor);museumGrassRootOut[row+3u]=vec4f(meadow.tone,meadow.dry);
+ museumGrassRootOut[row+4u]=vec4f(gnd.x,gnd.y,gnd.w,turfScale);
 }`});
   this._counts=new Uint32Array(levels.length);this._valid=false;this.cells=0;this.dispatches=0;this.lastReason='uninitialized';
   this._patchCover=NaN;this._legacyWater=NaN;this._seaLevel=NaN;
   const change=(from,to)=>{if(!material.vertex.includes(from))throw Error('Pinned grass root cache seam changed: '+from.slice(0,60));material.vertex=material.vertex.replace(from,to);};
-  change(PLACEMENT,`let museumRootRow=(u32(v.iCell.z)+u32(slot.z))*4u;
+  change(PLACEMENT,`let museumRootRow=(u32(v.iCell.z)+u32(slot.z))*5u;
  let xz=museumGrassRootData[museumRootRow+1u].xy;`);
   change('let flora=museumFloraSampleAt(xz,0.0);let m=flora.forms;let rootFloor=flora.rootFloor;',
    'let m=museumGrassRootData[museumRootRow];let rootFloor=museumGrassRootData[museumRootRow+2u].w;');
@@ -68,6 +72,8 @@ fn main(@builtin(global_invocation_id) gid:vec3u){
   change('let clumpHeight=terrainHeightAt(xz);','let clumpHeight=museumGrassRootData[museumRootRow+1u].z;');
   change('let waterField=creekFieldAt(xz);','let waterField=vec4f(museumGrassRootData[museumRootRow+2u].xy,0.0,0.0);let museumRootCover=museumGrassRootData[museumRootRow+1u].w;');
   change('mix(1.0,.6,museumCover(xz,0.0).a)','mix(1.0,.6,museumRootCover)');
+  change('let turfScale=mix(1.0,.68,clamp(museumCoolGrassTone(xz)*.78+museumDryGrassTone(xz)*.55,0.0,1.0));','let turfScale=museumGrassRootData[museumRootRow+4u].w;');
+  change('let gnd=terrainNormalRockLevel(xz,0.0);','let gndCached=museumGrassRootData[museumRootRow+4u];let gnd=vec4f(gndCached.x,gndCached.y,0.0,gndCached.z);');
   material.vertex=`#if MUSEUM_GRASS_ROOT_CACHE\n${material.vertex}\n#else\n${originalVertex}\n#endif\n`;
   material.defines.MUSEUM_GRASS_ROOT_CACHE=1;
   material.modules.push(this.module);material.needsUpdate=true;

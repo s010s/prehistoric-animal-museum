@@ -201,10 +201,15 @@ fn museumFloraSampleAt(p:vec2f,footprint:f32)->MuseumFloraSample{
   let opening=smoothstep(-.42,.34,broad*.70+tuft*.58);
   let damp=smoothstep(.45,1.5,f.x-frame.seaLevel)*(1.0-smoothstep(.0,1.1,rise))
      *(1.0-smoothstep(.0,14.0,f.y));
-  let pocket=mix(.045,.98,opening)*(1.0-cov.a*.49)*(1.0-damp*.74);
+  // Open inland tall meadows retain continuous lush waves instead of punching bare holes;
+  // coastal strands (<7m), woodland margins and sparse upland slopes keep organic openings.
+  let inlandOpen=smoothstep(7.5,16.0,aboveSea);
+  let lushOpen=smoothstep(.44,.78,m.g)*(1.0-smoothstep(.12,.45,cov.a))*inlandOpen;
+  let pocketFloor=mix(.045,.52,lushOpen)+.075*inlandOpen*(1.0-lushOpen)*(1.0-cov.a);
+  let pocket=mix(pocketFloor,1.0,opening)*(1.0-cov.a*.49)*(1.0-damp*.74);
   let keep=mix(1.0,pocket,cov.b);
   m.g*=keep;m.a*=keep;
-  out.glade=cov.b*(1.0-opening);
+  out.glade=cov.b*(1.0-opening)*(1.0-lushOpen*.65);
   out.litter=cov.b*cov.a*(1.0-opening*.40);
   out.coverFactor*=keep;
  }
@@ -264,18 +269,38 @@ fn museumSwardTerrain(
  let strawPatch=smoothstep(.48,.84,gf.dry*.42+gf.fbm*.34+slope*.45+(gf.grit-.5)*.28);
  var lawnTone=mix(mt.tone,mt.tone*vec3f(.87,.94,.82),lushPocket*.24);
  lawnTone=mix(lawnTone,mix(mt.tone,${srgb(.43,.38,.23)},.40),strawPatch*.30);
- var lawn=lawnTone*(1.0+(clump-.5)*.28+(gf.gran-.5)*.20+(gf.grit-.5)*.10);
+ let toCam=frame.cameraPos-p;
+ let camDist=length(toCam);
+ let invCamDist=1.0/max(camDist,1e-4);
+ // Distant tussock contrast grows smoothly where blades thin out (Tidewater
+ // handover contract) while staying 100% driven by hardware-mipmapped isotropic channels.
+ let clumpK=mix(.28,.62,smoothstep(42.0,155.0,camDist));
+ var lawn=lawnTone*(1.0+(clump-.5)*clumpK+(gf.gran-.5)*.22+(gf.grit-.5)*.10);
  let windP=p.xz-gustOffset;
  const rW=mat2x2f(.88295,.46947,-.46947,.88295);
  let gustW=textureSampleLevel(museumGroundTex,smpLinearRepeat,(rW*windP)*(1.0/360.0)+vec2f(.11,.37),0,2.0).r;
  let gust=smoothstep(.46,.68,gustW)*clamp(frame.windSpeed*.05,0.0,.35);
  lawn=mix(lawn,lawn*vec3f(1.14,1.12,1.04),gust*.48);
- var base=museumMeadowSoil(mt.tone)*(1.0+(broadFiltered-.5)*.20)*(1.0+(gf.fbm-.5)*.22*middle)*(1.0+(gf.gran-.5)*.24+(gf.grit-.5)*.14);
+ let soilTone=museumMeadowSoil(mt.tone);
+ var base=soilTone*(1.0+(broadFiltered-.5)*.20)*(1.0+(gf.fbm-.5)*.22*middle)*(1.0+(gf.gran-.5)*.24+(gf.grit-.5)*.14);
  // A thin sward exposes soil, dry litter and small clumps gradually. Soft
  // breakup feathers outer transitions without sharp blotch contours.
  let outer=1.0-terrainFineWeight(p.xz);
  let edgeOrganic=(gf.fbm-.5)*.36*outer*smoothstep(.008,.24,density);
  let spatialCover=smoothstep(.004,.40,density+edgeOrganic);
+ // Harmonize ground beneath 3D grass blades with their shaded root bases (matching
+ // Tidewater's swardBase handover) so blades root naturally without pale floor glare,
+ // and deepen inter-tussock gaps beyond the grass radius so hills never turn flat.
+ var fieldK=0.0;
+ if(camDist<museumGrassDistance.fade.y){
+  fieldK=(1.0-smoothstep(museumGrassDistance.fade.x*.74,museumGrassDistance.fade.y*.98,camDist))*spatialCover;
+  let swardBase=mix(mt.tone*.56,soilTone*.80,.36)*(1.0+(gf.gran-.5)*.24+(gf.grit-.5)*.12);
+  lawn=mix(lawn,swardBase,fieldK*.54);
+ }
+ let gapK=smoothstep(.60,.24,clump)*smoothstep(28.0,125.0,camDist)*spatialCover*(1.0-fieldK*.6);
+ lawn=mix(lawn,soilTone*.76,gapK*.34);
+ let graze=smoothstep(.45,.08,abs(toCam.y*invCamDist))*spatialCover;
+ lawn=mix(lawn,lawn*vec3f(1.03,1.07,.93),graze*.34);
  let dryThatch=mix(mt.tone*.78,${srgb(.36,.34,.23)},.26);
  base=mix(base,dryThatch,(1.0-spatialCover)*(1.0-flora.coverFactor)*.64);
  let thatch=mix(${srgb(.29,.27,.17)},${srgb(.42,.38,.24)},clump);

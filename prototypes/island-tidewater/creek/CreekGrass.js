@@ -13,7 +13,9 @@ import {strandGrowthLimits} from './StrandGrowth.js';
 // density texture and world-fixed probability remain in museumFloraAt.
 function occupancyMask(data){
  const raw=data.grass,bytes=new Uint8Array(raw.data);
- for(let i=0;i<bytes.length;i++)if(bytes[i]>0&&bytes[i]<9)bytes[i]=9;
+ // Skip near-zero barren scree noise (< 4/255) so arid slopes don't submit empty cells,
+ // while conserving every real grass/strand cell (>= 4/255) and the fine creek core.
+ for(let i=0;i<bytes.length;i++)if(bytes[i]>=4&&bytes[i]<9)bytes[i]=9;
  const fine=data.masks,n=data.geography.maskRes,t=data.coverTerrain??data.terrain;
  for(let j=0;j<n;j++)for(let i=0;i<n;i++)if(fine[(j*n+i)*4+1]){
   const x=-512+(i+.5)*1024/n,z=-512+(j+.5)*1024/n;
@@ -66,13 +68,13 @@ fn museumGrassLOD(tier:f32,dist:f32,cut:f32,isGrass:bool)->vec2f{
  let own=vegGrassTierFade(tier,dist,cut);
  let f2=1.0-smoothstep(${FADE_T2.map(f).join(',')},dist);
  let f1=1.0-smoothstep(${FADE_T1.map(f).join(',')},dist);
- let comp=7.0/(f2*3.0+f1*2.0+2.0);
+ let comp=min(7.0/(f2*3.0+f1*2.0+2.0),2.25);
  return select(vec2f(own,1.0),vec2f(1.0,comp*own),isGrass);
 }
 fn museumGrassBend(rest:vec3f,windDir:vec2f,w:f32,g:f32,tm:f32,ph:f32,rootX:f32,bRnd:f32,flex:f32,dist:f32)->vec3f{
- let gustKeep=1.0-smoothstep(24.0,52.0,dist);
- let swayKeep=1.0-smoothstep(18.0,38.0,dist);
- let flutterKeep=1.0-smoothstep(13.0,26.0,dist);
+ let gustKeep=1.0-smoothstep(34.0,58.0,dist);
+ let swayKeep=1.0-smoothstep(22.0,44.0,dist);
+ let flutterKeep=1.0-smoothstep(12.0,26.0,dist);
  let bend=w*mix(.36,g*.55+.22,gustKeep)+sin(tm*1.9+ph+rootX*.2)*w*.1*swayKeep;
  let flutter=sin(tm*7.3+ph*3.0+bRnd*20.0)*(w*.06+.015)*flutterKeep;
  let restLength=length(rest);
@@ -122,16 +124,19 @@ fn museumGrassGust(p:vec2f)->f32{
  let waterField=creekFieldAt(xz);
  let marsh=(1.0-smoothstep(.78,1.26,length((xz-vec2f(5600.0,6050.0))/vec2f(2250.0,1500.0))))*(1.0-smoothstep(.5,2.2,clumpHeight-waterField.x));
  let wetBank=max(1.0-smoothstep(2.0,18.0,abs(waterField.y)),marsh);
- let tall=mix(.58,1.16,smoothstep(.42,.72,stand));
- let edgeHeight=select(1.0,mix(.38,1.0,smoothstep(.015,.30,density)),isGrass);
- let heightScale=select(mix(tall,1.25,wetBank)*mix(1.0,.6,museumCover(xz,0.0).a),.42,kind>=2.5);
+ let turfScale=mix(1.0,.68,clamp(museumCoolGrassTone(xz)*.78+museumDryGrassTone(xz)*.55,0.0,1.0));
+ let tall=mix(.78,1.26,smoothstep(.28,.74,stand))*turfScale;
+ let edgeHeight=select(1.0,mix(.46,1.0,smoothstep(.015,.26,density)),isGrass);
+ let woodFactor=mix(1.0,.6,museumCover(xz,0.0).a);
+ let heightScale=select(mix(tall,1.28,wetBank)*woodFactor,.42,kind>=2.5);
  let habitatScale=heightScale*select(1.0,mix(.55,.78,m.r),isOat);
- // Smoothly settle mid-to-far grass height onto the terrain across 24-58m so
- // sub-pixel blades on shadowed banks never poke 0.8m out of CSM tree shadows
- // into sunlit space (causing 10x shadow-edge shimmer during camera motion).
- let distSettle=select(1.0,mix(1.0,.08,smoothstep(24.0,58.0,dist)),isGrass);
+ // Preserve lush meadow silhouette through the mid-field, then gently settle
+ // far-tier tufts into the ground across 46-114m (stronger only under tree canopy
+ // shadows where woodFactor < 0.85 so CSM tree shadow edges remain shimmer-free).
+ let farFloor=mix(.20,.36,smoothstep(.65,.95,woodFactor));
+ let distSettle=select(1.0,mix(1.0,farFloor,smoothstep(42.0,112.0,dist)),isGrass);
  let scale=hScale*present*lod.x*edgeHeight*habitatScale*distSettle;
- if(museumGrassReuseReview.enabled>.5&&isGrass&&(dist>66.0||scale<.02)){
+ if(museumGrassReuseReview.enabled>.5&&isGrass&&(dist>museumGrassDistance.fade.y+1.0||scale<.02)){
   let collapsed=vec3f(xz.x,clumpHeight,xz.y);
   v.useWorld=true;v.worldPos=collapsed;v.prevWorldPos=collapsed;v.worldNormal=vec3f(0.0,1.0,0.0);
   return;
@@ -140,10 +145,15 @@ fn museumGrassGust(p:vec2f)->f32{
   const groundStart=mat.vertex.indexOf('// terrain height (float texels');
   const groundEnd=mat.vertex.indexOf('let pl =',groundStart);
   if(groundStart<0||groundEnd<0)throw Error('Pinned grass ground seam changed');
-  mat.vertex=mat.vertex.slice(0,groundStart)+`// Every blade uses its own root, sampled from the rendered fine/coarse terrain.
+  mat.vertex=mat.vertex.slice(0,groundStart)+`// Near/mid blades sample per-blade root terrain; far-tier 1-tri tufts reuse
+ // cached clumpHeight directly to avoid redundant heightmap taps past 46m.
  let rootOffset=vec2f(v.aRoot.x*cy-v.aRoot.y*sy,v.aRoot.x*sy+v.aRoot.y*cy)*spread;
- let rootXZ=xz+rootOffset*scale;
- let ground=museumGrassGround(rootXZ);
+ let farFast=isGrass&&dist>46.0;
+ var ground=clumpHeight-.035;
+ if(!farFast){
+  let rootXZ=xz+rootOffset*scale;
+  ground=museumGrassGround(rootXZ);
+ }
  // A blade can lean toward the surf while its own root stays on dry sand.
  if(ground+.035<rootFloor){
   let collapsed=vec3f(xz.x,ground,xz.y);
@@ -157,12 +167,13 @@ fn museumGrassGust(p:vec2f)->f32{
   if(poseStart<0||poseEnd<0)throw Error('Pinned grass pose seam changed');
   mat.vertex=mat.vertex.slice(0,poseStart)+`let rest=vec3f(pl.x*cy-pl.z*sy,pl.y,pl.x*sy+pl.z*cy);
  let w=vegWindStrength();
- let g=vegGustAt(xz);
+ var g=0.5;if(dist<=58.0){g=vegGustAt(xz);}
  let ph=r*6.2832;
  let stiff=select(select(.08,.8,isOat),1.0,isGrass);
  let flex=hf*hf*stiff;
- let ob=museumGrassCrush(xz,museumGrassBend(rest*scale,frame.windDir,w,g,frame.time,ph,xz.x,bRnd,flex,dist),museumGrassCrushers.c0,museumGrassCrushers.c1,museumGrassCrushers.c2,museumGrassCrushers.c3);
- let wScale=select(1.0,mix(1.5,1.55,duneF),isGrass);
+ var ob=museumGrassBend(rest*scale,frame.windDir,w,g,frame.time,ph,xz.x,bRnd,flex,dist);
+ if(dist<42.0){ob=museumGrassCrush(xz,ob,museumGrassCrushers.c0,museumGrassCrushers.c1,museumGrassCrushers.c2,museumGrassCrushers.c3);}
+ let wScale=select(1.0,mix(1.76,1.66,duneF),isGrass);
  let wide=wScale*lod.y*min(scale*2.0,max(scale,.5));
  let sideR=vec3f(side.x*cy-side.z*sy,side.y,side.x*sy+side.z*cy);
  var pos=base+ob+sideR*wide;
@@ -172,13 +183,14 @@ fn museumGrassGust(p:vec2f)->f32{
  // width through the tier fades.
  let oldDist=distance(clump,frame.prevCameraPos);
  let oldLOD=museumGrassLOD(tier,oldDist,cut,isGrass);
- let oldDistSettle=select(1.0,mix(1.0,.08,smoothstep(24.0,58.0,oldDist)),isGrass);
+ let oldDistSettle=select(1.0,mix(1.0,farFloor,smoothstep(42.0,112.0,oldDist)),isGrass);
  let oldScale=hScale*present*oldLOD.x*edgeHeight*habitatScale*oldDistSettle;
  var oldGround=ground;
- if(oldScale!=scale){oldGround=museumGrassGround(xz+rootOffset*oldScale);}
- let oldG=museumGrassGust(xz-museumGrassPreviousWind.gustOffset);
+ if(!farFast&&oldScale!=scale){oldGround=museumGrassGround(xz+rootOffset*oldScale);}
+ var oldG=0.5;if(oldDist<=58.0){oldG=museumGrassGust(xz-museumGrassPreviousWind.gustOffset);}
  let oldW=max(museumGrassPreviousWind.speed*.1,.03);
- let oldOb=museumGrassCrush(xz,museumGrassBend(rest*oldScale,museumGrassPreviousWind.direction,oldW,oldG,museumGrassPreviousWind.time,ph,xz.x,bRnd,flex,oldDist),museumGrassCrushers.p0,museumGrassCrushers.p1,museumGrassCrushers.p2,museumGrassCrushers.p3);
+ var oldOb=museumGrassBend(rest*oldScale,museumGrassPreviousWind.direction,oldW,oldG,museumGrassPreviousWind.time,ph,xz.x,bRnd,flex,oldDist);
+ if(oldDist<42.0){oldOb=museumGrassCrush(xz,oldOb,museumGrassCrushers.p0,museumGrassCrushers.p1,museumGrassCrushers.p2,museumGrassCrushers.p3);}
  let oldWide=wScale*oldLOD.y*min(oldScale*2.0,max(oldScale,.5));
  var oldPos=vec3f(xz.x,oldGround,xz.y)+oldOb+sideR*oldWide;
  if(kind>=2.5){oldPos.y=terrainHeightAt(oldPos.xz)+max(oldOb.y-.004,.003);}
@@ -188,9 +200,11 @@ fn museumGrassGust(p:vec2f)->f32{
   change('select( blade.w, 0.0, kind < 2.5 )','select(select(blade.w,m.r,kind<2.5),abs(across),isGrass)');
   mat.varyings.vVegGround='vec4f';
   change('v.useWorld = true;',`var vegGnd=vec4f(0.0,1.0,0.0,.86);
- if(isGrass&&dist>11.0){
+ if(isGrass&&dist>6.0){
   let gnd=terrainNormalRockLevel(xz,0.0);
-  vegGnd=vec4f(normalize(vec3f(gnd.x,sqrt(max(1.0-dot(gnd.xy,gnd.xy),.0025)),gnd.y)),gnd.w);
+  let gndVec=vec4f(normalize(vec3f(gnd.x,sqrt(max(1.0-dot(gnd.xy,gnd.xy),.0025)),gnd.y)),gnd.w);
+  let gBlend=smoothstep(6.0,12.0,dist);
+  vegGnd=vec4f(normalize(mix(vegGnd.xyz,gndVec.xyz,gBlend)),mix(vegGnd.w,gndVec.w,gBlend));
  }
  o.vVegGround=vegGnd;
  v.useWorld = true;`);
@@ -222,9 +236,9 @@ fn museumGrassGust(p:vec2f)->f32{
   // with maximum size, spread and blade-width compensation, in every pose.
   let envelope=0;
   for(const level of this.levels){const g=level.geometry,p=g.attributes.position,b=g.attributes.aBlade,s=g.attributes.aSide;
-   for(let i=0;i<p.count;i++){const kind=b.getY(i),grass=kind<.5,scale=grass?1.3*1.25*1.18*1.25:kind<2.5?1.55*1.25:1.2*.42,spread=grass?1.35:1;
+   for(let i=0;i<p.count;i++){const kind=b.getY(i),grass=kind<.5,scale=grass?1.3*1.25*1.28*1.28:kind<2.5?1.55*1.25:1.2*.42,spread=grass?1.35:1;
     const line=Math.hypot(p.getX(i)*spread,p.getY(i),p.getZ(i)*spread)*scale;
-    const side=Math.hypot(s.getX(i),s.getY(i),s.getZ(i))*scale*(grass?1.55*3.5:1);
+    const side=Math.hypot(s.getX(i),s.getY(i),s.getZ(i))*scale*(grass?1.88*3.5:1);
     envelope=Math.max(envelope,line+side);
    }
   }
@@ -236,6 +250,31 @@ fn museumGrassGust(p:vec2f)->f32{
    if(!this.cellFlags[k])continue;
    const [lo,hi]=t.boundsFor(x-this.envelope,z-this.envelope,x+CELL+this.envelope,z+CELL+this.envelope);this.cellMinY[k]=lo;this.cellMaxY[k]=hi;
   }
+  const changeSurf=(from,to)=>{if(!mat.surface.includes(from))throw Error('Pinned grass surface seam changed: '+from.slice(0,45));mat.surface=mat.surface.replace(from,to);};
+  // Harmonize blade-root occlusion and lush base with the shaded sward underneath:
+  // eliminates extreme >6:1 pitch-black needle contrast against bright soil (which
+  // drove near-distance sub-pixel aliasing and spiky appearance) while keeping rich
+  // base depth and warm sunlit olive-gold blade tips matching Tidewater.
+  changeSurf(
+   'let ao = mix( 0.32, 1.0, smoothstep( 0.0, 0.75, hf ) );',
+   'let ao = mix( 0.64, 1.0, smoothstep( 0.0, 0.72, hf ) );',
+  );
+  changeSurf(
+   'let lushBase = mix( tone * 0.5, VEG_MEADOW_SOIL, 0.3 );',
+   'let lushBase = mix( tone * 0.78, VEG_MEADOW_SOIL * 1.18, 0.24 );',
+  );
+  changeSurf(
+   'let lushTip = mix( tone * vec3f( 1.25, 1.25, 1.05 ), VEG_MEADOW_STRAW, tipDry * smoothstep( 0.55, 1.0, hf ) );',
+   'let lushTip = mix( tone * vec3f( 1.22, 1.26, 1.02 ), VEG_MEADOW_STRAW, tipDry * 0.75 * smoothstep( 0.50, 1.0, hf ) );',
+  );
+  changeSurf(
+   'dryBlade * ( 1.0 - duneF ) );',
+   'dryBlade * 0.56 * ( 1.0 - duneF ) );',
+  );
+  changeSurf(
+   's.translucency = albedo * vec3f( 1.1, 1.3, 0.6 ) * ( back * 0.3 * smoothstep( 0.2, 1.0, hf ) ) * ( 1.0 - frame.night );',
+   's.translucency = albedo * vec3f( 1.10, 1.32, 0.60 ) * ( ( back * 0.38 + 0.06 ) * smoothstep( 0.22, 1.0, hf ) ) * ( 1.0 - frame.night );',
+  );
   mat.surface+=`
  // Each row carries the maximum across coordinate. Its interpolation gives
  // the narrowing tip's half-width in the same units as across. Convert that
@@ -245,16 +284,18 @@ fn museumGrassGust(p:vec2f)->f32{
  let bladePixels=2.0*halfSpan/acrossStep;
  let fragDist=distance(in.P,frame.cameraPos);
  if(kind<.5){
-  // Keep 0-16m foreground grass 100% pure 3D blades (where all 12 clump blades
-  // are present) so swaying opaque triangles never camouflage into ground-shaded
-  // jelly; once tier thinning stretches surviving blades at 16-40m, pre-filter
-  // dark roots and dry-straw spikes smoothly using vertex-fetched terrain normals.
-  let farCalm=smoothstep(16.0,38.0,fragDist);
-  let resolved=smoothstep(.65,2.3,bladePixels)*(1.0-farCalm*.88);
+  // Keep 0-12m resolved blades crisp (anti-aliasing only genuinely sub-pixel
+  // tips < 1.2 px); across 15-48m smoothly pre-filter thinning tiers toward
+  // the matching shaded sward and vertex-fetched terrain normal so extended
+  // mid/far grass (up to 135m) blends cleanly with zero shimmer.
+  let farCalm=smoothstep(15.0,48.0,fragDist);
+  let nearTip=smoothstep(.45,1.35,bladePixels);
+  let resolved=mix(nearTip,smoothstep(.80,2.5,bladePixels)*(1.0-farCalm*.90),smoothstep(9.0,20.0,fragDist));
   let lo=max(-halfSpan,across-acrossStep*.5);
   let hi=min(halfSpan,across+acrossStep*.5);
   let coverage=sat((hi-lo)/acrossStep);
-  let bladeWeight=coverage*mix(mix(.40,.03,farCalm),1.0,resolved);
+  let floorW=mix(.46,.03,farCalm);
+  let bladeWeight=mix(1.0,coverage*mix(floorW,1.0,resolved),smoothstep(7.0,15.0,fragDist)+smoothstep(1.3,.45,bladePixels)*(1.0-smoothstep(7.0,15.0,fragDist)));
   if(bladeWeight<.999){
    let meadowTone=in.vs.vVegGrassTone.xyz;
    let density=in.vs.vVegGrass2.x;
@@ -263,15 +304,16 @@ fn museumGrassGust(p:vec2f)->f32{
    let base=mix(museumMeadowSoil(meadowTone),dryThatch,(1.0-spatialCover)*.50);
    let windTint=1.0+vec3f(.14,.12,.04)*in.vs.vVegGust*.48;
    let sward=mix(base,meadowTone*windTint,spatialCover);
-   let calmAlbedo=sward*mix(.89,1.06,smoothstep(.08,.92,hf));
+   let calmAlbedo=sward*mix(.91,1.06,smoothstep(.08,.92,hf));
    let filteredBlade=mix(albedo,calmAlbedo,farCalm*.92);
    let gnd=in.vs.vVegGround;
-   let normalKeep=bladeWeight*(1.0-smoothstep(16.0,46.0,fragDist));
+   let normalCalm=smoothstep(13.0,44.0,fragDist);
+   let normalKeep=mix(1.0,bladeWeight*(1.0-normalCalm),smoothstep(9.0,17.0,fragDist));
    s.albedo=mix(sward,filteredBlade,bladeWeight);
    s.normal=normalize(mix(gnd.xyz,s.normal,normalKeep));
-   s.ao=mix(mix(.72,1.0,gnd.w),s.ao,normalKeep);
+   s.ao=mix(mix(.78,1.0,gnd.w),s.ao,normalKeep);
    s.roughness=mix(.94,s.roughness,normalKeep);
-   s.specularIntensity=mix(.22,s.specularIntensity,normalKeep);
+   s.specularIntensity=mix(.16,s.specularIntensity,normalKeep);
    s.translucency*=normalKeep;
   }
  }
@@ -298,6 +340,11 @@ fn museumGrassGust(p:vec2f)->f32{
   s.translucency*=.28;
  }
 `;
+  mat.output+=`
+#if PASS_LATE
+ r.mask=vec4f(0.0,0.0,0.0,1.0);
+#endif
+`;
   this.rootCache=new GrassRootCache({appearance:this.appearance,levels:this.levels,material:mat});
   mat.needsUpdate=true;this.groundAudit=null;
  }
@@ -323,7 +370,7 @@ fn museumGrassGust(p:vec2f)->f32{
   for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){
    const k=j*n+i;if(!this.cellFlags[k])continue;const x=t.origin+i*CELL,z=t.origin+j*CELL;
    const dx=Math.max(x-cx,0,cx-x-CELL),dz=Math.max(z-cz,0,cz-z-CELL),dy=Math.max(this.cellMinY[k]-.5-cy,0,cy-this.cellMaxY[k]-1.8),d=Math.hypot(dx,dy,dz);
-   if(d>far)continue;
+   if(d>far||cy-this.cellMaxY[k]>62)continue;
    const pad=this.envelope;this._box.min.set(x-pad,this.cellMinY[k]-.5,z-pad);this._box.max.set(x+CELL+pad,this.cellMaxY[k]+pad,z+CELL+pad);if(!this._frustum.intersectsBox(this._box))continue;
    if(this.auditBounds||this.legacyBounds){const [oldLo,oldHi]=t.boundsFor(x-1,z-1,x+CELL+1,z+CELL+1);this._box.min.set(x,oldLo-.5,z);this._box.max.set(x+CELL,oldHi+2.8,z+CELL);
     if(!this._frustum.intersectsBox(this._box)){unsafeRejected++;if(rescued.length<12)rescued.push([x,z]);if(this.legacyBounds)continue;}}

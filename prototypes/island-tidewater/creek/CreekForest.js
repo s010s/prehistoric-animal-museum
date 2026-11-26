@@ -2,6 +2,7 @@ import {insideMainEstuary} from './MainEstuary.js';
 // Own woodland design; native Tidewater instance LOD, semantic atlas and grass.
 // Atlas/LOD/foliage shader contract: Tidewater4811ba48, MIT (see NOTICE).
 import { Group, BufferGeometry, InterleavedBuffer, InterleavedBufferAttribute, Vector2, Vector3 } from '../vendor/tidewater/src/engine/index.js';
+import { LAYERS } from '../vendor/tidewater/src/core/SceneRenderer.js';
 import { Material } from '../vendor/tidewater/src/engine/render/Material.js';
 import { ShaderModule, UniformBlock } from '../vendor/tidewater/src/engine/gpu/Shader.js';
 import { generateMipmaps } from '../vendor/tidewater/src/engine/gpu/Mipmaps.js';
@@ -14,6 +15,7 @@ import { buildFern, UNDERSTORY } from '../vendor/tidewater/src/world/vegetation/
 import { createPlantLeafMaterial } from '../vendor/tidewater/src/world/vegetation/VegMaterials.js';
 import { G } from '../vendor/tidewater/src/core/Globals.js';
 import { coniferTemplate, coniferTextures, trunkSection } from './ConiferGeometry.js';
+import { shrubTemplates } from './ShrubGeometry.js';
 import {fanTreeTemplate} from './FanTreeGeometry.js';
 import {pilotVegetation} from '../island/plan.js';
 import {GROVE,groveModule,groveWeight,grovePathDistance,groveOpening,grovePatch} from './GroveDesign.js';
@@ -130,7 +132,14 @@ export class CreekForest {
     const parts=templates.flatMap((t,variant)=>[{geometry:t.wood,leaf:0,height:t.height,variant},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant}]);
     const allGeometry=mergeParts(parts),nearGeometry=mergeParts(parts.filter(p=>p.variant<2),true),variants=templates.map((_,i)=>mergeParts(parts.filter(p=>p.variant===i)));
     const bounds=this.bounds=canopyBounds(allGeometry),group={variants,...bounds};
-    this.atlas=new MuseumImpostorAtlas([group,{variants:[],...bounds}],{albedo:bakeMaterial(false),normal:bakeMaterial(true)});
+    const shrubs=this.shrubTemplates=shrubTemplates();
+    const shrubParts=shrubs.flatMap((t,variant)=>[{geometry:t.wood,leaf:0,height:t.height,variant},{geometry:t.leaves,leaf:t.leafKind??1,height:t.height,variant}]);
+    const shrubAll=mergeParts(shrubParts),shrubVariants=shrubs.map((_,i)=>mergeParts(shrubParts.filter(p=>p.variant===i)));
+    const shrubBounds=this.shrubBounds=canopyBounds(shrubAll);
+    this.shrubNearGeometry=shrubAll;
+    this.shrubVariantGeometries=shrubVariants;
+    this.shrubShader=shader;
+    this.atlas=new MuseumImpostorAtlas([group,{variants:shrubVariants,...shrubBounds}],{albedo:bakeMaterial(false),normal:bakeMaterial(true)});
     const rootContact=new ShaderModule({name:'museumGiantRootContact',deps:[terrainGPU.module],code:`
 fn creekRootContact(p:vec3f,base:vec3f,wood:f32,seed:f32)->vec3f{
  var q=p;if(seed>=4.0&&wood<.5){let w=1.0-smoothstep(.8,6.0,max(0.0,p.y-base.y));q.y+=(terrainHeightAt(p.xz)-base.y-.06)*w;}return q;
@@ -338,7 +347,7 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
       trunk.crown = crownProfiles[r.variant]; trunk.crownScale = r.s;
       if(r.variant===4)colliders.addCylinder(r.x,r.z,.82*r.s,low,r.y+2.0,{tag:'museum giant root collar'});}
     this.species=speciesNames.map((name,i)=>({name,variant:i,instances:records.filter(r=>r.variant===i).length,nearGeometryTriangles:(i<2?nearGeometry:variants[i]).index.count/3}));
-    this.atlasBudget={variants:templates.length,width:this.atlas.width,height:this.atlas.height,textureCount:2,framePixels:96,mipLevels:6,lastFrameAlignedMip:5,normalMipFilter:new URLSearchParams(location.search).get('atlasMips')==='box'?'box-oct diagnostic':'startup coverage-weight XYZ',angularHandover:"continuous sparse barycentric band .10; 1–3 views",normalViewMix:"decode each oct normal then coverage-weight XYZ",viewGrid:8,viewCoverage:"full sphere including crown undersides",depthParallax:"diagnostic only, off by default",coreNearCanopyUnchanged:true,coniferBaseBurialTemplateUnits:CONIFER_BASE_BURIAL,giantTemplateHeightMetres:[Math.min(...records.filter(r=>r.variant===4).map(r=>r.H)),Math.max(...records.filter(r=>r.variant===4).map(r=>r.H))],giantNearToGeometryMetres:190,atlasTransitionHeightPixels:TREE_ATLAS_PIXELS,giantAtlasUsesNormalisedTreeBounds:true,channels:{A:"linear RGB and coverage",B:"oct-normal RG / leaf B / crown exposure A"},farCrownOcclusion:"native .26–1 exposure-squared compensation for absent crown self-shadow"};
+    this.atlasBudget={variants:templates.length,shrubVariants:shrubVariants.length,width:this.atlas.width,height:this.atlas.height,textureCount:2,framePixels:96,mipLevels:6,lastFrameAlignedMip:5,normalMipFilter:new URLSearchParams(location.search).get('atlasMips')==='box'?'box-oct diagnostic':'startup coverage-weight XYZ',angularHandover:"continuous sparse barycentric band .10; 1–3 views",normalViewMix:"decode each oct normal then coverage-weight XYZ",viewGrid:8,viewCoverage:"full sphere including crown undersides",depthParallax:"diagnostic only, off by default",coreNearCanopyUnchanged:true,coniferBaseBurialTemplateUnits:CONIFER_BASE_BURIAL,giantTemplateHeightMetres:[Math.min(...records.filter(r=>r.variant===4).map(r=>r.H)),Math.max(...records.filter(r=>r.variant===4).map(r=>r.H))],giantNearToGeometryMetres:190,atlasTransitionHeightPixels:TREE_ATLAS_PIXELS,giantAtlasUsesNormalisedTreeBounds:true,channels:{A:"linear RGB and coverage",B:"oct-normal RG / leaf B / crown exposure A"},farCrownOcclusion:"native .26–1 exposure-squared compensation for absent crown self-shadow"};
     // Native procedural fern geometry, with our wet-forest placement only.
     const fernRecords=[];
     for(let i=0;i<records.length;i+=2){const r=records[i],x=r.x+(r.variant===4?5.5:2.5),z=r.z-1.7;if((Math.hypot(x,z)>245&&Math.hypot(x+600,z-630)>260&&groveWeight(x,z)<.15)||field.sample(x,z)[1]<1.4)continue;fernRecords.push({x,y:terrain.heightAt(x,z)-.03,z,s:.8+(r.seed%1)*.7,yaw:r.yaw,la:0,l:0,H:.05,seed:UNDERSTORY.FERN+(r.seed%1)*.999,qr:UNDER_FERN_FADE[1]+8});}
@@ -359,7 +368,10 @@ let oldThin=smoothstep(140.0,320.0,length(frame.prevCameraPos-base))*museumCanop
     this.groveAudit={...stand,mature:records.filter(r=>r.variant===4).length,young:records.filter(r=>groveWeight(r.x,r.z)>.6&&r.variant<2&&r.H<24).length,heroes:records.filter(r=>r.landmark).map(r=>({x:r.x,y:r.y,z:r.z,height:r.H,DBH:trunkSection(templates[4],r.s,r.sy),collarDiameter:1.64*r.s})),nearRange:GROVE.near,visualEnd:GROVE.near*1.14,cpuQuery:GROVE.near+GROVE.margin,refreshAllowance:6,path:GROVE.path,forestFerns:fernRecords.filter(r=>groveWeight(r.x,r.z)>.3).length};
     this.grass=new CreekGrass({data,terrainGPU});
     this.grass.material.underwaterLighting='none';
-    for(const mesh of this.grass.meshes){mesh.underwaterLighting='none';this.group.add(mesh);}
+    // Render grass in the late pass before water (renderOrder -1) so thin swaying
+    // blades neither pollute half-res opaqueDepth GTAO nor waste refraction draws,
+    // while retaining depth occlusion against water, exact velocity, haze, and shadows.
+    for(const mesh of this.grass.meshes){mesh.underwaterLighting='none';mesh.layers.set(LAYERS.TRANSPARENT);mesh.renderOrder=-1;this.group.add(mesh);}
     this.group.updateMatrixWorld(true);scene.add(this.group);this.position=new Vector3();this.materials=[near,mid,far];this.records=records;this.review=review;this.reviewShadows=true;
   }
   update(dt,camera){

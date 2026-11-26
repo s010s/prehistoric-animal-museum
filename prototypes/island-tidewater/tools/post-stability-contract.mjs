@@ -47,11 +47,12 @@ fn fragment( in: FSIn ) -> vec4f {
           `\t\tthis._aoDepthPass = new FullscreenPass( {
 \t\t\tlabel: 'AO depth',
 \t\t\tcolorFormats: [ 'r32float' ],
-\t\t\tbindings: { aoFullDepth: { texture: () => this.opaqueDepth }, aoFinalDepth: { texture: () => this.finalDepth } },
+\t\t\tbindings: { aoFullDepth: { texture: () => this.opaqueDepth }, aoWaterMask: { texture: () => sceneRenderer.waterMaskTexture } },
 \t\t\tcode: /* wgsl */\`
 // Lower-median (2nd-smallest in reversed-Z = 2nd-farthest) of the 2x2 full-res
-// block: suppresses single-pixel swaying grass/needle pops under TAA jitter
-// while preserving solid silhouettes and smooth continuous terrain slopes.
+// block: suppresses single-pixel foliage/needle pops under TAA jitter while
+// preserving solid silhouettes and smooth continuous terrain slopes. Only mark
+// full water blocks as covered so late-pass grass blades never toggle terrain AO.
 fn fragment( in: FSIn ) -> vec4f {
 \tlet s = vec2i( textureDimensions( aoFullDepth ) ) - vec2i( 1 );
 \tlet p0 = min( vec2i( in.pos.xy ) * 2, s );
@@ -65,11 +66,11 @@ fn fragment( in: FSIn ) -> vec4f {
 \tlet loA = min( d0, d1 ); let hiA = max( d0, d1 );
 \tlet loB = min( d2, d3 ); let hiB = max( d2, d3 );
 \tlet d = min( max( loA, loB ), min( hiA, hiB ) );
-\tlet c0 = textureLoad( aoFinalDepth, p0, 0 ) > d0 + 1e-7;
-\tlet c1 = textureLoad( aoFinalDepth, p1, 0 ) > d1 + 1e-7;
-\tlet c2 = textureLoad( aoFinalDepth, p2, 0 ) > d2 + 1e-7;
-\tlet c3 = textureLoad( aoFinalDepth, p3, 0 ) > d3 + 1e-7;
-\tlet covered = ( select( 0, 1, c0 ) + select( 0, 1, c1 ) + select( 0, 1, c2 ) + select( 0, 1, c3 ) ) >= 2;
+\tlet w0 = textureLoad( aoWaterMask, p0, 0 ).g > 0.5;
+\tlet w1 = textureLoad( aoWaterMask, p1, 0 ).g > 0.5;
+\tlet w2 = textureLoad( aoWaterMask, p2, 0 ).g > 0.5;
+\tlet w3 = textureLoad( aoWaterMask, p3, 0 ).g > 0.5;
+\tlet covered = w0 && w1 && w2 && w3;
 \treturn vec4f( select( d, - d, covered ), 0.0, 0.0, 1.0 );
 }
 \`,

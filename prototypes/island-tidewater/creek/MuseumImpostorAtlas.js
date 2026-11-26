@@ -28,7 +28,7 @@ export const OCT_N = 8; // frames per side
 const BLEND_DIST = 100; // m: three-frame blending within, nearest frame beyond
 const THIN = [ 140, 320 ]; // m: distance range over which the forest is thinned
 const THIN_FRACTION = 0.5; // share of the crowns removed at the far end
-const SHRUB_MAX = 180; // m: shrub impostors are dropped beyond (too small to matter)
+const SHRUB_MAX = 420; // m: group 1 open-habitat shrub impostors fade out cleanly before this bound
 const FRAME_PX = 96;
 
 // Full-octahedral decode: both crown top and underside views.
@@ -208,13 +208,15 @@ ${ common }
 	let sy = abs( iDat.y );
 	// LOD window: from the near plant's hand-over distance to the fade-out, else collapsed
 	let d = length( vegParams.camPos - base );
-	let vis = select( 0.0, 1.0, d >= ( ${ nearDist( 'g1Flag' ) } ) * ( 1.0 - VEG_LOD_BAND / 2.0 ) && d < select( draw.params.w, ${ f( SHRUB_MAX ) }, g1Flag ) );
+	let maxD = select( draw.params.w, min( draw.params.w, ${ f( SHRUB_MAX ) } ), g1Flag );
+	let vis = select( 0.0, 1.0, d >= ( ${ nearDist( 'g1Flag' ) } ) * ( 1.0 - VEG_LOD_BAND / 2.0 ) && d < maxD );
+	let g1FadeOut = select( 1.0, 1.0 - smoothstep( draw.params.z, maxD, d ), g1Flag );
 	// far away the forest is thinned out: fewer, proportionally larger crowns (grown about
 	// the base) keep the canopy closed
 	let thin = smoothstep( ${ f( THIN[ 0 ] ) }, ${ f( THIN[ 1 ] ) }, d );
-	let keep = select( 1.0, 0.0, fract( iDat.w * 91.7 ) < thin * ${ f( THIN_FRACTION ) } );
-	let grow = thin * ${ f( 1 / Math.sqrt( 1 - THIN_FRACTION ) - 1 ) } + 1.0;
-	let s = iPos.w * grow;
+	let keep = select( 1.0, 0.0, ! g1Flag && fract( iDat.w * 91.7 ) < thin * ${ f( THIN_FRACTION ) } );
+	let grow = select( thin * ${ f( 1 / Math.sqrt( 1 - THIN_FRACTION ) - 1 ) } + 1.0, 1.0, g1Flag );
+	let s = iPos.w * grow * g1FadeOut;
 	let C = base + vec3f( 0.0, Cy * s * sy, 0.0 );
 	// sway of the whole crown (matches the near plants' trunk sway amplitude)
 	let w = vegWindStrength();
